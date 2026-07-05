@@ -3,6 +3,5 @@
   "framework": "nextjs",
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm --filter @kino/web build",
-  "devCommand": "pnpm --filter @kino/web dev -- --port $PORT",
-  "outputDirectory": "apps/web/.next"
+  "devCommand": "pnpm --filter @kino/web dev -- --port $PORT"
 }
