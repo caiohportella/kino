@@ -1,0 +1,23 @@
+{
+  "name": "@kino/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.38.4",
+    "@upstash/vector": "^1.2.2",
+    "jszip": "^3.10.1"
+  },
+  "devDependencies": {
+    "@kino/config": "workspace:*",
+    "typescript": "~5.9.2"
+  }
+}

@@ -1,0 +1,648 @@
+'use client'
+
+import type { FollowerInfo, UserProfile } from '@kino/core'
+import { EmptyState, Poster } from '@kino/ui'
+import type { LucideIcon } from 'lucide-react'
+import { Film, ImagePlus, Search, Settings, Star, Tv, UserPlus, UserRoundCheck, UsersRound } from 'lucide-react'
+import Link from 'next/link'
+import type { ReactNode } from 'react'
+import { useMemo, useState } from 'react'
+import { useTranslation } from '@/lib/i18n'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { BannerPickerDialog } from '@/components/banner-picker-dialog'
+import { LoadingPanel } from '@/components/loading-panel'
+import { ProtectedEmpty } from '@/components/protected-empty'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
+import { db, getTmdb } from '@/lib/services'
+import { useAuthStore } from '@/stores/auth-store'
+
+type SocialListType = 'followers' | 'following'
+
+type UserSearchResult = {
+  profile: UserProfile
+  isFollowing: boolean
+  isSelf: boolean
+}
+
+export function ProfileView({ profileId }: { profileId?: string }) {
+  const user = useAuthStore((state) => state.user)
+  const queryClient = useQueryClient()
+  const { t } = useTranslation()
+  const targetUserId = profileId || user?.id
+  const isOwnProfile = Boolean(user?.id && targetUserId === user.id)
+  const [bannerDialogOpen, setBannerDialogOpen] = useState(false)
+  const [profileSearchOpen, setProfileSearchOpen] = useState(false)
+  const [profileSearchQuery, setProfileSearchQuery] = useState('')
+  const [socialListType, setSocialListType] = useState<SocialListType | null>(null)
+
+  const query = useQuery({
+    queryKey: ['profile', targetUserId],
+    queryFn: async () => {
+      const [profile, movies, series, counts, isFollowing] = await Promise.all([
+        db.getUserProfile(targetUserId!),
+        db.getWatchedMovies(targetUserId!),
+        db.getWatchedSeries(targetUserId!),
+        db.getFollowCounts(targetUserId!),
+        user && !isOwnProfile ? db.checkFollowStatus(targetUserId!) : Promise.resolve(false),
+      ])
+      return { profile, movies, series, counts, isFollowing }
+    },
+    enabled: Boolean(targetUserId),
+  })
+
+  const followMutation = useMutation({
+    mutationFn: async () => {
+      if (!targetUserId || !query.data) return
+      if (query.data.isFollowing) await db.unfollowUser(targetUserId)
+      else await db.followUser(targetUserId)
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['profile', targetUserId] }),
+  })
+
+  const profileSearch = useQuery({
+    queryKey: ['profile-user-search', profileSearchQuery.trim(), user?.id],
+    queryFn: async () => {
+      const results = await db.searchUsers(profileSearchQuery.trim())
+      return Promise.all(
+        results.map(async (profile) => {
+          const isSelf = Boolean(user?.id && profile.id === user.id)
+          const isFollowing = user && !isSelf ? await db.checkFollowStatus(profile.id) : false
+          return { profile, isFollowing, isSelf } satisfies UserSearchResult
+        })
+      )
+    },
+    enabled: profileSearchOpen && profileSearchQuery.trim().length >= 2,
+  })
+
+  const profileSearchFollowMutation = useMutation({
+    mutationFn: async (result: UserSearchResult) => {
+      if (result.isSelf) return
+      if (result.isFollowing) await db.unfollowUser(result.profile.id)
+      else await db.followUser(result.profile.id)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile-user-search'] })
+      queryClient.invalidateQueries({ queryKey: ['profile', targetUserId] })
+    },
+  })
+
+  const socialListQuery = useQuery({
+    queryKey: ['profile-social-list', targetUserId, socialListType],
+    queryFn: () => {
+      if (!targetUserId || !socialListType) return []
+      return socialListType === 'followers' ? db.getFollowers(targetUserId) : db.getFollowing(targetUserId)
+    },
+    enabled: Boolean(targetUserId && socialListType),
+  })
+
+  const socialListActionMutation = useMutation({
+    mutationFn: async ({ listType, userId }: { listType: SocialListType; userId: string }) => {
+      if (listType === 'followers') {
+        await db.removeFollower(userId)
+        return
+      }
+      await db.unfollowUser(userId)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile', targetUserId] })
+      queryClient.invalidateQueries({ queryKey: ['profile-social-list', targetUserId, socialListType] })
+      queryClient.invalidateQueries({ queryKey: ['profile-user-search'] })
+    },
+  })
+
+  const stats = useMemo(() => {
+    const movieCount = query.data?.movies.length || 0
+    const seriesCount = query.data?.series.length || 0
+    const averageMovieRating =
+      movieCount > 0
+        ? (query.data?.movies.reduce((sum, movie) => sum + movie.rating, 0) || 0) / movieCount
+        : 0
+    return { movieCount, seriesCount, averageMovieRating }
+  }, [query.data])
+
+  if (!targetUserId) {
+    return <ProtectedEmpty body={t('profile.loginPrompt')} title={t('profile.loginPrompt')} />
+  }
+
+  if (query.isLoading) return <LoadingPanel label={t('common.loading')} />
+
+  if (!query.data?.profile) {
+    return <EmptyState body={t('common.tryAgain')} title={t('profile.title')} />
+  }
+
+  const { profile, movies, series, counts, isFollowing } = query.data
+  const profileName = profile.display_name || profile.username || t('profile.user')
+  const initials = getInitials(profile)
+
+  return (
+    <div className="content-frame">
+      <section className="relative mb-6 min-h-[540px] overflow-hidden rounded-md border border-white/10 bg-kino-surface md:min-h-[588px]">
+        <div className="absolute inset-0 bg-kino-panel">
+          {profile.banner_url ? (
+            <img alt="" className="h-full w-full object-cover" src={profile.banner_url} />
+          ) : (
+            <div className="h-full w-full bg-[linear-gradient(135deg,rgb(29_185_84_/_0.18),rgb(255_255_255_/_0.06)_42%,rgb(0_0_0_/_0.16))]" />
+          )}
+        </div>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-kino-surface via-kino-surface/75 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/55 via-black/20 to-transparent" />
+
+        {isOwnProfile ? (
+          <Button
+            className="absolute right-4 top-4 z-20 shadow-soft"
+            onClick={() => setBannerDialogOpen(true)}
+            size="sm"
+            variant="secondary"
+          >
+            <ImagePlus size={16} />
+            {t('modals.selectBanner')}
+          </Button>
+        ) : null}
+
+        <div className="relative z-10 grid min-h-[540px] content-end gap-5 p-5 md:min-h-[588px] md:grid-cols-[128px_minmax(0,1fr)_auto] md:items-end md:p-6">
+          <Avatar className="h-24 w-24 rounded-md border-4 border-kino-surface bg-kino-panel shadow-[0_18px_42px_rgb(0_0_0_/_0.35)] md:h-32 md:w-32">
+            <AvatarImage alt="" src={profile.avatar_url || undefined} />
+            <AvatarFallback className="text-3xl">{initials}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-kino-muted">
+              {profile.username ? `@${profile.username}` : t('profile.title')}
+            </div>
+            <h1 className="mt-1 text-2xl font-semibold text-kino-text md:text-3xl">{profileName}</h1>
+            {profile.bio ? <p className="mt-3 max-w-2xl text-sm leading-6 text-kino-muted">{profile.bio}</p> : null}
+          </div>
+          <div className="flex flex-wrap gap-3 md:justify-end">
+            {isOwnProfile ? (
+              <>
+                <Link href="/settings">
+                  <Button variant="secondary">
+                    <Settings size={16} />
+                    {t('common.settings')}
+                  </Button>
+                </Link>
+                <Button onClick={() => setProfileSearchOpen(true)}>
+                  <Search size={16} />
+                  {t('profile.findPeople')}
+                </Button>
+              </>
+            ) : user ? (
+              <Button disabled={followMutation.isPending} onClick={() => followMutation.mutate()}>
+                {isFollowing ? <UserRoundCheck size={16} /> : <UserPlus size={16} />}
+                {isFollowing ? t('profile.following') : t('profile.follow')}
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      </section>
+
+      <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <ProfileStatCard icon={Film} label={t('profile.watchedMovies')} value={stats.movieCount} />
+        <ProfileStatCard icon={Tv} label={t('profile.watchedSeries')} value={stats.seriesCount} />
+        <ProfileStatCard icon={Star} label={t('profile.avgMovieRating')} value={stats.averageMovieRating.toFixed(1)} />
+        <SocialStatCard
+          icon={UsersRound}
+          label={t('profile.followers')}
+          onClick={() => setSocialListType('followers')}
+          value={counts.followers}
+        />
+        <SocialStatCard
+          icon={UserRoundCheck}
+          label={t('profile.following')}
+          onClick={() => setSocialListType('following')}
+          value={counts.following}
+        />
+      </div>
+
+      <ProfileShelf items={movies} title={t('profile.watchedMovies')} type="movie" />
+      <SeriesShelf items={series} />
+
+      {isOwnProfile ? (
+        <BannerPickerDialog
+          currentBannerUrl={profile.banner_url}
+          onOpenChange={setBannerDialogOpen}
+          onSelectBanner={async (bannerUrl) => {
+            await db.updateUserProfile(user!.id, { banner_url: bannerUrl })
+            await Promise.all([
+              queryClient.invalidateQueries({ queryKey: ['profile', targetUserId] }),
+              queryClient.invalidateQueries({ queryKey: ['profile-settings', user!.id] }),
+            ])
+          }}
+          open={bannerDialogOpen}
+        />
+      ) : null}
+
+      <UserSearchDialog
+        followMutationPending={profileSearchFollowMutation.isPending}
+        onFollowToggle={(result) => profileSearchFollowMutation.mutate(result)}
+        onOpenChange={setProfileSearchOpen}
+        onQueryChange={setProfileSearchQuery}
+        open={profileSearchOpen}
+        query={profileSearchQuery}
+        results={profileSearch.data || []}
+        searchError={profileSearch.error}
+        searching={profileSearch.isFetching}
+      />
+
+      <SocialListDialog
+        actionPending={socialListActionMutation.isPending}
+        isOwnProfile={isOwnProfile}
+        listType={socialListType}
+        loading={socialListQuery.isFetching}
+        onAction={(listType, userId) => socialListActionMutation.mutate({ listType, userId })}
+        onOpenChange={(open) => {
+          if (!open) setSocialListType(null)
+        }}
+        open={Boolean(socialListType)}
+        users={socialListQuery.data || []}
+        error={socialListQuery.error}
+      />
+    </div>
+  )
+}
+
+function getInitials(profile: Pick<UserProfile, 'display_name' | 'username'>) {
+  const value = profile.display_name || profile.username || 'K'
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('')
+}
+
+function SocialStatCard({
+  label,
+  value,
+  icon: Icon,
+  onClick,
+}: {
+  label: string
+  value: number
+  icon: LucideIcon
+  onClick: () => void
+}) {
+  return (
+    <button
+      aria-label={`Open ${label.toLowerCase()} list`}
+      className="group rounded-md border border-white/10 bg-kino-surface p-4 text-left transition-colors hover:border-kino-accent/50 hover:bg-white/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent"
+      onClick={onClick}
+      type="button"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-2xl font-semibold text-kino-text">{value}</div>
+        <Icon aria-hidden="true" className="text-kino-muted transition-colors group-hover:text-kino-text" size={18} />
+      </div>
+      <div className="mt-2 text-sm font-semibold text-kino-muted group-hover:text-kino-text">
+        {label}
+      </div>
+    </button>
+  )
+}
+
+function ProfileStatCard({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string
+  value: string | number
+  icon: LucideIcon
+}) {
+  return (
+    <div className="rounded-md border border-white/10 bg-white/[0.035] p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-2xl font-semibold text-kino-text">{value}</div>
+        <Icon aria-hidden="true" className="text-kino-muted" size={18} />
+      </div>
+      <div className="mt-2 text-sm font-semibold text-kino-muted">{label}</div>
+    </div>
+  )
+}
+
+function UserSearchDialog({
+  open,
+  onOpenChange,
+  query,
+  onQueryChange,
+  results,
+  searching,
+  searchError,
+  onFollowToggle,
+  followMutationPending,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  query: string
+  onQueryChange: (query: string) => void
+  results: UserSearchResult[]
+  searching: boolean
+  searchError: Error | null
+  onFollowToggle: (result: UserSearchResult) => void
+  followMutationPending: boolean
+}) {
+  const trimmedQuery = query.trim()
+  const { t } = useTranslation()
+
+  return (
+    <Dialog onOpenChange={onOpenChange} open={open}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{t('profile.findPeople')}</DialogTitle>
+          <DialogDescription>{t('profile.searchUsers')}</DialogDescription>
+        </DialogHeader>
+
+        <label className="grid gap-2 text-sm">
+          <span className="font-semibold text-kino-text">{t('profile.title')}</span>
+          <div className="flex min-h-11 items-center gap-2 rounded-md border border-white/10 bg-kino-surface px-3 focus-within:border-kino-accent">
+            <Search size={17} className="shrink-0 text-kino-muted" />
+            <input
+              autoCapitalize="none"
+              autoComplete="off"
+              autoFocus
+              className="min-w-0 flex-1 bg-transparent text-base text-kino-text outline-none placeholder:text-kino-muted/60"
+              onChange={(event) => onQueryChange(event.target.value)}
+              placeholder={t('profile.searchUsers')}
+              value={query}
+            />
+            {searching ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/10 border-t-kino-accent" /> : null}
+          </div>
+        </label>
+
+        <div className="grid max-h-[52vh] gap-2 overflow-y-auto pr-1">
+          {trimmedQuery.length < 2 ? (
+            <DialogEmptyState body={t('profile.searchUsers')} title={t('profile.findPeople')} />
+          ) : null}
+
+          {searchError ? (
+            <DialogEmptyState body={t('common.tryAgain')} title={t('common.failed')} />
+          ) : null}
+
+          {trimmedQuery.length >= 2 && !searching && !searchError && results.length === 0 ? (
+            <DialogEmptyState body={t('profile.searchUsers')} title={t('profile.noUsersFound')} />
+          ) : null}
+
+          {results.map((result) => (
+            <ProfileUserRow
+              action={
+                result.isSelf ? (
+                  <span className="rounded-md border border-white/10 px-3 py-1.5 text-xs font-semibold text-kino-muted">
+                    {t('profile.user')}
+                  </span>
+                ) : (
+                  <Button
+                    disabled={followMutationPending}
+                    onClick={() => onFollowToggle(result)}
+                    size="sm"
+                    variant={result.isFollowing ? 'secondary' : 'default'}
+                  >
+                    {result.isFollowing ? <UserRoundCheck size={15} /> : <UserPlus size={15} />}
+                    {result.isFollowing ? t('profile.following') : t('profile.follow')}
+                  </Button>
+                )
+              }
+              key={result.profile.id}
+              profile={result.profile}
+              subtitle={result.isFollowing ? t('profile.following') : undefined}
+            />
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function SocialListDialog({
+  open,
+  onOpenChange,
+  listType,
+  users,
+  loading,
+  error,
+  isOwnProfile,
+  onAction,
+  actionPending,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  listType: SocialListType | null
+  users: FollowerInfo[]
+  loading: boolean
+  error: Error | null
+  isOwnProfile: boolean
+  onAction: (listType: SocialListType, userId: string) => void
+  actionPending: boolean
+}) {
+  const { t } = useTranslation()
+  const title = listType === 'following' ? t('profile.following') : t('profile.followers')
+  const emptyCopy =
+    listType === 'following'
+      ? t('profile.noUsersFound')
+      : t('profile.noUsersFound')
+
+  return (
+    <Dialog onOpenChange={onOpenChange} open={open}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{t('profile.title')}</DialogDescription>
+        </DialogHeader>
+
+        <div className="grid max-h-[58vh] gap-2 overflow-y-auto pr-1">
+          {loading ? <DialogLoadingState label={t('common.loading')} /> : null}
+          {error ? <DialogEmptyState body={t('common.tryAgain')} title={t('common.failed')} /> : null}
+          {!loading && !error && users.length === 0 ? <DialogEmptyState body={emptyCopy} title={t('profile.noUsersFound')} /> : null}
+
+          {!loading && !error
+            ? users.map((profile) => {
+                const actionLabel = listType === 'followers' ? t('profile.remove') : t('profile.unfollow')
+                return (
+                  <ProfileUserRow
+                    action={
+                      isOwnProfile && listType ? (
+                        <Button
+                          disabled={actionPending}
+                          onClick={() => onAction(listType, profile.id)}
+                          size="sm"
+                          variant="secondary"
+                        >
+                          {actionLabel}
+                        </Button>
+                      ) : profile.isMutual ? (
+                        <span className="rounded-md border border-kino-accent/30 bg-kino-accent/10 px-3 py-1.5 text-xs font-semibold text-kino-accent">
+                          {t('profile.following')}
+                        </span>
+                      ) : null
+                    }
+                    key={profile.id}
+                    profile={profile}
+                    subtitle={profile.isMutual ? t('profile.following') : undefined}
+                  />
+                )
+              })
+            : null}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function ProfileUserRow({
+  profile,
+  subtitle,
+  action,
+}: {
+  profile: UserProfile
+  subtitle?: string
+  action?: ReactNode
+}) {
+  const { t } = useTranslation()
+  const displayName = profile.display_name || profile.username || t('profile.user')
+  const username = profile.username ? `@${profile.username}` : t('profile.title')
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-md border border-white/10 bg-white/[0.035] p-3">
+      <Link
+        className="focus-ring group flex min-w-0 flex-1 items-center gap-3 rounded-md"
+        href={`/profile/${profile.id}`}
+      >
+        <Avatar className="h-12 w-12 rounded-full">
+          <AvatarImage alt="" src={profile.avatar_url || undefined} />
+          <AvatarFallback>{getInitials(profile)}</AvatarFallback>
+        </Avatar>
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-semibold text-kino-text group-hover:text-kino-accent">
+            {displayName}
+          </span>
+          <span className="block truncate text-xs text-kino-muted">{username}</span>
+          {subtitle ? <span className="mt-0.5 block truncate text-xs text-kino-accent">{subtitle}</span> : null}
+        </span>
+      </Link>
+      {action ? <div className="shrink-0">{action}</div> : null}
+    </div>
+  )
+}
+
+function DialogLoadingState({ label }: { label: string }) {
+  return (
+    <div className="grid min-h-32 place-items-center rounded-md border border-white/10 bg-white/[0.035] p-5 text-kino-muted">
+      <div className="grid place-items-center gap-3">
+        <div className="h-7 w-7 animate-spin rounded-full border-2 border-white/10 border-t-kino-accent" />
+        <p className="text-sm font-semibold">{label}</p>
+      </div>
+    </div>
+  )
+}
+
+function DialogEmptyState({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="rounded-md border border-white/10 bg-white/[0.035] p-5">
+      <h3 className="font-semibold text-kino-text">{title}</h3>
+      <p className="mt-1 text-sm leading-6 text-kino-muted">{body}</p>
+    </div>
+  )
+}
+
+function ProfileShelf({
+  title,
+  items,
+  type,
+}: {
+  title: string
+  type: 'movie' | 'tv'
+  items: Array<{ id: string; tmdb_id: number; title: string; cover_image: string | null; release_year: number }>
+}) {
+  const localizedTitles = useLocalizedTitles(items.map((item) => ({ tmdbId: item.tmdb_id, type })))
+
+  if (items.length === 0) return null
+  return (
+    <section className="mb-10">
+      <h2 className="mb-4 text-xl font-semibold text-kino-text">{title}</h2>
+      <div className="media-row">
+        {items.map((item) => {
+          const localized = localizedTitles.data?.[localizedTitleKey({ tmdbId: item.tmdb_id, type })]
+          const displayTitle = localized?.title || item.title
+          const posterPath = localized?.posterPath ?? item.cover_image
+          const releaseYear = localized?.year ?? item.release_year
+
+          return (
+            <Link className="grid min-w-0 content-start gap-3" href={`/title/${item.tmdb_id}?type=${type}`} key={item.id}>
+              <Poster className="w-full rounded-md" src={getTmdb().getImageUrl(posterPath, 'w300')} title={displayTitle} />
+              <div className="min-w-0">
+                <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-kino-text">{displayTitle}</h3>
+                <p className="mt-1 text-xs text-kino-muted">{releaseYear || 'TBA'}</p>
+              </div>
+            </Link>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function SeriesShelf({ items }: { items: Awaited<ReturnType<typeof db.getWatchedSeries>> }) {
+  const { t } = useTranslation()
+  const orderedItems = useMemo(
+    () =>
+      [...items].sort(
+        (left, right) => Number(left.is_series_completed) - Number(right.is_series_completed)
+      ),
+    [items]
+  )
+  const localizedTitles = useLocalizedTitles(orderedItems.map((item) => ({ tmdbId: item.tmdb_id, type: 'tv' as const })))
+
+  if (items.length === 0) return null
+  return (
+    <section className="mb-10">
+      <h2 className="mb-4 text-xl font-semibold text-kino-text">{t('profile.watchedSeries')}</h2>
+      <div className="grid gap-4 md:grid-cols-2">
+        {orderedItems.map((series) => {
+          const localized = localizedTitles.data?.[localizedTitleKey({ tmdbId: series.tmdb_id, type: 'tv' })]
+          const displayTitle = localized?.title || series.title
+          const posterPath = localized?.posterPath ?? series.cover_image
+
+          return (
+            <Link href={`/title/${series.tmdb_id}?type=tv`} key={series.id}>
+              <Card className="grid h-full grid-cols-[74px_1fr] gap-4 p-3 transition hover:border-kino-accent/60">
+                <Poster src={getTmdb().getImageUrl(posterPath, 'w200')} title={displayTitle} />
+                <div className="min-w-0 self-center">
+                  <h3 className="truncate font-semibold text-kino-text">{displayTitle}</h3>
+                  <SeriesStatusPill series={series} />
+                </div>
+              </Card>
+            </Link>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function SeriesStatusPill({ series }: { series: Awaited<ReturnType<typeof db.getWatchedSeries>>[number] }) {
+  const { t } = useTranslation()
+
+  if (series.is_series_completed) {
+    return (
+      <span className="mt-3 inline-flex min-h-7 items-center rounded-full bg-kino-accent px-3 text-xs font-bold text-white">
+        {t('profile.completed')}
+      </span>
+    )
+  }
+
+  if (!series.next_episode) return null
+
+  return (
+    <span className="mt-3 inline-flex min-h-7 items-center rounded-full border border-white/10 bg-white/[0.08] px-3 text-xs font-semibold text-kino-text">
+      {t('profile.next')} S{series.next_episode.season}E{series.next_episode.episode}
+    </span>
+  )
+}

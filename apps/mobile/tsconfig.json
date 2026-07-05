@@ -1,0 +1,22 @@
+{
+  "extends": "@kino/config/tsconfig/expo",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "~/*": ["./*"],
+      "@kino/core": ["../../packages/core/src"],
+      "@kino/core/*": ["../../packages/core/src/*"],
+      "@kino/ui": ["../../packages/ui/src"],
+      "@kino/ui/*": ["../../packages/ui/src/*"]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "assets.d.ts",
+    "expo-env.d.ts",
+    "nativewind-env.d.ts"
+  ]
+}

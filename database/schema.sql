@@ -133,6 +133,21 @@ CREATE TABLE IF NOT EXISTS watchlist_collaborators (
 CREATE INDEX IF NOT EXISTS idx_watchlist_collaborators_watchlist_id ON watchlist_collaborators(watchlist_id);
 CREATE INDEX IF NOT EXISTS idx_watchlist_collaborators_user_id ON watchlist_collaborators(user_id);
 
+-- Oscar nominations (2026)
+CREATE TABLE IF NOT EXISTS oscar_nominations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tmdb_id INTEGER NOT NULL,
+  category TEXT NOT NULL,
+  details TEXT,
+  year INTEGER DEFAULT 2026,
+  is_winner BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(tmdb_id, category, details)
+);
+
+CREATE INDEX IF NOT EXISTS idx_oscar_nominations_tmdb_id ON oscar_nominations(tmdb_id);
+
 -- Row Level Security (RLS) Policies
 
 -- Enable RLS on all tables
@@ -217,14 +232,8 @@ CREATE POLICY "Users can insert items to accessible watchlists" ON watchlist_ite
       WHERE user_id = auth.uid() AND can_edit = TRUE
     )
   ));
-CREATE POLICY "Users can delete items from accessible watchlists" ON watchlist_items FOR DELETE 
-  USING (watchlist_id IN (
-    SELECT id FROM watchlists 
-    WHERE user_id = auth.uid() OR id IN (
-      SELECT watchlist_id FROM watchlist_collaborators 
-      WHERE user_id = auth.uid() AND can_edit = TRUE
-    )
-  ));
+CREATE POLICY "Users can delete own watchlist items" ON watchlist_items FOR DELETE 
+  USING (added_by = auth.uid());
 
 -- Watchlist collaborators: Users can view/manage collaborators for their watchlists
 CREATE POLICY "Users can view collaborators of accessible watchlists" ON watchlist_collaborators FOR SELECT 
@@ -240,6 +249,12 @@ CREATE POLICY "Watchlist owners can remove collaborators" ON watchlist_collabora
     SELECT id FROM watchlists WHERE user_id = auth.uid()
   ));
 
+-- Oscar nominations: Read-only for everyone
+CREATE POLICY "Everyone can view oscar nominations" ON oscar_nominations FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can insert nominations" ON oscar_nominations FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Authenticated users can update nominations" ON oscar_nominations FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "Authenticated users can delete nominations" ON oscar_nominations FOR DELETE USING (auth.role() = 'authenticated');
+
 -- Functions for calculating ratings
 
 -- Function to get title rating statistics
@@ -251,18 +266,30 @@ RETURNS TABLE (
 ) AS $$
 BEGIN
   RETURN QUERY
-  SELECT 
-    COALESCE(AVG(rating)::NUMERIC, 0) as average_rating,
-    COUNT(*)::BIGINT as total_ratings,
-    jsonb_object_agg(rating, count) as star_breakdown
-  FROM (
+  WITH stats AS (
     SELECT 
-      rating,
-      COUNT(*) as count
+      COALESCE(AVG(rating), 0) as avg_rating,
+      COUNT(*) as total_count
     FROM title_ratings
     WHERE title_id = p_title_id
-    GROUP BY rating
-  ) rating_counts;
+  ),
+  breakdown AS (
+    SELECT 
+      jsonb_object_agg(rating, count) as stars
+    FROM (
+      SELECT 
+        rating,
+        COUNT(*) as count
+      FROM title_ratings
+      WHERE title_id = p_title_id
+      GROUP BY rating
+    ) ratings
+  )
+  SELECT 
+    ROUND(stats.avg_rating::NUMERIC, 1) as average_rating,
+    stats.total_count::BIGINT as total_ratings,
+    COALESCE(breakdown.stars, '{}'::jsonb) as star_breakdown
+  FROM stats, breakdown;
 END;
 $$ LANGUAGE plpgsql;
 

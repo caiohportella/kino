@@ -1,0 +1,261 @@
+'use client'
+
+import type { TMDbPerson, TMDbPersonCredit } from '@kino/core'
+import { getDisplayTitle, getKnownForCredits, getReleaseYear } from '@kino/core'
+import { EmptyState, Poster } from '@kino/ui'
+import {
+  ArrowLeft,
+  BriefcaseBusiness,
+  CalendarDays,
+  ExternalLink,
+  type LucideIcon,
+  MapPin,
+  UserRound,
+} from 'lucide-react'
+import Link from 'next/link'
+import { useParams, useRouter } from 'next/navigation'
+import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { LoadingPanel } from '@/components/loading-panel'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { getTmdb } from '@/lib/services'
+import { useSettingsStore } from '@/stores/settings-store'
+
+export default function PersonPage() {
+  const params = useParams<{ id: string }>()
+  const router = useRouter()
+  const personId = Number(params.id)
+  const language = useSettingsStore((state) => state.language)
+  const validPersonId = Number.isFinite(personId) && personId > 0
+
+  const personQuery = useQuery({
+    queryKey: ['person-details', personId, language],
+    queryFn: async () => {
+      const tmdb = getTmdb()
+      tmdb.setLanguage(language)
+      return tmdb.getPersonDetails(personId)
+    },
+    enabled: validPersonId,
+  })
+
+  const knownFor = useMemo(
+    () => getKnownForCredits(personQuery.data?.combined_credits, 24),
+    [personQuery.data?.combined_credits]
+  )
+
+  if (!validPersonId) {
+    return (
+      <div className="content-frame">
+        <EmptyState body="This person link is missing a valid TMDB identifier." title="Person not found" />
+      </div>
+    )
+  }
+
+  if (personQuery.isLoading) return <LoadingPanel label="Loading person..." />
+
+  if (personQuery.error || !personQuery.data) {
+    return (
+      <div className="content-frame">
+        <EmptyState body="Kino could not load this person from TMDB." title="Person not found" />
+      </div>
+    )
+  }
+
+  const person = personQuery.data
+  const tmdb = getTmdb()
+  const profile = tmdb.getImageUrl(person.profile_path, 'w300')
+  const backdropCredit = knownFor.find((credit) => credit.backdrop_path)
+  const backdrop = tmdb.getBackdropUrl(backdropCredit?.backdrop_path ?? null, 'w1280')
+
+  return (
+    <div className="content-frame">
+      <div className="mb-5">
+        <Button onClick={() => router.back()} variant="ghost">
+          <ArrowLeft size={16} />
+          Back
+        </Button>
+      </div>
+
+      <section className="relative mb-8 min-h-[420px] overflow-hidden rounded-md border border-white/10 bg-kino-surface">
+        <div className="absolute inset-0">
+          {backdrop ? (
+            <img alt="" className="h-full w-full object-cover" src={backdrop} />
+          ) : (
+            <div className="h-full w-full bg-[linear-gradient(135deg,rgb(29_185_84_/_0.12),rgb(255_255_255_/_0.04)_44%,rgb(0_0_0_/_0.18))]" />
+          )}
+        </div>
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-kino-surface via-kino-surface/75 to-black/20" />
+
+        <div className="relative z-10 grid min-h-[420px] content-end gap-5 p-5 md:grid-cols-[160px_1fr] md:items-end md:p-6">
+          <div className="aspect-[2/3] w-32 overflow-hidden rounded-md border border-white/10 bg-white/[0.06] shadow-[0_18px_42px_rgb(0_0_0_/_0.35)] md:w-full">
+            {profile ? (
+              <img alt={person.name} className="h-full w-full object-cover" src={profile} />
+            ) : (
+              <div className="grid h-full place-items-center text-kino-muted">
+                <UserRound size={42} />
+              </div>
+            )}
+          </div>
+
+          <div className="min-w-0">
+            <div className="mb-2 flex flex-wrap gap-2 text-xs font-semibold text-kino-muted">
+              {person.known_for_department ? <span>{person.known_for_department}</span> : null}
+              {person.birthday ? <span>{formatPersonDate(person.birthday, language)}</span> : null}
+              {person.deathday ? <span>Died {formatPersonDate(person.deathday, language)}</span> : null}
+            </div>
+            <h1 className="max-w-4xl text-3xl font-semibold text-kino-text md:text-5xl">{person.name}</h1>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {person.place_of_birth ? (
+                <span className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-xs font-semibold text-kino-muted">
+                  <MapPin size={14} />
+                  {person.place_of_birth}
+                </span>
+              ) : null}
+              {person.known_for_department ? (
+                <span className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-xs font-semibold text-kino-muted">
+                  <BriefcaseBusiness size={14} />
+                  {person.known_for_department}
+                </span>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <main className="grid gap-8">
+          <Card className="p-5 md:p-6">
+            <h2 className="mb-3 text-xl font-semibold text-kino-text">Biography</h2>
+            <p className="max-w-4xl text-base leading-7 text-kino-text">
+              {person.biography || 'No biography is available for this person yet.'}
+            </p>
+          </Card>
+
+          <section>
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-kino-text">Known for</h2>
+                <p className="mt-1 text-sm text-kino-muted">Movies and series from this person&apos;s TMDB credits.</p>
+              </div>
+            </div>
+
+            {knownFor.length > 0 ? (
+              <div className="poster-grid">
+                {knownFor.map((credit) => (
+                  <PersonCreditCard credit={credit} key={`${credit.media_type}-${credit.id}`} />
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                body="TMDB does not list movie or series credits for this person yet."
+                className="mx-0"
+                title="No credits available"
+              />
+            )}
+          </section>
+        </main>
+
+        <aside className="grid content-start gap-5">
+          <Card className="grid gap-4 p-5">
+            <h2 className="text-lg font-semibold text-kino-text">Details</h2>
+            <PersonDetailRow icon={CalendarDays} label="Born" value={person.birthday ? formatPersonDate(person.birthday, language) : null} />
+            <PersonDetailRow icon={MapPin} label="Place" value={person.place_of_birth} />
+            <PersonDetailRow icon={BriefcaseBusiness} label="Known for" value={person.known_for_department} />
+          </Card>
+
+          <PersonExternalLinks person={person} />
+        </aside>
+      </div>
+    </div>
+  )
+}
+
+function PersonCreditCard({ credit }: { credit: TMDbPersonCredit }) {
+  const tmdb = getTmdb()
+  const title = getDisplayTitle(credit)
+  const type = credit.media_type === 'tv' ? 'tv' : 'movie'
+  const year = getReleaseYear(credit)
+  const poster = tmdb.getImageUrl(credit.poster_path, 'w300')
+  const role = credit.character || credit.job
+
+  return (
+    <Link className="group grid min-w-0 gap-3 focus-ring" href={`/title/${credit.id}?type=${type}`}>
+      <Poster className="w-full rounded-md" src={poster} title={title} />
+      <div className="min-w-0">
+        <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-kino-text group-hover:text-kino-accent">
+          {title}
+        </h3>
+        <div className="mt-1 flex items-center justify-between gap-2 text-xs text-kino-muted">
+          <span className="min-w-0 truncate">
+            {year || 'TBA'} - {type === 'tv' ? 'Series' : 'Movie'}
+          </span>
+          <span>{credit.vote_average ? credit.vote_average.toFixed(1) : 'New'}</span>
+        </div>
+        {role ? <p className="mt-1 truncate text-xs text-kino-subtle">{role}</p> : null}
+      </div>
+    </Link>
+  )
+}
+
+function PersonDetailRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon
+  label: string
+  value: string | null | undefined
+}) {
+  if (!value) return null
+
+  return (
+    <div className="flex items-start gap-3 rounded-md border border-white/10 bg-white/[0.035] p-3">
+      <Icon className="mt-0.5 shrink-0 text-kino-muted" size={16} />
+      <div className="min-w-0">
+        <div className="text-xs font-semibold uppercase text-kino-subtle">{label}</div>
+        <div className="mt-1 text-sm font-semibold text-kino-text">{value}</div>
+      </div>
+    </div>
+  )
+}
+
+function PersonExternalLinks({ person }: { person: TMDbPerson }) {
+  const links = [
+    person.external_ids?.imdb_id
+      ? { label: 'IMDb', href: `https://www.imdb.com/name/${person.external_ids.imdb_id}` }
+      : null,
+    person.external_ids?.instagram_id
+      ? { label: 'Instagram', href: `https://instagram.com/${person.external_ids.instagram_id}` }
+      : null,
+    person.external_ids?.twitter_id ? { label: 'X', href: `https://x.com/${person.external_ids.twitter_id}` } : null,
+    person.external_ids?.facebook_id
+      ? { label: 'Facebook', href: `https://facebook.com/${person.external_ids.facebook_id}` }
+      : null,
+    person.external_ids?.tiktok_id
+      ? { label: 'TikTok', href: `https://tiktok.com/@${person.external_ids.tiktok_id}` }
+      : null,
+  ].filter((link): link is { label: string; href: string } => Boolean(link))
+
+  if (links.length === 0) return null
+
+  return (
+    <Card className="grid gap-3 p-5">
+      <h2 className="text-lg font-semibold text-kino-text">External links</h2>
+      {links.map((link) => (
+        <Link className="sidebar-link" href={link.href} key={link.href} target="_blank">
+          <ExternalLink size={16} />
+          {link.label}
+        </Link>
+      ))}
+    </Card>
+  )
+}
+
+function formatPersonDate(value: string, locale: string) {
+  return new Date(value).toLocaleDateString(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+}

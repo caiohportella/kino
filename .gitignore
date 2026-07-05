@@ -1,5 +1,9 @@
 node_modules/
 .expo/
+.next/
+.next-dev/
+.pnpm-store/
+*.tsbuildinfo
 dist/
 npm-debug.*
 *.jks
@@ -12,8 +16,14 @@ web-build/
 # expo router
 expo-env.d.ts
 
-# firebase/supabase/vexo
+# Root env is the single local env source for all apps.
 .env
+.env.local
+.env.*.local
+apps/**/.env
+apps/**/.env.local
+apps/**/.env.*.local
+!.env.example
 
 ios
 android
