@@ -40,6 +40,10 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Confetti from 'react-confetti'
 import { useTranslation } from '@/lib/i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  ExternalLinksSection,
+  type ExternalLinkProvider,
+} from '@/components/external-links-section'
 import { LoadingPanel } from '@/components/loading-panel'
 import { RatingStars } from '@/components/rating-stars'
 import { WatchlistDialog } from '@/components/watchlist-dialog'
@@ -78,7 +82,7 @@ const ANON_TITLE_ID = '00000000-0000-0000-0000-000000000000'
 const EXTERNAL_LOGOS = {
   letterboxd: 'https://a.ltrbxd.com/logos/letterboxd-decal-dots-neg-rgb.svg',
   tmdb:
-    'https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg',
+    'https://www.themoviedb.org/assets/2/v4/logos/v2/blue_square_2-d537fb228cf3ded904ef09b136fe3fec72548ebc1fea3fbbd1ad9e36364db38b.svg',
   tvTime: 'https://cdn.brandfetch.io/idRVkKuKdb/w/39/h/39/theme/dark/logo.png?c=1dxbfHSJFAPEGdCLU4o5B',
   seriesGraph:
     'https://seriesgraph.com/_next/image?url=https:%2F%2Fimages.seriesgraph.com%2Ffictional-posters%2F2e65671e-4c85-40a1-b184-44be9a8153a5-10ba660c-a406-42fc-aee1-74f87f822aca-1779031627029.jpg&w=1080&q=75',
@@ -204,6 +208,23 @@ export default function TitlePage() {
     },
   })
 
+  const deleteMovieEntryMutation = useMutation({
+    mutationFn: () => db.removeMediaHistory(title!.id, 'movie'),
+    onSuccess: () => {
+      queryClient.setQueryData<{
+        userRating: Awaited<ReturnType<typeof db.getUserRating>>
+        lastWatch: Awaited<ReturnType<typeof db.getLastWatchEntry>>
+        isWatchlisted: boolean
+      }>(['title-user-data', title?.id, user?.id], (current) =>
+        current ? { ...current, userRating: null, lastWatch: null } : current
+      )
+      queryClient.invalidateQueries({ queryKey: ['title-user-data', title?.id, user?.id] })
+      queryClient.invalidateQueries({ queryKey: ['title-stats', title?.id, type] })
+      queryClient.invalidateQueries({ queryKey: ['diary', user?.id] })
+      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+    },
+  })
+
   const diaryMutation = useMutation({
     mutationFn: async () => {
       if (!title) return
@@ -252,104 +273,68 @@ export default function TitlePage() {
   const isNowPlayingInBrazil = nowPlayingQuery.data?.some((movie) => movie.id === title.tmdbId) ?? false
   const upcomingSeason = getUpcomingSeason(title)
   const canUsePersonalActions = Boolean(user && title.id !== ANON_TITLE_ID)
+  const titleActions = (
+    <>
+      <div className="grid w-full grid-cols-3 gap-3 sm:flex sm:w-auto">
+        <Button
+          aria-label={userData?.isWatchlisted ? t('title.watchlisted') : t('title.watchlist')}
+          className="w-full px-3 sm:w-auto sm:px-4"
+          disabled={Boolean(user) && title.id === ANON_TITLE_ID}
+          onClick={() => {
+            if (!canUsePersonalActions) {
+              requestAuthForCurrentTitle()
+              return
+            }
+            setWatchlistOpen(true)
+          }}
+        >
+          <BookmarkPlus size={17} />
+          <span className="sr-only sm:not-sr-only">
+            {userData?.isWatchlisted ? t('title.watchlisted') : t('title.watchlist')}
+          </span>
+        </Button>
+        <Button
+          aria-label={userData?.lastWatch ? t('title.removeHistory') : t('title.diary')}
+          className="w-full px-3 sm:w-auto sm:px-4"
+          disabled={(Boolean(user) && title.id === ANON_TITLE_ID) || diaryMutation.isPending}
+          onClick={() => {
+            if (!canUsePersonalActions) {
+              requestAuthForCurrentTitle()
+              return
+            }
+            diaryMutation.mutate()
+          }}
+          variant="secondary"
+        >
+          <CalendarCheck size={17} />
+          <span className="sr-only sm:not-sr-only">
+            {userData?.lastWatch ? t('title.removeHistory') : t('title.diary')}
+          </span>
+        </Button>
+        <Button
+          aria-label={t('common.share')}
+          className="w-full px-3 sm:w-auto sm:px-4"
+          onClick={handleShare}
+          variant="secondary"
+        >
+          <Share2 size={17} />
+          <span className="sr-only sm:not-sr-only">{t('common.share')}</span>
+        </Button>
+      </div>
+      {type === 'movie' && isNowPlayingInBrazil ? (
+        <Button asChild variant="secondary">
+          <Link href={ticketsUrl} target="_blank">
+            <Ticket size={17} />
+            {t('title.buyCinemaTickets')}
+          </Link>
+        </Button>
+      ) : null}
+    </>
+  )
 
   return (
     <div className="content-frame">
-      <section className="relative mb-6 min-h-[620px] overflow-hidden rounded-md border border-white/10 bg-kino-surface md:min-h-[588px]">
-        <div className="absolute inset-0">
-          {title.backdropImage ? (
-            <img alt="" className="h-full w-full object-cover object-center" src={title.backdropImage} />
-          ) : (
-            <div className="h-full w-full bg-[linear-gradient(135deg,rgb(29_185_84_/_0.16),rgb(255_255_255_/_0.05)_45%,rgb(0_0_0_/_0.18))]" />
-          )}
-        </div>
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-kino-surface via-kino-surface/70 to-transparent" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/55 via-black/20 to-transparent" />
-
-        <div className="relative z-10 grid min-h-[620px] content-end gap-5 p-5 md:min-h-[588px] md:grid-cols-[184px_1fr] md:items-end md:p-6">
-          <Poster
-            className="w-36 border border-white/10 shadow-[0_18px_42px_rgb(0_0_0_/_0.35)] md:w-full"
-            src={title.coverImage}
-            title={title.title}
-          />
-          <div className="min-w-0">
-            <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-kino-muted">
-              <span>{title.type === 'tv' ? t('common.tv') : t('common.movie')}</span>
-              <span>{title.year || 'TBA'}</span>
-              {title.runtime ? <span>{formatRuntime(title.runtime)}</span> : null}
-              {title.totalSeasons ? <span>{title.totalSeasons} seasons</span> : null}
-              {title.type === 'tv' && isCompletedSeriesStatus(title.status) ? (
-                <span className="inline-flex min-h-7 items-center rounded-full border border-kino-accent/25 bg-kino-accent/10 px-3 text-xs font-semibold text-kino-text">
-                  {t('profile.completed')}
-                </span>
-              ) : null}
-            </div>
-            <h1 className="max-w-4xl text-3xl font-semibold text-kino-text md:text-4xl">{title.title}</h1>
-            {title.genres.length > 0 ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {title.genres.slice(0, 5).map((genre) => (
-                  <span
-                    className="rounded-md border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs font-semibold text-kino-muted"
-                    key={genre.id}
-                  >
-                    {genre.name}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-            {upcomingSeason ? (
-              <div className="mt-4 flex w-fit max-w-full items-center gap-2 rounded-md border border-kino-accent/35 bg-kino-accent/10 px-3 py-2 text-sm font-semibold text-kino-text">
-                <CalendarDays aria-hidden="true" size={16} />
-                <span>
-                  {t('seasons.newSeasonComing', { number: upcomingSeason.season_number })}
-                  {upcomingSeason.air_date ? ` · ${formatDate(upcomingSeason.air_date)}` : ''}
-                </span>
-              </div>
-            ) : null}
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Button
-                disabled={Boolean(user) && title.id === ANON_TITLE_ID}
-                onClick={() => {
-                  if (!canUsePersonalActions) {
-                    requestAuthForCurrentTitle()
-                    return
-                  }
-                  setWatchlistOpen(true)
-                }}
-              >
-                <BookmarkPlus size={17} />
-                {userData?.isWatchlisted ? t('title.watchlisted') : t('title.watchlist')}
-              </Button>
-              <Button
-                disabled={(Boolean(user) && title.id === ANON_TITLE_ID) || diaryMutation.isPending}
-                onClick={() => {
-                  if (!canUsePersonalActions) {
-                    requestAuthForCurrentTitle()
-                    return
-                  }
-                  diaryMutation.mutate()
-                }}
-                variant="secondary"
-              >
-                <CalendarCheck size={17} />
-                {userData?.lastWatch ? t('title.removeHistory') : t('title.diary')}
-              </Button>
-              <Button onClick={handleShare} variant="secondary">
-                <Share2 size={17} />
-                {t('common.share')}
-              </Button>
-              {type === 'movie' && isNowPlayingInBrazil ? (
-                <Button asChild variant="secondary">
-                  <Link href={ticketsUrl} target="_blank">
-                    <Ticket size={17} />
-                    {t('title.buyCinemaTickets')}
-                  </Link>
-                </Button>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      </section>
+      <TitleHeader actions={titleActions} title={title} upcomingSeason={upcomingSeason} />
 
       <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="grid items-start gap-6">
@@ -374,9 +359,41 @@ export default function TitlePage() {
                       size="lg"
                       value={userData?.userRating?.rating || 0}
                     />
-                    <p className="mt-3 text-sm text-kino-muted">
-                      {userData?.userRating?.rating ? t('title.thanksForRating') : t('title.tapToRate')}
-                    </p>
+                    {userData?.userRating?.rating ? (
+                      <AlertDialog>
+                        <div className="mt-3 flex justify-center">
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              className="text-kino-muted hover:text-red-300"
+                              disabled={deleteMovieEntryMutation.isPending}
+                              size="sm"
+                              variant="ghost"
+                            >
+                              <Trash2 size={16} />
+                              {t('modals.deleteEntry')}
+                            </Button>
+                          </AlertDialogTrigger>
+                        </div>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>{t('modals.deleteEntry')}</AlertDialogTitle>
+                            <AlertDialogDescription>{t('modals.deleteEntryConfirm')}</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogButtonCancel>{t('common.cancel')}</AlertDialogButtonCancel>
+                            <AlertDialogButtonAction
+                              disabled={deleteMovieEntryMutation.isPending}
+                              onClick={() => deleteMovieEntryMutation.mutate()}
+                              variant="destructive"
+                            >
+                              {t('common.delete')}
+                            </AlertDialogButtonAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    ) : (
+                      <p className="mt-3 text-sm text-kino-muted">{t('title.tapToRate')}</p>
+                    )}
                   </>
                 ) : (
                   <Button onClick={requestAuthForCurrentTitle}>
@@ -423,6 +440,76 @@ export default function TitlePage() {
         userId={user?.id}
       />
     </div>
+  )
+}
+
+function TitleHeader({
+  actions,
+  title,
+  upcomingSeason,
+}: {
+  actions: ReactNode
+  title: TitleDetails
+  upcomingSeason: ReturnType<typeof getUpcomingSeason>
+}) {
+  const { t } = useTranslation()
+
+  return (
+    <section className="relative mb-6 min-h-[620px] overflow-hidden rounded-md border border-white/10 bg-kino-surface md:min-h-[588px]">
+      <div className="absolute inset-0">
+        {title.backdropImage ? (
+          <img alt="" className="h-full w-full object-cover object-center" src={title.backdropImage} />
+        ) : (
+          <div className="h-full w-full bg-[linear-gradient(135deg,rgb(29_185_84_/_0.16),rgb(255_255_255_/_0.05)_45%,rgb(0_0_0_/_0.18))]" />
+        )}
+      </div>
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-kino-surface via-kino-surface/70 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/55 via-black/20 to-transparent" />
+
+      <div className="relative z-10 grid min-h-[620px] content-end gap-5 p-5 md:min-h-[588px] md:grid-cols-[184px_1fr] md:items-end md:p-6">
+        <Poster
+          className="w-36 border border-white/10 shadow-[0_18px_42px_rgb(0_0_0_/_0.35)] md:w-full"
+          src={title.coverImage}
+          title={title.title}
+        />
+        <div className="min-w-0">
+          <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-kino-muted">
+            <span>{title.type === 'tv' ? t('common.tv') : t('common.movie')}</span>
+            <span>{title.year || 'TBA'}</span>
+            {title.runtime ? <span>{formatRuntime(title.runtime)}</span> : null}
+            {title.totalSeasons ? <span>{title.totalSeasons} seasons</span> : null}
+            {title.type === 'tv' && isCompletedSeriesStatus(title.status) ? (
+              <span className="inline-flex min-h-7 items-center rounded-full border border-kino-accent/25 bg-kino-accent/10 px-3 text-xs font-semibold text-kino-text">
+                {t('profile.completed')}
+              </span>
+            ) : null}
+          </div>
+          <h1 className="max-w-4xl text-3xl font-semibold text-kino-text md:text-4xl">{title.title}</h1>
+          {title.genres.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {title.genres.slice(0, 5).map((genre) => (
+                <span
+                  className="rounded-md border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs font-semibold text-kino-muted"
+                  key={genre.id}
+                >
+                  {genre.name}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          {upcomingSeason ? (
+            <div className="mt-4 flex w-fit max-w-full items-center gap-2 rounded-md border border-kino-accent/35 bg-kino-accent/10 px-3 py-2 text-sm font-semibold text-kino-text">
+              <CalendarDays aria-hidden="true" size={16} />
+              <span>
+                {t('seasons.newSeasonComing', { number: upcomingSeason.season_number })}
+                {upcomingSeason.air_date ? ` · ${formatDate(upcomingSeason.air_date)}` : ''}
+              </span>
+            </div>
+          ) : null}
+          <div className="mt-5 flex flex-wrap gap-3">{actions}</div>
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -569,53 +656,33 @@ function CommunityRatingsPanel({
 
 function ExternalLinksPanel({ title }: { title: TitleDetails }) {
   const { t } = useTranslation()
-  const links = getExternalLinks(title)
-
-  if (links.length === 0) return null
-
-  return (
-    <Card className="grid gap-3 p-5">
-      <h2 className="text-lg font-semibold text-kino-text">{t('title.seeAlsoOn')}</h2>
-      {links.map((link) => (
-        <Link
-          aria-label={t('title.openOn', { service: link.label })}
-          className="sidebar-link justify-between"
-          href={link.href}
-          key={link.label}
-          rel="noreferrer"
-          target="_blank"
-        >
-          <span className="flex min-w-0 items-center gap-3">
-            {link.icon}
-            <span className="truncate">{link.label}</span>
-          </span>
-        </Link>
-      ))}
-    </Card>
-  )
+  return <ExternalLinksSection providers={getTitleExternalLinks(title)} title={t('title.seeAlsoOn')} />
 }
 
-function getExternalLinks(title: TitleDetails): Array<{ href: string; icon: ReactNode; label: string }> {
-  const links: Array<{ href: string; icon: ReactNode; label: string }> = []
+function getTitleExternalLinks(title: TitleDetails): ExternalLinkProvider[] {
+  const links: ExternalLinkProvider[] = []
 
   if (title.externalIds?.imdb_id) {
     links.push({
       href: `https://www.imdb.com/title/${title.externalIds.imdb_id}`,
-      icon: <ServiceLogo label="IMDb" rounded="rounded" src="/external/imdb.png" />,
+      brandColor: '#f5c518',
+      iconUrl: '/external/imdb.png',
       label: 'IMDb',
     })
   }
 
   links.push({
     href: `https://www.themoviedb.org/${title.type === 'tv' ? 'tv' : 'movie'}/${title.tmdbId}`,
-    icon: <ServiceLogo label="TMDB" src={EXTERNAL_LOGOS.tmdb} />,
+    brandColor: '#01b4e4',
+    iconUrl: EXTERNAL_LOGOS.tmdb,
     label: 'TMDB',
   })
 
   if (title.type === 'movie') {
     links.push({
       href: `https://letterboxd.com/tmdb/${title.tmdbId}`,
-      icon: <ServiceLogo label="Letterboxd" src={EXTERNAL_LOGOS.letterboxd} />,
+      brandColor: '#00e054',
+      iconUrl: EXTERNAL_LOGOS.letterboxd,
       label: 'Letterboxd',
     })
   }
@@ -625,55 +692,21 @@ function getExternalLinks(title: TitleDetails): Array<{ href: string; icon: Reac
       title.type === 'tv' && title.externalIds?.tvdb_id
         ? `https://www.tvtime.com/en/show/${title.externalIds.tvdb_id}`
         : `https://www.tvtime.com/en/search?q=${encodeURIComponent(title.title)}`,
-    icon: <ServiceLogo label="TV Time" src={EXTERNAL_LOGOS.tvTime} />,
+    brandColor: '#f7b900',
+    iconUrl: EXTERNAL_LOGOS.tvTime,
     label: 'TV Time',
   })
 
   if (title.type === 'tv') {
     links.push({
       href: `https://seriesgraph.com/show/${title.tmdbId}`,
-      icon: <ServiceLogo label="SeriesGraph" rounded="rounded" src={EXTERNAL_LOGOS.seriesGraph} />,
+      brandColor: '#411052',
+      iconUrl: EXTERNAL_LOGOS.seriesGraph,
       label: 'SeriesGraph',
     })
   }
 
   return links
-}
-
-function ServiceLogo({
-  label,
-  src,
-  initials,
-  rounded = 'rounded-md',
-}: {
-  label: string
-  src?: string
-  initials?: string
-  rounded?: string
-}) {
-  return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        'grid h-8 w-14 shrink-0 place-items-center overflow-hidden border border-white/10 bg-white/[0.08] p-1 text-[10px] font-black text-kino-text',
-        rounded
-      )}
-    >
-      {src ? (
-        <img
-          alt=""
-          className="max-h-full max-w-full object-contain"
-          decoding="async"
-          height={32}
-          loading="lazy"
-          src={src}
-          width={56}
-        />
-      ) : (
-        initials || label.charAt(0)
-      )}
-    </span>
-  )
 }
 
 function CreditsPanel({ title }: { title: TitleDetails }) {

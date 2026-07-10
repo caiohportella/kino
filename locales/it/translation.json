@@ -87,6 +87,7 @@
   },
   "profile": {
     "title": "Profilo",
+    "showAll": "Mostra tutto",
     "loginPrompt": "Accedi per vedere il tuo profilo",
     "user": "Utente",
     "followers": "Follower",

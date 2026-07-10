@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, type ReactNode } from 'react'
 import { useTranslation } from '@/lib/i18n'
+import { AppFooter } from '@/components/app-footer'
 import { LoadingPanel } from '@/components/loading-panel'
 import { Button } from '@/components/ui/button'
 import {
@@ -87,7 +88,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navItems = user ? authenticatedNavItems : publicNavItems
 
   return (
-    <div className="page-shell bg-kino-bg">
+    <div className="page-shell flex min-h-screen flex-col bg-kino-bg">
       <header className="app-header">
         <div className="app-header-inner">
           <Link
@@ -178,7 +179,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="page-main">{children}</main>
+      <main className="page-main flex-1">{children}</main>
+      {user ? <AppFooter /> : null}
     </div>
   )
 }

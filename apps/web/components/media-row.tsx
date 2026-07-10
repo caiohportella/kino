@@ -70,7 +70,6 @@ function useDraggableScroll<T extends HTMLElement>() {
       dragState.current.startScrollLeft = element.scrollLeft
       dragState.current.isDragging = false
       setIsDragging(false)
-      element.setPointerCapture(event.pointerId)
     },
     onPointerMove(event: ReactPointerEvent<T>) {
       if (dragState.current.pointerId !== event.pointerId) return
@@ -81,6 +80,7 @@ function useDraggableScroll<T extends HTMLElement>() {
       if (Math.abs(distance) > 6) {
         dragState.current.isDragging = true
         setIsDragging(true)
+        element.setPointerCapture(event.pointerId)
       }
 
       if (dragState.current.isDragging) {

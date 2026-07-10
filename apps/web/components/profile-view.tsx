@@ -11,6 +11,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from '@/lib/i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BannerPickerDialog } from '@/components/banner-picker-dialog'
+import { DisplayTitle } from '@/components/display-title'
 import { MediaRow } from '@/components/media-row'
 import { LoadingPanel } from '@/components/loading-panel'
 import { ProtectedEmpty } from '@/components/protected-empty'
@@ -47,6 +48,7 @@ export function ProfileView({ profileId }: { profileId?: string }) {
   const [profileSearchOpen, setProfileSearchOpen] = useState(false)
   const [profileSearchQuery, setProfileSearchQuery] = useState('')
   const [socialListType, setSocialListType] = useState<SocialListType | null>(null)
+  const [movieRatingOpen, setMovieRatingOpen] = useState(false)
   const [seriesRatingOpen, setSeriesRatingOpen] = useState(false)
 
   const query = useQuery({
@@ -233,10 +235,15 @@ export function ProfileView({ profileId }: { profileId?: string }) {
         </div>
       </section>
 
-      <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+      <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-6">
         <ProfileStatCard icon={Film} label={t('profile.watchedMovies')} value={stats.movieCount} />
         <ProfileStatCard icon={Tv} label={t('profile.watchedSeries')} value={stats.seriesCount} />
-        <ProfileStatCard icon={Star} label={t('profile.avgMovieRating')} value={stats.averageMovieRating.toFixed(1)} />
+        <ProfileStatCard
+          icon={Star}
+          label={t('profile.avgMovieRating')}
+          onClick={() => setMovieRatingOpen(true)}
+          value={stats.averageMovieRating.toFixed(1)}
+        />
         <ProfileStatCard
           icon={Star}
           label={t('profile.avgSeriesRating', { defaultValue: 'Avg series rating' })}
@@ -309,6 +316,12 @@ export function ProfileView({ profileId }: { profileId?: string }) {
         ratedCount={seriesRatingRows.length}
         ratingRows={seriesRatingRows}
       />
+      <MovieRatingDialog
+        averageRating={stats.averageMovieRating}
+        items={movies}
+        onOpenChange={setMovieRatingOpen}
+        open={movieRatingOpen}
+      />
     </div>
   )
 }
@@ -337,7 +350,7 @@ function SocialStatCard({
   return (
     <button
       aria-label={`Open ${label.toLowerCase()} list`}
-      className="group rounded-md border border-white/10 bg-kino-surface p-4 text-left transition-colors hover:border-kino-accent/50 hover:bg-white/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent"
+      className="group flex min-h-28 flex-col justify-center rounded-md border border-white/10 bg-kino-surface p-4 text-left transition-colors hover:border-kino-accent/50 hover:bg-white/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent"
       onClick={onClick}
       type="button"
     >
@@ -368,7 +381,7 @@ function ProfileStatCard({
   return (
     <Component
       className={cn(
-        'rounded-md border border-white/10 bg-white/[0.035] p-4 text-left',
+        'flex min-h-28 flex-col justify-center rounded-md border border-white/10 bg-white/[0.035] p-4 text-left',
         onClick && 'cursor-pointer transition-colors hover:border-kino-accent/50 hover:bg-white/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent'
       )}
       onClick={onClick}
@@ -550,6 +563,131 @@ function SocialListDialog({
   )
 }
 
+function ProfileModal({
+  actions,
+  children,
+  contentClassName,
+  onOpenChange,
+  open,
+  title,
+}: {
+  actions?: ReactNode
+  children: ReactNode
+  contentClassName?: string
+  onOpenChange: (open: boolean) => void
+  open: boolean
+  title: string
+}) {
+  return (
+    <Dialog onOpenChange={onOpenChange} open={open}>
+      <DialogContent className={cn('flex max-w-3xl flex-col overflow-hidden', contentClassName)}>
+        <DialogHeader className="shrink-0 gap-2">
+          <DialogTitle className="text-2xl font-black italic tracking-normal sm:text-3xl">
+            <DisplayTitle title={title} />
+          </DialogTitle>
+        </DialogHeader>
+        {children}
+        {actions ? <div className="flex shrink-0 justify-end gap-3">{actions}</div> : null}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function MovieRatingDialog({
+  averageRating,
+  items,
+  onOpenChange,
+  open,
+}: {
+  averageRating: number
+  items: Awaited<ReturnType<typeof db.getWatchedMovies>>
+  onOpenChange: (open: boolean) => void
+  open: boolean
+}) {
+  const { t } = useTranslation()
+  const localizedTitles = useLocalizedTitles(items.map((item) => ({ tmdbId: item.tmdb_id, type: 'movie' as const })))
+  const rows = useMemo(
+    () =>
+      items
+        .map((movie) => {
+          const localized = localizedTitles.data?.[localizedTitleKey({ tmdbId: movie.tmdb_id, type: 'movie' })]
+          return {
+            displayTitle: localized?.title || movie.title,
+            movie,
+            posterPath: localized?.posterPath ?? movie.cover_image,
+          }
+        })
+        .sort((left, right) => right.movie.rating - left.movie.rating || left.displayTitle.localeCompare(right.displayTitle))
+        .slice(0, 10),
+    [items, localizedTitles.data]
+  )
+
+  return (
+    <ProfileModal
+      onOpenChange={onOpenChange}
+      open={open}
+      title={t('profile.avgMovieRating')}
+    >
+      <RatingModalSummary
+        averageRating={averageRating}
+        label={t('profile.avgMovieRating')}
+        summary={t('profile.movieRatingsModalSummary', {
+          defaultValue: '{{total}} watched movies contribute to this average.',
+          total: items.length,
+        })}
+      />
+      <div className="grid min-h-0 flex-1 gap-2 overflow-y-auto pr-1">
+        {rows.map(({ displayTitle, movie, posterPath }) => (
+          <RatingModalRow
+            imageUrl={getTmdb().getImageUrl(posterPath, 'w200')}
+            key={movie.id}
+            rating={movie.rating}
+            title={displayTitle}
+          />
+        ))}
+      </div>
+    </ProfileModal>
+  )
+}
+
+function RatingModalSummary({
+  averageRating,
+  label,
+  note,
+  summary,
+}: {
+  averageRating: number
+  label: string
+  note?: string
+  summary: string
+}) {
+  return (
+    <div className="grid shrink-0 gap-4 rounded-md border border-white/10 bg-white/[0.035] p-4 sm:grid-cols-[170px_1fr]">
+      <div className="grid place-items-center gap-2 rounded-md border border-white/10 bg-kino-surface px-4 py-5 text-center">
+        <div className="text-4xl font-semibold text-kino-text">{averageRating > 0 ? averageRating.toFixed(1) : '—'}</div>
+        <RatingStars className="justify-center" label={label} readonly size="sm" value={averageRating} />
+      </div>
+      <div className="grid content-center gap-2">
+        <p className="text-sm leading-6 text-kino-muted">{summary}</p>
+        {note ? <p className="text-sm leading-6 text-kino-muted">{note}</p> : null}
+      </div>
+    </div>
+  )
+}
+
+function RatingModalRow({ imageUrl, rating, title }: { imageUrl: string | null; rating: number; title: string }) {
+  return (
+    <div className="grid grid-cols-[48px_minmax(0,1fr)] items-center gap-3 rounded-md border border-white/10 bg-white/[0.035] p-3 sm:grid-cols-[56px_minmax(0,1fr)_auto]">
+      <Poster className="w-12 sm:w-14" src={imageUrl} title={title} />
+      <h3 className="truncate font-semibold text-kino-text">{title}</h3>
+      <div className="col-start-2 flex flex-wrap items-center gap-2 sm:col-auto sm:flex-nowrap">
+        <RatingStars readonly size="sm" value={rating} />
+        <span className="text-sm font-semibold text-kino-text">{rating.toFixed(1)}</span>
+      </div>
+    </div>
+  )
+}
+
 function SeriesRatingDialog({
   open,
   onOpenChange,
@@ -581,46 +719,31 @@ function SeriesRatingDialog({
           displayTitle,
           posterPath,
         }
-      }),
+      }).slice(0, 10),
     [localizedTitles.data, ratingRows]
   )
 
   return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>{t('profile.avgSeriesRating', { defaultValue: 'Avg series rating' })}</DialogTitle>
-          <DialogDescription>
-            {t('profile.seriesRatingsModalDescription', {
-              defaultValue: 'Based on the average season score for each TV show in this profile.',
-            })}
-          </DialogDescription>
-        </DialogHeader>
+    <ProfileModal
+      onOpenChange={onOpenChange}
+      open={open}
+      title={t('profile.avgSeriesRating', { defaultValue: 'Avg series rating' })}
+    >
 
-        <div className="grid gap-4 rounded-md border border-white/10 bg-white/[0.035] p-4 md:grid-cols-[170px_1fr]">
-          <div className="grid place-items-center gap-2 rounded-md border border-white/10 bg-kino-surface px-4 py-5 text-center">
-            <div className="text-4xl font-semibold text-kino-text">
-              {ratedCount > 0 ? averageRating.toFixed(1) : '—'}
-            </div>
-            <RatingStars className="justify-center" label={t('profile.avgSeriesRating')} readonly size="sm" value={averageRating} />
-          </div>
-          <div className="grid content-center gap-2">
-            <p className="text-sm leading-6 text-kino-muted">
-              {t('profile.seriesRatingsModalSummary', {
-                defaultValue: '{{rated}} rated series out of {{total}} watched.',
-                rated: ratedCount,
-                total: items.length,
-              })}
-            </p>
-            <p className="text-sm leading-6 text-kino-muted">
-              {t('profile.seriesRatingsModalNote', {
-                defaultValue: 'Each score is the average of the episodes you rated for that show.',
-              })}
-            </p>
-          </div>
-        </div>
+        <RatingModalSummary
+          averageRating={averageRating}
+          label={t('profile.avgSeriesRating')}
+          note={t('profile.seriesRatingsModalNote', {
+            defaultValue: 'Each score is the average of the episodes you rated for that show.',
+          })}
+          summary={t('profile.seriesRatingsModalSummary', {
+            defaultValue: '{{rated}} rated series out of {{total}} watched.',
+            rated: ratedCount,
+            total: items.length,
+          })}
+        />
 
-        <div className="grid max-h-[52vh] gap-2 overflow-y-auto pr-1">
+        <div className="grid min-h-0 flex-1 gap-2 overflow-y-auto pr-1">
           {rows.length === 0 ? (
             <DialogEmptyState
               body={t('profile.seriesRatingsModalEmptyBody', {
@@ -632,31 +755,16 @@ function SeriesRatingDialog({
             />
           ) : (
             rows.map(({ series, rating, displayTitle, posterPath }) => (
-              <div
-                className="grid grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-white/10 bg-white/[0.035] p-3"
+              <RatingModalRow
+                imageUrl={getTmdb().getImageUrl(posterPath, 'w200')}
                 key={series.id}
-              >
-                <Poster className="w-14" src={getTmdb().getImageUrl(posterPath, 'w200')} title={displayTitle} />
-                <div className="min-w-0">
-                  <h3 className="truncate font-semibold text-kino-text">{displayTitle}</h3>
-                  <p className="mt-1 text-xs text-kino-muted">
-                    {series.is_series_completed
-                      ? t('profile.completed')
-                      : series.next_episode
-                        ? t('profile.seriesRatingsNextEpisode', { defaultValue: 'Next episode' })
-                        : t('profile.seriesRatingsLastEpisode', { defaultValue: 'Last episode' })}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <RatingStars readonly size="sm" value={rating} />
-                  <span className="text-sm font-semibold text-kino-text">{rating.toFixed(1)}</span>
-                </div>
-              </div>
+                rating={rating}
+                title={displayTitle}
+              />
             ))
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+    </ProfileModal>
   )
 }
 
@@ -728,28 +836,26 @@ function ProfileShelf({
   const localizedTitles = useLocalizedTitles(items.map((item) => ({ tmdbId: item.tmdb_id, type })))
 
   if (items.length === 0) return null
-  return (
-    <section className="mb-10">
-      <h2 className="mb-4 text-xl font-semibold text-kino-text">{title}</h2>
-      <MediaRow>
-        {items.map((item) => {
-          const localized = localizedTitles.data?.[localizedTitleKey({ tmdbId: item.tmdb_id, type })]
-          const displayTitle = localized?.title || item.title
-          const posterPath = localized?.posterPath ?? item.cover_image
-          const releaseYear = localized?.year ?? item.release_year
 
-          return (
-            <Link className="grid min-w-0 content-start gap-3" href={`/title/${item.tmdb_id}?type=${type}`} key={item.id}>
-              <Poster className="w-full rounded-md" src={getTmdb().getImageUrl(posterPath, 'w300')} title={displayTitle} />
-              <div className="min-w-0">
-                <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-kino-text">{displayTitle}</h3>
-                <p className="mt-1 text-xs text-kino-muted">{releaseYear || 'TBA'}</p>
-              </div>
-            </Link>
-          )
-        })}
-      </MediaRow>
-    </section>
+  const renderTitleCard = (item: (typeof items)[number]) => {
+    const localized = localizedTitles.data?.[localizedTitleKey({ tmdbId: item.tmdb_id, type })]
+    const displayTitle = localized?.title || item.title
+    const posterPath = localized?.posterPath ?? item.cover_image
+    const releaseYear = localized?.year ?? item.release_year
+
+    return (
+      <Link className="grid min-w-0 content-start gap-3" href={`/title/${item.tmdb_id}?type=${type}`} key={item.id}>
+        <Poster className="w-full rounded-md" src={getTmdb().getImageUrl(posterPath, 'w300')} title={displayTitle} />
+        <div className="min-w-0">
+          <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-kino-text">{displayTitle}</h3>
+          <p className="mt-1 text-xs text-kino-muted">{releaseYear || 'TBA'}</p>
+        </div>
+      </Link>
+    )
+  }
+
+  return (
+    <ProfileTitleRow items={items} renderTitleCard={renderTitleCard} title={title} />
   )
 }
 
@@ -797,28 +903,72 @@ function SeriesShelfRow({
 }) {
   if (items.length === 0) return null
 
+  const renderTitleCard = (series: (typeof items)[number]) => {
+    const localized = localizedTitles.data?.[localizedTitleKey({ tmdbId: series.tmdb_id, type: 'tv' })]
+    const displayTitle = localized?.title || series.title
+    const posterPath = localized?.posterPath ?? series.cover_image
+    const releaseYear = localized?.year ?? series.release_year
+
+    return (
+      <Link className="grid min-w-0 content-start gap-3" href={`/title/${series.tmdb_id}?type=tv`} key={series.id}>
+        <Poster className="w-full rounded-md" src={getTmdb().getImageUrl(posterPath, 'w300')} title={displayTitle} />
+        <div className="min-w-0">
+          <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-kino-text">{displayTitle}</h3>
+          <p className="mt-1 text-xs text-kino-muted">{releaseYear || 'TBA'}</p>
+          <SeriesStatusPill series={series} />
+        </div>
+      </Link>
+    )
+  }
+
+  return (
+    <ProfileTitleRow items={items} renderTitleCard={renderTitleCard} title={title} />
+  )
+}
+
+const PROFILE_ROW_LIMIT = 12
+
+function ProfileTitleRow<T>({
+  items,
+  renderTitleCard,
+  title,
+}: {
+  items: T[]
+  renderTitleCard: (item: T) => ReactNode
+  title: string
+}) {
+  const { t } = useTranslation()
+  const [showAllOpen, setShowAllOpen] = useState(false)
+  const hasMore = items.length > PROFILE_ROW_LIMIT
+  const visibleItems = hasMore ? items.slice(0, PROFILE_ROW_LIMIT) : items
+
   return (
     <section className="mb-10">
       <h2 className="mb-4 text-xl font-semibold text-kino-text">{title}</h2>
       <MediaRow>
-        {items.map((series) => {
-          const localized = localizedTitles.data?.[localizedTitleKey({ tmdbId: series.tmdb_id, type: 'tv' })]
-          const displayTitle = localized?.title || series.title
-          const posterPath = localized?.posterPath ?? series.cover_image
-          const releaseYear = localized?.year ?? series.release_year
-
-          return (
-            <Link className="grid min-w-0 content-start gap-3" href={`/title/${series.tmdb_id}?type=tv`} key={series.id}>
-              <Poster className="w-full rounded-md" src={getTmdb().getImageUrl(posterPath, 'w300')} title={displayTitle} />
-              <div className="min-w-0">
-                <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-kino-text">{displayTitle}</h3>
-                <p className="mt-1 text-xs text-kino-muted">{releaseYear || 'TBA'}</p>
-                <SeriesStatusPill series={series} />
-              </div>
-            </Link>
-          )
-        })}
+        {visibleItems.map(renderTitleCard)}
+        {hasMore ? (
+          <Button
+            aria-haspopup="dialog"
+            className="aspect-[2/3] w-full self-start whitespace-normal text-center"
+            onClick={() => setShowAllOpen(true)}
+            variant="secondary"
+          >
+            {t('profile.showAll', { defaultValue: 'Show All' })}
+          </Button>
+        ) : null}
       </MediaRow>
+
+      {hasMore ? (
+        <ProfileModal
+          contentClassName="max-w-5xl"
+          onOpenChange={setShowAllOpen}
+          open={showAllOpen}
+          title={title}
+        >
+          <div className="poster-grid min-h-0 flex-1 overflow-y-auto pr-1">{items.map(renderTitleCard)}</div>
+        </ProfileModal>
+      ) : null}
     </section>
   )
 }

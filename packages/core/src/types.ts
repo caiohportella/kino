@@ -103,6 +103,7 @@ export interface TMDbPersonExternalIds {
   twitter_id: string | null
   tiktok_id?: string | null
   youtube_id?: string | null
+  wikidata_id?: string | null
   id?: number
 }
 
@@ -113,6 +114,8 @@ export interface TMDbPerson {
   birthday: string | null
   deathday: string | null
   place_of_birth: string | null
+  place_of_death?: string | null
+  homepage?: string | null
   profile_path: string | null
   known_for_department: string
   external_ids?: TMDbPersonExternalIds

@@ -87,6 +87,7 @@
   },
   "profile": {
     "title": "Profil",
+    "showAll": "Vis alle",
     "loginPrompt": "Logg inn for å se din profil",
     "user": "Bruker",
     "followers": "Følgere",
