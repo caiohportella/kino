@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { DisplayTitle } from '@/components/display-title'
+import { cn } from '@/lib/utils'
 
 export function PageHeader({
   eyebrow,
@@ -12,8 +13,15 @@ export function PageHeader({
   body?: string
   action?: ReactNode
 }) {
+  const hasBody = Boolean(body)
+
   return (
-    <header className="mb-6 flex flex-col gap-4 border-b border-white/10 pb-5 md:flex-row md:items-center md:justify-between">
+    <header
+      className={cn(
+        'flex flex-col border-b border-white/10 md:flex-row md:items-center md:justify-between',
+        hasBody ? 'mb-6 gap-4 pb-5' : 'mb-5 gap-3 pb-4'
+      )}
+    >
       <div className="max-w-3xl">
         <h1 className="text-3xl font-black italic tracking-normal md:text-4xl">
           <DisplayTitle title={title} />

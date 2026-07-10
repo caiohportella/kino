@@ -6,11 +6,12 @@ import { EmptyState, Poster } from '@kino/ui'
 import type { LucideIcon } from 'lucide-react'
 import { Film, ImagePlus, Search, Settings, Star, Tv, UserPlus, UserRoundCheck, UsersRound } from 'lucide-react'
 import Link from 'next/link'
-import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react'
-import { useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from '@/lib/i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BannerPickerDialog } from '@/components/banner-picker-dialog'
+import { MediaRow } from '@/components/media-row'
 import { LoadingPanel } from '@/components/loading-panel'
 import { ProtectedEmpty } from '@/components/protected-empty'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -715,81 +716,6 @@ function DialogEmptyState({ title, body }: { title: string; body: string }) {
   )
 }
 
-function useDraggableScroll<T extends HTMLElement>() {
-  const ref = useRef<T | null>(null)
-  const dragState = useRef({
-    pointerId: -1,
-    startX: 0,
-    startScrollLeft: 0,
-    isDragging: false,
-    suppressClick: false,
-  })
-  const [isDragging, setIsDragging] = useState(false)
-
-  function isInteractiveTarget(target: EventTarget | null) {
-    return target instanceof HTMLElement && Boolean(target.closest('a,button,[role="button"],input,select,textarea,label'))
-  }
-
-  function finishDrag(pointerId?: number) {
-    if (pointerId !== undefined && dragState.current.pointerId !== pointerId) return
-    if (dragState.current.isDragging) {
-      dragState.current.suppressClick = true
-      window.setTimeout(() => {
-        dragState.current.suppressClick = false
-      }, 0)
-    }
-    dragState.current.pointerId = -1
-    dragState.current.isDragging = false
-    setIsDragging(false)
-  }
-
-  return {
-    ref,
-    isDragging,
-    onPointerDown(event: ReactPointerEvent<T>) {
-      if (event.pointerType !== 'mouse' || event.button !== 0) return
-      if (isInteractiveTarget(event.target)) return
-      const element = ref.current
-      if (!element) return
-
-      dragState.current.pointerId = event.pointerId
-      dragState.current.startX = event.clientX
-      dragState.current.startScrollLeft = element.scrollLeft
-      dragState.current.isDragging = false
-      setIsDragging(false)
-      element.setPointerCapture(event.pointerId)
-    },
-    onPointerMove(event: ReactPointerEvent<T>) {
-      if (dragState.current.pointerId !== event.pointerId) return
-      const element = ref.current
-      if (!element) return
-
-      const distance = event.clientX - dragState.current.startX
-      if (Math.abs(distance) > 6) {
-        dragState.current.isDragging = true
-        setIsDragging(true)
-      }
-
-      if (dragState.current.isDragging) {
-        element.scrollLeft = dragState.current.startScrollLeft - distance
-        event.preventDefault()
-      }
-    },
-    onPointerUp(event: ReactPointerEvent<T>) {
-      finishDrag(event.pointerId)
-    },
-    onPointerCancel(event: ReactPointerEvent<T>) {
-      finishDrag(event.pointerId)
-    },
-    onClickCapture(event: ReactMouseEvent<T>) {
-      if (isInteractiveTarget(event.target)) return
-      if (!dragState.current.suppressClick) return
-      event.preventDefault()
-      event.stopPropagation()
-    },
-  }
-}
-
 function ProfileShelf({
   title,
   items,
@@ -800,22 +726,12 @@ function ProfileShelf({
   items: Array<{ id: string; tmdb_id: number; title: string; cover_image: string | null; release_year: number }>
 }) {
   const localizedTitles = useLocalizedTitles(items.map((item) => ({ tmdbId: item.tmdb_id, type })))
-  const dragScroll = useDraggableScroll<HTMLDivElement>()
 
   if (items.length === 0) return null
   return (
     <section className="mb-10">
       <h2 className="mb-4 text-xl font-semibold text-kino-text">{title}</h2>
-      <div
-        className="media-row"
-        data-dragging={dragScroll.isDragging ? 'true' : 'false'}
-        onClickCapture={dragScroll.onClickCapture}
-        onPointerCancel={dragScroll.onPointerCancel}
-        onPointerDown={dragScroll.onPointerDown}
-        onPointerMove={dragScroll.onPointerMove}
-        onPointerUp={dragScroll.onPointerUp}
-        ref={dragScroll.ref}
-      >
+      <MediaRow>
         {items.map((item) => {
           const localized = localizedTitles.data?.[localizedTitleKey({ tmdbId: item.tmdb_id, type })]
           const displayTitle = localized?.title || item.title
@@ -832,7 +748,7 @@ function ProfileShelf({
             </Link>
           )
         })}
-      </div>
+      </MediaRow>
     </section>
   )
 }
@@ -879,23 +795,12 @@ function SeriesShelfRow({
   items: Awaited<ReturnType<typeof db.getWatchedSeries>>
   localizedTitles: ReturnType<typeof useLocalizedTitles>
 }) {
-  const dragScroll = useDraggableScroll<HTMLDivElement>()
-
   if (items.length === 0) return null
 
   return (
     <section className="mb-10">
       <h2 className="mb-4 text-xl font-semibold text-kino-text">{title}</h2>
-      <div
-        className="media-row"
-        data-dragging={dragScroll.isDragging ? 'true' : 'false'}
-        onClickCapture={dragScroll.onClickCapture}
-        onPointerCancel={dragScroll.onPointerCancel}
-        onPointerDown={dragScroll.onPointerDown}
-        onPointerMove={dragScroll.onPointerMove}
-        onPointerUp={dragScroll.onPointerUp}
-        ref={dragScroll.ref}
-      >
+      <MediaRow>
         {items.map((series) => {
           const localized = localizedTitles.data?.[localizedTitleKey({ tmdbId: series.tmdb_id, type: 'tv' })]
           const displayTitle = localized?.title || series.title
@@ -913,7 +818,7 @@ function SeriesShelfRow({
             </Link>
           )
         })}
-      </div>
+      </MediaRow>
     </section>
   )
 }

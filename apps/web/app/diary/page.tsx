@@ -82,7 +82,6 @@ export default function DiaryPage() {
   return (
     <div className="content-frame">
       <PageHeader
-        body={t('diary.watchDiary')}
         eyebrow={t('diary.title')}
         title={t('diary.watchDiary')}
       />

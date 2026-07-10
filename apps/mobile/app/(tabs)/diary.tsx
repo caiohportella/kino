@@ -105,41 +105,50 @@ export default function DiaryScreen() {
     }
 
     try {
-      // 1. Fetch Diary Entries (Simple Join to Titles only)
-      const { data: diaryData, error: diaryError } = await supabase
-        .from('watch_diary')
-        .select(
-          `
-          id,
-          title_id,
-          watched_at,
-          watch_type,
-          notes,
-          titles:title_id (
-            title,
-            release_year,
-            cover_image,
-            tmdb_id,
-            type
-          )
-        `
-        )
-        .eq('user_id', user.id)
-        .order('watched_at', { ascending: false })
-        .limit(50)
+      // 1. Fetch all diary entries so the timeline can reach the oldest entry.
+      const diaryData: DiaryData[] = []
+      const pageSize = 1000
 
-      if (diaryError) {
-        throw diaryError
+      for (let offset = 0; ; offset += pageSize) {
+        const { data, error } = await supabase
+          .from('watch_diary')
+          .select(
+            `
+            id,
+            title_id,
+            watched_at,
+            watch_type,
+            notes,
+            titles:title_id (
+              title,
+              release_year,
+              cover_image,
+              tmdb_id,
+              type
+            )
+          `
+          )
+          .eq('user_id', user.id)
+          .order('watched_at', { ascending: false })
+          .range(offset, offset + pageSize - 1)
+
+        if (error) {
+          throw error
+        }
+
+        const page = (data || []) as unknown as DiaryData[]
+        diaryData.push(...page)
+        if (page.length < pageSize) {
+          break
+        }
       }
 
-      const diaryEntries = (diaryData || []) as unknown as DiaryData[]
-
       // 2. Separate entries by type and fetch ratings accordingly
-      const movieTitleIds = diaryEntries
+      const movieTitleIds = diaryData
         .filter((e) => e.titles?.type === 'movie')
         .map((e) => e.title_id)
 
-      const tvTitleIds = diaryEntries.filter((e) => e.titles?.type === 'tv').map((e) => e.title_id)
+      const tvTitleIds = diaryData.filter((e) => e.titles?.type === 'tv').map((e) => e.title_id)
 
       let ratingsMap: Record<string, number> = {}
 
@@ -167,7 +176,7 @@ export default function DiaryScreen() {
       }
 
       // 3. Merge and Set State
-      const formattedEntries: UIDiaryEntry[] = diaryEntries.map((entry) => {
+      const formattedEntries: UIDiaryEntry[] = diaryData.map((entry) => {
         const title = entry.titles
         return {
           id: entry.id,

@@ -126,7 +126,6 @@ export default function SettingsPage() {
             {saveMutation.isPending ? t('common.loading') : t('common.save')}
           </Button>
         }
-        body={t('settings.editProfile')}
         eyebrow={t('common.settings')}
         title={t('settings.editProfile')}
       />

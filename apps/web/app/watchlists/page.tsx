@@ -56,7 +56,6 @@ export default function WatchlistsPage() {
             {t('watchlists.createWatchlist')}
           </Button>
         }
-        body={t('watchlists.emptyListHint')}
         eyebrow={t('watchlists.title')}
         title={t('watchlists.title')}
       />

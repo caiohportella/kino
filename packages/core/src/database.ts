@@ -255,41 +255,54 @@ export class KinoDatabaseService {
     })
   }
 
-  async getDiaryEntries(userId: string, limit = 120) {
-    const { data, error } = await this.supabase
-      .from('watch_diary')
-      .select(
-        `
-        id,
-        user_id,
-        title_id,
-        watched_at,
-        watch_type,
-        notes,
-        created_at,
-        updated_at,
-        titles:title_id (
-          title,
-          release_year,
-          cover_image,
-          tmdb_id,
-          type
-        )
-      `
-      )
-      .eq('user_id', userId)
-      .order('watched_at', { ascending: false })
-      .limit(limit)
+  async getDiaryEntries(userId: string, limit?: number) {
+    const pageSize = 1000
+    const maxRows = limit ?? Number.POSITIVE_INFINITY
+    const rows: WatchDiaryRow[] = []
 
-    if (error) throw error
-    const rows = ((data ?? []) as unknown as Array<
-      Omit<WatchDiaryRow, 'titles'> & {
-        titles?: WatchDiaryRow['titles'] | WatchDiaryRow['titles'][]
-      }
-    >).map<WatchDiaryRow>((entry) => ({
-      ...entry,
-      titles: Array.isArray(entry.titles) ? entry.titles[0] ?? null : entry.titles ?? null,
-    }))
+    for (let offset = 0; rows.length < maxRows; offset += pageSize) {
+      const remaining = maxRows - rows.length
+      const fetchSize = Number.isFinite(remaining) ? Math.min(pageSize, remaining) : pageSize
+      const { data, error } = await this.supabase
+        .from('watch_diary')
+        .select(
+          `
+          id,
+          user_id,
+          title_id,
+          watched_at,
+          watch_type,
+          notes,
+          created_at,
+          updated_at,
+          titles:title_id (
+            title,
+            release_year,
+            cover_image,
+            tmdb_id,
+            type
+          )
+        `
+        )
+        .eq('user_id', userId)
+        .order('watched_at', { ascending: false })
+        .range(offset, offset + fetchSize - 1)
+
+      if (error) throw error
+
+      const pageRows = ((data ?? []) as unknown as Array<
+        Omit<WatchDiaryRow, 'titles'> & {
+          titles?: WatchDiaryRow['titles'] | WatchDiaryRow['titles'][]
+        }
+      >).map<WatchDiaryRow>((entry) => ({
+        ...entry,
+        titles: Array.isArray(entry.titles) ? entry.titles[0] ?? null : entry.titles ?? null,
+      }))
+
+      rows.push(...pageRows)
+      if (pageRows.length < fetchSize) break
+    }
+
     const movieTitleIds = rows.filter((entry) => entry.titles?.type === 'movie').map((entry) => entry.title_id)
     const tvTitleIds = rows.filter((entry) => entry.titles?.type === 'tv').map((entry) => entry.title_id)
     const ratings: Record<string, number> = {}
