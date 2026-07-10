@@ -252,11 +252,22 @@ export function Dialog({
   )
 }
 
-export function Stat({ label, value }: { label: string; value: string | number }) {
+export function Stat({
+  label,
+  value,
+  icon,
+}: {
+  label: string
+  value: string | number
+  icon?: ReactNode
+}) {
   return (
     <div className="rounded-md border border-white/10 bg-white/[0.035] px-4 py-3">
       <div className="text-2xl font-semibold text-kino-text">{value}</div>
-      <div className="mt-1 text-xs font-medium text-kino-muted">{label}</div>
+      <div className="mt-1 flex items-center gap-1.5 text-xs font-medium text-kino-muted">
+        {icon}
+        <span>{label}</span>
+      </div>
     </div>
   )
 }

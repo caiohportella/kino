@@ -37,6 +37,7 @@ export interface TMDbMovie extends TMDbTitle {
 export interface TMDbTVShow extends TMDbTitle {
   name: string
   first_air_date: string
+  status?: string
   episode_run_time?: number[]
   seasons: TMDbSeason[]
   genres: TMDbGenre[]
@@ -140,6 +141,7 @@ export interface TitleDetails {
   coverImage: string | null
   backdropImage: string | null
   year: number
+  status?: string | null
   genres: TMDbGenre[]
   cast: TMDbCast[]
   director?: TMDbCast
@@ -331,6 +333,8 @@ export interface ImportTitleItem {
   sourceLabel: string
   movieWatches?: ImportMoviePayload[]
   tvEpisodes?: ImportEpisodePayload[]
+  importStatus?: 'idle' | 'processing' | 'success' | 'skipped' | 'failed'
+  importError?: string
 }
 
 export interface ParsedImportResult {

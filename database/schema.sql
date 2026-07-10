@@ -269,7 +269,7 @@ BEGIN
   WITH stats AS (
     SELECT 
       COALESCE(AVG(rating), 0) as avg_rating,
-      COUNT(*) as total_count
+      COUNT(DISTINCT user_id) as total_count
     FROM title_ratings
     WHERE title_id = p_title_id
   ),

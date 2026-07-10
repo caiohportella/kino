@@ -16,6 +16,7 @@ import { dbService } from '~/services/database'
 import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { useLanguage } from '@/hooks/useLanguage'
+import { formatDate } from '@kino/core'
 
 import { UIDiaryEntry } from '~/types'
 
@@ -136,12 +137,7 @@ export function DiaryActionModal({ visible, onClose, entry, onUpdate }: DiaryAct
                   className="flex-row items-center justify-between rounded-lg border border-white/10 bg-black/20 p-3"
                 >
                   <Text className="text-base text-text-primary">
-                    {watchedAt.toLocaleDateString(language, {
-                      weekday: 'short',
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
+                    {formatDate(watchedAt)}
                   </Text>
                   <Ionicons name="calendar-outline" size={18} color="#1DB954" />
                 </TouchableOpacity>

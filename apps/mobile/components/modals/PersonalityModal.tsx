@@ -7,6 +7,7 @@ import { FlatList } from 'react-native-gesture-handler'
 import type { TMDbPersonCredit } from '~/types'
 import { getTMDbService } from '~/services/tmdb'
 import { TitleCard } from '~/components/common/TitleCard'
+import { formatDate } from '@kino/core'
 
 interface PersonalityModalProps {
   visible: boolean
@@ -153,7 +154,7 @@ export function PersonalityModal({ visible, onClose, personId }: PersonalityModa
                   <View className="flex-row items-center">
                     <Ionicons name="star" size={14} color="#1DB954" className="mr-1" />
                     <Text className="text-sm text-text-primary font-medium ml-1">
-                      {new Date(person.birthday).toLocaleDateString()}
+                      {formatDate(person.birthday)}
                     </Text>
                   </View>
                 )}
@@ -161,7 +162,7 @@ export function PersonalityModal({ visible, onClose, personId }: PersonalityModa
                   <View className="flex-row items-center">
                     <Ionicons name="skull-outline" size={16} color="#FF4B4B" className="mr-1" />
                     <Text className="text-sm text-text-primary font-medium ml-1">
-                      {new Date(person.deathday).toLocaleDateString()}
+                      {formatDate(person.deathday)}
                     </Text>
                   </View>
                 )}
@@ -215,4 +216,3 @@ export function PersonalityModal({ visible, onClose, personId }: PersonalityModa
     </Modal>
   )
 }
-

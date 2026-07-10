@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { WatchedSeries } from '~/types'
 import { useTranslation } from 'react-i18next'
+import { formatDate, isFutureDateOnly } from '@kino/core'
 import { EmptyState } from '../EmptyState'
 import { OscarBadge } from '../common/OscarBadge'
 import { useLocalizedMediaData } from '~/hooks/data/useLocalizedMediaData'
@@ -105,12 +106,21 @@ export function WatchedSeriesModal({
               {item.is_series_completed ? (
                 <Text className="text-[#1DB954] text-[10px] font-medium">{t('profile.completed')}</Text>
               ) : item.next_episode ? (
-                <Text className="text-text-secondary text-[10px]">
-                  {t('profile.next')}:{' '}
-                  <Text className="text-accent">
-                    S{item.next_episode.season} E{item.next_episode.episode}
+                <View className="gap-1">
+                  <Text className="text-text-secondary text-[10px]">
+                    {t('profile.next')}:{' '}
+                    <Text className="text-accent">
+                      S{item.next_episode.season} E{item.next_episode.episode}
+                    </Text>
                   </Text>
-                </Text>
+                  {isFutureDateOnly(item.next_episode.air_date) ? (
+                    <Text className="text-text-secondary text-[10px]">
+                      {item.next_episode.air_date
+                        ? t('profile.newEpisodesOn', { date: formatDate(item.next_episode.air_date) })
+                        : t('profile.newEpisodesSoon')}
+                    </Text>
+                  ) : null}
+                </View>
               ) : (
                 <Text className="text-text-secondary text-[10px]">
                   {t('profile.last')}:{' '}

@@ -35,6 +35,8 @@ export interface ImportTitleItem {
   sourceLabel: string
   movieWatches?: ImportMoviePayload[]
   tvEpisodes?: ImportEpisodePayload[]
+  importStatus?: 'idle' | 'processing' | 'success' | 'skipped' | 'failed'
+  importError?: string
 }
 
 export interface ParsedImportResult {

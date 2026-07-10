@@ -3,62 +3,35 @@ import type { ReactNode } from 'react'
 import './globals.css'
 import { Providers } from './providers'
 import { AppShell } from '@/components/app-shell'
-
-const DEFAULT_SITE_URL = 'https://kino.vercel.app'
-const description = 'A calm movie and series tracking companion for discovery, watchlists, diary, and ratings.'
-
-function normalizeOrigin(value: string | undefined) {
-  if (!value) return DEFAULT_SITE_URL
-  const origin = value.replace(/\/+$/, '')
-  return origin.startsWith('http://') || origin.startsWith('https://') ? origin : `https://${origin}`
-}
-
-const siteOrigin = normalizeOrigin(
-  process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.EXPO_PUBLIC_WEB_URL ||
-    process.env.VERCEL_PROJECT_PRODUCTION_URL ||
-    process.env.VERCEL_URL
-)
+import { SITE_DESCRIPTION, SITE_NAME, getSiteOrigin } from '@/lib/seo'
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteOrigin),
+  metadataBase: new URL(getSiteOrigin()),
   title: {
     default: 'Kino',
     template: '%s | Kino',
   },
-  description,
-  applicationName: 'Kino',
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
   manifest: '/manifest.webmanifest',
-  alternates: {
-    canonical: '/',
-  },
-  openGraph: {
-    description,
-    images: ['/icons/icon-512.png'],
-    siteName: 'Kino',
-    title: 'Kino',
-    type: 'website',
-    url: '/',
-  },
-  twitter: {
-    card: 'summary',
-    description,
-    images: ['/icons/icon-512.png'],
-    title: 'Kino',
-  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Kino',
+    title: SITE_NAME,
   },
   icons: {
-    icon: '/icons/icon-192.png',
-    apple: '/icons/icon-192.png',
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icons/icon-192.png', type: 'image/png', sizes: '192x192' },
+      { url: '/icons/icon-512.png', type: 'image/png', sizes: '512x512' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: [{ url: '/apple-touch-icon.png', type: 'image/png', sizes: '192x192' }],
   },
 }
 
 export const viewport: Viewport = {
-  themeColor: '#1db954',
+  themeColor: '#101112',
   width: 'device-width',
   initialScale: 1,
 }

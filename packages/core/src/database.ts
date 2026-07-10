@@ -622,6 +622,20 @@ export class KinoDatabaseService {
     return ((data ?? []) as EpisodeRatingRow[]).map((row) => this.mapEpisodeRating(row))
   }
 
+  async getUserTitleEpisodeRatings(titleId: string) {
+    const user = await this.getUserId()
+    if (!user) return []
+
+    const { data, error } = await this.supabase
+      .from('episode_ratings')
+      .select('*')
+      .eq('user_id', user)
+      .eq('title_id', titleId)
+
+    if (error) throw error
+    return ((data ?? []) as EpisodeRatingRow[]).map((row) => this.mapEpisodeRating(row))
+  }
+
   async getTitleRatingStats(titleId: string, type: MediaType) {
     const rpcName = type === 'tv' ? 'get_series_rating_stats' : 'get_title_rating_stats'
     const { data, error } = await this.supabase.rpc(rpcName, { p_title_id: titleId })

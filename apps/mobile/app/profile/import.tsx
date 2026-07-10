@@ -10,14 +10,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import { Stack, useRouter } from 'expo-router'
+import { Stack } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system'
 import DateTimePicker from '@react-native-community/datetimepicker'
-import { format } from 'date-fns'
 import { LinearGradient } from 'expo-linear-gradient'
+import { formatDate } from '@kino/core'
 
 import { useAuth } from '@/hooks/useAuth'
 import { dbService } from '~/services/database'
@@ -43,14 +43,20 @@ const EMPTY_STATE: ImportState = {
 }
 
 export default function ImportHistoryScreen() {
-  const router = useRouter()
   const { user } = useAuth()
 
   const [state, setState] = useState<ImportState>(EMPTY_STATE)
   const [loading, setLoading] = useState(false)
   const [importing, setImporting] = useState(false)
-  const [progress, setProgress] = useState({ completed: 0, total: 0 })
+  const [progress, setProgress] = useState({
+    completed: 0,
+    total: 0,
+    imported: 0,
+    skipped: 0,
+    failed: 0,
+  })
   const [datePickerId, setDatePickerId] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
 
   const summary = useMemo(() => {
     const included = state.items.filter((item) => item.include)
@@ -114,6 +120,7 @@ export default function ImportHistoryScreen() {
       warnings: result.warnings,
       errors: result.errors,
     })
+    setPage(1)
   }
 
   const updateItem = (id: string, updates: Partial<ImportTitleItem>) => {
@@ -126,6 +133,7 @@ export default function ImportHistoryScreen() {
   const handleReset = () => {
     setState(EMPTY_STATE)
     setDatePickerId(null)
+    setPage(1)
   }
 
   const handleImport = async () => {
@@ -140,67 +148,147 @@ export default function ImportHistoryScreen() {
       return
     }
 
-    const validationErrors = validateItems(includedItems)
-    if (validationErrors.length > 0) {
-      Alert.alert('Import', validationErrors[0])
-      return
-    }
-
     setImporting(true)
-    setProgress({ completed: 0, total: includedItems.length })
+    setProgress({
+      completed: 0,
+      total: includedItems.length,
+      imported: 0,
+      skipped: 0,
+      failed: 0,
+    })
+
+    let importedCount = 0
+    let skippedCount = 0
+    let failureCount = 0
+
+    // Reset status of all items to idle/processing before starting
+    setState((current) => ({
+      ...current,
+      items: current.items.map((item) =>
+        item.include
+          ? { ...item, importStatus: 'idle', importError: undefined }
+          : item
+      ),
+    }))
 
     try {
       for (let index = 0; index < includedItems.length; index += 1) {
         const item = includedItems[index]
-        const titleId = await resolveTitleId(item)
-        if (!titleId) {
-          throw new Error(`Could not match ${item.title} in TMDb.`)
-        }
 
-        if (item.mediaType === 'movie') {
-          if (item.rating === null) {
-            throw new Error(`"${item.title}" needs a rating before it can be imported.`)
+        // Update status of the item currently being imported
+        updateItem(item.id, { importStatus: 'processing' })
+
+        try {
+          const resolvedTitle = await resolveTitleId(item, (id, newMediaType) => {
+            updateItem(id, { mediaType: newMediaType })
+          })
+
+          if (!resolvedTitle) {
+            throw new Error(`Could not find "${item.title}" in TMDb.`)
           }
 
-          const watchedAt = new Date(item.watchedAt)
-          await dbService.rateTitle(titleId, item.rating, item.watchType, watchedAt, item.notes)
-          await dbService.addWatchDiaryEntry(titleId, watchedAt, item.watchType, item.notes)
-        } else {
-          const episodes = item.tvEpisodes || []
-          for (const episode of episodes) {
-            const episodeRating = episode.rating ?? item.rating
-            if (episodeRating === null) {
+          const existingDiaryEntry = await dbService.getLastWatchEntry(resolvedTitle.titleId)
+          if (existingDiaryEntry) {
+            updateItem(item.id, {
+              importStatus: 'skipped',
+              importError: 'Already exists in your diary.',
+            })
+            skippedCount += 1
+          } else if (
+            resolvedTitle.mediaType === 'movie' ||
+            !item.tvEpisodes ||
+            item.tvEpisodes.length === 0
+          ) {
+            if (item.rating === null) {
               throw new Error(`"${item.title}" needs a rating before it can be imported.`)
             }
+            if (item.rating < 0 || item.rating > 5) {
+              throw new Error(`"${item.title}" has a rating outside Kino's 0-5 scale.`)
+            }
 
-            await dbService.rateEpisode(
-              titleId,
-              episode.seasonNumber,
-              episode.episodeNumber,
-              episodeRating,
-              episode.watchType,
-              new Date(episode.watchedAt),
+            const watchedAt = new Date(item.watchedAt)
+            if (Number.isNaN(watchedAt.getTime())) {
+              throw new Error(`"${item.title}" is missing a valid watched date.`)
+            }
+            await dbService.rateTitle(
+              resolvedTitle.titleId,
+              item.rating,
+              item.watchType,
+              watchedAt,
               item.notes
             )
-          }
+            await dbService.addWatchDiaryEntry(
+              resolvedTitle.titleId,
+              watchedAt,
+              item.watchType,
+              item.notes
+            )
+            updateItem(item.id, { importStatus: 'success', importError: undefined })
+            importedCount += 1
+          } else {
+            const episodes = item.tvEpisodes || []
+            for (const episode of episodes) {
+              const episodeRating = episode.rating ?? item.rating
+              if (episodeRating === null) {
+                throw new Error(`"${item.title}" needs a rating before it can be imported.`)
+              }
+              if (episodeRating < 0 || episodeRating > 5) {
+                throw new Error(`"${item.title}" has a rating outside Kino's 0-5 scale.`)
+              }
 
-          await dbService.addWatchDiaryEntry(
-            titleId,
-            new Date(item.watchedAt),
-            item.watchType,
-            item.notes
-          )
+              const watchedAt = new Date(episode.watchedAt)
+              if (Number.isNaN(watchedAt.getTime())) {
+                throw new Error(`"${item.title}" is missing a valid watched date.`)
+              }
+
+              await dbService.rateEpisode(
+                resolvedTitle.titleId,
+                episode.seasonNumber,
+                episode.episodeNumber,
+                episodeRating,
+                episode.watchType,
+                watchedAt,
+                item.notes
+              )
+            }
+
+            const diaryWatchedAt = new Date(item.watchedAt)
+            if (Number.isNaN(diaryWatchedAt.getTime())) {
+              throw new Error(`"${item.title}" is missing a valid watched date.`)
+            }
+            await dbService.addWatchDiaryEntry(
+              resolvedTitle.titleId,
+              diaryWatchedAt,
+              item.watchType,
+              item.notes
+            )
+            updateItem(item.id, { importStatus: 'success', importError: undefined })
+            importedCount += 1
+          }
+        } catch (error) {
+          console.error(`[Import] Item import failed for: ${item.title}`, error)
+          const errorMsg = error instanceof Error ? error.message : 'Import failed'
+          // Mark item as failed
+          updateItem(item.id, { importStatus: 'failed', importError: errorMsg })
+          failureCount += 1
         }
 
-        setProgress({ completed: index + 1, total: includedItems.length })
+        setProgress({
+          completed: index + 1,
+          total: includedItems.length,
+          imported: importedCount,
+          skipped: skippedCount,
+          failed: failureCount,
+        })
       }
 
-      Alert.alert('Import completed', `We saved ${includedItems.length} items to your Kino library.`, [
-        { text: 'OK', onPress: () => router.back() },
-      ])
-    } catch (error) {
-      console.error('[Import] Import failed', error)
-      Alert.alert('Import failed', error instanceof Error ? error.message : 'Please try again.')
+      Alert.alert(
+        'Import finished',
+        `Imported: ${importedCount}\nSkipped: ${skippedCount}\nFailed: ${failureCount}`
+      )
+    } catch (globalError) {
+      console.error('[Import] Global import failure', globalError)
+      Alert.alert('Import failed', 'An unexpected error occurred during the import process.')
     } finally {
       setImporting(false)
     }
@@ -208,6 +296,12 @@ export default function ImportHistoryScreen() {
 
   const allItems = state.items
   const hasItems = allItems.length > 0
+
+  const ITEMS_PER_PAGE = 15
+  const totalPages = Math.max(1, Math.ceil(allItems.length / ITEMS_PER_PAGE))
+  const paginatedItems = useMemo(() => {
+    return allItems.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE)
+  }, [allItems, page])
 
   return (
     <SafeAreaView className="flex-1 bg-primary">
@@ -226,7 +320,7 @@ export default function ImportHistoryScreen() {
         className="flex-1"
       >
         <FlatList
-          data={allItems}
+          data={paginatedItems}
           keyExtractor={(item) => item.id}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingBottom: 120 }}
@@ -394,7 +488,11 @@ export default function ImportHistoryScreen() {
                 <View className="rounded-2xl border border-white/5 bg-surface p-4">
                   <Text className="text-base font-semibold text-text-primary">Importing...</Text>
                   <Text className="mt-1 text-sm text-text-secondary">
-                    {progress.completed} of {progress.total} saved
+                    {progress.completed} of {progress.total} processed
+                  </Text>
+                  <Text className="mt-2 text-xs font-medium text-text-secondary">
+                    Imported: {progress.imported} | Skipped: {progress.skipped} | Failed:{' '}
+                    {progress.failed}
                   </Text>
                   <View className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
                     <View
@@ -406,6 +504,31 @@ export default function ImportHistoryScreen() {
                   </View>
                 </View>
               ) : null}
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <View className="mb-4 flex-row items-center justify-between rounded-2xl border border-white/5 bg-surface p-3">
+                  <TouchableOpacity
+                    className={`rounded-xl px-4 py-2 ${page === 1 ? 'opacity-40' : 'bg-white/5'}`}
+                    onPress={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                  >
+                    <Text className="text-sm font-semibold text-text-primary">Previous</Text>
+                  </TouchableOpacity>
+
+                  <Text className="text-sm text-text-secondary font-medium">
+                    Page {page} of {totalPages}
+                  </Text>
+
+                  <TouchableOpacity
+                    className={`rounded-xl px-4 py-2 ${page === totalPages ? 'opacity-40' : 'bg-white/5'}`}
+                    onPress={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                  >
+                    <Text className="text-sm font-semibold text-text-primary">Next</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
               <View className="mt-4 flex-row gap-3">
                 <TouchableOpacity
@@ -484,11 +607,25 @@ function ImportRowCard({
   datePickerId: string | null
   onToggleInclude: (include: boolean) => void
 }) {
-  const watchedAtText = useMemo(() => format(new Date(item.watchedAt), 'PP'), [item.watchedAt])
+  const watchedAtText = useMemo(() => formatDate(item.watchedAt), [item.watchedAt])
+
+  let cardBorderColor = 'border-white/5'
+  let cardBgColor = item.include ? 'bg-surface' : 'bg-surface/60 opacity-60'
+
+  if (item.importStatus === 'success') {
+    cardBorderColor = 'border-[#1DB954]/40'
+    cardBgColor = 'bg-[#1DB954]/5'
+  } else if (item.importStatus === 'skipped') {
+    cardBorderColor = 'border-orange-500/40'
+    cardBgColor = 'bg-orange-500/5'
+  } else if (item.importStatus === 'failed') {
+    cardBorderColor = 'border-red-500/40'
+    cardBgColor = 'bg-red-500/5'
+  }
 
   return (
     <View
-      className={`mx-4 mb-3 rounded-2xl border p-4 ${item.include ? 'border-white/5 bg-surface' : 'border-white/5 bg-surface/60 opacity-60'}`}
+      className={`mx-4 mb-3 rounded-2xl border p-4 ${cardBorderColor} ${cardBgColor}`}
     >
       <View className="flex-row items-start justify-between">
         <View className="flex-1 pr-3">
@@ -509,15 +646,71 @@ function ImportRowCard({
 
         <TouchableOpacity
           className="h-9 w-9 items-center justify-center rounded-full bg-white/5"
-          onPress={() => onToggleInclude(!item.include)}
+          onPress={() => {
+            if (
+              item.importStatus !== 'success' &&
+              item.importStatus !== 'skipped' &&
+              item.importStatus !== 'processing'
+            ) {
+              onToggleInclude(!item.include)
+            }
+          }}
+          disabled={
+            item.importStatus === 'success' ||
+            item.importStatus === 'skipped' ||
+            item.importStatus === 'processing'
+          }
         >
-          <Ionicons
-            name={item.include ? 'checkbox-outline' : 'square-outline'}
-            size={20}
-            color={item.include ? '#1DB954' : '#888'}
-          />
+          {item.importStatus === 'success' ? (
+            <Ionicons name="checkmark-circle" size={22} color="#1DB954" />
+          ) : item.importStatus === 'skipped' ? (
+            <Ionicons name="play-skip-forward-circle" size={22} color="#fb923c" />
+          ) : item.importStatus === 'failed' ? (
+            <Ionicons name="close-circle" size={22} color="#ef4444" />
+          ) : item.importStatus === 'processing' ? (
+            <ActivityIndicator size="small" color="#1DB954" />
+          ) : (
+            <Ionicons
+              name={item.include ? 'checkbox-outline' : 'square-outline'}
+              size={20}
+              color={item.include ? '#1DB954' : '#888'}
+            />
+          )}
         </TouchableOpacity>
       </View>
+
+      {item.importStatus === 'failed' ? (
+        <View className="mt-3 rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 flex-row items-center gap-2">
+          <Ionicons name="alert-circle-outline" size={16} color="#ef4444" />
+          <View className="flex-1">
+            <Text className="text-sm font-semibold text-red-200">Failed to import</Text>
+            <Text className="mt-0.5 text-xs text-red-300">
+              {item.importError || `Could not find "${item.title}" in TMDb.`}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
+      {item.importStatus === 'success' ? (
+        <View className="mt-3 rounded-xl border border-green-500/40 bg-[#1DB954]/10 px-3 py-2 flex-row items-center gap-2">
+          <Ionicons name="checkmark-circle-outline" size={16} color="#1DB954" />
+          <Text className="text-sm font-semibold text-green-200">Imported successfully</Text>
+        </View>
+      ) : null}
+
+      {item.importStatus === 'skipped' ? (
+        <View className="mt-3 flex-row items-center gap-2 rounded-xl border border-orange-500/40 bg-orange-500/10 px-3 py-2">
+          <Ionicons name="play-skip-forward-outline" size={16} color="#fb923c" />
+          <View className="flex-1">
+            <Text className="text-sm font-semibold text-orange-200">
+              Skipped (Already exists)
+            </Text>
+            <Text className="mt-0.5 text-xs text-orange-300">
+              {item.importError || 'Already exists in your diary.'}
+            </Text>
+          </View>
+        </View>
+      ) : null}
 
       {item.issue || item.rating === null ? (
         <View className="mt-3 rounded-xl border border-orange-500/40 bg-orange-500/10 px-3 py-2">
@@ -539,6 +732,11 @@ function ImportRowCard({
             onChangeText={(text) => onChange(item.id, { title: text })}
             placeholder="Title"
             placeholderTextColor="#666"
+            editable={
+              item.importStatus !== 'success' &&
+              item.importStatus !== 'skipped' &&
+              item.importStatus !== 'processing'
+            }
           />
         </View>
 
@@ -549,7 +747,20 @@ function ImportRowCard({
             </Text>
             <TouchableOpacity
               className="rounded-xl border border-white/5 bg-primary px-3 py-3"
-              onPress={() => onDatePress(datePickerId === item.id ? null : item.id)}
+              onPress={() => {
+                if (
+                  item.importStatus !== 'success' &&
+                  item.importStatus !== 'skipped' &&
+                  item.importStatus !== 'processing'
+                ) {
+                  onDatePress(datePickerId === item.id ? null : item.id)
+                }
+              }}
+              disabled={
+                item.importStatus === 'success' ||
+                item.importStatus === 'skipped' ||
+                item.importStatus === 'processing'
+              }
             >
               <Text className="text-text-primary">{watchedAtText}</Text>
             </TouchableOpacity>
@@ -569,6 +780,11 @@ function ImportRowCard({
               placeholder="n/a"
               placeholderTextColor="#666"
               keyboardType="decimal-pad"
+              editable={
+                item.importStatus !== 'success' &&
+                item.importStatus !== 'skipped' &&
+                item.importStatus !== 'processing'
+              }
             />
           </View>
         </View>
@@ -581,12 +797,28 @@ function ImportRowCard({
             <SegmentButton
               label="First time"
               active={item.watchType === 'first-time'}
-              onPress={() => onChange(item.id, { watchType: 'first-time' })}
+              onPress={() => {
+                if (
+                  item.importStatus !== 'success' &&
+                  item.importStatus !== 'skipped' &&
+                  item.importStatus !== 'processing'
+                ) {
+                  onChange(item.id, { watchType: 'first-time' })
+                }
+              }}
             />
             <SegmentButton
               label="Rewatch"
               active={item.watchType === 'rewatch'}
-              onPress={() => onChange(item.id, { watchType: 'rewatch' })}
+              onPress={() => {
+                if (
+                  item.importStatus !== 'success' &&
+                  item.importStatus !== 'skipped' &&
+                  item.importStatus !== 'processing'
+                ) {
+                  onChange(item.id, { watchType: 'rewatch' })
+                }
+              }}
             />
           </View>
         </View>
@@ -658,81 +890,137 @@ function StatChip({
   )
 }
 
-function validateItems(items: ImportTitleItem[]): string[] {
-  const issues: string[] = []
-
-  for (const item of items) {
-    if (!item.title.trim()) {
-      issues.push('One or more rows have no title.')
-      break
-    }
-
-    if (Number.isNaN(new Date(item.watchedAt).getTime())) {
-      issues.push(`"${item.title}" is missing a valid watched date.`)
-      break
-    }
-
-    if (item.rating === null) {
-      issues.push(`"${item.title}" needs a rating before it can be imported.`)
-      break
-    }
-
-    if (item.rating < 0 || item.rating > 5) {
-      issues.push(`"${item.title}" has a rating outside Kino's 0-5 scale.`)
-      break
-    }
-  }
-
-  return issues
+function cleanSearchTitle(title: string): string {
+  return title
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s*\([^)]*\)\s*/g, ' ') // remove parentheses like (2020)
+    .replace(/[^a-zA-Z0-9\s]/g, ' ') // remove special chars
+    .replace(/\s+/g, ' ') // normalize whitespace
+    .trim()
 }
 
-async function resolveTitleId(item: ImportTitleItem): Promise<string | null> {
+function stripLeadingArticles(title: string): string {
+  return title
+    .replace(/^(the|a|an|la|le|el|os|as|o|a)\s+/i, '')
+    .trim()
+}
+
+async function resolveTitleId(
+  item: ImportTitleItem,
+  onMediaTypeChange: (id: string, newMediaType: 'movie' | 'tv') => void
+): Promise<{ titleId: string; mediaType: 'movie' | 'tv' } | null> {
   const tmdb = getTMDbService()
-  const searchResult = await tmdb.search(item.title.trim())
-  const candidates = searchResult.results.filter((result) => result.media_type === item.mediaType)
 
-  if (candidates.length === 0) {
+  // Helper to search and choose candidate
+  const searchAndMatch = async (query: string, mediaType: 'movie' | 'tv'): Promise<{ id: number; mediaType: 'movie' | 'tv' } | null> => {
+    try {
+      const searchResult = await tmdb.search(query)
+      if (!searchResult || !searchResult.results) return null
+
+      // 1. Try primary media type
+      const primaryCandidates = searchResult.results.filter((result) => result.media_type === mediaType)
+      let chosen = chooseBestCandidate(item, primaryCandidates)
+      if (chosen) return { id: chosen.id, mediaType }
+
+      // 2. Try opposite media type
+      const oppositeMediaType = mediaType === 'movie' ? 'tv' : 'movie'
+      const oppositeCandidates = searchResult.results.filter((result) => result.media_type === oppositeMediaType)
+      chosen = chooseBestCandidate(item, oppositeCandidates)
+      if (chosen) return { id: chosen.id, mediaType: oppositeMediaType }
+    } catch (err) {
+      console.warn(`[Import] Search failed for query "${query}":`, err)
+    }
     return null
   }
 
-  const chosen = chooseBestCandidate(item, candidates)
-  if (!chosen) {
+  // Phase 1: Search with original title
+  let match = await searchAndMatch(item.title.trim(), item.mediaType)
+
+  // Phase 2: Search with cleaned title
+  if (!match) {
+    const cleanedTitle = cleanSearchTitle(item.title)
+    if (cleanedTitle && cleanedTitle !== item.title.trim()) {
+      match = await searchAndMatch(cleanedTitle, item.mediaType)
+    }
+  }
+
+  // Phase 3: Search without common leading articles
+  if (!match) {
+    const noArticlesTitle = stripLeadingArticles(item.title)
+    if (noArticlesTitle && noArticlesTitle !== item.title.trim()) {
+      match = await searchAndMatch(noArticlesTitle, item.mediaType)
+    }
+  }
+
+  if (!match) {
     return null
   }
 
-  if (item.mediaType === 'movie') {
-    const details = await tmdb.getMovieDetails(chosen.id)
-    const credits = await tmdb.getMovieCredits(chosen.id)
+  // If media type was swapped, notify parent to update the item state
+  if (match.mediaType !== item.mediaType) {
+    onMediaTypeChange(item.id, match.mediaType)
+  }
+
+  if (match.mediaType === 'movie') {
+    const details = await tmdb.getMovieDetails(match.id)
+    const credits = await tmdb.getMovieCredits(match.id)
     const transformed = await transformMovieToTitleDetails(details, credits)
-    return dbService.getOrCreateTitle(transformed)
+    return {
+      titleId: await dbService.getOrCreateTitle(transformed),
+      mediaType: match.mediaType,
+    }
+  } else {
+    const details = await tmdb.getTVDetails(match.id)
+    const credits = await tmdb.getTVCredits(match.id)
+    const transformed = await transformTVToTitleDetails(details, credits)
+    return {
+      titleId: await dbService.getOrCreateTitle(transformed),
+      mediaType: match.mediaType,
+    }
   }
-
-  const details = await tmdb.getTVDetails(chosen.id)
-  const credits = await tmdb.getTVCredits(chosen.id)
-  const transformed = await transformTVToTitleDetails(details, credits)
-  return dbService.getOrCreateTitle(transformed)
 }
 
 function chooseBestCandidate(
   item: ImportTitleItem,
-  candidates: Array<{ id: number; title?: string; name?: string; release_date?: string; first_air_date?: string }>
+  candidates: Array<{
+    id: number
+    title?: string
+    name?: string
+    original_title?: string
+    original_name?: string
+    release_date?: string
+    first_air_date?: string
+  }>
 ): { id: number } | null {
   const normalizedTarget = normalizeText(item.title)
 
   const scored = candidates
     .map((candidate) => {
       const candidateTitle = normalizeText(candidate.title || candidate.name || '')
+      const candidateOriginal = normalizeText(candidate.original_title || candidate.original_name || '')
       const candidateYear = parseYear(candidate.release_date || candidate.first_air_date || '')
       let score = 0
 
-      if (candidateTitle === normalizedTarget) score += 10
-      if (candidateTitle.includes(normalizedTarget) || normalizedTarget.includes(candidateTitle)) score += 5
-      if (item.year && candidateYear === item.year) score += 4
+      if (candidateTitle === normalizedTarget || candidateOriginal === normalizedTarget) {
+        score += 10
+      } else if (
+        candidateTitle.includes(normalizedTarget) ||
+        normalizedTarget.includes(candidateTitle) ||
+        candidateOriginal.includes(normalizedTarget) ||
+        normalizedTarget.includes(candidateOriginal)
+      ) {
+        score += 5
+      }
+      if (item.year && candidateYear === item.year) {
+        score += 4
+      }
       return { id: candidate.id, score }
     })
     .sort((left, right) => right.score - left.score)
 
-  return scored[0] && scored[0].score > 0 ? { id: scored[0].id } : { id: scored[0].id }
+  if (scored.length === 0) return null
+  return { id: scored[0].id }
 }
 
 function normalizeText(value: string): string {

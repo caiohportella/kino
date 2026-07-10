@@ -10,8 +10,8 @@ import {
 import { Ionicons } from '@expo/vector-icons'
 import type { FollowerInfo } from '~/types'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { format } from 'date-fns'
 import { EmptyState } from '../../components/EmptyState'
+import { formatDate } from '@kino/core'
 
 interface UserListModalProps {
   visible: boolean
@@ -86,7 +86,7 @@ export default function UserListModal({
                     )}
                     {item.isMutual && item.mutualSince && (
                       <Text className="text-accent text-xs mt-0.5">
-                        Mutuals since {format(new Date(item.mutualSince), 'MMM d, yyyy')}
+                        Mutuals since {formatDate(item.mutualSince)}
                       </Text>
                     )}
                   </View>

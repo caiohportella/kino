@@ -104,6 +104,8 @@
     "noSeriesDescription": "Commencez à regarder des séries pour les voir ici.",
     "viewAll": "Tout voir",
     "completed": "Terminée",
+    "newEpisodesOn": "Nouveaux épisodes le {{date}}",
+    "newEpisodesSoon": "Nouveaux épisodes bientôt",
     "next": "Suivant :",
     "last": "Dernier :",
     "searchUsers": "Rechercher des utilisateurs...",
@@ -193,6 +195,9 @@
     "tapToRate": "Appuyez pour noter",
     "communityRatings": "Notes de la communauté",
     "ratings": "notes",
+    "userRatings": "Notes des utilisateurs",
+    "avgMovieRating": "Note moyenne du film",
+    "avgSeriesRating": "Note moyenne de la série",
     "checkOut": "Découvrez {{title}} sur Kino !",
     "loginPrompt": "Veuillez vous connecter.",
     "friendRatings": "Notes des Amis",
@@ -202,6 +207,7 @@
     "seeAlsoOn": "Voir aussi sur",
     "openOn": "Ouvrir sur {{service}}",
     "getTickets": "Acheter des billets",
+    "buyCinemaTickets": "Acheter des billets de cinéma",
     "findTheaters": "Trouver des cinémas"
   },
   "modals": {
@@ -303,6 +309,7 @@
     "progress": "Progression",
     "episodesProgress": "{{watched}} / {{total}} épisodes",
     "airsOn": "Diffusé le {{date}}",
+    "newSeasonComing": "La saison {{number}} arrive bientôt",
     "noOverview": "Aucun résumé disponible.",
     "markEpisodeUnwatched": "Marquer comme non vu",
     "confirmUnwatchEpisode": "Êtes-vous sûr de vouloir marquer \"{{episodeName}}\" comme non vu?",
@@ -330,6 +337,88 @@
       "Visual Effects": "Effets visuels",
       "Costume & Make-Up": "Costumes et Maquillage",
       "Lighting": "Éclairage"
+    }
+  },
+  "landing": {
+    "nav": {
+      "signIn": "Connexion",
+      "createAccount": "Créer un compte",
+      "explore": "Explorer"
+    },
+    "hero": {
+      "eyebrow": "Votre compagnon cinéma discret",
+      "headline": "Gardez en mémoire chaque histoire qui compte.",
+      "body": "Kino réunit films, séries, notes, entrées de journal et listes partagées dans un espace clair pensé pour un usage quotidien.",
+      "cta": "Créer votre compte gratuit",
+      "secondary": "Explorer sans se connecter"
+    },
+    "features": {
+      "eyebrow": "Tout ce qu'il faut",
+      "headline": "Conçu pour votre vraie façon de regarder.",
+      "diary": {
+        "headline": "Un journal qui reste avec vous.",
+        "body": "Enregistrez chaque film et épisode avec une date, une note et un commentaire. Revoir exactement ce que vous avez regardé, quand et comment vous l'avez ressenti, des années plus tard."
+      },
+      "progress": {
+        "headline": "Suivez chaque épisode, chaque saison.",
+        "body": "Marquez les épisodes vus un par un. Suivez l'avancement par saison. Reprenez exactement où vous vous étiez arrêté sans perdre votre place."
+      },
+      "ratings": {
+        "headline": "Notez ce qui compte pour vous.",
+        "body": "Attribuez une note personnelle à chaque titre. Regardez votre goût pour le cinéma se dessiner au fil de milliers d'entrées."
+      },
+      "watchlists": {
+        "headline": "Organisez ce que vous regarderez ensuite.",
+        "body": "Créez des listes privées ou partagées. Invitez vos amis à collaborer. Ne vous demandez plus quoi lancer ensuite."
+      },
+      "search": {
+        "headline": "Trouvez n'importe quoi, instantanément.",
+        "body": "Recherchez dans tout le catalogue TMDB - films, séries, personnes - avec des filtres par genre, note et plus encore."
+      },
+      "stats": {
+        "headline": "Comprenez vos habitudes de visionnage.",
+        "body": "Voyez vos genres les plus vus, vos titres les mieux notés et vos séries d'activité se construire naturellement à partir de votre journal."
+      }
+    },
+    "community": {
+      "eyebrow": "Communauté",
+      "headline": "Des notes de vraies personnes, pas d'algorithmes.",
+      "body": "Voyez comment les utilisateurs de Kino notent les mêmes titres. Suivez vos amis et découvrez de nouveaux films grâce à des goûts que vous connaissez déjà."
+    },
+    "i18n": {
+      "eyebrow": "International",
+      "headline": "Pensé pour le monde entier.",
+      "body": "Kino parle anglais, français, italien, norvégien et portugais. Dates localisées, contenu localisé - sentez-vous chez vous où que vous soyez.",
+      "languages": {
+        "en": "Anglais",
+        "fr": "Français",
+        "it": "Italien",
+        "no": "Norvégien",
+        "pt": "Portugais"
+      },
+      "exampleLabel": "Exemple localisé",
+      "exampleBody": "Les dates, les libellés de l'interface et le contenu TMDB localisé suivent la langue sélectionnée."
+    },
+    "platforms": {
+      "eyebrow": "Partout",
+      "headline": "Web, mobile et hors ligne.",
+      "body": "Disponible comme Progressive Web App dans n'importe quel navigateur, et nativement sur iOS et Android. Votre bibliothèque se synchronise instantanément sur tous vos appareils.",
+      "cta": "Ouvrir l'application web",
+      "webLabel": "Web",
+      "mobileLabel": "Mobile"
+    },
+    "cta": {
+      "headline": "Votre vie de visionnage, magnifiquement organisée.",
+      "body": "Gratuit. Sans abonnement. Sans suivi.",
+      "button": "Commencer avec Kino"
+    },
+    "footer": {
+      "tagline": "Un compagnon calme pour films et séries.",
+      "links": {
+        "search": "Rechercher",
+        "diary": "Journal",
+        "watchlists": "Listes"
+      }
     }
   },
   "awards": {

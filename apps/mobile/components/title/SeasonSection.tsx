@@ -11,6 +11,7 @@ import type { TMDbSeason, TMDbEpisode, EpisodeRating } from "~/types";
 import { useTranslation } from "react-i18next";
 import { useFriendEpisodeRatings } from "~/hooks/data/useFriendRatings";
 import { FriendEpisodeRatings } from "./FriendRatings";
+import { formatDate, isFutureDateOnly } from "@kino/core";
 
 interface SeasonSectionProps {
   tmdbId: number;
@@ -288,6 +289,10 @@ export function SeasonSection({
               : "border border-accent bg-surface"
             }`}
           onPress={() => {
+            if (!isAuthenticated) {
+              onLoginRequest();
+              return;
+            }
             if (selectedSeason === null) return;
             const isWatched = seasonStats?.ratedEpisodes === episodes.length;
 
@@ -390,7 +395,13 @@ export function SeasonSection({
                 </Text>
               ) : (
                 <TouchableOpacity
-                  onPress={() => setShowSeasonRatingModal(true)}
+                  onPress={() => {
+                    if (!isAuthenticated) {
+                      onLoginRequest();
+                      return;
+                    }
+                    setShowSeasonRatingModal(true);
+                  }}
                 >
                   <Text className="text-lg font-semibold text-green-500">
                     {t("seasons.addARate")}
@@ -427,9 +438,7 @@ export function SeasonSection({
           {episodes.map((ep) => {
             const userRating = ratings[ep.episode_number];
             const isWatched = !!userRating;
-            const hasAired = ep.air_date
-              ? new Date(ep.air_date) <= new Date()
-              : false;
+            const hasAired = !isFutureDateOnly(ep.air_date);
 
             return (
               <View key={ep.id} className="mb-4 border-b border-surface pb-4">
@@ -467,19 +476,11 @@ export function SeasonSection({
 
                     <Text className="mb-2 mt-4 text-xs text-text-secondary">
                       {ep.air_date
-                        ? new Date(ep.air_date) > new Date()
-                          ? t("seasons.airsOn", {
-                            date: new Date(ep.air_date).toLocaleDateString(
-                              language,
-                              {
-                                weekday: "short",
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                              },
-                            ),
+                        ? isFutureDateOnly(ep.air_date)
+                        ? t("seasons.airsOn", {
+                            date: formatDate(ep.air_date),
                           })
-                          : new Date(ep.air_date).toLocaleDateString(language)
+                          : formatDate(ep.air_date)
                         : "No date"}
                     </Text>
                     <Text
@@ -491,14 +492,7 @@ export function SeasonSection({
                     {isWatched && userRating.watchedAt && (
                       <Text className="mt-2 text-xs text-accent">
                         {t("seasons.watchedOn")}{" "}
-                        {new Date(userRating.watchedAt).toLocaleDateString(
-                          language,
-                          {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          },
-                        )}
+                        {formatDate(userRating.watchedAt)}
                       </Text>
                     )}
                   </View>

@@ -104,6 +104,8 @@
     "noSeriesDescription": "Comece a assistir séries para vê-las aqui.",
     "viewAll": "Ver Tudo",
     "completed": "Completa",
+    "newEpisodesOn": "Novos episódios em {{date}}",
+    "newEpisodesSoon": "Novos episódios em breve",
     "next": "Próximo:",
     "last": "Último:",
     "searchUsers": "Buscar usuários...",
@@ -184,7 +186,7 @@
     "watchlisted": "Na Lista",
     "diary": "Diário",
     "credits": "CRÉDITOS",
-    "director": "Dir.",
+    "director": "Diretor:",
     "cast": "Elenco:",
     "synopsis": "Sinopse",
     "noSynopsis": "Nenhuma sinopse disponível.",
@@ -193,6 +195,9 @@
     "tapToRate": "Toque para avaliar",
     "communityRatings": "Avaliações da Comunidade",
     "ratings": "avaliações",
+    "userRatings": "Avaliações de Usuários",
+    "avgMovieRating": "Média dos Filmes",
+    "avgSeriesRating": "Média das Séries",
     "checkOut": "Confira {{title}} no Kino!",
     "loginPrompt": "Por favor, faça login.",
     "friendRatings": "Avaliações de Amigos",
@@ -202,6 +207,7 @@
     "seeAlsoOn": "Veja também em",
     "openOn": "Abrir em {{service}}",
     "getTickets": "Comprar Ingressos",
+    "buyCinemaTickets": "Comprar Ingressos de Cinema",
     "findTheaters": "Encontre cinemas próximos"
   },
   "modals": {
@@ -303,6 +309,7 @@
     "progress": "Progresso",
     "episodesProgress": "{{watched}} / {{total}} episódios",
     "airsOn": "Vai ao ar em {{date}}",
+    "newSeasonComing": "A temporada {{number}} estreia em breve",
     "noOverview": "Nenhuma sinopse disponível.",
     "markEpisodeUnwatched": "Desmarcar como não visto",
     "confirmUnwatchEpisode": "Tem certeza que deseja marcar \"{{episodeName}}\" como não visto?",
@@ -330,6 +337,88 @@
       "Visual Effects": "Efeitos Visuais",
       "Costume & Make-Up": "Figurino e Maquiagem",
       "Lighting": "Iluminação"
+    }
+  },
+  "landing": {
+    "nav": {
+      "signIn": "Entrar",
+      "createAccount": "Criar conta",
+      "explore": "Explorar"
+    },
+    "hero": {
+      "eyebrow": "Seu companheiro discreto de cinema",
+      "headline": "Lembre de cada história que vale guardar.",
+      "body": "O Kino dá a filmes, séries, avaliações, diários e listas compartilhadas um lar focado, pensado para o uso diário.",
+      "cta": "Criar sua conta gratuita",
+      "secondary": "Explorar sem entrar"
+    },
+    "features": {
+      "eyebrow": "Tudo o que você precisa",
+      "headline": "Feito para a forma como você realmente assiste.",
+      "diary": {
+        "headline": "Um diário que fica com você.",
+        "body": "Registre cada filme e episódio com data, nota e comentário. Veja exatamente o que você assistiu, quando e como se sentiu - até anos depois."
+      },
+      "progress": {
+        "headline": "Acompanhe cada episódio, cada temporada.",
+        "body": "Marque episódios individuais como assistidos. Acompanhe o progresso por temporada. Continue exatamente de onde parou sem perder o lugar."
+      },
+      "ratings": {
+        "headline": "Avalie o que importa para você.",
+        "body": "Dê uma nota pessoal para cada título. Veja seu gosto por cinema se revelar ao longo de milhares de entradas com o tempo."
+      },
+      "watchlists": {
+        "headline": "Organize o que assistir depois.",
+        "body": "Crie listas privadas ou compartilhadas. Convide amigos para colaborar. Nunca mais fique em dúvida sobre o que colocar na fila."
+      },
+      "search": {
+        "headline": "Encontre qualquer coisa, instantaneamente.",
+        "body": "Pesquise no catálogo inteiro do TMDB - filmes, séries, pessoas - com filtros por gênero, nota e muito mais."
+      },
+      "stats": {
+        "headline": "Entenda seus hábitos de visualização.",
+        "body": "Veja seus gêneros mais assistidos, títulos melhor avaliados e sequências de atividade crescerem naturalmente a partir do seu diário."
+      }
+    },
+    "community": {
+      "eyebrow": "Comunidade",
+      "headline": "Avaliações de pessoas, não de algoritmos.",
+      "body": "Veja como os usuários do Kino avaliam os mesmos títulos. Siga amigos e descubra novos filmes por meio de gostos em que você já confia."
+    },
+    "i18n": {
+      "eyebrow": "Internacional",
+      "headline": "Feito para o mundo.",
+      "body": "O Kino fala inglês, francês, italiano, norueguês e português. Datas localizadas, conteúdo localizado - sinta-se em casa onde quer que esteja.",
+      "languages": {
+        "en": "Inglês",
+        "fr": "Francês",
+        "it": "Italiano",
+        "no": "Norueguês",
+        "pt": "Português"
+      },
+      "exampleLabel": "Exemplo localizado",
+      "exampleBody": "Datas, rótulos da interface e conteúdo TMDB localizado seguem o idioma selecionado."
+    },
+    "platforms": {
+      "eyebrow": "Em todo lugar",
+      "headline": "Web, mobile e offline.",
+      "body": "Disponível como Progressive Web App em qualquer navegador, e nativamente no iOS e Android. Sua biblioteca sincroniza instantaneamente em todos os seus dispositivos.",
+      "cta": "Abrir a app web",
+      "webLabel": "Web",
+      "mobileLabel": "Móvel"
+    },
+    "cta": {
+      "headline": "Sua vida de assistir, lindamente organizada.",
+      "body": "Grátis para usar. Sem assinaturas. Sem rastreamento.",
+      "button": "Começar com Kino"
+    },
+    "footer": {
+      "tagline": "Um companheiro calmo para filmes e séries.",
+      "links": {
+        "search": "Buscar",
+        "diary": "Diário",
+        "watchlists": "Listas"
+      }
     }
   },
   "awards": {

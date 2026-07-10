@@ -25,6 +25,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import { dbService } from '~/services/database'
 import { getTMDbService } from '~/services/tmdb'
+import { formatDate } from '@kino/core'
 
 import type { Watchlist, UserProfile } from '~/types'
 import { CreateWatchlistModal } from '~/components/modals/CreateWatchlistModal'
@@ -467,7 +468,7 @@ export default function WatchlistDetailScreen() {
           watchlist.updatedAt ? (
             <View className="py-6 items-center">
               <Text className="text-text-secondary/50 text-xs">
-                {t('common.lastUpdated')} {format(new Date(watchlist.updatedAt), 'MMM d, yyyy')}
+                {t('common.lastUpdated')} {formatDate(watchlist.updatedAt)}
               </Text>
             </View>
           ) : null

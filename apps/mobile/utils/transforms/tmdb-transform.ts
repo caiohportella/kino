@@ -21,6 +21,7 @@ export async function transformMovieToTitleDetails(
     coverImage: tmdb.getImageUrl(movie.poster_path),
     backdropImage: tmdb.getBackdropUrl(movie.backdrop_path),
     year: movie.release_date ? new Date(movie.release_date).getFullYear() : 0,
+    status: null,
     genres: movie.genres || [],
     cast: credits.cast.slice(0, 20), // Top 20 cast members
     director: director ? { ...director, job: 'Director' } : undefined,
@@ -53,6 +54,7 @@ export async function transformTVToTitleDetails(
     coverImage: tmdb.getImageUrl(tv.poster_path),
     backdropImage: tmdb.getBackdropUrl(tv.backdrop_path),
     year: tv.first_air_date ? new Date(tv.first_air_date).getFullYear() : 0,
+    status: tv.status,
     genres: tv.genres || [],
     cast: credits.cast.slice(0, 20), // Top 20 cast members
     director: creator ? { ...creator, job: 'Creator' } : undefined,

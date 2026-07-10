@@ -1,10 +1,13 @@
 import type { EpisodeRating, SeasonMetadata, TMDbPersonCredit, UIDiaryEntry, WatchedSeries } from './types'
+import { isFutureDateOnly, parseDateOnly } from './date'
 
 export interface NextEpisodeCandidate {
   season: number
   episode: number
   air_date?: string
 }
+
+const SERIES_COMPLETED_STATUSES = new Set(['ended', 'canceled', 'cancelled', 'complete', 'completed', 'finished'])
 
 export function clampRating(value: number) {
   return Math.min(5, Math.max(0, Number(value.toFixed(1))))
@@ -30,6 +33,15 @@ export function getEpisodeKey(seasonNumber: number, episodeNumber: number) {
   return `${seasonNumber}-${episodeNumber}`
 }
 
+export function isCompletedSeriesStatus(status: string | null | undefined) {
+  if (!status) return false
+  return SERIES_COMPLETED_STATUSES.has(status.trim().toLowerCase())
+}
+
+export function isUpcomingEpisode(value: { air_date?: string | null } | null | undefined, now = new Date()) {
+  return Boolean(value?.air_date) && isFutureDateOnly(value?.air_date, now)
+}
+
 export function findFirstUnwatchedEpisode(
   seasons: SeasonMetadata[] | null | undefined,
   watchedEpisodeKeys: ReadonlySet<string>
@@ -53,6 +65,33 @@ export function findFirstUnwatchedEpisode(
   }
 
   return null
+}
+
+export function findFirstUpcomingEpisode(
+  seasons: SeasonMetadata[] | null | undefined,
+  now = new Date()
+): NextEpisodeCandidate | null {
+  if (!seasons || seasons.length === 0) return null
+
+  const orderedSeasons = [...seasons]
+    .filter((season) => season.season_number > 0 && season.episode_count > 0 && isFutureDateOnly(season.air_date, now))
+    .sort((left, right) => {
+      const leftDate = parseDateOnly(left.air_date)
+      const rightDate = parseDateOnly(right.air_date)
+      if (!leftDate && !rightDate) return left.season_number - right.season_number
+      if (!leftDate) return 1
+      if (!rightDate) return -1
+      return leftDate.getTime() - rightDate.getTime()
+    })
+
+  const nextSeason = orderedSeasons[0]
+  if (!nextSeason) return null
+
+  return {
+    season: nextSeason.season_number,
+    episode: 1,
+    air_date: nextSeason.air_date || undefined,
+  }
 }
 
 export function calculateSeasonRatingSummary(ratings: Array<Pick<EpisodeRating, 'rating'>>) {
@@ -172,7 +211,17 @@ export function normalizeSearchText(value: string) {
     .toLowerCase()
 }
 
-export function chooseBestSearchCandidate<T extends { id: number; title?: string; name?: string; release_date?: string; first_air_date?: string }>(
+export function chooseBestSearchCandidate<
+  T extends {
+    id: number
+    title?: string
+    name?: string
+    original_title?: string
+    original_name?: string
+    release_date?: string
+    first_air_date?: string
+  }
+>(
   title: string,
   year: number | null,
   candidates: T[]
@@ -181,11 +230,22 @@ export function chooseBestSearchCandidate<T extends { id: number; title?: string
   const scored = candidates
     .map((candidate) => {
       const candidateTitle = normalizeSearchText(candidate.title || candidate.name || '')
+      const candidateOriginal = normalizeSearchText(candidate.original_title || candidate.original_name || '')
       const candidateYear = getReleaseYear(candidate)
       let score = 0
-      if (candidateTitle === target) score += 10
-      if (candidateTitle.includes(target) || target.includes(candidateTitle)) score += 5
-      if (year && candidateYear === year) score += 4
+      if (candidateTitle === target || candidateOriginal === target) {
+        score += 10
+      } else if (
+        candidateTitle.includes(target) ||
+        target.includes(candidateTitle) ||
+        candidateOriginal.includes(target) ||
+        target.includes(candidateOriginal)
+      ) {
+        score += 5
+      }
+      if (year && candidateYear === year) {
+        score += 4
+      }
       return { candidate, score }
     })
     .sort((left, right) => right.score - left.score)

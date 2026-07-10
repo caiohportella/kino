@@ -70,9 +70,10 @@ export class TMDbService {
     return data.results.map((item) => ({ ...item, media_type: 'movie' as const }))
   }
 
-  async getNowPlayingMovies(region?: string) {
+  async getNowPlayingMovies(region?: string, language?: string) {
     const data = await this.request<{ results: TMDbTitle[] }>('/movie/now_playing', {
       region: region || this.language.split('-')[1] || 'US',
+      ...(language ? { language } : {}),
     })
     return data.results.map((item) => ({ ...item, media_type: 'movie' as const }))
   }
@@ -126,6 +127,11 @@ export class TMDbService {
     return this.request<TMDbPerson>(`/person/${personId}`, {
       append_to_response: 'combined_credits,external_ids',
     })
+  }
+
+  async getPopularPeople() {
+    const data = await this.request<{ results: TMDbPerson[] }>('/person/popular')
+    return data.results
   }
 
   getImageUrl(path: string | null, size: 'w200' | 'w300' | 'w500' | 'w780' | 'original' = 'w500') {
@@ -199,6 +205,7 @@ export function transformTVToTitleDetails(
     coverImage: tmdb.getImageUrl(tv.poster_path),
     backdropImage: tmdb.getBackdropUrl(tv.backdrop_path),
     year: tv.first_air_date ? new Date(tv.first_air_date).getFullYear() : 0,
+    status: tv.status,
     genres: tv.genres || [],
     cast: credits.cast.slice(0, 20),
     director: creator ? { ...creator, job: 'Creator' } : undefined,

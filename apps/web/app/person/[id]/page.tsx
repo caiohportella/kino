@@ -1,7 +1,7 @@
 'use client'
 
 import type { TMDbPerson, TMDbPersonCredit } from '@kino/core'
-import { getDisplayTitle, getKnownForCredits, getReleaseYear } from '@kino/core'
+import { formatDate, getDisplayTitle, getKnownForCredits, getReleaseYear } from '@kino/core'
 import { EmptyState, Poster } from '@kino/ui'
 import {
   ArrowLeft,
@@ -101,8 +101,8 @@ export default function PersonPage() {
           <div className="min-w-0">
             <div className="mb-2 flex flex-wrap gap-2 text-xs font-semibold text-kino-muted">
               {person.known_for_department ? <span>{person.known_for_department}</span> : null}
-              {person.birthday ? <span>{formatPersonDate(person.birthday, language)}</span> : null}
-              {person.deathday ? <span>Died {formatPersonDate(person.deathday, language)}</span> : null}
+              {person.birthday ? <span>{formatDate(person.birthday)}</span> : null}
+              {person.deathday ? <span>Died {formatDate(person.deathday)}</span> : null}
             </div>
             <h1 className="max-w-4xl text-3xl font-semibold text-kino-text md:text-5xl">{person.name}</h1>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -159,7 +159,7 @@ export default function PersonPage() {
         <aside className="grid content-start gap-5">
           <Card className="grid gap-4 p-5">
             <h2 className="text-lg font-semibold text-kino-text">Details</h2>
-            <PersonDetailRow icon={CalendarDays} label="Born" value={person.birthday ? formatPersonDate(person.birthday, language) : null} />
+            <PersonDetailRow icon={CalendarDays} label="Born" value={person.birthday ? formatDate(person.birthday) : null} />
             <PersonDetailRow icon={MapPin} label="Place" value={person.place_of_birth} />
             <PersonDetailRow icon={BriefcaseBusiness} label="Known for" value={person.known_for_department} />
           </Card>
@@ -250,12 +250,4 @@ function PersonExternalLinks({ person }: { person: TMDbPerson }) {
       ))}
     </Card>
   )
-}
-
-function formatPersonDate(value: string, locale: string) {
-  return new Date(value).toLocaleDateString(locale, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
 }

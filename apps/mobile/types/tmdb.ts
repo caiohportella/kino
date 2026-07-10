@@ -36,6 +36,7 @@ export interface TMDbMovie extends TMDbTitle {
 export interface TMDbTVShow extends TMDbTitle {
   name: string
   first_air_date: string
+  status?: string
   episode_run_time?: number[]
   seasons: TMDbSeason[]
   external_ids?: TMDbExternalIds
@@ -119,4 +120,3 @@ export interface TMDbPersonCombinedCredits {
   cast: TMDbPersonCredit[]
   crew: TMDbPersonCredit[]
 }
-

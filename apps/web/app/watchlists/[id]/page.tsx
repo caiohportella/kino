@@ -1,11 +1,12 @@
 'use client'
 
 import type { UserProfile, Watchlist, WatchlistItemDetails } from '@kino/core'
+import { formatDate } from '@kino/core'
 import { Button, Card, Dialog, EmptyState, Field, Poster, TextArea } from '@kino/ui'
 import { Check, Copy, LogOut, Pencil, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LoadingPanel } from '@/components/loading-panel'
 import { PageHeader } from '@/components/page-header'
@@ -41,7 +42,7 @@ export default function WatchlistDetailPage() {
   const user = useAuthStore((state) => state.user)
   const queryClient = useQueryClient()
   const { notify } = useToast()
-  const { i18n, t } = useTranslation()
+  const { t } = useTranslation()
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [leaveOpen, setLeaveOpen] = useState(false)
@@ -71,13 +72,6 @@ export default function WatchlistDetailPage() {
     watchlistItems.map((item) => ({ tmdbId: item.title.tmdb_id, type: item.title.type }))
   )
 
-  const dateFormatter = useMemo(
-    () =>
-      new Intl.DateTimeFormat(i18n.language, {
-        dateStyle: 'medium',
-      }),
-    [i18n.language]
-  )
   const isOwner = user?.id === query.data?.watchlist?.userId
   const copyText = query.data?.watchlist?.shareCode || ''
   const localizedTitleMap = localizedTitles.data || {}
@@ -242,7 +236,6 @@ export default function WatchlistDetailPage() {
         <div className="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-x-5 gap-y-10 sm:grid-cols-[repeat(auto-fill,minmax(168px,1fr))]">
           {items.map((item) => (
             <WatchlistTitleCard
-              dateFormatter={dateFormatter}
               item={item}
               key={item.id}
               localizedTitles={localizedTitleMap}
@@ -302,13 +295,11 @@ function WatchlistTitleCard({
   item,
   showRemove,
   onRemove,
-  dateFormatter,
   localizedTitles,
 }: {
   item: WatchlistItemDetails
   showRemove: boolean
   onRemove: () => void
-  dateFormatter: Intl.DateTimeFormat
   localizedTitles: LocalizedTitleMap
 }) {
   const { t } = useTranslation()
@@ -355,7 +346,7 @@ function WatchlistTitleCard({
         <h2 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-kino-text">{displayTitle}</h2>
         <div className="mt-2 grid gap-1 text-xs text-kino-muted">
           <span>{t('watchlists.addedBy', { name: addedBy })}</span>
-          <span>{t('watchlists.addedOn', { date: dateFormatter.format(item.addedAt) })}</span>
+          <span>{t('watchlists.addedOn', { date: formatDate(item.addedAt) })}</span>
         </div>
       </div>
     </article>

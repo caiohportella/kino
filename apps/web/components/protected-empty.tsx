@@ -10,9 +10,14 @@ export function ProtectedEmpty({ title, body }: { title: string; body: string })
   return (
     <EmptyState
       action={
-        <Link href="/auth/login">
-          <Button>{t('auth.signIn')}</Button>
-        </Link>
+        <div className="flex flex-col items-center gap-2 sm:flex-row">
+          <Link href="/auth/login">
+            <Button>{t('auth.signIn')}</Button>
+          </Link>
+          <Link href="/auth/register">
+            <Button tone="secondary">{t('auth.createAccount')}</Button>
+          </Link>
+        </div>
       }
       body={body}
       title={title}

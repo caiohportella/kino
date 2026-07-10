@@ -1,9 +1,21 @@
 'use client'
 
-import type { EpisodeRating, MediaType, TMDbCast, TMDbEpisode, TitleDetails, WatchType, Watchlist } from '@kino/core'
+import type {
+  EpisodeRating,
+  MediaType,
+  TMDbCast,
+  TMDbEpisode,
+  TitleDetails,
+  TitleRatingStats,
+  WatchType,
+  Watchlist,
+} from '@kino/core'
+import { formatDate as formatKinoDate } from '@kino/core'
 import {
   calculateSeasonRatingSummary,
   formatRuntime,
+  isCompletedSeriesStatus,
+  isFutureDateOnly,
   transformMovieToTitleDetails,
   transformTVToTitleDetails,
 } from '@kino/core'
@@ -14,19 +26,23 @@ import {
   CalendarDays,
   CheckCircle2,
   Eye,
+  Plus,
   Save,
   Share2,
   Star,
   Ticket,
   Trash2,
+  UserRound,
 } from 'lucide-react'
 import Link from 'next/link'
-import { useParams, useSearchParams } from 'next/navigation'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import Confetti from 'react-confetti'
 import { useTranslation } from '@/lib/i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LoadingPanel } from '@/components/loading-panel'
 import { RatingStars } from '@/components/rating-stars'
+import { WatchlistDialog } from '@/components/watchlist-dialog'
 import {
   AlertDialog,
   AlertDialogButtonAction,
@@ -53,14 +69,62 @@ import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { db, getTmdb } from '@/lib/services'
+import { storeAuthRedirect } from '@/lib/auth-redirect'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 import { useSettingsStore } from '@/stores/settings-store'
 
 const ANON_TITLE_ID = '00000000-0000-0000-0000-000000000000'
+const EXTERNAL_LOGOS = {
+  letterboxd: 'https://a.ltrbxd.com/logos/letterboxd-decal-dots-neg-rgb.svg',
+  tmdb:
+    'https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg',
+  tvTime: 'https://cdn.brandfetch.io/idRVkKuKdb/w/39/h/39/theme/dark/logo.png?c=1dxbfHSJFAPEGdCLU4o5B',
+  seriesGraph:
+    'https://seriesgraph.com/_next/image?url=https:%2F%2Fimages.seriesgraph.com%2Ffictional-posters%2F2e65671e-4c85-40a1-b184-44be9a8153a5-10ba660c-a406-42fc-aee1-74f87f822aca-1779031627029.jpg&w=1080&q=75',
+} as const
+
+function parseTmdbDate(value: string) {
+  const date = new Date(`${value}T12:00:00`)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function formatDate(value: string) {
+  return formatKinoDate(parseTmdbDate(value) || value)
+}
+
+function getUpcomingSeason(title: TitleDetails) {
+  if (title.type !== 'tv') return null
+  if (isCompletedSeriesStatus(title.status)) return null
+
+  return (
+    title.seasons
+      ?.filter((season) => {
+        if (season.season_number <= 0) return false
+        return isFutureDateOnly(season.air_date)
+      })
+      .sort((left, right) => left.air_date.localeCompare(right.air_date))[0] ?? null
+  )
+}
+
+function isUnairedEpisode(episode: TMDbEpisode) {
+  return isFutureDateOnly(episode.air_date)
+}
+
+function episodeRatingKey(rating: Pick<EpisodeRating, 'seasonNumber' | 'episodeNumber'>) {
+  return `${rating.seasonNumber}:${rating.episodeNumber}`
+}
+
+function mergeEpisodeRatings(current: EpisodeRating[], updates: EpisodeRating[]) {
+  const merged = new Map(current.map((rating) => [episodeRatingKey(rating), rating]))
+  for (const rating of updates) merged.set(episodeRatingKey(rating), rating)
+  return Array.from(merged.values())
+}
 
 export default function TitlePage() {
   const params = useParams<{ id: string }>()
+  const pathname = usePathname()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const type = (searchParams.get('type') === 'tv' ? 'tv' : 'movie') as MediaType
   const tmdbId = Number(params.id)
@@ -123,6 +187,14 @@ export default function TitlePage() {
     enabled: Boolean(title?.id && title.id !== ANON_TITLE_ID),
   })
 
+  const nowPlayingQuery = useQuery({
+    queryKey: ['tmdb-now-playing', 'BR'],
+    queryFn: () => getTmdb().getNowPlayingMovies('BR', 'pt-BR'),
+    enabled: type === 'movie' && Number.isFinite(tmdbId),
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+  })
+
   const rateMutation = useMutation({
     mutationFn: (rating: number) => db.rateTitle(title!.id, rating, 'first-time', new Date()),
     onSuccess: () => {
@@ -148,6 +220,12 @@ export default function TitlePage() {
     },
   })
 
+  function requestAuthForCurrentTitle() {
+    const query = searchParams.toString()
+    storeAuthRedirect(`${pathname}${query ? `?${query}` : ''}`)
+    router.push('/auth/login')
+  }
+
   async function handleShare() {
     if (!title) return
     const url = window.location.href
@@ -171,6 +249,9 @@ export default function TitlePage() {
 
   const userData = userDataQuery.data
   const ticketsUrl = `https://www.ingresso.com.br/busca/resultado?q=${encodeURIComponent(title.title)}`
+  const isNowPlayingInBrazil = nowPlayingQuery.data?.some((movie) => movie.id === title.tmdbId) ?? false
+  const upcomingSeason = getUpcomingSeason(title)
+  const canUsePersonalActions = Boolean(user && title.id !== ANON_TITLE_ID)
 
   return (
     <div className="content-frame">
@@ -197,6 +278,11 @@ export default function TitlePage() {
               <span>{title.year || 'TBA'}</span>
               {title.runtime ? <span>{formatRuntime(title.runtime)}</span> : null}
               {title.totalSeasons ? <span>{title.totalSeasons} seasons</span> : null}
+              {title.type === 'tv' && isCompletedSeriesStatus(title.status) ? (
+                <span className="inline-flex min-h-7 items-center rounded-full border border-kino-accent/25 bg-kino-accent/10 px-3 text-xs font-semibold text-kino-text">
+                  {t('profile.completed')}
+                </span>
+              ) : null}
             </div>
             <h1 className="max-w-4xl text-3xl font-semibold text-kino-text md:text-4xl">{title.title}</h1>
             {title.genres.length > 0 ? (
@@ -211,14 +297,38 @@ export default function TitlePage() {
                 ))}
               </div>
             ) : null}
+            {upcomingSeason ? (
+              <div className="mt-4 flex w-fit max-w-full items-center gap-2 rounded-md border border-kino-accent/35 bg-kino-accent/10 px-3 py-2 text-sm font-semibold text-kino-text">
+                <CalendarDays aria-hidden="true" size={16} />
+                <span>
+                  {t('seasons.newSeasonComing', { number: upcomingSeason.season_number })}
+                  {upcomingSeason.air_date ? ` · ${formatDate(upcomingSeason.air_date)}` : ''}
+                </span>
+              </div>
+            ) : null}
             <div className="mt-5 flex flex-wrap gap-3">
-              <Button disabled={!user || title.id === ANON_TITLE_ID} onClick={() => setWatchlistOpen(true)}>
+              <Button
+                disabled={Boolean(user) && title.id === ANON_TITLE_ID}
+                onClick={() => {
+                  if (!canUsePersonalActions) {
+                    requestAuthForCurrentTitle()
+                    return
+                  }
+                  setWatchlistOpen(true)
+                }}
+              >
                 <BookmarkPlus size={17} />
                 {userData?.isWatchlisted ? t('title.watchlisted') : t('title.watchlist')}
               </Button>
               <Button
-                disabled={!user || title.id === ANON_TITLE_ID || diaryMutation.isPending}
-                onClick={() => diaryMutation.mutate()}
+                disabled={(Boolean(user) && title.id === ANON_TITLE_ID) || diaryMutation.isPending}
+                onClick={() => {
+                  if (!canUsePersonalActions) {
+                    requestAuthForCurrentTitle()
+                    return
+                  }
+                  diaryMutation.mutate()
+                }}
                 variant="secondary"
               >
                 <CalendarCheck size={17} />
@@ -228,11 +338,11 @@ export default function TitlePage() {
                 <Share2 size={17} />
                 {t('common.share')}
               </Button>
-              {type === 'movie' ? (
+              {type === 'movie' && isNowPlayingInBrazil ? (
                 <Button asChild variant="secondary">
                   <Link href={ticketsUrl} target="_blank">
                     <Ticket size={17} />
-                    {t('title.getTickets')}
+                    {t('title.buyCinemaTickets')}
                   </Link>
                 </Button>
               ) : null}
@@ -253,26 +363,31 @@ export default function TitlePage() {
           </Card>
 
           {title.type === 'movie' ? (
-            <Card className="self-start p-5 text-center md:max-w-xl md:p-6">
-              <h2 className="mb-4 text-xl font-semibold text-kino-text">{t('title.rateMovie')}</h2>
-              {user ? (
-                <>
-                  <RatingStars
-                    disabled={rateMutation.isPending}
-                    onChange={(rating) => rateMutation.mutate(rating)}
-                    size="lg"
-                    value={userData?.userRating?.rating || 0}
-                  />
-                  <p className="mt-3 text-sm text-kino-muted">
-                    {userData?.userRating?.rating ? t('title.thanksForRating') : t('title.tapToRate')}
-                  </p>
-                </>
-              ) : (
-                <Button asChild>
-                  <Link href="/auth/login">{t('auth.signIn')}</Link>
-                </Button>
-              )}
-            </Card>
+            <div className="grid gap-5 md:max-w-xl">
+              <Card className="self-start p-5 text-center md:p-6">
+                <h2 className="mb-4 text-xl font-semibold text-kino-text">{t('title.rateMovie')}</h2>
+                {user ? (
+                  <>
+                    <RatingStars
+                      disabled={rateMutation.isPending}
+                      onChange={(rating) => rateMutation.mutate(rating)}
+                      size="lg"
+                      value={userData?.userRating?.rating || 0}
+                    />
+                    <p className="mt-3 text-sm text-kino-muted">
+                      {userData?.userRating?.rating ? t('title.thanksForRating') : t('title.tapToRate')}
+                    </p>
+                  </>
+                ) : (
+                  <Button onClick={requestAuthForCurrentTitle}>
+                    <Star size={16} />
+                    {t('auth.signIn')}
+                  </Button>
+                )}
+              </Card>
+              <CommunityRatingsPanel stats={statsQuery.data} type={title.type} />
+              <ExternalLinksPanel title={title} />
+            </div>
           ) : null}
 
           {title.type === 'tv' && title.totalSeasons ? (
@@ -282,6 +397,7 @@ export default function TitlePage() {
                 tmdbId={title.tmdbId}
                 userCanRate={Boolean(user && title.id !== ANON_TITLE_ID)}
                 userId={user?.id}
+                onAuthRequired={requestAuthForCurrentTitle}
               />
             </Card>
           ) : null}
@@ -291,15 +407,12 @@ export default function TitlePage() {
         <aside className="grid content-start gap-5">
           <CreditsPanel title={title} />
 
-          <Card className="grid gap-3 p-5">
-            <h2 className="text-lg font-semibold text-kino-text">{t('title.communityRatings')}</h2>
-            <div className="grid grid-cols-2 gap-3">
-              <Stat label={t('profile.avgMovieRating')} value={statsQuery.data?.averageRating.toFixed(1) || '0.0'} />
-              <Stat label={t('title.ratings')} value={statsQuery.data?.totalRatings || 0} />
-            </div>
-          </Card>
-
-          <ExternalLinksPanel title={title} />
+          {title.type === 'tv' ? (
+            <>
+              <CommunityRatingsPanel stats={statsQuery.data} type={title.type} />
+              <ExternalLinksPanel title={title} />
+            </>
+          ) : null}
         </aside>
       </div>
 
@@ -326,6 +439,7 @@ function WatchlistPicker({
 }) {
   const queryClient = useQueryClient()
   const { t } = useTranslation()
+  const [createOpen, setCreateOpen] = useState(false)
   const query = useQuery({
     queryKey: ['watchlist-picker', userId, titleId],
     queryFn: async () => {
@@ -354,45 +468,102 @@ function WatchlistPicker({
   })
 
   return (
-    <Dialog onOpenChange={(nextOpen) => (!nextOpen ? onClose() : undefined)} open={open}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t('modals.selectWatchlist')}</DialogTitle>
-          <DialogDescription>{t('modals.watchlistSelectorHint')}</DialogDescription>
-        </DialogHeader>
-        {query.isLoading ? <LoadingPanel label={t('common.loading')} /> : null}
-        <div className="grid gap-3">
-          {(query.data?.watchlists || []).map((watchlist) => {
-            const contributorId = query.data?.selected.get(watchlist.id)
-            const active = Boolean(contributorId)
-            const canRemove = contributorId === userId
-            return (
-              <button
-                className={`flex items-center justify-between rounded-md border px-4 py-3 text-left transition-colors ${
-                  active
-                    ? 'border-kino-accent bg-kino-accent/15 text-kino-text'
-                    : 'border-white/10 bg-white/[0.04] text-kino-muted hover:text-kino-text'
-                }`}
-                disabled={mutation.isPending || (active && !canRemove)}
-                key={watchlist.id}
-                onClick={() => mutation.mutate(watchlist)}
-                title={active && !canRemove ? t('watchlists.onlyContributorCanRemove') : undefined}
-                type="button"
-              >
-                <span>
-                  <span className="block font-bold">{watchlist.name}</span>
-                  {watchlist.description ? <span className="text-sm">{watchlist.description}</span> : null}
-                </span>
-                <span className="text-sm font-bold">{active ? t('common.added') : t('common.add')}</span>
-              </button>
-            )
-          })}
-        </div>
-        {!query.isLoading && query.data?.watchlists.length === 0 ? (
-          <p className="text-sm text-kino-muted">{t('modals.noWatchlistsFound')}</p>
-        ) : null}
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog onOpenChange={(nextOpen) => (!nextOpen ? onClose() : undefined)} open={open && !createOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('modals.selectWatchlist')}</DialogTitle>
+            <DialogDescription>{t('modals.watchlistSelectorHint')}</DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-white/10 bg-white/[0.03] p-3">
+            <span className="text-sm font-semibold text-kino-text">{t('watchlists.createWatchlist')}</span>
+            <Button
+              aria-label={t('watchlists.createWatchlist')}
+              className="shrink-0"
+              onClick={() => setCreateOpen(true)}
+              size="icon"
+              title={t('watchlists.createWatchlist')}
+              variant="secondary"
+            >
+              <Plus size={17} />
+            </Button>
+          </div>
+          {query.isLoading ? <LoadingPanel label={t('common.loading')} /> : null}
+          <div className="grid gap-3">
+            {(query.data?.watchlists || []).map((watchlist) => {
+              const contributorId = query.data?.selected.get(watchlist.id)
+              const active = Boolean(contributorId)
+              const canRemove = contributorId === userId
+              return (
+                <button
+                  className={`flex items-center justify-between rounded-md border px-4 py-3 text-left transition-colors ${
+                    active
+                      ? 'border-kino-accent bg-kino-accent/15 text-kino-text'
+                      : 'border-white/10 bg-white/[0.04] text-kino-muted hover:text-kino-text'
+                  }`}
+                  disabled={mutation.isPending || (active && !canRemove)}
+                  key={watchlist.id}
+                  onClick={() => mutation.mutate(watchlist)}
+                  title={active && !canRemove ? t('watchlists.onlyContributorCanRemove') : undefined}
+                  type="button"
+                >
+                  <span>
+                    <span className="block font-bold">{watchlist.name}</span>
+                    {watchlist.description ? <span className="text-sm">{watchlist.description}</span> : null}
+                  </span>
+                  <span className="text-sm font-bold">{active ? t('common.added') : t('common.add')}</span>
+                </button>
+              )
+            })}
+          </div>
+          {!query.isLoading && query.data?.watchlists.length === 0 ? (
+            <div className="rounded-md border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm text-kino-muted">
+              <p>{t('modals.noWatchlistsFound')}</p>
+              <Button className="mt-3" onClick={() => setCreateOpen(true)} size="sm" variant="secondary">
+                <Plus size={15} />
+                {t('watchlists.createWatchlist')}
+              </Button>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+      <WatchlistDialog
+        onClose={() => setCreateOpen(false)}
+        onSaved={() => {
+          queryClient.invalidateQueries({ queryKey: ['watchlist-picker', userId, titleId] })
+          if (userId) queryClient.invalidateQueries({ queryKey: ['watchlists', userId] })
+        }}
+        open={createOpen}
+      />
+    </>
+  )
+}
+
+function CommunityRatingsPanel({
+  stats,
+  type,
+}: {
+  stats: TitleRatingStats | undefined
+  type: MediaType
+}) {
+  const { t } = useTranslation()
+
+  return (
+    <Card className="grid gap-3 p-5">
+      <h2 className="text-lg font-semibold text-kino-text">{t('title.communityRatings')}</h2>
+      <div className="grid grid-cols-2 gap-3">
+        <Stat
+          icon={<Star aria-hidden="true" className="text-kino-accent" size={14} />}
+          label={type === 'movie' ? t('title.avgMovieRating') : t('title.avgSeriesRating')}
+          value={stats?.averageRating.toFixed(1) || '0.0'}
+        />
+        <Stat
+          icon={<UserRound aria-hidden="true" size={14} />}
+          label={t('title.userRatings')}
+          value={stats?.totalRatings || 0}
+        />
+      </div>
+    </Card>
   )
 }
 
@@ -437,14 +608,14 @@ function getExternalLinks(title: TitleDetails): Array<{ href: string; icon: Reac
 
   links.push({
     href: `https://www.themoviedb.org/${title.type === 'tv' ? 'tv' : 'movie'}/${title.tmdbId}`,
-    icon: <ServiceLogo initials="TM" label="TMDB" />,
+    icon: <ServiceLogo label="TMDB" src={EXTERNAL_LOGOS.tmdb} />,
     label: 'TMDB',
   })
 
   if (title.type === 'movie') {
     links.push({
       href: `https://letterboxd.com/tmdb/${title.tmdbId}`,
-      icon: <ServiceLogo label="Letterboxd" rounded="rounded-full" src="/external/letterboxd.png" />,
+      icon: <ServiceLogo label="Letterboxd" src={EXTERNAL_LOGOS.letterboxd} />,
       label: 'Letterboxd',
     })
   }
@@ -454,14 +625,14 @@ function getExternalLinks(title: TitleDetails): Array<{ href: string; icon: Reac
       title.type === 'tv' && title.externalIds?.tvdb_id
         ? `https://www.tvtime.com/en/show/${title.externalIds.tvdb_id}`
         : `https://www.tvtime.com/en/search?q=${encodeURIComponent(title.title)}`,
-    icon: <ServiceLogo label="TV Time" src="/external/tvtime.png" />,
+    icon: <ServiceLogo label="TV Time" src={EXTERNAL_LOGOS.tvTime} />,
     label: 'TV Time',
   })
 
   if (title.type === 'tv') {
     links.push({
       href: `https://seriesgraph.com/show/${title.tmdbId}`,
-      icon: <ServiceLogo initials="SG" label="SeriesGraph" />,
+      icon: <ServiceLogo label="SeriesGraph" rounded="rounded" src={EXTERNAL_LOGOS.seriesGraph} />,
       label: 'SeriesGraph',
     })
   }
@@ -484,11 +655,23 @@ function ServiceLogo({
     <span
       aria-hidden="true"
       className={cn(
-        'grid h-7 w-7 shrink-0 place-items-center overflow-hidden border border-white/10 bg-white/[0.08] text-[10px] font-black text-kino-text',
+        'grid h-8 w-14 shrink-0 place-items-center overflow-hidden border border-white/10 bg-white/[0.08] p-1 text-[10px] font-black text-kino-text',
         rounded
       )}
     >
-      {src ? <img alt="" className="h-full w-full object-cover" loading="lazy" src={src} /> : initials || label.charAt(0)}
+      {src ? (
+        <img
+          alt=""
+          className="max-h-full max-w-full object-contain"
+          decoding="async"
+          height={32}
+          loading="lazy"
+          src={src}
+          width={56}
+        />
+      ) : (
+        initials || label.charAt(0)
+      )}
     </span>
   )
 }
@@ -504,7 +687,6 @@ function CreditsPanel({ title }: { title: TitleDetails }) {
     <Card className="grid gap-4 p-5">
       <div>
         <h2 className="text-lg font-semibold text-kino-text">{t('title.credits')}</h2>
-        <p className="mt-1 text-sm text-kino-muted">{t('person.knownFor')}</p>
       </div>
 
       {title.director ? (
@@ -563,13 +745,17 @@ function SeasonTabs({
   tmdbId,
   userCanRate,
   userId,
+  onAuthRequired,
 }: {
   title: TitleDetails
   tmdbId: number
   userCanRate: boolean
   userId: string | undefined
+  onAuthRequired: () => void
 }) {
   const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const [celebrationId, setCelebrationId] = useState(0)
   const seasons = useMemo(() => {
     const fromTmdb = title.seasons?.filter((season) => season.season_number > 0)
     if (fromTmdb && fromTmdb.length > 0) return fromTmdb
@@ -584,15 +770,106 @@ function SeasonTabs({
     }))
   }, [title.seasons, title.totalSeasons])
   const [selectedSeason, setSelectedSeason] = useState(seasons[0]?.season_number || 1)
+  const initializedTitle = useRef<string | null>(null)
+  const titleRatingsKey = ['title-episode-ratings', title.id, userId] as const
+  const titleRatingsQuery = useQuery({
+    queryKey: titleRatingsKey,
+    queryFn: () => db.getUserTitleEpisodeRatings(title.id),
+    enabled: userCanRate,
+  })
+  const defaultSeason = useMemo(() => {
+    const firstSeason = seasons[0]?.season_number || 1
+    if (!userCanRate) return firstSeason
+
+    const watchedBySeason = new Map<number, number>()
+    for (const rating of titleRatingsQuery.data || []) {
+      watchedBySeason.set(rating.seasonNumber, (watchedBySeason.get(rating.seasonNumber) || 0) + 1)
+    }
+
+    const totalExpectedEpisodes = seasons.reduce((total, season) => total + season.episode_count, 0)
+    const seriesCompleted =
+      totalExpectedEpisodes > 0 &&
+      seasons.every(
+        (season) =>
+          season.episode_count > 0 && (watchedBySeason.get(season.season_number) || 0) >= season.episode_count
+      )
+    if (seriesCompleted) return firstSeason
+
+    return (
+      seasons.find(
+        (season) =>
+          season.episode_count > 0 && (watchedBySeason.get(season.season_number) || 0) < season.episode_count
+      )?.season_number || firstSeason
+    )
+  }, [seasons, titleRatingsQuery.data, userCanRate])
 
   useEffect(() => {
-    setSelectedSeason(seasons[0]?.season_number || 1)
-  }, [seasons])
+    if (userCanRate && titleRatingsQuery.isLoading) return
+
+    const titleKey = `${title.id}:${title.tmdbId}:${userId || 'anonymous'}`
+    if (initializedTitle.current !== titleKey) {
+      initializedTitle.current = titleKey
+      setSelectedSeason(defaultSeason)
+      return
+    }
+
+    if (!seasons.some((season) => season.season_number === selectedSeason)) {
+      setSelectedSeason(seasons[0]?.season_number || 1)
+    }
+  }, [
+    defaultSeason,
+    seasons,
+    selectedSeason,
+    title.id,
+    title.tmdbId,
+    titleRatingsQuery.isLoading,
+    userCanRate,
+    userId,
+  ])
 
   if (seasons.length === 0) return null
 
+  function handleRatingsChanged(savedRatings: EpisodeRating[], completedSeason: boolean) {
+    const currentRatings = titleRatingsQuery.data || []
+    const mergedRatings = mergeEpisodeRatings(currentRatings, savedRatings)
+    queryClient.setQueryData(titleRatingsKey, mergedRatings)
+
+    const expectedEpisodeCount =
+      title.totalEpisodes || seasons.reduce((total, season) => total + season.episode_count, 0)
+    const seriesWasCompleted = expectedEpisodeCount > 0 && currentRatings.length >= expectedEpisodeCount
+    const seriesIsCompleted = expectedEpisodeCount > 0 && mergedRatings.length >= expectedEpisodeCount
+    const completedSeries = !seriesWasCompleted && seriesIsCompleted
+
+    if (
+      (completedSeason || completedSeries) &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      setCelebrationId((current) => current + 1)
+    }
+
+    queryClient.invalidateQueries({ queryKey: titleRatingsKey })
+  }
+
+  function handleSeasonCleared(seasonNumber: number) {
+    queryClient.setQueryData<EpisodeRating[]>(titleRatingsKey, (current = []) =>
+      current.filter((rating) => rating.seasonNumber !== seasonNumber)
+    )
+    queryClient.invalidateQueries({ queryKey: titleRatingsKey })
+  }
+
   return (
     <div>
+      {celebrationId > 0 ? (
+        <Confetti
+          height={document.documentElement.clientHeight}
+          key={celebrationId}
+          numberOfPieces={180}
+          onConfettiComplete={() => setCelebrationId(0)}
+          recycle={false}
+          style={{ inset: 0, pointerEvents: 'none', position: 'fixed', zIndex: 50 }}
+          width={document.documentElement.clientWidth}
+        />
+      ) : null}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold text-kino-text">{t('seasons.title')}</h2>
@@ -600,10 +877,10 @@ function SeasonTabs({
         </div>
       </div>
       <Tabs onValueChange={(value) => setSelectedSeason(Number(value))} value={String(selectedSeason)}>
-        <TabsList className="-mx-1 flex-nowrap justify-start overflow-x-auto rounded-none bg-transparent p-1 [scrollbar-width:thin] sm:flex-wrap">
+        <TabsList className="flex-nowrap justify-start overflow-x-auto rounded-none bg-transparent p-0 [scrollbar-width:thin] sm:flex-wrap">
           {seasons.map((season) => (
             <TabsTrigger
-              className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-4 text-kino-muted hover:border-white/20 hover:bg-white/[0.07] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent data-[state=active]:border-kino-accent data-[state=active]:bg-kino-accent data-[state=active]:text-black data-[state=active]:shadow-[0_8px_18px_rgb(29_185_84_/_0.16)]"
+              className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-4 text-kino-muted hover:border-white/20 hover:bg-white/[0.07] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent data-[state=active]:border-kino-accent data-[state=active]:bg-kino-accent data-[state=active]:text-black"
               key={season.season_number}
               value={String(season.season_number)}
             >
@@ -613,11 +890,22 @@ function SeasonTabs({
         </TabsList>
       </Tabs>
       <SeasonEpisodes
+        onEpisodeRemoved={(seasonNumber, episodeNumber) => {
+          queryClient.setQueryData<EpisodeRating[]>(titleRatingsKey, (current = []) =>
+            current.filter(
+              (rating) => rating.seasonNumber !== seasonNumber || rating.episodeNumber !== episodeNumber
+            )
+          )
+          queryClient.invalidateQueries({ queryKey: titleRatingsKey })
+        }}
+        onRatingsChanged={handleRatingsChanged}
+        onSeasonCleared={handleSeasonCleared}
         seasonNumber={selectedSeason}
         title={title}
         tmdbId={tmdbId}
         userCanRate={userCanRate}
         userId={userId}
+        onAuthRequired={onAuthRequired}
       />
     </div>
   )
@@ -629,12 +917,20 @@ function SeasonEpisodes({
   seasonNumber,
   userCanRate,
   userId,
+  onAuthRequired,
+  onRatingsChanged,
+  onSeasonCleared,
+  onEpisodeRemoved,
 }: {
   title: TitleDetails
   tmdbId: number
   seasonNumber: number
   userCanRate: boolean
   userId: string | undefined
+  onAuthRequired: () => void
+  onRatingsChanged: (ratings: EpisodeRating[], completedSeason: boolean) => void
+  onSeasonCleared: (seasonNumber: number) => void
+  onEpisodeRemoved: (seasonNumber: number, episodeNumber: number) => void
 }) {
   const queryClient = useQueryClient()
   const { t } = useTranslation()
@@ -650,8 +946,9 @@ function SeasonEpisodes({
       return tmdb.getSeasonDetails(tmdbId, seasonNumber)
     },
   })
+  const ratingsKey = ['season-ratings', title.id, seasonNumber, userId] as const
   const ratingsQuery = useQuery({
-    queryKey: ['season-ratings', title.id, seasonNumber],
+    queryKey: ratingsKey,
     queryFn: () => db.getUserSeasonRatings(title.id, seasonNumber),
     enabled: userCanRate,
   })
@@ -665,24 +962,47 @@ function SeasonEpisodes({
     [ratingsQuery.data]
   )
   const episodes = seasonQuery.data?.episodes || []
-  const watchedCount = episodes.filter((episode) => ratings.has(episode.episode_number)).length
-  const fullSeasonWatched = episodes.length > 0 && watchedCount === episodes.length
+  const watchableEpisodes = episodes.filter((episode) => !isUnairedEpisode(episode))
+  const watchedCount = watchableEpisodes.filter((episode) => ratings.has(episode.episode_number)).length
+  const fullSeasonWatched = watchableEpisodes.length > 0 && watchedCount === watchableEpisodes.length
 
-  function invalidateSeason() {
-    queryClient.invalidateQueries({ queryKey: ['season-ratings', title.id, seasonNumber] })
+  function refreshRelatedQueries() {
+    queryClient.invalidateQueries({ queryKey: ratingsKey })
     queryClient.invalidateQueries({ queryKey: ['title-stats', title.id, title.type] })
     queryClient.invalidateQueries({ queryKey: ['profile', userId] })
+  }
+
+  function syncSavedRatings(savedRatings: EpisodeRating[]) {
+    const mergedRatings = mergeEpisodeRatings(ratingsQuery.data || [], savedRatings)
+    queryClient.setQueryData(ratingsKey, mergedRatings)
+
+    const mergedEpisodeNumbers = new Set(mergedRatings.map((rating) => rating.episodeNumber))
+    const completedSeason =
+      !fullSeasonWatched &&
+      watchableEpisodes.length > 0 &&
+      watchableEpisodes.every((episode) => mergedEpisodeNumbers.has(episode.episode_number))
+
+    onRatingsChanged(savedRatings, completedSeason)
+    refreshRelatedQueries()
   }
 
   const seasonWatchedMutation = useMutation({
     mutationFn: async (mode: 'mark' | 'clear') => {
       if (mode === 'mark') {
-        await db.markSeasonEpisodesAsWatched(title.id, seasonNumber, episodes, 'first-time')
-        return
+        return db.markSeasonEpisodesAsWatched(title.id, seasonNumber, watchableEpisodes, 'first-time')
       }
       await db.removeSeasonEpisodesWatched(title.id, seasonNumber)
+      return []
     },
-    onSuccess: invalidateSeason,
+    onSuccess: (savedRatings, mode) => {
+      if (mode === 'mark') {
+        syncSavedRatings(savedRatings)
+      } else {
+        queryClient.setQueryData(ratingsKey, [])
+        onSeasonCleared(seasonNumber)
+        refreshRelatedQueries()
+      }
+    },
   })
 
   if (seasonQuery.isLoading) return <LoadingPanel label={t('common.loading')} />
@@ -694,7 +1014,7 @@ function SeasonEpisodes({
           <div className="grid gap-3">
             <h3 className="text-lg font-semibold text-kino-text">{t('seasons.season', { number: seasonNumber })}</h3>
             <p className="mt-1 text-sm text-kino-muted">
-              {t('seasons.episodesProgress', { watched: watchedCount, total: episodes.length || '?' })}
+              {t('seasons.episodesProgress', { watched: watchedCount, total: watchableEpisodes.length || '?' })}
             </p>
             {fullSeasonWatched ? (
               <CompletedSeasonRatingSummary
@@ -706,36 +1026,49 @@ function SeasonEpisodes({
           </div>
           <div className="flex flex-wrap gap-3">
             {fullSeasonWatched ? (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button disabled={!userCanRate || seasonWatchedMutation.isPending} variant="secondary">
-                    <Trash2 size={16} />
-                    {t('seasons.unmarkSeasonWatched')}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                  <AlertDialogTitle>{t('seasons.unmarkSeasonWatched')}</AlertDialogTitle>
-                  <AlertDialogDescription>
-                      {t('seasons.confirmUnwatchAll', { number: seasonNumber })}
-                  </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                  <AlertDialogButtonCancel>{t('common.cancel')}</AlertDialogButtonCancel>
-                    <AlertDialogButtonAction
-                      disabled={seasonWatchedMutation.isPending}
-                      onClick={() => seasonWatchedMutation.mutate('clear')}
-                      variant="destructive"
-                    >
-                      {t('common.remove')}
-                    </AlertDialogButtonAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              userCanRate ? (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button disabled={seasonWatchedMutation.isPending} variant="secondary">
+                      <Trash2 size={16} />
+                      {t('seasons.unmarkSeasonWatched')}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>{t('seasons.unmarkSeasonWatched')}</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {t('seasons.confirmUnwatchAll', { number: seasonNumber })}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogButtonCancel>{t('common.cancel')}</AlertDialogButtonCancel>
+                      <AlertDialogButtonAction
+                        disabled={seasonWatchedMutation.isPending}
+                        onClick={() => seasonWatchedMutation.mutate('clear')}
+                        variant="destructive"
+                      >
+                        {t('common.remove')}
+                      </AlertDialogButtonAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              ) : (
+                <Button onClick={onAuthRequired} variant="secondary">
+                  <Trash2 size={16} />
+                  {t('seasons.unmarkSeasonWatched')}
+                </Button>
+              )
             ) : (
               <Button
-                disabled={!userCanRate || seasonWatchedMutation.isPending || episodes.length === 0}
-                onClick={() => seasonWatchedMutation.mutate('mark')}
+                disabled={seasonWatchedMutation.isPending || watchableEpisodes.length === 0}
+                onClick={() => {
+                  if (!userCanRate) {
+                    onAuthRequired()
+                    return
+                  }
+                  seasonWatchedMutation.mutate('mark')
+                }}
                 variant="secondary"
               >
                 <CheckCircle2 size={16} />
@@ -743,7 +1076,16 @@ function SeasonEpisodes({
               </Button>
             )}
             {!fullSeasonWatched ? (
-              <Button disabled={!userCanRate || episodes.length === 0} onClick={() => setRateSeasonOpen(true)}>
+              <Button
+                disabled={watchableEpisodes.length === 0}
+                onClick={() => {
+                  if (!userCanRate) {
+                    onAuthRequired()
+                    return
+                  }
+                  setRateSeasonOpen(true)
+                }}
+              >
                 <Star size={16} />
                 {t('modals.seasonRatingModal.rateSeason')}
               </Button>
@@ -751,7 +1093,7 @@ function SeasonEpisodes({
           </div>
         </div>
         <div className="mt-4">
-          <ProgressBar value={episodes.length ? (watchedCount / episodes.length) * 100 : 0} />
+          <ProgressBar value={watchableEpisodes.length ? (watchedCount / watchableEpisodes.length) * 100 : 0} />
         </div>
       </div>
 
@@ -760,27 +1102,58 @@ function SeasonEpisodes({
           {episodes.map((episode) => {
             const existingRating = ratings.get(episode.episode_number)
             const isWatched = Boolean(existingRating)
+            const isUnaired = isUnairedEpisode(episode)
             const still = getTmdb().getImageUrl(episode.still_path, 'w300')
+            const showStill = Boolean(still) && !isUnaired
             const watchLabel = isWatched
               ? t('seasons.markEpisodeUnwatched')
-              : t('modals.markWatched')
+              : isUnaired && episode.air_date
+                ? t('seasons.airsOn', { date: formatDate(episode.air_date) })
+                : t('modals.markWatched')
 
             return (
               <article
-                className="grid gap-3 rounded-md border border-white/10 bg-white/[0.035] p-3 md:grid-cols-[92px_1fr_auto] md:items-center"
+                className={cn(
+                  'grid gap-3 rounded-md border border-white/10 bg-white/[0.035] p-3 md:items-center',
+                  showStill ? 'md:grid-cols-[92px_1fr_auto]' : 'md:grid-cols-[1fr_auto]'
+                )}
                 key={episode.id}
               >
-                <div className="aspect-video overflow-hidden rounded-md bg-black/30">
-                  {still ? <img alt="" className="h-full w-full object-cover" loading="lazy" src={still} /> : null}
-                </div>
+                {showStill ? (
+                  <div className="aspect-video overflow-hidden rounded-md bg-white/[0.04]">
+                    <img
+                      alt=""
+                      className="h-full w-full object-cover"
+                      decoding="async"
+                      height={52}
+                      loading="lazy"
+                      src={still || ''}
+                      width={92}
+                    />
+                  </div>
+                ) : null}
                 <div className="min-w-0">
                   <h4 className="font-semibold text-kino-text">
                     {episode.episode_number}. {episode.name || t('seasons.episode', { number: episode.episode_number })}
                   </h4>
-                  <p className="mt-1 line-clamp-2 text-sm text-kino-muted">{episode.overview || t('seasons.noOverview')}</p>
-                  <p className="mt-2 text-xs text-kino-subtle">
-                    {episode.air_date ? new Date(episode.air_date).toLocaleDateString() : t('seasons.noOverview')}
-                  </p>
+                  {episode.overview ? (
+                    <p className="mt-1 line-clamp-2 text-sm text-kino-muted">{episode.overview}</p>
+                  ) : null}
+                  {episode.air_date ? (
+                    <p className="mt-2 text-xs text-kino-subtle">
+                      {isUnaired
+                        ? t('seasons.airsOn', { date: formatDate(episode.air_date) })
+                        : formatDate(episode.air_date)}
+                    </p>
+                  ) : null}
+                  {existingRating ? (
+                    <p className="mt-2 flex items-center gap-1.5 text-xs text-kino-muted">
+                      <CalendarDays aria-hidden="true" size={14} />
+                      <span>
+                        {t('seasons.watchedOn')} {formatKinoDate(existingRating.watchedAt)}
+                      </span>
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex items-center gap-2 md:justify-end">
                   {isWatched ? (
@@ -822,7 +1195,13 @@ function SeasonEpisodes({
                           <AlertDialogButtonCancel>{t('common.cancel')}</AlertDialogButtonCancel>
                           <AlertDialogButtonAction
                             onClick={() => {
-                              db.removeEpisodeRating(title.id, seasonNumber, episode.episode_number).then(invalidateSeason)
+                              db.removeEpisodeRating(title.id, seasonNumber, episode.episode_number).then(() => {
+                                queryClient.setQueryData<EpisodeRating[]>(ratingsKey, (current = []) =>
+                                  current.filter((rating) => rating.episodeNumber !== episode.episode_number)
+                                )
+                                onEpisodeRemoved(seasonNumber, episode.episode_number)
+                                refreshRelatedQueries()
+                              })
                             }}
                             variant="destructive"
                           >
@@ -838,10 +1217,16 @@ function SeasonEpisodes({
                           aria-label={watchLabel}
                           className={cn(
                             'text-kino-muted hover:text-kino-text',
-                            !userCanRate && 'cursor-not-allowed opacity-50'
+                            isUnaired && 'cursor-not-allowed opacity-50'
                           )}
-                          disabled={!userCanRate}
-                          onClick={() => setSelectedEpisode(episode)}
+                          disabled={isUnaired}
+                          onClick={() => {
+                            if (!userCanRate) {
+                              onAuthRequired()
+                              return
+                            }
+                            setSelectedEpisode(episode)
+                          }}
                           size="icon"
                           title={watchLabel}
                           variant="secondary"
@@ -866,14 +1251,14 @@ function SeasonEpisodes({
         onOpenChange={(open) => {
           if (!open) setSelectedEpisode(null)
         }}
-        onSaved={invalidateSeason}
+        onSaved={(savedRating) => syncSavedRatings([savedRating])}
         seasonNumber={seasonNumber}
         title={title}
       />
       <RateSeasonDialog
-        episodes={episodes}
+        episodes={watchableEpisodes}
         onOpenChange={setRateSeasonOpen}
-        onSaved={invalidateSeason}
+        onSaved={syncSavedRatings}
         open={rateSeasonOpen}
         seasonNumber={seasonNumber}
         title={title}
@@ -931,7 +1316,7 @@ function EpisodeActionDialog({
   title: TitleDetails
   seasonNumber: number
   onOpenChange: (open: boolean) => void
-  onSaved: () => void
+  onSaved: (rating: EpisodeRating) => void
 }) {
   const { t } = useTranslation()
   const [rating, setRating] = useState(existingRating?.rating || 0)
@@ -947,7 +1332,7 @@ function EpisodeActionDialog({
   const mutation = useMutation({
     mutationFn: async () => {
       if (!episode) return
-      await db.rateEpisode(
+      return db.rateEpisode(
         title.id,
         seasonNumber,
         episode.episode_number,
@@ -956,8 +1341,8 @@ function EpisodeActionDialog({
         watchedAt
       )
     },
-    onSuccess: () => {
-      onSaved()
+    onSuccess: (savedRating) => {
+      if (savedRating) onSaved(savedRating)
       onOpenChange(false)
     },
   })
@@ -985,7 +1370,7 @@ function EpisodeActionDialog({
               <PopoverTrigger asChild>
                 <Button className="justify-start" variant="secondary">
                   <CalendarDays size={16} />
-                  {watchedAt.toLocaleDateString()}
+                  {formatKinoDate(watchedAt)}
                 </Button>
               </PopoverTrigger>
               <PopoverContent align="start" className="w-auto p-0">
@@ -1039,7 +1424,7 @@ function RateSeasonDialog({
   title: TitleDetails
   seasonNumber: number
   episodes: TMDbEpisode[]
-  onSaved: () => void
+  onSaved: (ratings: EpisodeRating[]) => void
 }) {
   const { t } = useTranslation()
   const [rating, setRating] = useState(0)
@@ -1050,8 +1435,8 @@ function RateSeasonDialog({
 
   const mutation = useMutation({
     mutationFn: () => db.markSeasonEpisodesAsWatched(title.id, seasonNumber, episodes, 'first-time', new Date(), rating),
-    onSuccess: () => {
-      onSaved()
+    onSuccess: (savedRatings) => {
+      onSaved(savedRatings)
       onOpenChange(false)
     },
   })

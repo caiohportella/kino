@@ -13,6 +13,7 @@ import {
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { dbService } from '~/services/database'
+import { isCompletedSeriesStatus } from '@kino/core'
 import { RatingStars } from '~/components/common/RatingStars'
 import { SeasonSection } from '~/components/title/SeasonSection'
 import { FriendRatings } from '~/components/title/FriendRatings'
@@ -65,10 +66,17 @@ export default function TitleDetailScreen() {
 
   const loading = metaQuery.isLoading
 
+  const promptForAuth = (message: string) => {
+    Alert.alert(t('title.loginRequired'), message, [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('auth.signIn'), onPress: () => router.push('/login') },
+      { text: t('auth.createAccount'), onPress: () => router.push('/register') },
+    ])
+  }
+
   const handleRate = async (rating: number) => {
     if (!isAuthenticated) {
-      Alert.alert(t('title.loginRequired'), t('title.loginToRate'))
-      router.push('/login')
+      promptForAuth(t('title.loginToRate'))
       return
     }
 
@@ -101,8 +109,7 @@ export default function TitleDetailScreen() {
 
   const handleAddToWatchlist = async () => {
     if (!isAuthenticated) {
-      Alert.alert(t('title.loginRequired'), t('title.loginToWatchlist'))
-      router.push('/login')
+      promptForAuth(t('title.loginToWatchlist'))
       return
     }
     setShowWatchlistModal(true)
@@ -110,8 +117,7 @@ export default function TitleDetailScreen() {
 
   const handleAddToDiary = async () => {
     if (!isAuthenticated) {
-      Alert.alert(t('title.loginRequired'), t('title.loginToDiary'))
-      router.push('/login')
+      promptForAuth(t('title.loginToDiary'))
       return
     }
 
@@ -216,6 +222,13 @@ export default function TitleDetailScreen() {
                 .map((g) => g.name)
                 .join(', ')}
             </Text>
+            {title.type === 'tv' && isCompletedSeriesStatus(title.status) ? (
+              <View className="mt-2 self-start rounded-full border border-accent/20 bg-accent/10 px-3 py-1.5">
+                <Text className="text-[10px] font-bold uppercase tracking-wide text-[#1DB954]">
+                  {t('profile.completed')}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
@@ -381,8 +394,7 @@ export default function TitleDetailScreen() {
               numberOfSeasons={title.totalSeasons}
               isAuthenticated={isAuthenticated}
               onLoginRequest={() => {
-                Alert.alert(t('title.loginRequired'), t('title.loginPrompt'))
-                router.push('/login')
+                promptForAuth(t('title.loginPrompt'))
               }}
               watchType={'first-time'}
             />

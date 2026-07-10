@@ -1,12 +1,13 @@
 'use client'
 
 import type { FollowerInfo, UserProfile } from '@kino/core'
+import { formatDate, isFutureDateOnly } from '@kino/core'
 import { EmptyState, Poster } from '@kino/ui'
 import type { LucideIcon } from 'lucide-react'
 import { Film, ImagePlus, Search, Settings, Star, Tv, UserPlus, UserRoundCheck, UsersRound } from 'lucide-react'
 import Link from 'next/link'
-import type { ReactNode } from 'react'
-import { useMemo, useState } from 'react'
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from '@/lib/i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BannerPickerDialog } from '@/components/banner-picker-dialog'
@@ -14,7 +15,6 @@ import { LoadingPanel } from '@/components/loading-panel'
 import { ProtectedEmpty } from '@/components/protected-empty'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -22,8 +22,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { RatingStars } from '@/components/rating-stars'
 import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
 import { db, getTmdb } from '@/lib/services'
+import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
 type SocialListType = 'followers' | 'following'
@@ -44,6 +46,7 @@ export function ProfileView({ profileId }: { profileId?: string }) {
   const [profileSearchOpen, setProfileSearchOpen] = useState(false)
   const [profileSearchQuery, setProfileSearchQuery] = useState('')
   const [socialListType, setSocialListType] = useState<SocialListType | null>(null)
+  const [seriesRatingOpen, setSeriesRatingOpen] = useState(false)
 
   const query = useQuery({
     queryKey: ['profile', targetUserId],
@@ -130,6 +133,30 @@ export function ProfileView({ profileId }: { profileId?: string }) {
     return { movieCount, seriesCount, averageMovieRating }
   }, [query.data])
 
+  const seriesIds = useMemo(() => query.data?.series.map((series) => series.id).sort() || [], [query.data?.series])
+  const seriesRatingQuery = useQuery({
+    queryKey: ['profile-series-ratings', targetUserId, seriesIds.join('|')],
+    queryFn: async () => {
+      if (!targetUserId || seriesIds.length === 0) return {}
+      return db.getAverageSeasonRatingsForTitles(targetUserId, seriesIds)
+    },
+    enabled: Boolean(targetUserId && seriesIds.length > 0),
+  })
+  const seriesRatingRows = useMemo(() => {
+    const ratings = seriesRatingQuery.data || {}
+    return (query.data?.series || [])
+      .map((series) => ({
+        series,
+        rating: ratings[series.id] || 0,
+      }))
+      .filter((entry) => entry.rating > 0)
+      .sort((left, right) => right.rating - left.rating || left.series.title.localeCompare(right.series.title))
+  }, [query.data?.series, seriesRatingQuery.data])
+  const averageSeriesRating = useMemo(() => {
+    if (seriesRatingRows.length === 0) return 0
+    return seriesRatingRows.reduce((sum, entry) => sum + entry.rating, 0) / seriesRatingRows.length
+  }, [seriesRatingRows])
+
   if (!targetUserId) {
     return <ProtectedEmpty body={t('profile.loginPrompt')} title={t('profile.loginPrompt')} />
   }
@@ -205,10 +232,16 @@ export function ProfileView({ profileId }: { profileId?: string }) {
         </div>
       </section>
 
-      <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
         <ProfileStatCard icon={Film} label={t('profile.watchedMovies')} value={stats.movieCount} />
         <ProfileStatCard icon={Tv} label={t('profile.watchedSeries')} value={stats.seriesCount} />
         <ProfileStatCard icon={Star} label={t('profile.avgMovieRating')} value={stats.averageMovieRating.toFixed(1)} />
+        <ProfileStatCard
+          icon={Star}
+          label={t('profile.avgSeriesRating', { defaultValue: 'Avg series rating' })}
+          onClick={() => setSeriesRatingOpen(true)}
+          value={seriesRatingRows.length > 0 ? averageSeriesRating.toFixed(1) : '—'}
+        />
         <SocialStatCard
           icon={UsersRound}
           label={t('profile.followers')}
@@ -266,6 +299,15 @@ export function ProfileView({ profileId }: { profileId?: string }) {
         users={socialListQuery.data || []}
         error={socialListQuery.error}
       />
+
+      <SeriesRatingDialog
+        averageRating={averageSeriesRating}
+        items={query.data?.series || []}
+        open={seriesRatingOpen}
+        onOpenChange={setSeriesRatingOpen}
+        ratedCount={seriesRatingRows.length}
+        ratingRows={seriesRatingRows}
+      />
     </div>
   )
 }
@@ -313,19 +355,30 @@ function ProfileStatCard({
   label,
   value,
   icon: Icon,
+  onClick,
 }: {
   label: string
   value: string | number
   icon: LucideIcon
+  onClick?: () => void
 }) {
+  const Component = onClick ? 'button' : 'div'
+
   return (
-    <div className="rounded-md border border-white/10 bg-white/[0.035] p-4">
+    <Component
+      className={cn(
+        'rounded-md border border-white/10 bg-white/[0.035] p-4 text-left',
+        onClick && 'cursor-pointer transition-colors hover:border-kino-accent/50 hover:bg-white/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent'
+      )}
+      onClick={onClick}
+      type={onClick ? 'button' : undefined}
+    >
       <div className="flex items-center justify-between gap-3">
         <div className="text-2xl font-semibold text-kino-text">{value}</div>
         <Icon aria-hidden="true" className="text-kino-muted" size={18} />
       </div>
       <div className="mt-2 text-sm font-semibold text-kino-muted">{label}</div>
-    </div>
+    </Component>
   )
 }
 
@@ -496,6 +549,116 @@ function SocialListDialog({
   )
 }
 
+function SeriesRatingDialog({
+  open,
+  onOpenChange,
+  items,
+  ratingRows,
+  averageRating,
+  ratedCount,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  items: Awaited<ReturnType<typeof db.getWatchedSeries>>
+  ratingRows: Array<{ series: Awaited<ReturnType<typeof db.getWatchedSeries>>[number]; rating: number }>
+  averageRating: number
+  ratedCount: number
+}) {
+  const { t } = useTranslation()
+  const localizedTitles = useLocalizedTitles(items.map((item) => ({ tmdbId: item.tmdb_id, type: 'tv' as const })))
+
+  const rows = useMemo(
+    () =>
+      ratingRows.map(({ series, rating }) => {
+        const localized = localizedTitles.data?.[localizedTitleKey({ tmdbId: series.tmdb_id, type: 'tv' })]
+        const displayTitle = localized?.title || series.title
+        const posterPath = localized?.posterPath ?? series.cover_image
+
+        return {
+          rating,
+          series,
+          displayTitle,
+          posterPath,
+        }
+      }),
+    [localizedTitles.data, ratingRows]
+  )
+
+  return (
+    <Dialog onOpenChange={onOpenChange} open={open}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>{t('profile.avgSeriesRating', { defaultValue: 'Avg series rating' })}</DialogTitle>
+          <DialogDescription>
+            {t('profile.seriesRatingsModalDescription', {
+              defaultValue: 'Based on the average season score for each TV show in this profile.',
+            })}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-4 rounded-md border border-white/10 bg-white/[0.035] p-4 md:grid-cols-[170px_1fr]">
+          <div className="grid place-items-center gap-2 rounded-md border border-white/10 bg-kino-surface px-4 py-5 text-center">
+            <div className="text-4xl font-semibold text-kino-text">
+              {ratedCount > 0 ? averageRating.toFixed(1) : '—'}
+            </div>
+            <RatingStars className="justify-center" label={t('profile.avgSeriesRating')} readonly size="sm" value={averageRating} />
+          </div>
+          <div className="grid content-center gap-2">
+            <p className="text-sm leading-6 text-kino-muted">
+              {t('profile.seriesRatingsModalSummary', {
+                defaultValue: '{{rated}} rated series out of {{total}} watched.',
+                rated: ratedCount,
+                total: items.length,
+              })}
+            </p>
+            <p className="text-sm leading-6 text-kino-muted">
+              {t('profile.seriesRatingsModalNote', {
+                defaultValue: 'Each score is the average of the episodes you rated for that show.',
+              })}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid max-h-[52vh] gap-2 overflow-y-auto pr-1">
+          {rows.length === 0 ? (
+            <DialogEmptyState
+              body={t('profile.seriesRatingsModalEmptyBody', {
+                defaultValue: 'Rate episodes to build an average for your series.',
+              })}
+              title={t('profile.seriesRatingsModalEmptyTitle', {
+                defaultValue: 'No series ratings yet',
+              })}
+            />
+          ) : (
+            rows.map(({ series, rating, displayTitle, posterPath }) => (
+              <div
+                className="grid grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-white/10 bg-white/[0.035] p-3"
+                key={series.id}
+              >
+                <Poster className="w-14" src={getTmdb().getImageUrl(posterPath, 'w200')} title={displayTitle} />
+                <div className="min-w-0">
+                  <h3 className="truncate font-semibold text-kino-text">{displayTitle}</h3>
+                  <p className="mt-1 text-xs text-kino-muted">
+                    {series.is_series_completed
+                      ? t('profile.completed')
+                      : series.next_episode
+                        ? t('profile.seriesRatingsNextEpisode', { defaultValue: 'Next episode' })
+                        : t('profile.seriesRatingsLastEpisode', { defaultValue: 'Last episode' })}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RatingStars readonly size="sm" value={rating} />
+                  <span className="text-sm font-semibold text-kino-text">{rating.toFixed(1)}</span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function ProfileUserRow({
   profile,
   subtitle,
@@ -552,6 +715,81 @@ function DialogEmptyState({ title, body }: { title: string; body: string }) {
   )
 }
 
+function useDraggableScroll<T extends HTMLElement>() {
+  const ref = useRef<T | null>(null)
+  const dragState = useRef({
+    pointerId: -1,
+    startX: 0,
+    startScrollLeft: 0,
+    isDragging: false,
+    suppressClick: false,
+  })
+  const [isDragging, setIsDragging] = useState(false)
+
+  function isInteractiveTarget(target: EventTarget | null) {
+    return target instanceof HTMLElement && Boolean(target.closest('a,button,[role="button"],input,select,textarea,label'))
+  }
+
+  function finishDrag(pointerId?: number) {
+    if (pointerId !== undefined && dragState.current.pointerId !== pointerId) return
+    if (dragState.current.isDragging) {
+      dragState.current.suppressClick = true
+      window.setTimeout(() => {
+        dragState.current.suppressClick = false
+      }, 0)
+    }
+    dragState.current.pointerId = -1
+    dragState.current.isDragging = false
+    setIsDragging(false)
+  }
+
+  return {
+    ref,
+    isDragging,
+    onPointerDown(event: ReactPointerEvent<T>) {
+      if (event.pointerType !== 'mouse' || event.button !== 0) return
+      if (isInteractiveTarget(event.target)) return
+      const element = ref.current
+      if (!element) return
+
+      dragState.current.pointerId = event.pointerId
+      dragState.current.startX = event.clientX
+      dragState.current.startScrollLeft = element.scrollLeft
+      dragState.current.isDragging = false
+      setIsDragging(false)
+      element.setPointerCapture(event.pointerId)
+    },
+    onPointerMove(event: ReactPointerEvent<T>) {
+      if (dragState.current.pointerId !== event.pointerId) return
+      const element = ref.current
+      if (!element) return
+
+      const distance = event.clientX - dragState.current.startX
+      if (Math.abs(distance) > 6) {
+        dragState.current.isDragging = true
+        setIsDragging(true)
+      }
+
+      if (dragState.current.isDragging) {
+        element.scrollLeft = dragState.current.startScrollLeft - distance
+        event.preventDefault()
+      }
+    },
+    onPointerUp(event: ReactPointerEvent<T>) {
+      finishDrag(event.pointerId)
+    },
+    onPointerCancel(event: ReactPointerEvent<T>) {
+      finishDrag(event.pointerId)
+    },
+    onClickCapture(event: ReactMouseEvent<T>) {
+      if (isInteractiveTarget(event.target)) return
+      if (!dragState.current.suppressClick) return
+      event.preventDefault()
+      event.stopPropagation()
+    },
+  }
+}
+
 function ProfileShelf({
   title,
   items,
@@ -562,12 +800,22 @@ function ProfileShelf({
   items: Array<{ id: string; tmdb_id: number; title: string; cover_image: string | null; release_year: number }>
 }) {
   const localizedTitles = useLocalizedTitles(items.map((item) => ({ tmdbId: item.tmdb_id, type })))
+  const dragScroll = useDraggableScroll<HTMLDivElement>()
 
   if (items.length === 0) return null
   return (
     <section className="mb-10">
       <h2 className="mb-4 text-xl font-semibold text-kino-text">{title}</h2>
-      <div className="media-row">
+      <div
+        className="media-row"
+        data-dragging={dragScroll.isDragging ? 'true' : 'false'}
+        onClickCapture={dragScroll.onClickCapture}
+        onPointerCancel={dragScroll.onPointerCancel}
+        onPointerDown={dragScroll.onPointerDown}
+        onPointerMove={dragScroll.onPointerMove}
+        onPointerUp={dragScroll.onPointerUp}
+        ref={dragScroll.ref}
+      >
         {items.map((item) => {
           const localized = localizedTitles.data?.[localizedTitleKey({ tmdbId: item.tmdb_id, type })]
           const displayTitle = localized?.title || item.title
@@ -591,34 +839,77 @@ function ProfileShelf({
 
 function SeriesShelf({ items }: { items: Awaited<ReturnType<typeof db.getWatchedSeries>> }) {
   const { t } = useTranslation()
-  const orderedItems = useMemo(
-    () =>
-      [...items].sort(
-        (left, right) => Number(left.is_series_completed) - Number(right.is_series_completed)
-      ),
+  const watchedSeries = useMemo(
+    () => items.filter((series) => series.is_series_completed),
     [items]
   )
-  const localizedTitles = useLocalizedTitles(orderedItems.map((item) => ({ tmdbId: item.tmdb_id, type: 'tv' as const })))
+  const keepWatchingSeries = useMemo(
+    () => items.filter((series) => !series.is_series_completed),
+    [items]
+  )
+  const localizedTitleRequests = useMemo(
+    () => items.map((item) => ({ tmdbId: item.tmdb_id, type: 'tv' as const })),
+    [items]
+  )
+  const localizedTitles = useLocalizedTitles(localizedTitleRequests)
 
   if (items.length === 0) return null
   return (
+    <>
+      <SeriesShelfRow
+        items={keepWatchingSeries}
+        localizedTitles={localizedTitles}
+        title={t('profile.keepWatching', { defaultValue: 'Keep Watching' })}
+      />
+      <SeriesShelfRow
+        items={watchedSeries}
+        localizedTitles={localizedTitles}
+        title={t('profile.watchedSeries')}
+      />
+    </>
+  )
+}
+
+function SeriesShelfRow({
+  title,
+  items,
+  localizedTitles,
+}: {
+  title: string
+  items: Awaited<ReturnType<typeof db.getWatchedSeries>>
+  localizedTitles: ReturnType<typeof useLocalizedTitles>
+}) {
+  const dragScroll = useDraggableScroll<HTMLDivElement>()
+
+  if (items.length === 0) return null
+
+  return (
     <section className="mb-10">
-      <h2 className="mb-4 text-xl font-semibold text-kino-text">{t('profile.watchedSeries')}</h2>
-      <div className="grid gap-4 md:grid-cols-2">
-        {orderedItems.map((series) => {
+      <h2 className="mb-4 text-xl font-semibold text-kino-text">{title}</h2>
+      <div
+        className="media-row"
+        data-dragging={dragScroll.isDragging ? 'true' : 'false'}
+        onClickCapture={dragScroll.onClickCapture}
+        onPointerCancel={dragScroll.onPointerCancel}
+        onPointerDown={dragScroll.onPointerDown}
+        onPointerMove={dragScroll.onPointerMove}
+        onPointerUp={dragScroll.onPointerUp}
+        ref={dragScroll.ref}
+      >
+        {items.map((series) => {
           const localized = localizedTitles.data?.[localizedTitleKey({ tmdbId: series.tmdb_id, type: 'tv' })]
           const displayTitle = localized?.title || series.title
           const posterPath = localized?.posterPath ?? series.cover_image
+          const releaseYear = localized?.year ?? series.release_year
 
           return (
-            <Link href={`/title/${series.tmdb_id}?type=tv`} key={series.id}>
-              <Card className="grid h-full grid-cols-[74px_1fr] gap-4 p-3 transition hover:border-kino-accent/60">
-                <Poster src={getTmdb().getImageUrl(posterPath, 'w200')} title={displayTitle} />
-                <div className="min-w-0 self-center">
-                  <h3 className="truncate font-semibold text-kino-text">{displayTitle}</h3>
-                  <SeriesStatusPill series={series} />
-                </div>
-              </Card>
+            <Link className="grid min-w-0 content-start gap-3" href={`/title/${series.tmdb_id}?type=tv`} key={series.id}>
+              <Poster className="w-full rounded-md" src={getTmdb().getImageUrl(posterPath, 'w300')} title={displayTitle} />
+              <div className="min-w-0">
+                <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-kino-text">{displayTitle}</h3>
+                <p className="mt-1 text-xs text-kino-muted">{releaseYear || 'TBA'}</p>
+                <SeriesStatusPill series={series} />
+              </div>
             </Link>
           )
         })}
@@ -638,11 +929,32 @@ function SeriesStatusPill({ series }: { series: Awaited<ReturnType<typeof db.get
     )
   }
 
-  if (!series.next_episode) return null
+  if (series.next_episode) {
+    const isUpcoming = isFutureDateOnly(series.next_episode.air_date)
 
-  return (
-    <span className="mt-3 inline-flex min-h-7 items-center rounded-full border border-white/10 bg-white/[0.08] px-3 text-xs font-semibold text-kino-text">
-      {t('profile.next')} S{series.next_episode.season}E{series.next_episode.episode}
-    </span>
-  )
+    return (
+      <div className="mt-3 grid gap-2">
+        <span className="inline-flex min-h-7 w-fit items-center rounded-full border border-kino-accent/25 bg-kino-accent/10 px-3 text-xs font-semibold text-kino-text">
+          {t('profile.next')} S{series.next_episode.season} E{series.next_episode.episode}
+        </span>
+        {isUpcoming ? (
+          <span className="inline-flex min-h-7 w-fit items-center rounded-full border border-white/10 bg-white/[0.08] px-3 text-xs font-semibold text-kino-text">
+            {series.next_episode.air_date
+              ? t('profile.newEpisodesOn', { date: formatDate(series.next_episode.air_date) })
+              : t('profile.newEpisodesSoon')}
+          </span>
+        ) : null}
+      </div>
+    )
+  }
+
+  if (series.last_episode) {
+    return (
+      <span className="mt-3 inline-flex min-h-7 items-center rounded-full border border-white/10 bg-white/[0.08] px-3 text-xs font-semibold text-kino-text">
+        {t('profile.last', { defaultValue: 'Last' })} S{series.last_episode.season} E{series.last_episode.episode}
+      </span>
+    )
+  }
+
+  return null
 }

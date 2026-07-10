@@ -1,13 +1,13 @@
 'use client'
 
 import type { WatchType } from '@kino/core'
-import { groupDiaryByMonth } from '@kino/core'
+import { formatDate, groupDiaryByMonth } from '@kino/core'
 import { EmptyState } from '@kino/ui'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, MoreHorizontal, RotateCcw, Save, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { useTranslation } from '@/lib/i18n'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { AppPagination } from '@/components/app-pagination'
 import { LoadingPanel } from '@/components/loading-panel'
 import { PageHeader } from '@/components/page-header'
 import { ProtectedEmpty } from '@/components/protected-empty'
@@ -34,19 +34,22 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { useTranslation } from '@/lib/i18n'
+import { db, getTmdb } from '@/lib/services'
 import type { LocalizedTitleMap } from '@/lib/use-localized-titles'
 import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
-import { db, getTmdb } from '@/lib/services'
 import { useAuthStore } from '@/stores/auth-store'
 import { useSettingsStore } from '@/stores/settings-store'
 
 type DiaryEntry = Awaited<ReturnType<typeof db.getDiaryEntries>>[number]
+const DIARY_ITEMS_PER_PAGE = 30
 
 export default function DiaryPage() {
   const user = useAuthStore((state) => state.user)
   const language = useSettingsStore((state) => state.language)
   const { t } = useTranslation()
   const [selectedEntry, setSelectedEntry] = useState<DiaryEntry | null>(null)
+  const [page, setPage] = useState(1)
 
   const query = useQuery({
     queryKey: ['diary', user?.id],
@@ -54,7 +57,18 @@ export default function DiaryPage() {
     enabled: Boolean(user),
   })
   const entries = query.data || []
-  const localizedTitles = useLocalizedTitles(entries.map((entry) => ({ tmdbId: entry.tmdbId, type: entry.type })))
+  const totalPages = Math.max(1, Math.ceil(entries.length / DIARY_ITEMS_PER_PAGE))
+  const paginatedEntries = entries.slice(
+    (page - 1) * DIARY_ITEMS_PER_PAGE,
+    page * DIARY_ITEMS_PER_PAGE
+  )
+  const localizedTitles = useLocalizedTitles(
+    paginatedEntries.map((entry) => ({ tmdbId: entry.tmdbId, type: entry.type }))
+  )
+
+  useEffect(() => {
+    setPage((currentPage) => Math.min(currentPage, totalPages))
+  }, [totalPages])
 
   if (!user) {
     return <ProtectedEmpty body={t('diary.loginPrompt')} title={t('diary.loginPrompt')} />
@@ -62,7 +76,7 @@ export default function DiaryPage() {
 
   if (query.isLoading) return <LoadingPanel label={t('common.loading')} />
 
-  const sections = groupDiaryByMonth(entries, language)
+  const sections = groupDiaryByMonth(paginatedEntries, language)
   const localizedTitleMap = localizedTitles.data || {}
 
   return (
@@ -87,9 +101,7 @@ export default function DiaryPage() {
         <div className="grid gap-8">
           {sections.map((section) => (
             <section key={section.title}>
-              <h2 className="mb-3 text-sm font-semibold text-kino-muted">
-                {section.title}
-              </h2>
+              <h2 className="mb-3 text-sm font-semibold text-kino-muted">{section.title}</h2>
               <div className="grid gap-2">
                 {section.data.map((entry) => (
                   <DiaryRow
@@ -102,6 +114,12 @@ export default function DiaryPage() {
               </div>
             </section>
           ))}
+          <AppPagination
+            label="Diary pages"
+            onPageChange={setPage}
+            page={page}
+            totalPages={totalPages}
+          />
         </div>
       )}
 
@@ -123,17 +141,20 @@ function DiaryRow({
   localizedTitles: LocalizedTitleMap
   onEdit: (entry: DiaryEntry) => void
 }) {
-  const language = useSettingsStore((state) => state.language)
   const { t } = useTranslation()
-  const day = new Intl.DateTimeFormat(language, { day: 'numeric' }).format(new Date(entry.watchedAt))
+  const watchedDate = new Date(entry.watchedAt)
+  const day = String(watchedDate.getDate())
+  const fullDate = formatDate(entry.watchedAt)
   const localized = localizedTitles[localizedTitleKey({ tmdbId: entry.tmdbId, type: entry.type })]
   const displayTitle = localized?.title || entry.titleName
   const poster = getTmdb().getImageUrl(localized?.posterPath ?? entry.coverImage, 'w200')
   const releaseYear = localized?.year ?? entry.releaseYear
 
   return (
-    <Card className="grid grid-cols-[48px_44px_1fr_auto] items-center gap-3 p-3">
-      <div className="text-center text-2xl font-light text-kino-muted">{day}</div>
+    <Card className="grid grid-cols-[40px_44px_1fr_auto] items-center gap-3 p-3">
+      <div aria-label={fullDate} className="text-center text-lg font-bold leading-none text-kino-text" title={fullDate}>
+        {day}
+      </div>
       <Link href={`/title/${entry.tmdbId}?type=${entry.type}`}>
         <img
           alt={displayTitle}
@@ -255,7 +276,7 @@ function DiaryDialog({
               <PopoverTrigger asChild>
                 <Button className="justify-start" variant="secondary">
                   <CalendarDays size={16} />
-                  {watchedAt.toLocaleDateString()}
+                  {formatDate(watchedAt)}
                 </Button>
               </PopoverTrigger>
               <PopoverContent align="start" className="w-auto p-0">
@@ -287,7 +308,10 @@ function DiaryDialog({
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button disabled={deleteMutation.isPending || saveMutation.isPending} variant="destructive">
+                <Button
+                  disabled={deleteMutation.isPending || saveMutation.isPending}
+                  variant="destructive"
+                >
                   <Trash2 size={16} />
                   {t('common.delete')}
                 </Button>
@@ -295,9 +319,7 @@ function DiaryDialog({
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>{t('modals.deleteEntry')}</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {t('modals.deleteEntryConfirm')}
-                  </AlertDialogDescription>
+                  <AlertDialogDescription>{t('modals.deleteEntryConfirm')}</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogButtonCancel>{t('common.cancel')}</AlertDialogButtonCancel>

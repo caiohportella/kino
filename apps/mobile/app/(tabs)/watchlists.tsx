@@ -19,6 +19,7 @@ import { ShareCodeBadge } from '~/components/watchlist/ShareCodeBadge'
 import { Skeleton } from '~/components/common/Skeleton'
 import { useUserWatchlists, USER_KEYS } from '@/hooks/useDatabase'
 import { useQueryClient } from '@tanstack/react-query'
+import { formatDate } from '@kino/core'
 
 export default function WatchlistsScreen() {
   const router = useRouter()
@@ -112,7 +113,7 @@ export default function WatchlistsScreen() {
 
                   <View className="flex-row items-center justify-between border-t border-white/5 pt-3">
                     <Text className="text-text-secondary/50 text-xs">
-                      {t('watchlists.created')} {new Date(item.createdAt).toLocaleDateString()}
+                      {t('watchlists.created')} {formatDate(item.createdAt)}
                     </Text>
                     {item.isShared && (
                       <ShareCodeBadge label={t('watchlists.shared')} variant="blue" className='mb-2' />

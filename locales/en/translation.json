@@ -104,6 +104,8 @@
     "noSeriesDescription": "Start watching series to see them here.",
     "viewAll": "View All",
     "completed": "Completed",
+    "newEpisodesOn": "New episodes on {{date}}",
+    "newEpisodesSoon": "New episodes coming soon",
     "next": "Next:",
     "last": "Last:",
     "searchUsers": "Search users...",
@@ -225,7 +227,7 @@
     "watchlisted": "In Watchlist",
     "diary": "Diary",
     "credits": "CREDITS",
-    "director": "Dir.",
+    "director": "Director:",
     "cast": "Cast:",
     "synopsis": "Synopsis",
     "noSynopsis": "No synopsis is available.",
@@ -234,6 +236,9 @@
     "tapToRate": "Tap to rate",
     "communityRatings": "Community Ratings",
     "ratings": "ratings",
+    "userRatings": "User Ratings",
+    "avgMovieRating": "Avg Movie Rating",
+    "avgSeriesRating": "Avg Series Rating",
     "checkOut": "Check out {{title}} on Kino!",
     "loginPrompt": "Please log in.",
     "friendRatings": "Friends' Ratings",
@@ -243,6 +248,7 @@
     "seeAlsoOn": "See also on",
     "openOn": "Open on {{service}}",
     "getTickets": "Get Tickets",
+    "buyCinemaTickets": "Buy Cinema Tickets",
     "findTheaters": "Find theaters near you"
   },
   "modals": {
@@ -344,6 +350,7 @@
     "progress": "Progress",
     "episodesProgress": "{{watched}} / {{total}} episodes",
     "airsOn": "Airs on {{date}}",
+    "newSeasonComing": "Season {{number}} is coming soon",
     "noOverview": "No overview available.",
     "markEpisodeUnwatched": "Mark as unwatched",
     "confirmUnwatchEpisode": "Are you sure you want to mark \"{{episodeName}}\" as unwatched?",
@@ -371,6 +378,88 @@
       "Visual Effects": "Visual Effects",
       "Costume & Make-Up": "Costume & Make-Up",
       "Lighting": "Lighting"
+    }
+  },
+  "landing": {
+    "nav": {
+      "signIn": "Sign In",
+      "createAccount": "Create Account",
+      "explore": "Explore"
+    },
+    "hero": {
+      "eyebrow": "Your quiet cinema companion",
+      "headline": "Remember every story worth keeping.",
+      "body": "Kino gives movies, series, ratings, diary entries, and shared watchlists a focused home designed for daily use.",
+      "cta": "Create your free account",
+      "secondary": "Explore without signing in"
+    },
+    "features": {
+      "eyebrow": "Everything you need",
+      "headline": "Built for the way you actually watch.",
+      "diary": {
+        "headline": "A diary that stays with you.",
+        "body": "Log every film and episode with a date, a rating, and a note. See exactly what you watched, when, and how you felt about it ? years later."
+      },
+      "progress": {
+        "headline": "Track every episode, every season.",
+        "body": "Mark individual episodes as watched. Track completion by season. Resume exactly where you left off without losing your place."
+      },
+      "ratings": {
+        "headline": "Rate what matters to you.",
+        "body": "Give every title a personal score. Watch your taste in film emerge across thousands of entries over time."
+      },
+      "watchlists": {
+        "headline": "Organize what to watch next.",
+        "body": "Create private or shared watchlists. Invite friends to collaborate. Never wonder what to queue up again."
+      },
+      "search": {
+        "headline": "Find anything, instantly.",
+        "body": "Search the entire TMDB catalog ? movies, TV shows, people ? with filters for genre, rating, and more."
+      },
+      "stats": {
+        "headline": "Understand your viewing habits.",
+        "body": "See your most-watched genres, highest-rated titles, and streaks as they build naturally from your diary."
+      }
+    },
+    "community": {
+      "eyebrow": "Community",
+      "headline": "Ratings from people, not algorithms.",
+      "body": "See how Kino users rate the same titles. Follow friends and discover new films through taste you already trust."
+    },
+    "i18n": {
+      "eyebrow": "International",
+      "headline": "Made for the world.",
+      "body": "Kino speaks English, French, Italian, Norwegian, and Portuguese. Localized dates, localized content ? feel at home wherever you are.",
+      "languages": {
+        "en": "English",
+        "fr": "Fran?ais",
+        "it": "Italiano",
+        "no": "Norsk",
+        "pt": "Portugu?s"
+      },
+      "exampleLabel": "Localized example",
+      "exampleBody": "Dates, interface labels, and localized TMDB content follow the selected language."
+    },
+    "platforms": {
+      "eyebrow": "Everywhere",
+      "headline": "Web, mobile, and offline.",
+      "body": "Available as a Progressive Web App on any browser, and natively on iOS and Android. Your library syncs instantly across all your devices.",
+      "cta": "Open the web app",
+      "webLabel": "Web",
+      "mobileLabel": "Mobile"
+    },
+    "cta": {
+      "headline": "Your watching life, beautifully organized.",
+      "body": "Free to use. No subscriptions. No tracking.",
+      "button": "Start with Kino"
+    },
+    "footer": {
+      "tagline": "A calm movie and series companion.",
+      "links": {
+        "search": "Search",
+        "diary": "Diary",
+        "watchlists": "Watchlists"
+      }
     }
   },
   "awards": {

@@ -104,6 +104,8 @@
     "noSeriesDescription": "Begynn å se serier for å se dem her.",
     "viewAll": "Se alle",
     "completed": "Fullført",
+    "newEpisodesOn": "Nye episoder {{date}}",
+    "newEpisodesSoon": "Nye episoder kommer snart",
     "next": "Neste:",
     "last": "Siste:",
     "searchUsers": "Søk brukere...",
@@ -193,6 +195,9 @@
     "tapToRate": "Trykk for å vurdere",
     "communityRatings": "Brukervurderinger",
     "ratings": "vurderinger",
+    "userRatings": "Brukervurderinger",
+    "avgMovieRating": "Gjennomsnittlig filmvurdering",
+    "avgSeriesRating": "Gjennomsnittlig serievurdering",
     "checkOut": "Sjekk ut {{title}} på Kino!",
     "loginPrompt": "Vennligst logg inn.",
     "friendRatings": "Venners Vurderinger",
@@ -202,6 +207,7 @@
     "seeAlsoOn": "Se også på",
     "openOn": "Åpne på {{service}}",
     "getTickets": "Kjøp billetter",
+    "buyCinemaTickets": "Kjøp kinobilletter",
     "findTheaters": "Finn kinoer i nærheten"
   },
   "modals": {
@@ -303,6 +309,7 @@
     "progress": "Fremgang",
     "episodesProgress": "{{watched}} / {{total}} episoder",
     "airsOn": "Sendes {{date}}",
+    "newSeasonComing": "Sesong {{number}} kommer snart",
     "noOverview": "Ingen oversikt tilgjengelig.",
     "markEpisodeUnwatched": "Merk som ikke sett",
     "confirmUnwatchEpisode": "Er du sikker på at du vil merke \"{{episodeName}}\" som ikke sett?",
@@ -330,6 +337,88 @@
       "Visual Effects": "Visuelle Effekter",
       "Costume & Make-Up": "Kostyme og Sminke",
       "Lighting": "Belysning"
+    }
+  },
+  "landing": {
+    "nav": {
+      "signIn": "Logg inn",
+      "createAccount": "Opprett konto",
+      "explore": "Utforsk"
+    },
+    "hero": {
+      "eyebrow": "Din stille kinofølger",
+      "headline": "Husk hver historie som er verdt å ta vare på.",
+      "body": "Kino gir filmer, serier, vurderinger, dagbokoppføringer og delte lister et fokusert hjem laget for daglig bruk.",
+      "cta": "Opprett gratis konto",
+      "secondary": "Utforsk uten å logge inn"
+    },
+    "features": {
+      "eyebrow": "Alt du trenger",
+      "headline": "Bygd for måten du faktisk ser på.",
+      "diary": {
+        "headline": "En dagbok som blir med deg.",
+        "body": "Loggfør hver film og episode med dato, vurdering og notat. Se nøyaktig hva du så, når du så det, og hvordan det føltes - også år senere."
+      },
+      "progress": {
+        "headline": "Følg med på hver episode, hver sesong.",
+        "body": "Merk enkeltstående episoder som sett. Følg fullføring per sesong. Fortsett nøyaktig der du slapp uten å miste plassen."
+      },
+      "ratings": {
+        "headline": "Vurder det som betyr noe for deg.",
+        "body": "Gi hver tittel en personlig score. Se smaken din i film vokse frem gjennom tusenvis av oppføringer over tid."
+      },
+      "watchlists": {
+        "headline": "Organiser hva du skal se neste gang.",
+        "body": "Lag private eller delte lister. Inviter venner til å samarbeide. Slutt å lure på hva du skal sette på."
+      },
+      "search": {
+        "headline": "Finn hva som helst, umiddelbart.",
+        "body": "Søk i hele TMDB-katalogen - filmer, TV-serier, personer - med filtre for sjanger, vurdering og mer."
+      },
+      "stats": {
+        "headline": "Forstå seervanene dine.",
+        "body": "Se hvilke sjangre du ser mest, titlene du vurderer høyest og aktivitetene som bygges naturlig fra dagboken din."
+      }
+    },
+    "community": {
+      "eyebrow": "Fellesskap",
+      "headline": "Vurderinger fra mennesker, ikke algoritmer.",
+      "body": "Se hvordan Kino-brukere vurderer de samme titlene. Følg venner og oppdag nye filmer gjennom smak du allerede stoler på."
+    },
+    "i18n": {
+      "eyebrow": "Internasjonalt",
+      "headline": "Laget for hele verden.",
+      "body": "Kino snakker engelsk, fransk, italiensk, norsk og portugisisk. Lokaliserte datoer, lokalisert innhold - føl deg hjemme uansett hvor du er.",
+      "languages": {
+        "en": "Engelsk",
+        "fr": "Fransk",
+        "it": "Italiensk",
+        "no": "Norsk",
+        "pt": "Portugisisk"
+      },
+      "exampleLabel": "Lokalt eksempel",
+      "exampleBody": "Datoer, grensesnittetiketter og lokalisert TMDB-innhold følger det valgte språket."
+    },
+    "platforms": {
+      "eyebrow": "Overalt",
+      "headline": "Web, mobil og offline.",
+      "body": "Tilgjengelig som en Progressive Web App i hvilken som helst nettleser, og som en nativ app på iOS og Android. Biblioteket ditt synkroniseres umiddelbart på tvers av alle enhetene dine.",
+      "cta": "Åpne webappen",
+      "webLabel": "Web",
+      "mobileLabel": "Mobil"
+    },
+    "cta": {
+      "headline": "Seerlivet ditt, vakkert organisert.",
+      "body": "Gratis å bruke. Ingen abonnementer. Ingen sporing.",
+      "button": "Kom i gang med Kino"
+    },
+    "footer": {
+      "tagline": "En rolig følgesvenn for filmer og serier.",
+      "links": {
+        "search": "Søk",
+        "diary": "Dagbok",
+        "watchlists": "Lister"
+      }
     }
   },
   "awards": {

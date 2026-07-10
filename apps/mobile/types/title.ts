@@ -10,6 +10,7 @@ export interface TitleDetails {
   coverImage: string | null
   backdropImage: string | null
   year: number
+  status?: string | null
   genres: TMDbGenre[]
   cast: TMDbCast[]
   director?: TMDbCast

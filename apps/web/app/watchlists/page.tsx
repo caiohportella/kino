@@ -1,6 +1,7 @@
 'use client'
 
 import { Button, Card, EmptyState, Field } from '@kino/ui'
+import { formatDate } from '@kino/core'
 import { Clipboard, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
@@ -102,7 +103,7 @@ export default function WatchlistsPage() {
                 ) : null}
               </div>
               <div className="mt-6 border-t border-white/10 pt-4 text-xs font-semibold text-kino-muted">
-                {t('common.lastUpdated')} {watchlist.updatedAt.toLocaleDateString()}
+                {t('common.lastUpdated')} {formatDate(watchlist.updatedAt)}
               </div>
             </Card>
           </Link>
