@@ -1,17 +1,33 @@
-# Kino
+<div align="center">
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
-[![Next.js](https://img.shields.io/badge/Next.js-15-black.svg)](https://nextjs.org/)
-[![Expo](https://img.shields.io/badge/Expo-54-000020.svg)](https://expo.dev/)
-[![Supabase](https://img.shields.io/badge/Supabase-Backend-3ECF8E.svg)](https://supabase.com/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC.svg)](https://tailwindcss.com/)
-[![PWA](https://img.shields.io/badge/PWA-Supported-5A0FC8.svg)](./apps/web/public/sw.js)
-[![Vercel](https://img.shields.io/badge/Vercel-Deployment-black.svg)](https://vercel.com/)
-[![Biome](https://img.shields.io/badge/Biome-2.3.13-blue.svg)](https://biomejs.dev/)
+# 🎬 Kino — Track Movies. Follow Series. Share Your Journey.
 
-Kino is a cross-platform movie and series tracking app built as a pnpm monorepo. The web app is a Next.js PWA, and the mobile app is an Expo Router client. Both share the same product domain, Supabase backend, TMDb metadata layer, and localization files.
+<br />
 
-The goal of the project is not just to browse titles. Kino is designed to help users discover what to watch, record what they have already seen, rate individual movies and episodes, manage watchlists, and keep a diary of viewing history in a single coherent place.
+<img width="1912" alt="kino-preview" src="https://github.com/user-attachments/assets/7d664f57-65a7-42bd-ae2d-4895582887fe" />
+
+<br />
+
+<div>
+
+<img src="https://img.shields.io/badge/-Next.js-black?style=for-the-badge&logo=nextdotjs&logoColor=white" />
+<img src="https://img.shields.io/badge/-TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" />
+<img src="https://img.shields.io/badge/-Expo-000020?style=for-the-badge&logo=expo&logoColor=white" />
+<img src="https://img.shields.io/badge/-Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white" />
+<img src="https://img.shields.io/badge/-Tailwind_CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" />
+<img src="https://img.shields.io/badge/-Vercel-black?style=for-the-badge&logo=vercel&logoColor=white" />
+<img src="https://img.shields.io/badge/-Biome-60A5FA?style=for-the-badge&logo=biome&logoColor=white" />
+
+</div>
+
+<h3 align="center">A cross-platform movie & TV tracking experience built with Next.js, Expo and Supabase.</h3>
+
+</div>
+
+## 📋 About
+
+**Kino** is a cross-platform movie and series tracking application built as a pnpm monorepo. The web app is a Next.js PWA, while the mobile app is powered by Expo Router. Both clients share the same domain layer, Supabase backend, TMDb integration and localization resources.
+
 
 ## 📚 Table of Contents
 
@@ -41,19 +57,6 @@ Kino is a personal viewing companion for people who want a focused way to:
 -  import viewing history from other services
 
 The product is intentionally calm and task-focused. The web experience opens with a public landing page and lets anonymous visitors explore the catalog before signing in. Once authenticated, users get access to personal data features such as ratings, diary entries, profile edits, follows, and watchlist changes.
-
-### Screenshots
-
-The repository does not currently include committed screenshots. Suggested placeholders for a portfolio-ready README:
-
--  Web landing and discover page screenshot
--  Title detail page screenshot
--  Watchlist detail page screenshot
--  Diary page screenshot
--  Mobile home and search screenshots
--  Import flow screenshot
-
-If you add images later, place them in a folder such as `docs/screenshots/` and link them here.
 
 ## 🧰 Tech Stack
 
@@ -600,52 +603,10 @@ locales/      Shared translation JSON files for en, pt, fr, it, and no
 -  Add richer analytics for viewing habits, such as streaks, seasonal breakdowns, and watchlist completion trends.
 -  Add CI checks for linting, type checking, and schema validation.
 
-## 🎤 Interview Talking Points
-
-If you use this project in an interview, these are the topics most likely to produce good technical discussion:
-
-### Interesting Challenges Solved
-
--  Building a shared domain layer so web and mobile stay aligned without sharing every UI component.
--  Modeling movie ratings, episode ratings, diary entries, and watchlists as related but distinct data flows.
--  Importing third-party history files locally, then mapping them safely into the user's account.
--  Keeping Supabase auth, deep links, and redirects consistent across web and native.
--  Calculating series completion and average season ratings from episode-level data.
-
-### Trade-Offs Made
-
--  The app uses direct Supabase and TMDb access instead of a custom API backend, which keeps the stack smaller but pushes more orchestration into the client and shared service layer.
--  Title metadata is cached locally, which adds schema complexity but improves performance and stabilizes the user experience.
--  Web and mobile each have their own UI layer instead of trying to force a single cross-platform design system everywhere.
--  Search is TMDb-driven on web and hybrid on mobile, which reflects platform strengths rather than forcing one approach everywhere.
-
-### Questions Interviewers May Ask
-
--  Why did you choose Supabase instead of building your own backend?
--  How are authorization rules enforced?
--  How does the auth callback work across web and mobile?
--  Why use React Query and Zustand together?
--  How does the import flow avoid creating duplicate history?
--  How do you determine whether a TV series is completed?
--  What data is cached locally, and why?
-
-### Why This Project Shows More Than CRUD
-
--  It combines third-party APIs, relational persistence, authentication, file parsing, and cross-platform UI.
--  It includes domain modeling, not just basic form submission.
--  It has real edge cases: duplicate history, shared ownership, follow relationships, season completion, and import conflicts.
--  It demonstrates attention to UX, accessibility, internationalization, and deployment, which are all useful signals for a junior-to-mid-level portfolio project.
-
-## 📘 Lessons Learned
-
--  Shared types and shared use cases reduce duplication more than shared UI alone.
--  Good data modeling matters more than fancy UI when the product revolves around user history and relationships.
--  Client-side import flows need staged validation and clear error handling.
--  Cache invalidation strategy is part of the product, not just an implementation detail.
--  Authentication is easier to reason about when redirect handling is centralized.
--  Localization is much cheaper to maintain when the app structure and copy strategy are designed for it from the start.
--  A restrained UI can still feel polished when the spacing, hierarchy, and interaction states are consistent.
-
 ---
 
 Kino is intentionally built as a practical portfolio project: small enough to understand, but broad enough to show domain modeling, platform-aware UI, backend integration, and thoughtful product decisions.
+
+<div align="center">
+Made with ❤️ by <a href="https://github.com/caiohportella">Caio H. Portella</a>
+</div>
