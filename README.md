@@ -20,7 +20,7 @@
 
 </div>
 
-<h3 align="center">A cross-platform movie & TV tracking experience built with Next.js, Expo and Supabase.</h3>
+<h3 align="center">A cross-platform movie & TV tracking experience.</h3>
 
 </div>
 
@@ -41,8 +41,6 @@
 - [⚙️ Getting Started](#-getting-started)
 - [📂 Project Structure](#-project-structure)
 - [🔭 Future Improvements](#-future-improvements)
-- [🎤 Interview Talking Points](#-interview-talking-points)
-- [📘 Lessons Learned](#-lessons-learned)
 
 ## 🚀 Overview
 
