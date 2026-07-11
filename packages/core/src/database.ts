@@ -80,7 +80,10 @@ interface WatchDiaryRow {
   notes: string | null
   created_at: string
   updated_at: string
-  titles?: Pick<TitleRow, 'title' | 'release_year' | 'cover_image' | 'tmdb_id' | 'type'> | null
+  titles?: Pick<
+    TitleRow,
+    'title' | 'release_year' | 'cover_image' | 'tmdb_id' | 'type' | 'genres' | 'runtime'
+  > | null
 }
 
 interface WatchlistRow {
@@ -280,7 +283,9 @@ export class KinoDatabaseService {
             release_year,
             cover_image,
             tmdb_id,
-            type
+            type,
+            genres,
+            runtime
           )
         `
         )
@@ -324,19 +329,62 @@ export class KinoDatabaseService {
       Object.assign(ratings, await this.getAverageSeasonRatingsForTitles(userId, tvTitleIds))
     }
 
-    return rows.map<UIDiaryEntry>((entry) => ({
-      id: entry.id,
-      titleId: entry.title_id,
-      tmdbId: entry.titles?.tmdb_id ?? 0,
-      type: entry.titles?.type ?? 'movie',
-      titleName: entry.titles?.title || 'Unknown title',
-      releaseYear: entry.titles?.release_year ?? 0,
-      coverImage: entry.titles?.cover_image ?? null,
-      watchedAt: entry.watched_at,
-      watchType: entry.watch_type,
-      notes: entry.notes ?? undefined,
-      rating: ratings[entry.title_id] || 0,
-    }))
+    const allTitleIds = Array.from(new Set(rows.map((entry) => entry.title_id)))
+    const communityStats: Record<string, { total: number; count: number; users: Set<string> }> = {}
+    const addCommunityRating = (titleId: string, rating: number | null, ratingUserId: string) => {
+      if (!rating || rating <= 0) return
+      const stats = communityStats[titleId] ?? { total: 0, count: 0, users: new Set<string>() }
+      stats.total += rating
+      stats.count += 1
+      stats.users.add(ratingUserId)
+      communityStats[titleId] = stats
+    }
+
+    if (allTitleIds.length > 0) {
+      const [{ data: communityMovieRatings, error: movieStatsError }, { data: communityEpisodeRatings, error: episodeStatsError }] =
+        await Promise.all([
+          this.supabase.from('title_ratings').select('title_id, user_id, rating').in('title_id', allTitleIds),
+          this.supabase.from('episode_ratings').select('title_id, user_id, rating').in('title_id', allTitleIds),
+        ])
+      if (movieStatsError) throw movieStatsError
+      if (episodeStatsError) throw episodeStatsError
+
+      for (const row of (communityMovieRatings ?? []) as Pick<
+        TitleRatingRow,
+        'title_id' | 'user_id' | 'rating'
+      >[]) {
+        addCommunityRating(row.title_id, row.rating, row.user_id)
+      }
+      for (const row of (communityEpisodeRatings ?? []) as Pick<
+        EpisodeRatingRow,
+        'title_id' | 'user_id' | 'rating'
+      >[]) {
+        addCommunityRating(row.title_id, row.rating, row.user_id)
+      }
+    }
+
+    return rows.map<UIDiaryEntry>((entry) => {
+      const stats = communityStats[entry.title_id]
+      return {
+        id: entry.id,
+        titleId: entry.title_id,
+        tmdbId: entry.titles?.tmdb_id ?? 0,
+        type: entry.titles?.type ?? 'movie',
+        titleName: entry.titles?.title || 'Unknown title',
+        releaseYear: entry.titles?.release_year ?? 0,
+        coverImage: entry.titles?.cover_image ?? null,
+        genres: entry.titles?.genres ?? [],
+        runtime: entry.titles?.runtime ?? undefined,
+        watchedAt: entry.watched_at,
+        watchType: entry.watch_type,
+        notes: entry.notes ?? undefined,
+        rating: ratings[entry.title_id] || 0,
+        averageRating: stats ? stats.total / stats.count : 0,
+        ratingCount: stats?.users.size ?? 0,
+        createdAt: entry.created_at,
+        updatedAt: entry.updated_at,
+      }
+    })
   }
 
   async getAverageSeasonRatingsForTitles(userId: string, titleIds: string[]) {

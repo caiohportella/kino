@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { FooterSocialLinks } from "@/components/footer-social-links";
 import { AccentDots } from "@/components/landing/accent-dots";
 import { useTranslation } from "@/lib/i18n";
 
@@ -45,6 +46,7 @@ export function LandingFooter() {
               {t("landing.footer.links.watchlists")}
             </Link>
           </nav>
+          <FooterSocialLinks />
         </div>
       </div>
     </footer>

@@ -2,10 +2,11 @@
 
 import type { TMDbImage, TMDbTitle } from '@kino/core'
 import { getDisplayTitle, getReleaseYear } from '@kino/core'
-import { ArrowLeft, ChevronRight, ImageOff, Loader2, Search, Trash2 } from 'lucide-react'
+import { ArrowLeft, ChevronRight, ImageOff, Search, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { LoadingPanel } from '@/components/loading-panel'
+import { MediaModalSkeleton } from '@/components/skeletons/page-skeletons'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -130,7 +131,7 @@ export function BannerPickerDialog({
                 value={query}
               />
               <Button disabled={!query.trim() || searchMutation.isPending} type="submit">
-                {searchMutation.isPending ? <Loader2 className="animate-spin" size={16} /> : <Search size={16} />}
+                {searchMutation.isPending ? <Skeleton className="size-4 rounded-full bg-black/20" /> : <Search size={16} />}
                 Search
               </Button>
             </form>
@@ -138,7 +139,7 @@ export function BannerPickerDialog({
 
           {!selectedMedia ? (
             <div className="max-h-[52vh] overflow-y-auto pr-1">
-              {searchMutation.isPending ? <LoadingPanel label="Searching TMDB..." /> : null}
+              {searchMutation.isPending ? <MediaModalSkeleton label="Searching TMDB..." /> : null}
               {!searchMutation.isPending && searchResults.length === 0 ? (
                 <div className="grid place-items-center rounded-md border border-white/10 bg-white/[0.03] px-5 py-10 text-center">
                   <Search className="text-kino-subtle" size={36} />
@@ -177,7 +178,7 @@ export function BannerPickerDialog({
             </div>
           ) : (
             <div className="max-h-[56vh] overflow-y-auto pr-1">
-              {imagesMutation.isPending ? <LoadingPanel label="Loading backdrops..." /> : null}
+              {imagesMutation.isPending ? <MediaModalSkeleton label="Loading backdrops..." /> : null}
               {!imagesMutation.isPending && mediaImages.length === 0 ? (
                 <div className="grid place-items-center rounded-md border border-white/10 bg-white/[0.03] px-5 py-10 text-center">
                   <ImageOff className="text-kino-subtle" size={36} />

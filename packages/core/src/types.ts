@@ -200,10 +200,16 @@ export interface UIDiaryEntry {
   titleName: string
   releaseYear: number
   coverImage: string | null
+  genres: TMDbGenre[]
+  runtime?: number
   watchedAt: string
   watchType: WatchType
   notes?: string
   rating?: number
+  averageRating: number
+  ratingCount: number
+  createdAt: string
+  updatedAt: string
 }
 
 export interface Watchlist {

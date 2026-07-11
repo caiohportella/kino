@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { useTranslation } from '@/lib/i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { LoadingPanel } from '@/components/loading-panel'
+import { WatchlistsSkeleton } from '@/components/skeletons/page-skeletons'
 import { PageHeader } from '@/components/page-header'
 import { ProtectedEmpty } from '@/components/protected-empty'
 import { useToast } from '@/components/toast-provider'
@@ -44,7 +44,7 @@ export default function WatchlistsPage() {
   })
 
   if (!user) {
-    return <ProtectedEmpty body={t('watchlists.loginPrompt')} title={t('watchlists.loginPrompt')} />
+    return <ProtectedEmpty />
   }
 
   return (
@@ -74,13 +74,15 @@ export default function WatchlistsPage() {
         </Button>
       </Card>
 
-      {query.isLoading ? <LoadingPanel label={t('common.loading')} /> : null}
+      {query.isLoading ? <WatchlistsSkeleton label={t('common.loading')} /> : null}
 
       {!query.isLoading && query.data?.length === 0 ? (
         <EmptyState
           action={<Button onClick={() => setDialogOpen(true)}>{t('watchlists.createWatchlist')}</Button>}
           body={t('watchlists.emptyState')}
+          illustrationLabel={t('emptyStates.watchlistIllustration')}
           title={t('watchlists.title')}
+          variant="watchlist"
         />
       ) : null}
 

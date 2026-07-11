@@ -3,7 +3,7 @@
 import { EmptyState } from '@kino/ui'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { LoadingPanel } from '@/components/loading-panel'
+import { AuthSkeleton } from '@/components/skeletons/page-skeletons'
 import {
   consumeStoredAuthRedirect,
   getNativeAuthCallbackUrl,
@@ -131,5 +131,5 @@ export function AuthCallbackClient() {
     return <EmptyState body={error} title="Sign-in could not be completed" />
   }
 
-  return <LoadingPanel label="Completing sign-in..." />
+  return <AuthSkeleton label="Completing sign-in..." />
 }

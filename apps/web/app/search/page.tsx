@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from '@/lib/i18n'
 import { useQuery } from '@tanstack/react-query'
 import { MediaCard } from '@/components/media-card'
-import { LoadingPanel } from '@/components/loading-panel'
+import { SearchSkeleton } from '@/components/skeletons/page-skeletons'
 import { PageHeader } from '@/components/page-header'
 import { getTmdb } from '@/lib/services'
 import { useLibraryStore } from '@/stores/library-store'
@@ -25,7 +25,7 @@ export default function SearchPage() {
   const genreIds = useLibraryStore((state) => state.genreIds)
   const toggleGenre = useLibraryStore((state) => state.toggleGenre)
   const clearFilters = useLibraryStore((state) => state.clearFilters)
-  const [showFilters, setShowFilters] = useState(true)
+  const [showFilters, setShowFilters] = useState(false)
   const [debouncedQuery, setDebouncedQuery] = useState(queryText)
 
   useEffect(() => {
@@ -82,7 +82,12 @@ export default function SearchPage() {
     <div className="content-frame">
       <PageHeader
         action={
-          <Button onClick={() => setShowFilters((value) => !value)} tone="secondary">
+          <Button
+            aria-controls="search-filters"
+            aria-expanded={showFilters}
+            onClick={() => setShowFilters((value) => !value)}
+            tone="secondary"
+          >
             <SlidersHorizontal size={16} />
             {t('search.filters')}
           </Button>
@@ -113,7 +118,10 @@ export default function SearchPage() {
 
       <div className={showFilters ? 'grid gap-6 lg:grid-cols-[280px_1fr]' : 'grid gap-6'}>
         {showFilters ? (
-          <aside className="grid content-start gap-5 rounded-md border border-white/10 bg-kino-panel p-4">
+          <aside
+            className="grid self-start content-start gap-5 rounded-md border border-white/10 bg-kino-panel p-5"
+            id="search-filters"
+          >
             <div>
               <div className="mb-2 text-sm font-semibold text-kino-text">{t('search.mediaType')}</div>
               <SegmentedControl
@@ -167,12 +175,14 @@ export default function SearchPage() {
         ) : null}
 
         <section className="min-w-0">
-          {resultsQuery.isLoading ? <LoadingPanel label={t('search.loading')} /> : null}
+          {resultsQuery.isLoading ? <SearchSkeleton label={t('search.loading')} /> : null}
 
           {!resultsQuery.isLoading && filteredResults.length === 0 ? (
             <EmptyState
               body={t('search.noResultsHint')}
+              illustrationLabel={t('emptyStates.searchIllustration')}
               title={t('search.noResults')}
+              variant="search"
             />
           ) : null}
 

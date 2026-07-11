@@ -65,24 +65,9 @@ export function LandingHero({ logoRef }: { logoRef?: RefObject<HTMLSpanElement |
             <h1 className="mt-5 max-w-4xl text-5xl font-black italic leading-[0.96] tracking-normal text-kino-text sm:text-6xl lg:text-7xl">
               <AccentDots>{t('landing.hero.headline')}</AccentDots>
             </h1>
-            <p className="mt-6 max-w-2xl text-base leading-8 text-kino-muted sm:text-lg">
+            <p className="mt-12 max-w-2xl text-base leading-8 text-kino-muted sm:text-lg">
               {t('landing.hero.body')}
             </p>
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Button asChild className="min-h-12 px-5">
-              <Link href="/auth/register">
-                {t('landing.hero.cta')}
-                <ArrowRight size={17} />
-              </Link>
-            </Button>
-            <Button asChild className="min-h-12 px-5" variant="secondary">
-              <Link href="/discover">
-                <Compass size={17} />
-                {t('landing.hero.secondary')}
-              </Link>
-            </Button>
           </div>
 
           <div className="grid max-w-4xl gap-3 sm:grid-cols-2">

@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from '@/lib/i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BannerPickerDialog } from '@/components/banner-picker-dialog'
-import { LoadingPanel } from '@/components/loading-panel'
+import { SettingsSkeleton } from '@/components/skeletons/page-skeletons'
 import { PageHeader } from '@/components/page-header'
 import { ProtectedEmpty } from '@/components/protected-empty'
 import { Button as UiButton } from '@/components/ui/button'
@@ -110,10 +110,10 @@ export default function SettingsPage() {
   })
 
   if (!user) {
-    return <ProtectedEmpty body={t('profile.loginPrompt')} title={t('profile.loginPrompt')} />
+    return <ProtectedEmpty />
   }
 
-  if (profileQuery.isLoading) return <LoadingPanel label={t('common.loading')} />
+  if (profileQuery.isLoading) return <SettingsSkeleton label={t('common.loading')} />
 
   const selectedLanguage = languages.find((item) => item.code === language) ?? languages[0]!
 

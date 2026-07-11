@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { LoadingPanel } from '@/components/loading-panel'
+import { WatchlistsSkeleton } from '@/components/skeletons/page-skeletons'
 import { PageHeader } from '@/components/page-header'
 import {
   AlertDialog,
@@ -159,10 +159,17 @@ export default function WatchlistDetailPage() {
     }
   }
 
-  if (query.isLoading) return <LoadingPanel label={t('watchlists.loadingWatchlist')} />
+  if (query.isLoading) return <WatchlistsSkeleton detail label={t('watchlists.loadingWatchlist')} />
 
   if (!query.data?.watchlist) {
-    return <EmptyState body={t('watchlists.notFoundBody')} title={t('watchlists.notFound')} />
+    return (
+      <EmptyState
+        body={t('watchlists.notFoundBody')}
+        illustrationLabel={t('emptyStates.missingIllustration')}
+        title={t('watchlists.notFound')}
+        variant="missing"
+      />
+    )
   }
 
   const { watchlist, items, participants } = query.data
@@ -230,7 +237,9 @@ export default function WatchlistDetailPage() {
             </Link>
           }
           body={t('watchlists.emptyListHint')}
+          illustrationLabel={t('emptyStates.watchlistIllustration')}
           title={t('watchlists.emptyList')}
+          variant="watchlist"
         />
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-x-5 gap-y-10 sm:grid-cols-[repeat(auto-fill,minmax(168px,1fr))]">

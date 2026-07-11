@@ -44,7 +44,7 @@ import {
   ExternalLinksSection,
   type ExternalLinkProvider,
 } from '@/components/external-links-section'
-import { LoadingPanel } from '@/components/loading-panel'
+import { MediaModalSkeleton, TitleSkeleton } from '@/components/skeletons/page-skeletons'
 import { RatingStars } from '@/components/rating-stars'
 import { WatchlistDialog } from '@/components/watchlist-dialog'
 import {
@@ -257,13 +257,15 @@ export default function TitlePage() {
     await navigator.clipboard.writeText(url)
   }
 
-  if (titleQuery.isLoading) return <LoadingPanel label={t('common.loading')} />
+  if (titleQuery.isLoading) return <TitleSkeleton label={t('common.loading')} />
 
   if (titleQuery.error || !title) {
     return (
       <EmptyState
         body={titleQuery.error instanceof Error ? titleQuery.error.message : 'This TMDB title could not be loaded.'}
+        illustrationLabel={t('emptyStates.missingIllustration')}
         title={t('title.notFound')}
+        variant="missing"
       />
     )
   }
@@ -575,7 +577,7 @@ function WatchlistPicker({
               <Plus size={17} />
             </Button>
           </div>
-          {query.isLoading ? <LoadingPanel label={t('common.loading')} /> : null}
+          {query.isLoading ? <MediaModalSkeleton label={t('common.loading')} /> : null}
           <div className="grid gap-3">
             {(query.data?.watchlists || []).map((watchlist) => {
               const contributorId = query.data?.selected.get(watchlist.id)
@@ -1038,7 +1040,7 @@ function SeasonEpisodes({
     },
   })
 
-  if (seasonQuery.isLoading) return <LoadingPanel label={t('common.loading')} />
+  if (seasonQuery.isLoading) return <MediaModalSkeleton label={t('common.loading')} />
 
   return (
     <section className="mt-5 grid gap-4">

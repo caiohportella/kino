@@ -1,10 +1,8 @@
 'use client'
 
 import { Globe2, Languages, Laptop, Smartphone } from 'lucide-react'
-import Link from 'next/link'
 import { AccentDots } from '@/components/landing/accent-dots'
 import { LandingReveal } from '@/components/landing/landing-reveal'
-import { Button } from '@/components/ui/button'
 import { supportedLanguages, useTranslation } from '@/lib/i18n'
 
 export function CrossPlatformSection() {
@@ -21,9 +19,6 @@ export function CrossPlatformSection() {
             <AccentDots>{t('landing.platforms.headline')}</AccentDots>
           </h2>
           <p className="mt-5 text-base leading-8 text-kino-muted">{t('landing.platforms.body')}</p>
-          <Button asChild className="mt-7" variant="secondary">
-            <Link href="/discover">{t('landing.platforms.cta')}</Link>
-          </Button>
         </div>
         <div className="grid gap-4 sm:grid-cols-[1fr_0.72fr] sm:items-end">
           <div className="rounded-md border border-white/10 bg-kino-panel p-4">

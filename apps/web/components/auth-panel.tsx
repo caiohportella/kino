@@ -1,9 +1,10 @@
 'use client'
 
-import { Check, Loader2, Mail, X } from 'lucide-react'
+import { Check, Mail, X } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Card,
   CardContent,
@@ -218,7 +219,7 @@ export function AuthPanel({ initialTab = 'sign-in' }: { initialTab?: AuthTab }) 
 
               <Button disabled={!canSubmitLogin} type="submit">
                 {loadingAction === 'login' || loadingAction === 'magic-link' ? (
-                  <Loader2 className="animate-spin" size={16} />
+                  <Skeleton className="size-4 rounded-full bg-black/20" />
                 ) : (
                   <Mail size={16} />
                 )}
@@ -275,7 +276,11 @@ export function AuthPanel({ initialTab = 'sign-in' }: { initialTab?: AuthTab }) 
               <StatusMessage error={error} message={message} />
 
               <Button disabled={!canSubmitRegister} type="submit">
-                {loadingAction === 'register' ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
+                {loadingAction === 'register' ? (
+                  <Skeleton className="size-4 rounded-full bg-black/20" />
+                ) : (
+                  <Check size={16} />
+                )}
                 {loadingAction === 'register' ? 'Creating account...' : 'Create account'}
               </Button>
             </form>
@@ -289,7 +294,7 @@ export function AuthPanel({ initialTab = 'sign-in' }: { initialTab?: AuthTab }) 
           <span className="h-px flex-1 bg-white/10" />
         </div>
         <Button disabled={Boolean(loadingAction)} onClick={handleGoogleSignIn} type="button" variant="secondary">
-          {loadingAction === 'google' ? <Loader2 className="animate-spin" size={16} /> : <GoogleIcon />}
+          {loadingAction === 'google' ? <Skeleton className="size-4 rounded-full" /> : <GoogleIcon />}
           {loadingAction === 'google' ? 'Opening Google...' : 'Continue with Google'}
         </Button>
       </CardFooter>

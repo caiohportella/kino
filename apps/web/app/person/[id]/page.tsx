@@ -22,7 +22,7 @@ import {
   ExternalLinksSection,
   type ExternalLinkProvider,
 } from '@/components/external-links-section'
-import { LoadingPanel } from '@/components/loading-panel'
+import { PersonSkeleton } from '@/components/skeletons/page-skeletons'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { getTmdb } from '@/lib/services'
@@ -59,7 +59,7 @@ export default function PersonPage() {
     )
   }
 
-  if (personQuery.isLoading) return <LoadingPanel label="Loading person..." />
+  if (personQuery.isLoading) return <PersonSkeleton label="Loading person..." />
 
   if (personQuery.error || !personQuery.data) {
     return (

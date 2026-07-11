@@ -1,10 +1,8 @@
 'use client'
 
 import { BarChart3, Download, Search, Sparkles, Star, Wand2 } from 'lucide-react'
-import Link from 'next/link'
 import { AccentDots } from '@/components/landing/accent-dots'
 import { LandingReveal } from '@/components/landing/landing-reveal'
-import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/lib/i18n'
 
 const highlightCards = [
@@ -40,14 +38,6 @@ export function FeatureHighlights() {
             Kino opens the catalog first and saves the account request for moments that create a personal library.
             The result is a calmer first visit and a clearer reason to sign in.
           </p>
-          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-            <Button asChild>
-              <Link href="/discover">{t('landing.nav.explore')}</Link>
-            </Button>
-            <Button asChild variant="secondary">
-              <Link href="/auth/register">{t('landing.nav.createAccount')}</Link>
-            </Button>
-          </div>
         </div>
 
         <div className="grid gap-3">

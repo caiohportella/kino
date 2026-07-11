@@ -14,7 +14,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, type ReactNode } from 'react'
 import { useTranslation } from '@/lib/i18n'
 import { AppFooter } from '@/components/app-footer'
-import { LoadingPanel } from '@/components/loading-panel'
+import { HomeSkeleton } from '@/components/skeletons/page-skeletons'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -80,7 +80,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (loading) {
     return (
       <main className="grid min-h-screen place-items-center bg-kino-bg p-6">
-        <LoadingPanel label={t('common.loading')} />
+        <HomeSkeleton label={t('common.loading')} />
       </main>
     )
   }

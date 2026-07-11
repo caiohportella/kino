@@ -5,7 +5,7 @@ import { Button, EmptyState } from '@kino/ui'
 import { useTranslation } from '@/lib/i18n'
 import { MediaSection } from '@/components/media-section'
 import { PageHeader } from '@/components/page-header'
-import { LoadingPanel } from '@/components/loading-panel'
+import { HomeSkeleton } from '@/components/skeletons/page-skeletons'
 import { getTmdb } from '@/lib/services'
 import { useSettingsStore } from '@/stores/settings-store'
 
@@ -30,7 +30,7 @@ export default function DiscoverPage() {
     },
   })
 
-  if (query.isLoading) return <LoadingPanel label={t('common.loading')} />
+  if (query.isLoading) return <HomeSkeleton label={t('common.loading')} />
 
   if (query.error || !query.data) {
     return (
@@ -41,7 +41,9 @@ export default function DiscoverPage() {
           </Button>
         }
         body={query.error instanceof Error ? query.error.message : 'TMDB did not respond.'}
+        illustrationLabel={t('emptyStates.missingIllustration')}
         title={t('common.failed')}
+        variant="missing"
       />
     )
   }

@@ -1,11 +1,9 @@
 'use client'
 
 import { BookmarkPlus, CalendarDays, CheckCircle2, ListChecks, Play, Star, UsersRound } from 'lucide-react'
-import Link from 'next/link'
 import { type ReactNode } from 'react'
 import { AccentDots } from '@/components/landing/accent-dots'
 import { LandingReveal } from '@/components/landing/landing-reveal'
-import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/lib/i18n'
 
 export function PersonalDiarySection() {
@@ -14,8 +12,6 @@ export function PersonalDiarySection() {
   return (
     <ShowcaseSection
       body={t('landing.features.diary.body')}
-      ctaHref="/auth/register"
-      ctaLabel="Start a diary"
       title={t('landing.features.diary.headline')}
       visual={<DiaryMockup />}
     />
@@ -28,8 +24,6 @@ export function CommunityRatingsSection() {
   return (
     <ShowcaseSection
       body={t('landing.community.body')}
-      ctaHref="/discover"
-      ctaLabel="See what is trending"
       reverse
       title={t('landing.community.headline')}
       visual={<RatingsMockup />}
@@ -43,8 +37,6 @@ export function WatchlistsSection() {
   return (
     <ShowcaseSection
       body={t('landing.features.watchlists.body')}
-      ctaHref="/auth/register"
-      ctaLabel="Create a watchlist"
       title={t('landing.features.watchlists.headline')}
       visual={<WatchlistMockup />}
     />
@@ -57,8 +49,6 @@ export function ProgressTrackingSection() {
   return (
     <ShowcaseSection
       body={t('landing.features.progress.body')}
-      ctaHref="/search"
-      ctaLabel="Find a series"
       reverse
       title={t('landing.features.progress.headline')}
       visual={<ProgressMockup />}
@@ -70,15 +60,11 @@ function ShowcaseSection({
   title,
   body,
   visual,
-  ctaHref,
-  ctaLabel,
   reverse = false,
 }: {
   title: string
   body: string
   visual: ReactNode
-  ctaHref: string
-  ctaLabel: string
   reverse?: boolean
 }) {
   return (
@@ -96,9 +82,6 @@ function ShowcaseSection({
             <AccentDots>{title}</AccentDots>
           </h2>
           <p className="mt-5 text-base leading-8 text-kino-muted">{body}</p>
-          <Button asChild className="mt-7" variant="secondary">
-            <Link href={ctaHref}>{ctaLabel}</Link>
-          </Button>
         </div>
       </LandingReveal>
     </section>

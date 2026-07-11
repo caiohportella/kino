@@ -12,7 +12,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   CloudUpload,
-  Loader2,
   RotateCcw,
   Save,
   XCircle,
@@ -22,6 +21,7 @@ import { useState } from 'react'
 import { AppPagination } from '@/components/app-pagination'
 import { PageHeader } from '@/components/page-header'
 import { ProtectedEmpty } from '@/components/protected-empty'
+import { Skeleton } from '@/components/ui/skeleton'
 import { db, getTmdb } from '@/lib/services'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -67,12 +67,7 @@ export default function ImportPage() {
   const [page, setPage] = useState(1)
 
   if (!user) {
-    return (
-      <ProtectedEmpty
-        body="Imports write into your Kino account after local review."
-        title="Sign in to import history"
-      />
-    )
+    return <ProtectedEmpty />
   }
 
   async function handleFile(file: File | null) {
@@ -410,7 +405,7 @@ function ImportRow({
             )}
             {item.importStatus === 'processing' && (
               <span className="flex items-center gap-1 text-xs font-semibold text-kino-accent">
-                <Loader2 size={14} className="animate-spin" /> Processing
+                <Skeleton className="size-3.5 rounded-full" /> Processing
               </span>
             )}
           </div>
@@ -434,7 +429,7 @@ function ImportRow({
           ) : item.importStatus === 'failed' ? (
             <XCircle size={16} className="text-red-400" />
           ) : item.importStatus === 'processing' ? (
-            <Loader2 size={16} className="animate-spin text-kino-accent" />
+            <Skeleton className="size-4 rounded-full" />
           ) : (
             <input
               checked={item.include}
