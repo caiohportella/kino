@@ -11,7 +11,16 @@ export const SITE_TAGLINE = 'Track movies, series, and what you watched in one c
 function normalizeOrigin(value: string | undefined) {
   if (!value) return DEFAULT_SITE_URL
   const origin = value.replace(/\/+$/, '')
-  return origin.startsWith('http://') || origin.startsWith('https://') ? origin : `https://${origin}`
+  const normalized = origin.startsWith('http://') || origin.startsWith('https://') ? origin : `https://${origin}`
+
+  try {
+    const url = new URL(normalized)
+    const local = url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '0.0.0.0'
+    if (process.env.NODE_ENV === 'production' && local) return DEFAULT_SITE_URL
+    return url.origin
+  } catch {
+    return DEFAULT_SITE_URL
+  }
 }
 
 export const getSiteOrigin = cache(() =>
@@ -25,6 +34,16 @@ export const getSiteOrigin = cache(() =>
 
 export function absoluteUrl(pathname: string) {
   return new URL(pathname, getSiteOrigin()).toString()
+}
+
+export function socialImage(pathname: string, alt: string) {
+  return {
+    url: absoluteUrl(pathname),
+    width: 1200,
+    height: 630,
+    alt,
+    type: 'image/png',
+  }
 }
 
 export function trimText(value: string, maxLength: number) {
