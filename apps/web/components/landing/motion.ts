@@ -52,6 +52,32 @@ export const heroContentVariants: Variants = {
   visible: { opacity: 1, y: 0, transition: { ...premiumSpring, stiffness: 68 } },
 }
 
+export const heroFeatureCardsVariants: Variants = {
+  hidden: { opacity: 0, y: '100vh' },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      ...premiumSpring,
+      delay: 0.18,
+      stiffness: 68,
+      when: 'beforeChildren',
+      staggerChildren: 0.08,
+    },
+  },
+}
+
+export const heroFeatureCardVariants: Variants = {
+  hidden: { opacity: 0, y: 28, scale: 0.985 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { ...premiumSpring, stiffness: 82, damping: 20 },
+  },
+  hover: { y: -3, scale: 1.01 },
+}
+
 export const heroPreviewVariants: Variants = {
   hidden: { opacity: 0, x: '100vw' },
   visible: {

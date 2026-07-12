@@ -17,6 +17,8 @@ import { KinoLogo } from '@/components/kino-logo'
 import { AccentDots } from '@/components/landing/accent-dots'
 import {
   heroContentVariants,
+  heroFeatureCardsVariants,
+  heroFeatureCardVariants,
   heroPreviewVariants,
   heroSequenceVariants,
   interactiveVariants,
@@ -81,7 +83,7 @@ export function LandingHero({ logoRef }: { logoRef?: RefObject<HTMLSpanElement |
 
           <motion.div
             className="grid max-w-4xl gap-3 sm:grid-cols-2"
-            variants={heroSequenceVariants}
+            variants={heroFeatureCardsVariants}
           >
             {featureCards.map((feature) => {
               const Icon = feature.icon
@@ -89,7 +91,7 @@ export function LandingHero({ logoRef }: { logoRef?: RefObject<HTMLSpanElement |
                 <motion.div
                   className="rounded-md border border-white/10 bg-white/[0.035] p-4"
                   key={feature.title}
-                  variants={{ ...heroContentVariants, ...interactiveVariants }}
+                  variants={{ ...heroFeatureCardVariants, ...interactiveVariants }}
                   whileHover={reduceMotion ? undefined : 'hover'}
                 >
                   <div className="mb-4 grid size-9 place-items-center rounded-md bg-kino-accent/15 text-kino-accent">
