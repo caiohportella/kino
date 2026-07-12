@@ -46,14 +46,22 @@ export function WatchlistDialog({
   return (
     <Dialog onClose={onClose} open={open} title={t('modals.newWatchlist')}>
       <div className="grid gap-4">
-        <Field label={t('modals.name')} onChange={(event) => setName(event.target.value)} value={name} />
+        <Field
+          label={t('modals.name')}
+          onChange={(event) => setName(event.target.value)}
+          value={name}
+        />
         <TextArea
           label={t('modals.descriptionOptional')}
           onChange={(event) => setDescription(event.target.value)}
           value={description}
         />
         <label className="flex items-center gap-3 rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm text-kino-text">
-          <input checked={isShared} onChange={(event) => setIsShared(event.target.checked)} type="checkbox" />
+          <input
+            checked={isShared}
+            onChange={(event) => setIsShared(event.target.checked)}
+            type="checkbox"
+          />
           {t('modals.shareHint')}
         </label>
         {error ? <p className="text-sm text-red-300">{error}</p> : null}

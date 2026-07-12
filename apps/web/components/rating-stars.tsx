@@ -74,7 +74,11 @@ export function RatingStars({
         const fillPercent = Math.max(0, Math.min(1, displayValue - (star - 1))) * 100
 
         return (
-          <span className="relative inline-grid shrink-0 place-items-center" key={star} style={{ height: starSize, width: starSize }}>
+          <span
+            className="relative inline-grid shrink-0 place-items-center"
+            key={star}
+            style={{ height: starSize, width: starSize }}
+          >
             <Star
               aria-hidden="true"
               className="absolute inset-0 text-white/20"
@@ -82,7 +86,11 @@ export function RatingStars({
               size={starSize}
               strokeWidth={1.8}
             />
-            <span aria-hidden="true" className="absolute inset-0 overflow-hidden" style={{ width: `${fillPercent}%` }}>
+            <span
+              aria-hidden="true"
+              className="absolute inset-0 overflow-hidden"
+              style={{ width: `${fillPercent}%` }}
+            >
               <Star
                 className="text-kino-accent"
                 fill="currentColor"

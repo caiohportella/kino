@@ -6,6 +6,11 @@
     "watchlists": "Listas",
     "profile": "Perfil"
   },
+  "accountMenu": {
+    "open": "Abrir menu da conta",
+    "profile": "Abrir seu perfil",
+    "userFallback": "Usuário"
+  },
   "home": {
     "trending": "Em Alta Hoje",
     "popularMovies": "Filmes Populares",
@@ -45,11 +50,33 @@
     "failedToAddToDiary": "Falha ao adicionar ao diário: {{message}}"
   },
   "errors": {
-    "401": { "title": "Seu ingresso está esperando.", "body": "Entre para continuar nesta parte do Kino.", "illustration": "401, login necessário" },
-    "403": { "title": "Esta sessão é privada.", "body": "Você não tem permissão para acessar esta página.", "illustration": "403, acesso negado" },
-    "404": { "title": "Cena não encontrada.", "body": "A página que você procura não existe ou pode ter sido movida.", "illustration": "404, página não encontrada" },
-    "500": { "title": "Corta! Algo deu errado.", "body": "Um erro inesperado interrompeu esta cena. Tente novamente em instantes.", "illustration": "500, erro inesperado" },
-    "actions": { "home": "Voltar para descobrir", "back": "Voltar", "retry": "Tentar novamente", "search": "Buscar no Kino", "signIn": "Entrar" }
+    "401": {
+      "title": "Seu ingresso está esperando.",
+      "body": "Entre para continuar nesta parte do Kino.",
+      "illustration": "401, login necessário"
+    },
+    "403": {
+      "title": "Esta sessão é privada.",
+      "body": "Você não tem permissão para acessar esta página.",
+      "illustration": "403, acesso negado"
+    },
+    "404": {
+      "title": "Cena não encontrada.",
+      "body": "A página que você procura não existe ou pode ter sido movida.",
+      "illustration": "404, página não encontrada"
+    },
+    "500": {
+      "title": "Corta! Algo deu errado.",
+      "body": "Um erro inesperado interrompeu esta cena. Tente novamente em instantes.",
+      "illustration": "500, erro inesperado"
+    },
+    "actions": {
+      "home": "Voltar para descobrir",
+      "back": "Voltar",
+      "retry": "Tentar novamente",
+      "search": "Buscar no Kino",
+      "signIn": "Entrar"
+    }
   },
   "notFound": {
     "title": "Esta cena não entrou no corte final.",
@@ -77,11 +104,77 @@
   "diaryFilters": {
     "watchType": "Status da visualização",
     "anyWatchType": "Qualquer status",
-    "filters": "Filtros", "description": "Filtre e ordene as entradas do seu diário.", "rating": "Avaliação", "diaryYear": "Ano do diário", "decade": "Década", "genre": "Gênero", "sortBy": "Ordenar por", "anyRating": "Qualquer avaliação", "noRating": "Sem avaliação", "chooseRating": "Escolha uma avaliação", "stars": "{{count}} estrelas", "anyYear": "Qualquer ano", "anyDecade": "Qualquer década", "anyGenre": "Qualquer gênero", "reset": "Redefinir filtros", "activeCount": "{{count}} filtros ativos", "noMatches": "Nenhuma entrada encontrada", "noMatchesBody": "Altere ou redefina os filtros do diário.",
-    "sortGroups": { "watchedDate": "Data assistida", "reviewActivity": "Atividade de resenhas", "diaryCount": "Contagem no diário", "titleName": "Nome do título", "popularity": "Popularidade", "releaseDate": "Data de lançamento", "averageRating": "Avaliação média", "userRating": "Sua avaliação", "runtime": "Duração" },
-    "sortOptions": { "watched-desc": "Mais recentes", "watched-asc": "Mais antigas", "activity-desc": "Mais recentes", "activity-asc": "Mais antigas", "count-desc": "Maior primeiro", "count-asc": "Menor primeiro", "title-asc": "A–Z", "title-desc": "Z–A", "popularity-desc": "Maior primeiro", "popularity-asc": "Menor primeiro", "release-desc": "Mais recentes", "release-asc": "Mais antigas", "average-desc": "Maior primeiro", "average-asc": "Menor primeiro", "rating-desc": "Maior primeiro", "rating-asc": "Menor primeiro", "runtime-desc": "Mais longa", "runtime-asc": "Mais curta" }
+    "filters": "Filtros",
+    "description": "Filtre e ordene as entradas do seu diário.",
+    "rating": "Avaliação",
+    "diaryYear": "Ano do diário",
+    "decade": "Década",
+    "genre": "Gênero",
+    "sortBy": "Ordenar por",
+    "anyRating": "Qualquer avaliação",
+    "noRating": "Sem avaliação",
+    "chooseRating": "Escolha uma avaliação",
+    "stars": "{{count}} estrelas",
+    "anyYear": "Qualquer ano",
+    "anyDecade": "Qualquer década",
+    "anyGenre": "Qualquer gênero",
+    "reset": "Redefinir filtros",
+    "activeCount": "{{count}} filtros ativos",
+    "noMatches": "Nenhuma entrada encontrada",
+    "noMatchesBody": "Altere ou redefina os filtros do diário.",
+    "sortGroups": {
+      "watchedDate": "Data assistida",
+      "reviewActivity": "Atividade de resenhas",
+      "diaryCount": "Contagem no diário",
+      "titleName": "Nome do título",
+      "popularity": "Popularidade",
+      "releaseDate": "Data de lançamento",
+      "averageRating": "Avaliação média",
+      "userRating": "Sua avaliação",
+      "runtime": "Duração"
+    },
+    "sortOptions": {
+      "watched-desc": "Mais recentes",
+      "watched-asc": "Mais antigas",
+      "activity-desc": "Mais recentes",
+      "activity-asc": "Mais antigas",
+      "count-desc": "Maior primeiro",
+      "count-asc": "Menor primeiro",
+      "title-asc": "A–Z",
+      "title-desc": "Z–A",
+      "popularity-desc": "Maior primeiro",
+      "popularity-asc": "Menor primeiro",
+      "release-desc": "Mais recentes",
+      "release-asc": "Mais antigas",
+      "average-desc": "Maior primeiro",
+      "average-asc": "Menor primeiro",
+      "rating-desc": "Maior primeiro",
+      "rating-asc": "Menor primeiro",
+      "runtime-desc": "Mais longa",
+      "runtime-asc": "Mais curta"
+    }
   },
-  "genres": { "12": "Aventura", "14": "Fantasia", "16": "Animação", "18": "Drama", "27": "Terror", "28": "Ação", "35": "Comédia", "36": "História", "37": "Faroeste", "53": "Suspense", "80": "Crime", "99": "Documentário", "878": "Ficção científica", "9648": "Mistério", "10402": "Música", "10749": "Romance", "10751": "Família", "10752": "Guerra", "10770": "Filme para TV" },
+  "genres": {
+    "12": "Aventura",
+    "14": "Fantasia",
+    "16": "Animação",
+    "18": "Drama",
+    "27": "Terror",
+    "28": "Ação",
+    "35": "Comédia",
+    "36": "História",
+    "37": "Faroeste",
+    "53": "Suspense",
+    "80": "Crime",
+    "99": "Documentário",
+    "878": "Ficção científica",
+    "9648": "Mistério",
+    "10402": "Música",
+    "10749": "Romance",
+    "10751": "Família",
+    "10752": "Guerra",
+    "10770": "Filme para TV"
+  },
   "appFooter": {
     "copyright": "© {{year}} Kino",
     "metadataProvidedBy": "Metadados de filmes e séries fornecidos por",
@@ -139,6 +232,13 @@
     "following": "Seguindo",
     "follow": "Seguir",
     "findPeople": "Encontrar pessoas",
+    "shareProfile": "Compartilhar perfil",
+    "shareDescription": "Escaneie o QR code ou copie o link público deste perfil.",
+    "linkCopied": "Link do perfil copiado",
+    "copiedFeedback": "Copiado para a área de transferência",
+    "tapToCopy": "Selecione o link para copiá-lo",
+    "copyFailed": "Não foi possível copiar o link do perfil",
+    "qrCodeAlt": "QR code deste perfil do Kino",
     "avgMovieRating": "Média dos filmes",
     "avgSeriesRating": "Média das séries",
     "keepWatching": "Continuar assistindo",

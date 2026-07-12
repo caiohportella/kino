@@ -2,7 +2,17 @@
 
 import type { KinoLanguage } from '@/stores/settings-store'
 import { Button, Card, Field, TextArea } from '@kino/ui'
-import { Camera, Check, ChevronDown, CloudUpload, ImagePlus, Languages, LogOut, Save, Trash2 } from 'lucide-react'
+import {
+  Camera,
+  Check,
+  ChevronDown,
+  CloudUpload,
+  ImagePlus,
+  Languages,
+  LogOut,
+  Save,
+  Trash2,
+} from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -73,7 +83,7 @@ export default function SettingsPage() {
       if (!user) return
       const trimmedUsername = username.trim()
       if (trimmedUsername.length < 3) throw new Error(t('settings.usernameMinLength'))
-      if (!/^[a-zA-Z0-9_]+$/.test(trimmedUsername)) {
+      if (!/^[a-zA-Z0-9_-]+$/.test(trimmedUsername)) {
         throw new Error(t('settings.usernameInvalidChars'))
       }
       const uploadedAvatar = avatarFile ? await db.uploadAvatar(avatarFile, user.id) : avatarUrl
@@ -88,15 +98,17 @@ export default function SettingsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile-settings', user?.id] })
       queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
-      router.push('/profile')
+      router.push(`/${username.trim()}`)
     },
-    onError: (caught) => setError(caught instanceof Error ? caught.message : t('common.failedToSave')),
+    onError: (caught) =>
+      setError(caught instanceof Error ? caught.message : t('common.failedToSave')),
   })
 
   const deleteDataMutation = useMutation({
     mutationFn: () => db.deleteUserData(),
     onSuccess: () => queryClient.clear(),
-    onError: (caught) => setError(caught instanceof Error ? caught.message : t('common.failedToDelete')),
+    onError: (caught) =>
+      setError(caught instanceof Error ? caught.message : t('common.failedToDelete')),
   })
 
   const deleteAccountMutation = useMutation({
@@ -106,7 +118,8 @@ export default function SettingsPage() {
       queryClient.clear()
       router.replace('/')
     },
-    onError: (caught) => setError(caught instanceof Error ? caught.message : t('common.failedToDelete')),
+    onError: (caught) =>
+      setError(caught instanceof Error ? caught.message : t('common.failedToDelete')),
   })
 
   if (!user) {
@@ -136,7 +149,11 @@ export default function SettingsPage() {
             <div className="relative h-28 w-28">
               <div className="grid h-28 w-28 place-items-center overflow-hidden rounded-full border border-white/10 bg-kino-surface shadow-soft">
                 {avatarFile ? (
-                  <img alt="" className="h-full w-full object-cover" src={URL.createObjectURL(avatarFile)} />
+                  <img
+                    alt=""
+                    className="h-full w-full object-cover"
+                    src={URL.createObjectURL(avatarFile)}
+                  />
                 ) : avatarUrl ? (
                   <img alt="" className="h-full w-full object-cover" src={avatarUrl} />
                 ) : (
@@ -161,12 +178,24 @@ export default function SettingsPage() {
             </div>
 
             <div className="grid gap-4">
-              <Field label={t('settings.displayName')} onChange={(event) => setDisplayName(event.target.value)} value={displayName} />
-              <Field label={t('settings.username')} onChange={(event) => setUsername(event.target.value)} value={username} />
+              <Field
+                label={t('settings.displayName')}
+                onChange={(event) => setDisplayName(event.target.value)}
+                value={displayName}
+              />
+              <Field
+                label={t('settings.username')}
+                onChange={(event) => setUsername(event.target.value)}
+                value={username}
+              />
             </div>
           </div>
 
-          <TextArea label={t('settings.bio')} onChange={(event) => setBio(event.target.value)} value={bio} />
+          <TextArea
+            label={t('settings.bio')}
+            onChange={(event) => setBio(event.target.value)}
+            value={bio}
+          />
           <section className="grid gap-3">
             <div>
               <h2 className="text-sm font-semibold text-kino-text">{t('modals.selectBanner')}</h2>
@@ -202,24 +231,32 @@ export default function SettingsPage() {
           <Card className="grid gap-3 p-5">
             <h2 className="text-lg font-semibold text-kino-text">{t('settings.language')}</h2>
             <Popover>
-              <PopoverTrigger asChild>
-                <UiButton
-                  aria-label={t('settings.language')}
-                  className="min-h-14 justify-between border-white/10 bg-kino-panel px-4 text-left hover:bg-white/[0.07]"
-                  variant="secondary"
-                >
-                  <span className="flex min-w-0 items-center gap-3">
-                    <Languages className="text-kino-muted" size={18} />
-                    <span className="text-xl leading-none" aria-hidden="true">{selectedLanguage.flag}</span>
-                    <span className="grid min-w-0 gap-0.5">
-                      <span className="truncate text-sm font-semibold text-kino-text">{selectedLanguage.nativeName}</span>
-                      {selectedLanguage.englishName ? (
-                        <span className="truncate text-xs font-medium text-kino-muted">{selectedLanguage.englishName}</span>
-                      ) : null}
-                    </span>
+              <PopoverTrigger
+                render={
+                  <UiButton
+                    aria-label={t('settings.language')}
+                    className="min-h-14 justify-between border-white/10 bg-kino-panel px-4 text-left hover:bg-white/[0.07]"
+                    variant="secondary"
+                  />
+                }
+              >
+                <span className="flex min-w-0 items-center gap-3">
+                  <Languages className="text-kino-muted" size={18} />
+                  <span className="text-xl leading-none" aria-hidden="true">
+                    {selectedLanguage.flag}
                   </span>
-                  <ChevronDown className="shrink-0 text-kino-muted" size={17} />
-                </UiButton>
+                  <span className="grid min-w-0 gap-0.5">
+                    <span className="truncate text-sm font-semibold text-kino-text">
+                      {selectedLanguage.nativeName}
+                    </span>
+                    {selectedLanguage.englishName ? (
+                      <span className="truncate text-xs font-medium text-kino-muted">
+                        {selectedLanguage.englishName}
+                      </span>
+                    ) : null}
+                  </span>
+                </span>
+                <ChevronDown className="shrink-0 text-kino-muted" size={17} />
               </PopoverTrigger>
               <PopoverContent align="start" className="w-[min(340px,calc(100vw-32px))] p-2">
                 <div className="grid gap-1" role="listbox" aria-label={t('settings.language')}>
@@ -238,11 +275,15 @@ export default function SettingsPage() {
                         role="option"
                         type="button"
                       >
-                        <span className="text-xl leading-none" aria-hidden="true">{item.flag}</span>
+                        <span className="text-xl leading-none" aria-hidden="true">
+                          {item.flag}
+                        </span>
                         <span className="grid min-w-0 gap-0.5">
                           <span className="truncate text-sm font-semibold">{item.nativeName}</span>
                           {item.englishName ? (
-                            <span className="truncate text-xs font-medium text-kino-muted">{item.englishName}</span>
+                            <span className="truncate text-xs font-medium text-kino-muted">
+                              {item.englishName}
+                            </span>
                           ) : null}
                         </span>
                         {active ? <Check className="text-kino-accent" size={17} /> : null}
@@ -255,7 +296,9 @@ export default function SettingsPage() {
           </Card>
 
           <Card className="grid gap-3 p-5">
-            <h2 className="text-lg font-semibold text-kino-text">{t('settings.importHistoryTitle')}</h2>
+            <h2 className="text-lg font-semibold text-kino-text">
+              {t('settings.importHistoryTitle')}
+            </h2>
             <p className="text-sm leading-6 text-kino-muted">
               {t('settings.importHistorySubtitle')}
             </p>
@@ -280,11 +323,19 @@ export default function SettingsPage() {
               <LogOut size={16} />
               {t('settings.logout')}
             </Button>
-            <Button disabled={deleteDataMutation.isPending} onClick={() => deleteDataMutation.mutate()} tone="danger">
+            <Button
+              disabled={deleteDataMutation.isPending}
+              onClick={() => deleteDataMutation.mutate()}
+              tone="danger"
+            >
               <Trash2 size={16} />
               {t('settings.deleteData')}
             </Button>
-            <Button disabled={deleteAccountMutation.isPending} onClick={() => deleteAccountMutation.mutate()} tone="danger">
+            <Button
+              disabled={deleteAccountMutation.isPending}
+              onClick={() => deleteAccountMutation.mutate()}
+              tone="danger"
+            >
               {t('settings.deleteAccount')}
             </Button>
           </Card>

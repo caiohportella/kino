@@ -1,11 +1,10 @@
 'use client'
 
+import { motion, useReducedMotion } from 'framer-motion'
 import {
-  ArrowRight,
   BookmarkPlus,
   CalendarCheck,
   Clapperboard,
-  Compass,
   Film,
   ListChecks,
   Play,
@@ -13,10 +12,17 @@ import {
   Star,
   UsersRound,
 } from 'lucide-react'
-import Link from 'next/link'
 import type { RefObject } from 'react'
+import { KinoLogo } from '@/components/kino-logo'
 import { AccentDots } from '@/components/landing/accent-dots'
-import { Button } from '@/components/ui/button'
+import {
+  heroContentVariants,
+  heroPreviewVariants,
+  heroSequenceVariants,
+  interactiveVariants,
+  previewActionsVariants,
+  previewActionVariants,
+} from '@/components/landing/motion'
 import { useTranslation } from '@/lib/i18n'
 
 const featureCards = [
@@ -44,21 +50,24 @@ const featureCards = [
 
 export function LandingHero({ logoRef }: { logoRef?: RefObject<HTMLSpanElement | null> }) {
   const { t } = useTranslation()
+  const reduceMotion = useReducedMotion()
 
   return (
     <section className="relative border-b border-white/[0.06] bg-kino-bg pt-24">
-      <div className="landing-section grid min-h-[calc(100svh-104px)] items-center gap-10 pb-16 lg:grid-cols-[minmax(0,1fr)_480px] lg:pb-20">
-        <div className="flex flex-col gap-9 py-8">
-          <div className="flex items-center gap-3">
-            <span className="grid size-12 place-items-center overflow-hidden rounded-md border border-white/10 bg-white/[0.04]">
-              <img alt="" className="size-8" src="/icons/icon-192.png" />
+      <motion.div
+        animate="visible"
+        className="landing-section grid min-h-[calc(100svh-104px)] items-center gap-10 pb-16 lg:grid-cols-[minmax(0,1fr)_480px] lg:pb-20"
+        initial={reduceMotion ? false : 'hidden'}
+        variants={heroSequenceVariants}
+      >
+        <motion.div className="flex flex-col gap-9 py-8" variants={heroSequenceVariants}>
+          <motion.div className="flex items-center gap-3" variants={heroContentVariants}>
+            <span ref={logoRef}>
+              <KinoLogo priority width={132} />
             </span>
-            <span ref={logoRef} className="text-2xl font-black italic tracking-normal text-kino-text">
-              <AccentDots>Kino.</AccentDots>
-            </span>
-          </div>
+          </motion.div>
 
-          <div className="max-w-3xl">
+          <motion.div className="max-w-3xl" variants={heroContentVariants}>
             <p className="text-sm font-bold uppercase tracking-[0.18em] text-kino-accent">
               {t('landing.hero.eyebrow')}
             </p>
@@ -68,31 +77,41 @@ export function LandingHero({ logoRef }: { logoRef?: RefObject<HTMLSpanElement |
             <p className="mt-12 max-w-2xl text-base leading-8 text-kino-muted sm:text-lg">
               {t('landing.hero.body')}
             </p>
-          </div>
+          </motion.div>
 
-          <div className="grid max-w-4xl gap-3 sm:grid-cols-2">
+          <motion.div
+            className="grid max-w-4xl gap-3 sm:grid-cols-2"
+            variants={heroSequenceVariants}
+          >
             {featureCards.map((feature) => {
               const Icon = feature.icon
               return (
-                <div className="rounded-md border border-white/10 bg-white/[0.035] p-4" key={feature.title}>
+                <motion.div
+                  className="rounded-md border border-white/10 bg-white/[0.035] p-4"
+                  key={feature.title}
+                  variants={{ ...heroContentVariants, ...interactiveVariants }}
+                  whileHover={reduceMotion ? undefined : 'hover'}
+                >
                   <div className="mb-4 grid size-9 place-items-center rounded-md bg-kino-accent/15 text-kino-accent">
                     <Icon size={18} />
                   </div>
                   <h2 className="text-sm font-bold text-kino-text">{feature.title}</h2>
                   <p className="mt-2 text-sm leading-6 text-kino-muted">{feature.body}</p>
-                </div>
+                </motion.div>
               )
             })}
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
-        <HeroProductPreview />
-      </div>
+        <motion.div variants={heroPreviewVariants}>
+          <HeroProductPreview reduceMotion={reduceMotion} />
+        </motion.div>
+      </motion.div>
     </section>
   )
 }
 
-function HeroProductPreview() {
+function HeroProductPreview({ reduceMotion }: { reduceMotion: boolean | null }) {
   return (
     <div aria-label="Kino product preview" className="relative hidden lg:block">
       <div className="rounded-md border border-white/[0.12] bg-kino-surface p-4 shadow-[0_24px_80px_rgb(0_0_0_/_0.34)]">
@@ -102,7 +121,9 @@ function HeroProductPreview() {
             <span className="size-2.5 rounded-full bg-yellow-300/80" />
             <span className="size-2.5 rounded-full bg-kino-accent/90" />
           </div>
-          <span className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-semibold text-kino-muted">Tonight</span>
+          <span className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-semibold text-kino-muted">
+            Tonight
+          </span>
         </div>
 
         <div className="grid gap-4">
@@ -114,13 +135,20 @@ function HeroProductPreview() {
                   <div className="h-3 w-44 rounded-full bg-white/25" />
                   <div className="mt-3 h-2 w-28 rounded-full bg-white/12" />
                 </div>
-                <div className="rounded-md bg-kino-accent px-3 py-1 text-xs font-black text-black">4.5</div>
+                <div className="rounded-md bg-kino-accent px-3 py-1 text-xs font-black text-black">
+                  4.5
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <PreviewAction icon={BookmarkPlus} label="Watchlist" active />
-                <PreviewAction icon={CalendarCheck} label="Diary" />
-                <PreviewAction icon={Play} label="Trailer" />
-              </div>
+              <motion.div className="flex flex-wrap gap-2" variants={previewActionsVariants}>
+                <PreviewAction
+                  icon={BookmarkPlus}
+                  label="Watchlist"
+                  active
+                  reduceMotion={reduceMotion}
+                />
+                <PreviewAction icon={CalendarCheck} label="Diary" reduceMotion={reduceMotion} />
+                <PreviewAction icon={Play} label="Trailer" reduceMotion={reduceMotion} />
+              </motion.div>
             </div>
           </div>
 
@@ -166,21 +194,24 @@ function PreviewAction({
   icon: Icon,
   label,
   active = false,
+  reduceMotion,
 }: {
   icon: typeof BookmarkPlus
   label: string
   active?: boolean
+  reduceMotion: boolean | null
 }) {
   return (
-    <span
+    <motion.span
       className={
         active
           ? 'inline-flex items-center gap-2 rounded-md bg-kino-accent px-3 py-2 text-xs font-bold text-black'
           : 'inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-bold text-kino-muted'
       }
+      variants={reduceMotion ? undefined : previewActionVariants}
     >
       <Icon size={14} />
       {label}
-    </span>
+    </motion.span>
   )
 }

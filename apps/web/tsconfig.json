@@ -3,21 +3,11 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "@kino/core": [
-        "../../packages/core/src"
-      ],
-      "@kino/core/*": [
-        "../../packages/core/src/*"
-      ],
-      "@kino/ui": [
-        "../../packages/ui/src"
-      ],
-      "@kino/ui/*": [
-        "../../packages/ui/src/*"
-      ]
+      "@/*": ["./*"],
+      "@kino/core": ["../../packages/core/src"],
+      "@kino/core/*": ["../../packages/core/src/*"],
+      "@kino/ui": ["../../packages/ui/src"],
+      "@kino/ui/*": ["../../packages/ui/src/*"]
     }
   },
   "include": [
@@ -27,7 +17,5 @@
     "next-env.d.ts",
     ".next-dev/types/**/*.ts"
   ],
-  "exclude": [
-    "node_modules"
-  ]
+  "exclude": ["node_modules"]
 }

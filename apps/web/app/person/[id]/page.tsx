@@ -28,11 +28,13 @@ import { Card } from '@/components/ui/card'
 import { getTmdb } from '@/lib/services'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/stores/settings-store'
+import { getPersonImagePaths } from '@/lib/person-visuals'
+import { parseResourceSegment, personPath, titlePath } from '@/lib/routes'
 
 export default function PersonPage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
-  const personId = Number(params.id)
+  const personId = parseResourceSegment(params.id).id
   const language = useSettingsStore((state) => state.language)
   const validPersonId = Number.isFinite(personId) && personId > 0
 
@@ -54,7 +56,10 @@ export default function PersonPage() {
   if (!validPersonId) {
     return (
       <div className="content-frame">
-        <EmptyState body="This person link is missing a valid TMDB identifier." title="Person not found" />
+        <EmptyState
+          body="This person link is missing a valid TMDB identifier."
+          title="Person not found"
+        />
       </div>
     )
   }
@@ -71,9 +76,9 @@ export default function PersonPage() {
 
   const person = personQuery.data
   const tmdb = getTmdb()
-  const profile = tmdb.getImageUrl(person.profile_path, 'w300')
-  const backdropCredit = knownFor.find((credit) => credit.backdrop_path)
-  const backdrop = tmdb.getBackdropUrl(backdropCredit?.backdrop_path ?? null, 'w1280')
+  const visualPaths = getPersonImagePaths(person)
+  const profile = tmdb.getImageUrl(visualPaths.portraitPath, 'w300')
+  const backdrop = tmdb.getBackdropUrl(visualPaths.bannerPath, 'w1280')
 
   return (
     <div className="content-frame">
@@ -106,7 +111,9 @@ export default function PersonPage() {
           </div>
 
           <div className="min-w-0">
-            <h1 className="max-w-4xl text-3xl font-semibold text-kino-text md:text-5xl">{person.name}</h1>
+            <h1 className="max-w-4xl text-3xl font-semibold text-kino-text md:text-5xl">
+              {person.name}
+            </h1>
             {person.known_for_department ? (
               <div className="mt-2 flex items-center gap-2 text-sm font-semibold text-kino-muted">
                 <BriefcaseBusiness aria-hidden="true" size={15} />
@@ -121,31 +128,31 @@ export default function PersonPage() {
       </section>
 
       <main className="grid gap-8">
-          <Biography biography={person.biography} />
+        <Biography biography={person.biography} />
 
-          <PersonExternalLinks person={person} />
+        <PersonExternalLinks person={person} />
 
-          <section>
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-semibold text-kino-text">Known for</h2>
-              </div>
+        <section>
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-semibold text-kino-text">Known for</h2>
             </div>
+          </div>
 
-            {knownFor.length > 0 ? (
-              <div className="poster-grid">
-                {knownFor.map((credit) => (
-                  <PersonCreditCard credit={credit} key={`${credit.media_type}-${credit.id}`} />
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                body="TMDB does not list movie or series credits for this person yet."
-                className="mx-0"
-                title="No credits available"
-              />
-            )}
-          </section>
+          {knownFor.length > 0 ? (
+            <div className="poster-grid">
+              {knownFor.map((credit) => (
+                <PersonCreditCard credit={credit} key={`${credit.media_type}-${credit.id}`} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              body="TMDB does not list movie or series credits for this person yet."
+              className="mx-0"
+              title="No credits available"
+            />
+          )}
+        </section>
       </main>
     </div>
   )
@@ -160,7 +167,7 @@ function PersonCreditCard({ credit }: { credit: TMDbPersonCredit }) {
   const role = credit.character || credit.job
 
   return (
-    <Link className="group grid min-w-0 gap-3 focus-ring" href={`/title/${credit.id}?type=${type}`}>
+    <Link className="group grid min-w-0 gap-3 focus-ring" href={titlePath(credit.id, title, type)}>
       <Poster className="w-full rounded-md" src={poster} title={title} />
       <div className="min-w-0">
         <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-kino-text group-hover:text-kino-accent">
@@ -268,7 +275,13 @@ function Biography({ biography }: { biography: string }) {
           className="w-full overflow-hidden text-base leading-7 text-kino-text transition-[max-height] duration-300 ease-out motion-reduce:transition-none"
           id="person-biography"
           ref={contentRef}
-          style={{ maxHeight: hasOverflow ? (expanded ? contentHeight : COLLAPSED_BIOGRAPHY_HEIGHT) : undefined }}
+          style={{
+            maxHeight: hasOverflow
+              ? expanded
+                ? contentHeight
+                : COLLAPSED_BIOGRAPHY_HEIGHT
+              : undefined,
+          }}
         >
           {content}
         </p>
@@ -287,7 +300,10 @@ function Biography({ biography }: { biography: string }) {
           {expanded ? 'Show less' : 'Show more'}
           <ChevronDown
             aria-hidden="true"
-            className={cn('transition-transform duration-200 motion-reduce:transition-none', expanded && 'rotate-180')}
+            className={cn(
+              'transition-transform duration-200 motion-reduce:transition-none',
+              expanded && 'rotate-180'
+            )}
             size={16}
           />
         </Button>

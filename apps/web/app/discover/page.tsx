@@ -17,14 +17,15 @@ export default function DiscoverPage() {
     queryFn: async () => {
       const tmdb = getTmdb()
       tmdb.setLanguage(language)
-      const [trending, popularMovies, popularTV, topRated, nowPlaying, upcoming] = await Promise.all([
-        tmdb.getTrending('all', 'week'),
-        tmdb.getPopularMovies(),
-        tmdb.getPopularTV(),
-        tmdb.getTopRatedMovies(),
-        tmdb.getNowPlayingMovies(),
-        tmdb.getUpcomingMovies(),
-      ])
+      const [trending, popularMovies, popularTV, topRated, nowPlaying, upcoming] =
+        await Promise.all([
+          tmdb.getTrending('all', 'week'),
+          tmdb.getPopularMovies(),
+          tmdb.getPopularTV(),
+          tmdb.getTopRatedMovies(),
+          tmdb.getNowPlayingMovies(),
+          tmdb.getUpcomingMovies(),
+        ])
 
       return { trending, popularMovies, popularTV, topRated, nowPlaying, upcoming }
     },

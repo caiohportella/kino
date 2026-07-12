@@ -52,7 +52,7 @@ export function AuthCallbackClient() {
         setError(signInError.message)
       } else {
         await ensureUserProfileFromAuthUser(data.session?.user).catch(() => undefined)
-        router.replace(consumeStoredAuthRedirect('/profile'))
+        router.replace(consumeStoredAuthRedirect('/discover'))
       }
     },
     [router]

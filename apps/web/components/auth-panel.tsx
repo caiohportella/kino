@@ -1,10 +1,10 @@
-'use client'
+"use client";
 
-import { Check, Mail, X } from 'lucide-react'
-import { usePathname, useRouter } from 'next/navigation'
-import { type FormEvent, useEffect, useMemo, useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
+import { Check, LoaderCircle, Mail, X } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
   CardContent,
@@ -12,45 +12,74 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { consumeStoredAuthRedirect, isSafeInternalRedirect, storeAuthRedirect } from '@/lib/auth-redirect'
-import { db } from '@/lib/services'
-import { cn } from '@/lib/utils'
-import { useAuthStore } from '@/stores/auth-store'
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  consumeStoredAuthRedirect,
+  isSafeInternalRedirect,
+  storeAuthRedirect,
+} from "@/lib/auth-redirect";
+import { db } from "@/lib/services";
+import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth-store";
+import { KinoLogo } from "@/components/kino-logo";
 
-type AuthTab = 'sign-in' | 'register'
-type LoginMethod = 'password' | 'magic-link'
-type LoadingAction = 'login' | 'magic-link' | 'register' | 'google' | null
+type AuthTab = "sign-in" | "register";
+type LoginMethod = "password" | "magic-link";
+type LoadingAction = "login" | "magic-link" | "register" | "google" | null;
 
 const passwordRequirements = [
-  { id: 'lowercase', label: 'One lowercase letter', test: (value: string) => /[a-z]/.test(value) },
-  { id: 'uppercase', label: 'One uppercase letter', test: (value: string) => /[A-Z]/.test(value) },
-  { id: 'digit', label: 'One number', test: (value: string) => /\d/.test(value) },
-  { id: 'symbol', label: 'One symbol', test: (value: string) => /[^A-Za-z0-9]/.test(value) },
-  { id: 'length', label: 'At least 8 characters', test: (value: string) => value.length >= 8 },
-] as const
+  {
+    id: "lowercase",
+    label: "One lowercase letter",
+    test: (value: string) => /[a-z]/.test(value),
+  },
+  {
+    id: "uppercase",
+    label: "One uppercase letter",
+    test: (value: string) => /[A-Z]/.test(value),
+  },
+  {
+    id: "digit",
+    label: "One number",
+    test: (value: string) => /\d/.test(value),
+  },
+  {
+    id: "symbol",
+    label: "One symbol",
+    test: (value: string) => /[^A-Za-z0-9]/.test(value),
+  },
+  {
+    id: "length",
+    label: "At least 8 characters",
+    test: (value: string) => value.length >= 8,
+  },
+] as const;
 
-export function AuthPanel({ initialTab = 'sign-in' }: { initialTab?: AuthTab }) {
-  const pathname = usePathname()
-  const router = useRouter()
-  const signInWithEmail = useAuthStore((state) => state.signInWithEmail)
-  const signInWithGoogle = useAuthStore((state) => state.signInWithGoogle)
-  const signInWithOtp = useAuthStore((state) => state.signInWithOtp)
-  const signUpWithEmail = useAuthStore((state) => state.signUpWithEmail)
-  const [tab, setTab] = useState<AuthTab>(initialTab)
-  const [loginMethod, setLoginMethod] = useState<LoginMethod>('password')
-  const [loginEmail, setLoginEmail] = useState('')
-  const [loginPassword, setLoginPassword] = useState('')
-  const [rememberMe, setRememberMe] = useState(true)
-  const [username, setUsername] = useState('')
-  const [registerEmail, setRegisterEmail] = useState('')
-  const [registerPassword, setRegisterPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [loadingAction, setLoadingAction] = useState<LoadingAction>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
-  const [submitted, setSubmitted] = useState(false)
+export function AuthPanel({
+  initialTab = "sign-in",
+}: {
+  initialTab?: AuthTab;
+}) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const signInWithEmail = useAuthStore((state) => state.signInWithEmail);
+  const signInWithGoogle = useAuthStore((state) => state.signInWithGoogle);
+  const signInWithOtp = useAuthStore((state) => state.signInWithOtp);
+  const signUpWithEmail = useAuthStore((state) => state.signUpWithEmail);
+  const [tab, setTab] = useState<AuthTab>(initialTab);
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>("password");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
+  const [username, setUsername] = useState("");
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loadingAction, setLoadingAction] = useState<LoadingAction>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
 
   const passwordState = useMemo(
     () =>
@@ -58,116 +87,145 @@ export function AuthPanel({ initialTab = 'sign-in' }: { initialTab?: AuthTab }) 
         ...requirement,
         satisfied: requirement.test(registerPassword),
       })),
-    [registerPassword]
-  )
-  const registerPasswordValid = passwordState.every((requirement) => requirement.satisfied)
-  const cleanUsername = username.trim()
-  const cleanRegisterEmail = registerEmail.trim()
-  const cleanLoginEmail = loginEmail.trim()
-  const loginEmailValid = isEmail(cleanLoginEmail)
-  const registerEmailValid = isEmail(cleanRegisterEmail)
-  const usernameError = getUsernameError(cleanUsername)
+    [registerPassword],
+  );
+  const registerPasswordValid = passwordState.every(
+    (requirement) => requirement.satisfied,
+  );
+  const cleanUsername = username.trim();
+  const cleanRegisterEmail = registerEmail.trim();
+  const cleanLoginEmail = loginEmail.trim();
+  const loginEmailValid = isEmail(cleanLoginEmail);
+  const registerEmailValid = isEmail(cleanRegisterEmail);
+  const usernameError = getUsernameError(cleanUsername);
   const confirmPasswordError =
-    confirmPassword && registerPassword !== confirmPassword ? 'Passwords do not match.' : null
+    confirmPassword && registerPassword !== confirmPassword
+      ? "Passwords do not match."
+      : null;
   const canSubmitLogin =
-    loginEmailValid && (loginMethod === 'magic-link' || loginPassword.length > 0) && !loadingAction
+    loginEmailValid &&
+    (loginMethod === "magic-link" || loginPassword.length > 0) &&
+    !loadingAction;
   const canSubmitRegister =
     !usernameError &&
     registerEmailValid &&
     registerPasswordValid &&
     confirmPassword.length > 0 &&
     registerPassword === confirmPassword &&
-    !loadingAction
+    !loadingAction;
 
   useEffect(() => {
-    setTab(initialTab)
-  }, [initialTab])
+    setTab(initialTab);
+  }, [initialTab]);
 
-  useEffect(() => {
-    setSubmitted(false)
-    setError(null)
-    setMessage(null)
-  }, [tab, loginMethod])
+  function resetFeedback() {
+    setSubmitted(false);
+    setError(null);
+    setMessage(null);
+  }
 
   function getRedirectTarget() {
-    return isSafeInternalRedirect(pathname) ? pathname : '/discover'
+    return isSafeInternalRedirect(pathname) ? pathname : "/discover";
   }
 
   function prepareAuthRedirect() {
-    storeAuthRedirect(getRedirectTarget())
+    storeAuthRedirect(getRedirectTarget());
   }
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setSubmitted(true)
-    setError(null)
-    setMessage(null)
-    if (!canSubmitLogin) return
+    event.preventDefault();
+    setSubmitted(true);
+    setError(null);
+    setMessage(null);
+    if (!canSubmitLogin) return;
 
     try {
-      prepareAuthRedirect()
-      const action = loginMethod === 'magic-link' ? 'magic-link' : 'login'
-      setLoadingAction(action)
-      if (loginMethod === 'magic-link') {
-        await signInWithOtp(cleanLoginEmail)
-        setMessage('Check your inbox for a secure sign-in link.')
+      prepareAuthRedirect();
+      const action = loginMethod === "magic-link" ? "magic-link" : "login";
+      setLoadingAction(action);
+      if (loginMethod === "magic-link") {
+        await signInWithOtp(cleanLoginEmail);
+        setMessage("Check your inbox for a secure sign-in link.");
       } else {
-        await signInWithEmail(cleanLoginEmail, loginPassword)
-        router.replace(consumeStoredAuthRedirect('/discover'))
+        await signInWithEmail(cleanLoginEmail, loginPassword);
+        router.replace(consumeStoredAuthRedirect("/discover"));
       }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not sign in.')
+      setError(caught instanceof Error ? caught.message : "Could not sign in.");
     } finally {
-      setLoadingAction(null)
+      setLoadingAction(null);
     }
   }
 
   async function handleRegister(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setSubmitted(true)
-    setError(null)
-    setMessage(null)
-    if (!canSubmitRegister) return
+    event.preventDefault();
+    setSubmitted(true);
+    setError(null);
+    setMessage(null);
+    if (!canSubmitRegister) return;
 
     try {
-      setLoadingAction('register')
-      const existingProfiles = await db.searchUsers(cleanUsername)
+      setLoadingAction("register");
+      const existingProfiles = await db.searchUsers(cleanUsername);
       const usernameTaken = existingProfiles.some(
-        (profile) => profile.username?.toLowerCase() === cleanUsername.toLowerCase()
-      )
-      if (usernameTaken) throw new Error('That username is already taken.')
+        (profile) =>
+          profile.username?.toLowerCase() === cleanUsername.toLowerCase(),
+      );
+      if (usernameTaken) throw new Error("That username is already taken.");
 
-      prepareAuthRedirect()
-      await signUpWithEmail(cleanRegisterEmail, registerPassword, cleanUsername)
-      setMessage('Check your inbox to verify your Kino account.')
+      prepareAuthRedirect();
+      await signUpWithEmail(
+        cleanRegisterEmail,
+        registerPassword,
+        cleanUsername,
+      );
+      setMessage("Check your inbox to verify your Kino account.");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not create the account.')
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not create the account.",
+      );
     } finally {
-      setLoadingAction(null)
+      setLoadingAction(null);
     }
   }
 
   async function handleGoogleSignIn() {
-    setError(null)
-    setMessage(null)
+    setError(null);
+    setMessage(null);
     try {
-      setLoadingAction('google')
-      prepareAuthRedirect()
-      await signInWithGoogle()
+      setLoadingAction("google");
+      prepareAuthRedirect();
+      await signInWithGoogle();
     } catch (caught) {
-      setLoadingAction(null)
-      setError(caught instanceof Error ? caught.message : 'Could not start Google sign-in.')
+      setLoadingAction(null);
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not start Google sign-in.",
+      );
     }
   }
 
   return (
     <Card className="border-white/[0.12] bg-kino-surface/95 shadow-[0_24px_80px_rgb(0_0_0_/_0.35)]">
       <CardHeader className="p-6 pb-4">
-        <CardTitle className="text-2xl font-black italic tracking-normal">Start with Kino.</CardTitle>
-        <CardDescription>Sign in or create your account to sync your library across devices.</CardDescription>
+        <CardTitle>
+          <KinoLogo priority width={132} />
+        </CardTitle>
+        <CardDescription>
+          Sign in or create your account to sync your library across devices.
+        </CardDescription>
       </CardHeader>
       <CardContent className="p-6 pt-0">
-        <Tabs onValueChange={(value) => setTab(value as AuthTab)} value={tab}>
+        <Tabs
+          onValueChange={(value) => {
+            setTab(value as AuthTab);
+            resetFeedback();
+          }}
+          value={tab}
+        >
           <TabsList className="mb-5 grid grid-cols-2">
             <TabsTrigger value="sign-in">Sign In</TabsTrigger>
             <TabsTrigger value="register">Create Account</TabsTrigger>
@@ -177,17 +235,23 @@ export function AuthPanel({ initialTab = 'sign-in' }: { initialTab?: AuthTab }) 
             <form className="grid gap-4" onSubmit={handleLogin}>
               <AuthField
                 autoComplete="email"
-                error={submitted && !loginEmailValid ? 'Enter a valid email address.' : null}
+                error={
+                  submitted && !loginEmailValid
+                    ? "Enter a valid email address."
+                    : null
+                }
                 id="login-email"
                 label="Email"
                 onChange={setLoginEmail}
                 type="email"
                 value={loginEmail}
               />
-              {loginMethod === 'password' ? (
+              {loginMethod === "password" ? (
                 <AuthField
                   autoComplete="current-password"
-                  error={submitted && !loginPassword ? 'Enter your password.' : null}
+                  error={
+                    submitted && !loginPassword ? "Enter your password." : null
+                  }
                   id="login-password"
                   label="Password"
                   onChange={setLoginPassword}
@@ -208,28 +272,35 @@ export function AuthPanel({ initialTab = 'sign-in' }: { initialTab?: AuthTab }) 
                 </label>
                 <button
                   className="font-semibold text-kino-accent hover:text-kino-accent-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent"
-                  onClick={() => setLoginMethod((current) => (current === 'password' ? 'magic-link' : 'password'))}
+                  onClick={() => {
+                    setLoginMethod((current) =>
+                      current === "password" ? "magic-link" : "password",
+                    );
+                    resetFeedback();
+                  }}
                   type="button"
                 >
-                  {loginMethod === 'password' ? 'Forgot password?' : 'Use password instead'}
+                  {loginMethod === "password"
+                    ? "Forgot password?"
+                    : "Use password instead"}
                 </button>
               </div>
 
               <StatusMessage error={error} message={message} />
 
               <Button disabled={!canSubmitLogin} type="submit">
-                {loadingAction === 'login' || loadingAction === 'magic-link' ? (
+                {loadingAction === "login" || loadingAction === "magic-link" ? (
                   <Skeleton className="size-4 rounded-full bg-black/20" />
                 ) : (
                   <Mail size={16} />
                 )}
-                {loginMethod === 'magic-link'
-                  ? loadingAction === 'magic-link'
-                    ? 'Sending link...'
-                    : 'Email me a magic link'
-                  : loadingAction === 'login'
-                    ? 'Signing in...'
-                    : 'Sign in'}
+                {loginMethod === "magic-link"
+                  ? loadingAction === "magic-link"
+                    ? "Sending link..."
+                    : "Email me a magic link"
+                  : loadingAction === "login"
+                    ? "Signing in..."
+                    : "Sign in"}
               </Button>
             </form>
           </TabsContent>
@@ -246,7 +317,11 @@ export function AuthPanel({ initialTab = 'sign-in' }: { initialTab?: AuthTab }) 
               />
               <AuthField
                 autoComplete="email"
-                error={submitted && !registerEmailValid ? 'Enter a valid email address.' : null}
+                error={
+                  submitted && !registerEmailValid
+                    ? "Enter a valid email address."
+                    : null
+                }
                 id="register-email"
                 label="Email"
                 onChange={setRegisterEmail}
@@ -255,7 +330,11 @@ export function AuthPanel({ initialTab = 'sign-in' }: { initialTab?: AuthTab }) 
               />
               <AuthField
                 autoComplete="new-password"
-                error={submitted && !registerPasswordValid ? 'Complete all password requirements.' : null}
+                error={
+                  submitted && !registerPasswordValid
+                    ? "Complete all password requirements."
+                    : null
+                }
                 id="register-password"
                 label="Password"
                 onChange={setRegisterPassword}
@@ -276,12 +355,14 @@ export function AuthPanel({ initialTab = 'sign-in' }: { initialTab?: AuthTab }) 
               <StatusMessage error={error} message={message} />
 
               <Button disabled={!canSubmitRegister} type="submit">
-                {loadingAction === 'register' ? (
+                {loadingAction === "register" ? (
                   <Skeleton className="size-4 rounded-full bg-black/20" />
                 ) : (
                   <Check size={16} />
                 )}
-                {loadingAction === 'register' ? 'Creating account...' : 'Create account'}
+                {loadingAction === "register"
+                  ? "Creating account..."
+                  : "Create account"}
               </Button>
             </form>
           </TabsContent>
@@ -293,13 +374,24 @@ export function AuthPanel({ initialTab = 'sign-in' }: { initialTab?: AuthTab }) 
           Or continue with
           <span className="h-px flex-1 bg-white/10" />
         </div>
-        <Button disabled={Boolean(loadingAction)} onClick={handleGoogleSignIn} type="button" variant="secondary">
-          {loadingAction === 'google' ? <Skeleton className="size-4 rounded-full" /> : <GoogleIcon />}
-          {loadingAction === 'google' ? 'Opening Google...' : 'Continue with Google'}
+        <Button
+          disabled={Boolean(loadingAction)}
+          onClick={handleGoogleSignIn}
+          type="button"
+          variant="secondary"
+        >
+          {loadingAction === "google" ? (
+            <LoaderCircle aria-hidden="true" className="animate-spin" />
+          ) : (
+            <GoogleIcon />
+          )}
+          {loadingAction === "google"
+            ? "Opening Google..."
+            : "Continue with Google"}
         </Button>
       </CardFooter>
     </Card>
-  )
+  );
 }
 
 function AuthField({
@@ -308,29 +400,32 @@ function AuthField({
   value,
   onChange,
   error,
-  type = 'text',
+  type = "text",
   autoComplete,
 }: {
-  id: string
-  label: string
-  value: string
-  onChange: (value: string) => void
-  error?: string | null
-  type?: string
-  autoComplete?: string
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  error?: string | null;
+  type?: string;
+  autoComplete?: string;
 }) {
-  const errorId = `${id}-error`
+  const errorId = `${id}-error`;
 
   return (
-    <label className="grid gap-2 text-sm font-semibold text-kino-text" htmlFor={id}>
+    <label
+      className="grid gap-2 text-sm font-semibold text-kino-text"
+      htmlFor={id}
+    >
       {label}
       <input
         aria-describedby={error ? errorId : undefined}
         aria-invalid={Boolean(error)}
         autoComplete={autoComplete}
         className={cn(
-          'min-h-11 rounded-md border bg-white/[0.04] px-3 text-base text-kino-text outline-none transition-colors placeholder:text-kino-muted/60 focus:border-kino-accent',
-          error ? 'border-red-400/60' : 'border-white/10'
+          "min-h-11 rounded-md border bg-white/[0.04] px-3 text-base text-kino-text outline-none transition-colors placeholder:text-kino-muted/60 focus:border-kino-accent",
+          error ? "border-red-400/60" : "border-white/10",
         )}
         id={id}
         onChange={(event) => onChange(event.target.value)}
@@ -338,33 +433,44 @@ function AuthField({
         value={value}
       />
       {error ? (
-        <span className="text-xs font-semibold text-red-300" id={errorId} role="alert">
+        <span
+          className="text-xs font-semibold text-red-300"
+          id={errorId}
+          role="alert"
+        >
           {error}
         </span>
       ) : null}
     </label>
-  )
+  );
 }
 
 function PasswordChecklist({
   requirements,
 }: {
-  requirements: Array<(typeof passwordRequirements)[number] & { satisfied: boolean }>
+  requirements: Array<
+    (typeof passwordRequirements)[number] & { satisfied: boolean }
+  >;
 }) {
   return (
-    <div className="grid gap-2 rounded-md border border-white/10 bg-black/20 p-3" aria-live="polite">
+    <div
+      className="grid gap-2 rounded-md border border-white/10 bg-black/20 p-3"
+      aria-live="polite"
+    >
       {requirements.map((requirement) => (
         <div
           className={cn(
-            'flex items-center gap-2 text-xs font-semibold transition-colors',
-            requirement.satisfied ? 'text-kino-accent' : 'text-kino-muted'
+            "flex items-center gap-2 text-xs font-semibold transition-colors",
+            requirement.satisfied ? "text-kino-accent" : "text-kino-muted",
           )}
           key={requirement.id}
         >
           <span
             className={cn(
-              'grid size-5 place-items-center rounded-full border transition-colors',
-              requirement.satisfied ? 'border-kino-accent bg-kino-accent text-white' : 'border-white/10 bg-white/[0.04]'
+              "grid size-5 place-items-center rounded-full border transition-colors",
+              requirement.satisfied
+                ? "border-kino-accent bg-kino-accent text-white"
+                : "border-white/10 bg-white/[0.04]",
             )}
           >
             {requirement.satisfied ? <Check size={12} /> : <X size={12} />}
@@ -373,17 +479,29 @@ function PasswordChecklist({
         </div>
       ))}
     </div>
-  )
+  );
 }
 
-function StatusMessage({ error, message }: { error: string | null; message: string | null }) {
-  if (!error && !message) return null
+function StatusMessage({
+  error,
+  message,
+}: {
+  error: string | null;
+  message: string | null;
+}) {
+  if (!error && !message) return null;
 
   return (
-    <p className={cn('text-sm font-semibold', error ? 'text-red-300' : 'text-kino-accent')} role="status">
+    <p
+      className={cn(
+        "text-sm font-semibold",
+        error ? "text-red-300" : "text-kino-accent",
+      )}
+      role="status"
+    >
       {error || message}
     </p>
-  )
+  );
 }
 
 function GoogleIcon() {
@@ -406,16 +524,17 @@ function GoogleIcon() {
         fill="#EA4335"
       />
     </svg>
-  )
+  );
 }
 
 function isEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 function getUsernameError(value: string) {
-  if (!value) return 'Choose a username.'
-  if (value.length < 3) return 'Username must be at least 3 characters.'
-  if (!/^[a-zA-Z0-9_]+$/.test(value)) return 'Use only letters, numbers, and underscores.'
-  return null
+  if (!value) return "Choose a username.";
+  if (value.length < 3) return "Username must be at least 3 characters.";
+  if (!/^[a-zA-Z0-9_-]+$/.test(value))
+    return "Use only letters, numbers, hyphens, and underscores.";
+  return null;
 }

@@ -17,7 +17,8 @@ export async function ensureUserProfileFromAuthUser(user: User | null | undefine
 
   const metadata = user.user_metadata as UserMetadata
   const username = getStringMetadata(metadata.username)
-  const displayName = getStringMetadata(metadata.display_name) || username || user.email?.split('@')[0] || null
+  const displayName =
+    getStringMetadata(metadata.display_name) || username || user.email?.split('@')[0] || null
 
   const { data: existing } = await supabase
     .from('user_profiles')
