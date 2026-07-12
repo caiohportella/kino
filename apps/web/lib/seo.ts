@@ -30,6 +30,16 @@ export function absoluteUrl(pathname: string) {
   return new URL(pathname, getSiteOrigin()).toString();
 }
 
+export function socialImage(pathname: string, alt: string) {
+  return {
+    url: absoluteUrl(pathname),
+    width: 1200,
+    height: 630,
+    alt,
+    type: "image/png",
+  };
+}
+
 export function trimText(value: string, maxLength: number) {
   const normalized = value.replace(/\s+/g, " ").trim();
   if (normalized.length <= maxLength) return normalized;
