@@ -1,6 +1,9 @@
 'use client'
 
-import { Button, Card, EmptyState, Field } from '@kino/ui'
+import { EmptyState } from '@/components/kino'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { LabeledField as Field } from '@/components/ui/labeled-field'
 import { formatDate } from '@kino/core'
 import { Clipboard, Plus } from 'lucide-react'
 import Link from 'next/link'
@@ -71,7 +74,7 @@ export default function WatchlistsPage() {
         <Button
           disabled={!shareCode.trim() || joinMutation.isPending}
           onClick={() => joinMutation.mutate()}
-          tone="secondary"
+          variant="secondary"
         >
           <Clipboard size={16} />
           {t('modals.join')}

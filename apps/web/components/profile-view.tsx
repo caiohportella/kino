@@ -2,7 +2,7 @@
 
 import type { FollowerInfo, UserProfile } from '@kino/core'
 import { formatDate, isFutureDateOnly } from '@kino/core'
-import { EmptyState, Poster } from '@kino/ui'
+import { EmptyState, Poster } from '@/components/kino'
 import type { LucideIcon } from 'lucide-react'
 import { Film, Search, Star, Tv, UserPlus, UserRoundCheck, UsersRound } from 'lucide-react'
 import Link from 'next/link'
@@ -1085,7 +1085,7 @@ function SeriesStatusPill({
 
   if (series.is_series_completed) {
     return (
-      <span className="mt-3 inline-flex min-h-7 items-center rounded-full bg-kino-accent px-3 text-xs font-bold text-white">
+      <span className="mt-3 inline-flex min-h-7 items-center rounded-full bg-kino-accent px-3 text-xs font-bold text-black">
         {t('profile.completed')}
       </span>
     )

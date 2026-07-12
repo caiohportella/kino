@@ -31,7 +31,7 @@ export function LandingCTA() {
                   <ArrowRight size={17} />
                 </Link>
               }
-              className="min-h-12 px-5"
+              className="min-h-12 px-5 text-black"
             ></Button>
             <Button
               nativeButton={false}

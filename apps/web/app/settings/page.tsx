@@ -1,7 +1,9 @@
 'use client'
 
 import type { KinoLanguage } from '@/stores/settings-store'
-import { Button, Card, Field, TextArea } from '@kino/ui'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
 import {
   Camera,
   Check,
@@ -22,7 +24,6 @@ import { BannerPickerDialog } from '@/components/banner-picker-dialog'
 import { SettingsSkeleton } from '@/components/skeletons/page-skeletons'
 import { PageHeader } from '@/components/page-header'
 import { ProtectedEmpty } from '@/components/protected-empty'
-import { Button as UiButton } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { db } from '@/lib/services'
 import { useAuthStore } from '@/stores/auth-store'
@@ -211,12 +212,12 @@ export default function SettingsPage() {
               )}
             </div>
             <div className="flex flex-wrap gap-3">
-              <Button onClick={() => setBannerDialogOpen(true)} tone="secondary">
+              <Button onClick={() => setBannerDialogOpen(true)} variant="secondary">
                 <ImagePlus size={16} />
                 {t('modals.bannerFromGallery')}
               </Button>
               {bannerUrl ? (
-                <Button onClick={() => setBannerUrl('')} tone="ghost">
+                <Button onClick={() => setBannerUrl('')} variant="ghost">
                   <Trash2 size={16} />
                   {t('common.remove')}
                 </Button>
@@ -233,7 +234,7 @@ export default function SettingsPage() {
             <Popover>
               <PopoverTrigger
                 render={
-                  <UiButton
+                  <Button
                     aria-label={t('settings.language')}
                     className="min-h-14 justify-between border-white/10 bg-kino-panel px-4 text-left hover:bg-white/[0.07]"
                     variant="secondary"
@@ -303,7 +304,7 @@ export default function SettingsPage() {
               {t('settings.importHistorySubtitle')}
             </p>
             <Link href="/import">
-              <Button tone="secondary">
+              <Button variant="secondary">
                 <CloudUpload size={16} />
                 {t('settings.import')}
               </Button>
@@ -318,7 +319,7 @@ export default function SettingsPage() {
                 queryClient.clear()
                 router.replace('/')
               }}
-              tone="secondary"
+              variant="secondary"
             >
               <LogOut size={16} />
               {t('settings.logout')}
@@ -326,7 +327,7 @@ export default function SettingsPage() {
             <Button
               disabled={deleteDataMutation.isPending}
               onClick={() => deleteDataMutation.mutate()}
-              tone="danger"
+              variant="destructive"
             >
               <Trash2 size={16} />
               {t('settings.deleteData')}
@@ -334,7 +335,7 @@ export default function SettingsPage() {
             <Button
               disabled={deleteAccountMutation.isPending}
               onClick={() => deleteAccountMutation.mutate()}
-              tone="danger"
+              variant="destructive"
             >
               {t('settings.deleteAccount')}
             </Button>

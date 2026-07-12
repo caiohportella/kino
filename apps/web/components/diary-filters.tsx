@@ -14,6 +14,7 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -216,7 +217,7 @@ function RatingFilterDropdown({
             className={cn(
               "w-full justify-between md:w-auto",
               value !== "any" &&
-                "border-kino-accent bg-kino-accent text-white hover:border-kino-accent-strong hover:bg-kino-accent-strong hover:text-white",
+                "border-kino-accent bg-kino-accent text-black hover:border-kino-accent-strong hover:bg-kino-accent-strong hover:text-black",
             )}
             size="sm"
             variant={value === "any" ? "secondary" : "outline"}
@@ -227,15 +228,17 @@ function RatingFilterDropdown({
         }
       ></DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
-        <DropdownMenuLabel>{t("diaryFilters.rating")}</DropdownMenuLabel>
-        <DropdownMenuRadioGroup onValueChange={onChange} value={value}>
-          <DropdownMenuRadioItem value="any">
-            {t("diaryFilters.anyRating")}
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="unrated">
-            {t("diaryFilters.noRating")}
-          </DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>{t("diaryFilters.rating")}</DropdownMenuLabel>
+          <DropdownMenuRadioGroup onValueChange={onChange} value={value}>
+            <DropdownMenuRadioItem value="any">
+              {t("diaryFilters.anyRating")}
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="unrated">
+              {t("diaryFilters.noRating")}
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <div className="grid justify-center gap-2 px-3 py-3">
           <RatingStars
@@ -277,7 +280,7 @@ function FilterDropdown({
             className={cn(
               "w-full justify-between md:w-auto",
               value !== "any" &&
-                "border-kino-accent bg-kino-accent text-white hover:border-kino-accent-strong hover:bg-kino-accent-strong hover:text-white",
+                "border-kino-accent bg-kino-accent text-black hover:border-kino-accent-strong hover:bg-kino-accent-strong hover:text-black",
             )}
             size="sm"
             variant={value === "any" ? "secondary" : "outline"}
@@ -290,15 +293,17 @@ function FilterDropdown({
         }
       ></DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="max-h-80 overflow-y-auto">
-        <DropdownMenuLabel>{label}</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuRadioGroup onValueChange={onChange} value={value}>
-          {options.map((option) => (
-            <DropdownMenuRadioItem key={option.value} value={option.value}>
-              {option.label}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>{label}</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuRadioGroup onValueChange={onChange} value={value}>
+            {options.map((option) => (
+              <DropdownMenuRadioItem key={option.value} value={option.value}>
+                {option.label}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -331,7 +336,7 @@ function SortDropdown({
             className={cn(
               "w-full justify-between md:w-auto",
               value !== "watched-desc" &&
-                "border-kino-accent bg-kino-accent text-white hover:border-kino-accent-strong hover:bg-kino-accent-strong hover:text-white",
+                "border-kino-accent bg-kino-accent text-black hover:border-kino-accent-strong hover:bg-kino-accent-strong hover:text-black",
             )}
             size="sm"
             variant="secondary"
@@ -344,17 +349,19 @@ function SortDropdown({
       <DropdownMenuContent align="start" className="max-h-96 overflow-y-auto">
         <DropdownMenuRadioGroup onValueChange={onChange} value={value}>
           {SORT_GROUPS.map((group, index) => (
-            <div key={group.key}>
+            <DropdownMenuGroup key={group.key}>
               {index > 0 ? <DropdownMenuSeparator /> : null}
+
               <DropdownMenuLabel>
                 {t(`diaryFilters.sortGroups.${group.key}`)}
               </DropdownMenuLabel>
+
               {group.values.map((sortValue) => (
                 <DropdownMenuRadioItem key={sortValue} value={sortValue}>
                   {options.find((option) => option.value === sortValue)?.label}
                 </DropdownMenuRadioItem>
               ))}
-            </div>
+            </DropdownMenuGroup>
           ))}
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>

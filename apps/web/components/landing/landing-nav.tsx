@@ -68,6 +68,7 @@ export function LandingNav({ showBrand }: { showBrand: boolean }) {
           </Button>
           <Button
             nativeButton={false}
+            className="text-black font-bold"
             render={<Link href="/auth/register" />}
             size="sm"
           >

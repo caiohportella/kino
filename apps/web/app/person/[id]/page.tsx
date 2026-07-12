@@ -2,7 +2,7 @@
 
 import type { TMDbPerson, TMDbPersonCredit } from '@kino/core'
 import { formatDate, getDisplayTitle, getKnownForCredits, getReleaseYear } from '@kino/core'
-import { EmptyState, Poster } from '@kino/ui'
+import { EmptyState, Poster } from '@/components/kino'
 import {
   ArrowLeft,
   BriefcaseBusiness,
@@ -269,7 +269,7 @@ function Biography({ biography }: { biography: string }) {
 
   return (
     <Card className="p-5 md:p-6">
-      <h2 className="mb-3 text-xl font-semibold text-kino-text">Biography</h2>
+      <h2 className="text-xl font-semibold text-kino-text">Biography</h2>
       <div className="relative">
         <p
           className="w-full overflow-hidden text-base leading-7 text-kino-text transition-[max-height] duration-300 ease-out motion-reduce:transition-none"

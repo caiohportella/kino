@@ -1,6 +1,6 @@
 'use client'
 
-import { EmptyState } from '@kino/ui'
+import { EmptyState } from '@/components/kino'
 import { Compass, LogIn, RotateCcw, Search, Undo2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'

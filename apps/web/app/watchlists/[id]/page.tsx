@@ -2,7 +2,11 @@
 
 import type { UserProfile, Watchlist, WatchlistItemDetails } from '@kino/core'
 import { formatDate } from '@kino/core'
-import { Button, Card, Dialog, EmptyState, Field, Poster, TextArea } from '@kino/ui'
+import { EmptyState, Poster } from '@/components/kino'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
+import { ModalDialog as Dialog } from '@/components/ui/modal-dialog'
 import { Check, Copy, LogOut, Pencil, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { titlePath } from '@/lib/routes'
@@ -22,7 +26,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { buttonVariants } from '@/components/ui/button'
 import { useToast } from '@/components/toast-provider'
 import type { LocalizedTitleMap } from '@/lib/use-localized-titles'
 import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
@@ -200,7 +203,7 @@ export default function WatchlistDetailPage() {
                   copied && 'scale-95'
                 )}
                 onClick={handleCopyShareCode}
-                tone="secondary"
+                variant="secondary"
               >
                 {copied ? <Check size={16} /> : <Copy size={16} />}
                 <span className="font-mono tracking-[0.16em]">{copyText}</span>
@@ -208,14 +211,14 @@ export default function WatchlistDetailPage() {
             ) : null}
             {isOwner ? (
               <>
-                <Button onClick={() => setEditOpen(true)} tone="secondary">
+                <Button onClick={() => setEditOpen(true)} variant="secondary">
                   <Pencil size={16} />
                   {t('watchlists.edit')}
                 </Button>
                 <Button
                   disabled={deleteMutation.isPending}
                   onClick={() => setDeleteOpen(true)}
-                  tone="danger"
+                  variant="destructive"
                 >
                   <Trash2 size={16} />
                   {deleteMutation.isPending ? t('watchlists.deleting') : t('common.delete')}
@@ -225,7 +228,7 @@ export default function WatchlistDetailPage() {
               <Button
                 disabled={leaveMutation.isPending}
                 onClick={() => setLeaveOpen(true)}
-                tone="danger"
+                variant="destructive"
               >
                 <LogOut size={16} />
                 {leaveMutation.isPending ? t('watchlists.leaving') : t('watchlists.leave')}
@@ -241,18 +244,19 @@ export default function WatchlistDetailPage() {
       />
 
       {participants.length > 0 ? (
-        <Card className="mb-6 flex flex-wrap items-center gap-3 p-4">
+        <Card className="mb-6 flex-row flex-wrap items-center gap-3 p-4">
           <span className="text-sm font-semibold text-kino-muted">
             {t('watchlists.participants')}
           </span>
           {participants.map((profile) => (
-            <span
-              className="flex items-center gap-2 rounded-md bg-white/[0.06] px-3 py-2 text-sm text-kino-text"
+            <Link
+              className={buttonVariants({ variant: 'secondary' })}
               key={profile.id}
+              href={`/${profile.username}`}
             >
               <ProfileAvatar profile={profile} size="sm" />
               {profile.display_name || profile.username || t('watchlists.kinoUser')}
-            </span>
+            </Link>
           ))}
         </Card>
       ) : null}
@@ -519,7 +523,7 @@ function EditWatchlistDialog({
           {t('modals.shareHint')}
         </label>
         <div className="flex justify-end gap-3">
-          <Button onClick={onClose} tone="secondary">
+          <Button onClick={onClose} variant="secondary">
             {t('common.cancel')}
           </Button>
           <Button disabled={mutation.isPending || !name.trim()} onClick={() => mutation.mutate()}>

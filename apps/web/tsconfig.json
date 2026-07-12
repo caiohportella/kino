@@ -5,9 +5,7 @@
     "paths": {
       "@/*": ["./*"],
       "@kino/core": ["../../packages/core/src"],
-      "@kino/core/*": ["../../packages/core/src/*"],
-      "@kino/ui": ["../../packages/ui/src"],
-      "@kino/ui/*": ["../../packages/ui/src/*"]
+      "@kino/core/*": ["../../packages/core/src/*"]
     }
   },
   "include": [

@@ -1,6 +1,6 @@
 'use client'
 
-import { EmptyState } from '@kino/ui'
+import { EmptyState } from '@/components/kino'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AuthSkeleton } from '@/components/skeletons/page-skeletons'

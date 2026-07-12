@@ -2,7 +2,9 @@
 
 import { useState } from 'react'
 import { useTranslation } from '@/lib/i18n'
-import { Button, Dialog, Field, TextArea } from '@kino/ui'
+import { Button } from '@/components/ui/button'
+import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
+import { ModalDialog as Dialog } from '@/components/ui/modal-dialog'
 import { db } from '@/lib/services'
 
 export function WatchlistDialog({
@@ -66,7 +68,7 @@ export function WatchlistDialog({
         </label>
         {error ? <p className="text-sm text-red-300">{error}</p> : null}
         <div className="flex justify-end gap-3">
-          <Button onClick={onClose} tone="secondary">
+          <Button onClick={onClose} variant="secondary">
             {t('common.cancel')}
           </Button>
           <Button disabled={saving} onClick={handleSubmit}>

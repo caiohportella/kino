@@ -75,7 +75,7 @@ function createNextConfig(phase: string): NextConfig {
         'EXPO_PUBLIC_UPSTASH_VECTOR_REST_TOKEN'
       ),
     },
-    transpilePackages: ['@kino/core', '@kino/ui'],
+    transpilePackages: ['@kino/core'],
   }
 }
 

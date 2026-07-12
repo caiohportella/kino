@@ -1,7 +1,8 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { Button, EmptyState } from '@kino/ui'
+import { EmptyState } from '@/components/kino'
+import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/lib/i18n'
 import { MediaSection } from '@/components/media-section'
 import { PageHeader } from '@/components/page-header'
@@ -37,7 +38,7 @@ export default function DiscoverPage() {
     return (
       <EmptyState
         action={
-          <Button onClick={() => query.refetch()} tone="secondary">
+          <Button onClick={() => query.refetch()} variant="secondary">
             {t('common.tryAgain')}
           </Button>
         }

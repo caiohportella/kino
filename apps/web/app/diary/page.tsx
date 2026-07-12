@@ -2,7 +2,7 @@
 
 import type { WatchType } from "@kino/core";
 import { formatDate, groupDiaryByMonth } from "@kino/core";
-import { EmptyState } from "@kino/ui";
+import { EmptyState } from "@/components/kino";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarDays,
@@ -522,7 +522,7 @@ function DiaryRow({
       <Link href={titlePath(entry.tmdbId, entry.titleName, entry.type)}>
         <img
           alt={displayTitle}
-          className="aspect-[2/3] rounded-md bg-white/[0.06] object-cover"
+          className="aspect-2/3 rounded-md bg-white/6 object-cover"
           src={poster || "/icons/icon-192.png"}
         />
       </Link>

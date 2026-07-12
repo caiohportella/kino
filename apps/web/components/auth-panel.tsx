@@ -469,7 +469,7 @@ function PasswordChecklist({
             className={cn(
               "grid size-5 place-items-center rounded-full border transition-colors",
               requirement.satisfied
-                ? "border-kino-accent bg-kino-accent text-white"
+                ? "border-kino-accent bg-kino-accent text-black"
                 : "border-white/10 bg-white/[0.04]",
             )}
           >

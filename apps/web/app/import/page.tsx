@@ -7,15 +7,11 @@ import {
   transformMovieToTitleDetails,
   transformTVToTitleDetails,
 } from "@kino/core";
-import {
-  Button,
-  Card,
-  EmptyState,
-  Field,
-  ProgressBar,
-  SegmentedControl,
-  TextArea,
-} from "@kino/ui";
+import { EmptyState, ProgressBar } from "@/components/kino";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { LabeledField as Field, LabeledTextArea as TextArea } from "@/components/ui/labeled-field";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -362,7 +358,7 @@ export default function ImportPage() {
                 {importSummary.skipped} | Failed: {importSummary.failed}
               </p>
             </div>
-            <Button onClick={() => router.push("/diary")} tone="secondary">
+            <Button onClick={() => router.push("/diary")} variant="secondary">
               View diary
             </Button>
           </div>
@@ -395,7 +391,7 @@ export default function ImportPage() {
                     failed: 0,
                   });
                 }}
-                tone="secondary"
+                variant="secondary"
               >
                 <RotateCcw size={16} />
                 Reset

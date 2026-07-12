@@ -201,9 +201,6 @@ importers:
       '@kino/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@kino/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
       '@radix-ui/react-alert-dialog':
         specifier: ^1.1.18
         version: 1.1.18(@types/react-dom@19.2.3(@types/react@19.1.17))(@types/react@19.1.17)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -328,22 +325,6 @@ importers:
       '@kino/config':
         specifier: workspace:*
         version: link:../config
-      typescript:
-        specifier: ~5.9.2
-        version: 5.9.3
-
-  packages/ui:
-    dependencies:
-      react:
-        specifier: 19.1.0
-        version: 19.1.0
-    devDependencies:
-      '@kino/config':
-        specifier: workspace:*
-        version: link:../config
-      '@types/react':
-        specifier: ~19.1.17
-        version: 19.1.17
       typescript:
         specifier: ~5.9.2
         version: 5.9.3

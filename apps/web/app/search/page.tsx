@@ -1,7 +1,9 @@
 "use client";
 
 import type { MediaType, TMDbGenre, TMDbTitle } from "@kino/core";
-import { Button, EmptyState, SegmentedControl } from "@kino/ui";
+import { EmptyState } from "@/components/kino";
+import { Button } from "@/components/ui/button";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "@/lib/i18n";
@@ -109,7 +111,7 @@ export default function SearchPage() {
             aria-controls="search-filters"
             aria-expanded={showFilters}
             onClick={() => setShowFilters((value) => !value)}
-            tone="secondary"
+            variant="secondary"
           >
             <SlidersHorizontal size={16} />
             {t("search.filters")}
@@ -135,7 +137,7 @@ export default function SearchPage() {
           />
         </div>
         <div className="flex items-end">
-          <Button onClick={clearFilters} tone="ghost">
+          <Button onClick={clearFilters} variant="ghost">
             <X size={16} />
             {t("search.clear")}
           </Button>

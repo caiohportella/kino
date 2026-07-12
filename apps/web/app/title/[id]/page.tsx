@@ -19,7 +19,7 @@ import {
   transformMovieToTitleDetails,
   transformTVToTitleDetails,
 } from '@kino/core'
-import { EmptyState, Poster, ProgressBar, Stat } from '@kino/ui'
+import { EmptyState, Poster, ProgressBar, Stat } from '@/components/kino'
 import {
   BookmarkPlus,
   CalendarCheck,
@@ -44,6 +44,7 @@ import {
   ExternalLinksSection,
   type ExternalLinkProvider,
 } from '@/components/external-links-section'
+import { SeasonSelector } from '@/components/season-selector'
 import { MediaModalSkeleton, TitleSkeleton } from '@/components/skeletons/page-skeletons'
 import { RatingStars } from '@/components/rating-stars'
 import { WatchlistDialog } from '@/components/watchlist-dialog'
@@ -70,7 +71,6 @@ import {
 } from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Separator } from '@/components/ui/separator'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { db, getTmdb } from '@/lib/services'
 import { storeAuthRedirect } from '@/lib/auth-redirect'
@@ -313,10 +313,10 @@ export default function TitlePage() {
   const canUsePersonalActions = Boolean(user && title.id !== ANON_TITLE_ID)
   const titleActions = (
     <>
-      <div className="grid w-full grid-cols-3 gap-3 sm:flex sm:w-auto">
+      <div className="flex w-full flex-wrap gap-3 sm:w-auto">
         <Button
           aria-label={userData?.isWatchlisted ? t('title.watchlisted') : t('title.watchlist')}
-          className="w-full px-3 sm:w-auto sm:px-4"
+          className="min-w-36 flex-1 sm:flex-none"
           disabled={Boolean(user) && title.id === ANON_TITLE_ID}
           onClick={() => {
             if (!canUsePersonalActions) {
@@ -327,13 +327,13 @@ export default function TitlePage() {
           }}
         >
           <BookmarkPlus size={17} />
-          <span className="sr-only sm:not-sr-only">
+          <span>
             {userData?.isWatchlisted ? t('title.watchlisted') : t('title.watchlist')}
           </span>
         </Button>
         <Button
           aria-label={userData?.lastWatch ? t('title.removeHistory') : t('title.diary')}
-          className="w-full px-3 sm:w-auto sm:px-4"
+          className="min-w-36 flex-1 sm:flex-none"
           disabled={(Boolean(user) && title.id === ANON_TITLE_ID) || diaryMutation.isPending}
           onClick={() => {
             if (!canUsePersonalActions) {
@@ -345,18 +345,18 @@ export default function TitlePage() {
           variant="secondary"
         >
           <CalendarCheck size={17} />
-          <span className="sr-only sm:not-sr-only">
+          <span>
             {userData?.lastWatch ? t('title.removeHistory') : t('title.diary')}
           </span>
         </Button>
         <Button
           aria-label={t('common.share')}
-          className="w-full px-3 sm:w-auto sm:px-4"
+          className="min-w-32 flex-1 sm:flex-none"
           onClick={handleShare}
           variant="secondary"
         >
           <Share2 size={17} />
-          <span className="sr-only sm:not-sr-only">{t('common.share')}</span>
+          <span>{t('common.share')}</span>
         </Button>
       </div>
       {type === 'movie' && isNowPlayingInBrazil ? (
@@ -380,7 +380,7 @@ export default function TitlePage() {
       <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="grid items-start gap-6">
           <Card className="self-start p-5 md:p-6">
-            <h2 className="mb-3 text-xl font-semibold text-kino-text">
+            <h2 className="text-xl font-semibold text-kino-text">
               {t('title.synopsis', { defaultValue: 'Synopsis' })}
             </h2>
             <p className="max-w-4xl text-base leading-7 text-kino-text">
@@ -400,6 +400,7 @@ export default function TitlePage() {
                 {user ? (
                   <>
                     <RatingStars
+                      className="self-center"
                       disabled={rateMutation.isPending}
                       onChange={(rating) => rateMutation.mutate(rating)}
                       size="lg"
@@ -1015,22 +1016,12 @@ function SeasonTabs({
           <p className="mt-1 text-sm text-kino-muted">{t('seasons.progress')}</p>
         </div>
       </div>
-      <Tabs
-        onValueChange={(value) => setSelectedSeason(Number(value))}
-        value={String(selectedSeason)}
-      >
-        <TabsList className="flex-nowrap justify-start overflow-x-auto rounded-none bg-transparent p-0 [scrollbar-width:thin] sm:flex-wrap">
-          {seasons.map((season) => (
-            <TabsTrigger
-              className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-4 text-kino-muted hover:border-white/20 hover:bg-white/[0.07] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent data-[state=active]:border-kino-accent data-[state=active]:bg-kino-accent data-[state=active]:text-black"
-              key={season.season_number}
-              value={String(season.season_number)}
-            >
-              S{season.season_number}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      <SeasonSelector
+        label={t('seasons.title')}
+        onSeasonChange={setSelectedSeason}
+        seasons={seasons}
+        value={selectedSeason}
+      />
       <SeasonEpisodes
         onEpisodeRemoved={(seasonNumber, episodeNumber) => {
           queryClient.setQueryData<EpisodeRating[]>(titleRatingsKey, (current = []) =>
