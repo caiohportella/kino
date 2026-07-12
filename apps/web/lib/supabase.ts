@@ -11,11 +11,11 @@ export const supabase = createClient(
   supabaseUrl || 'https://example.supabase.co',
   supabaseAnonKey || 'missing-anon-key',
   {
-  db: { schema: 'public' },
-  auth: {
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    persistSession: true,
-  },
+    db: { schema: 'public' },
+    auth: {
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      persistSession: true,
+    },
   }
 )

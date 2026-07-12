@@ -1,6 +1,7 @@
 'use client'
 
-import { Button, EmptyState } from '@kino/ui'
+import { EmptyState } from '@/components/kino'
+import { buttonVariants } from '@/components/ui/button'
 import Link from 'next/link'
 import { useTranslation } from '@/lib/i18n'
 
@@ -10,16 +11,12 @@ export function ProtectedEmpty() {
   return (
     <EmptyState
       action={
-        <Link href="/auth/login">
-          <Button>{t('auth.signIn')}</Button>
-        </Link>
+        <Link className={buttonVariants()} href="/auth/login">{t('auth.signIn')}</Link>
       }
       body={t('emptyStates.authBody')}
       illustrationLabel={t('emptyStates.authIllustration')}
       secondaryAction={
-        <Link href="/auth/register">
-          <Button tone="secondary">{t('auth.createAccount')}</Button>
-        </Link>
+        <Link className={buttonVariants({ variant: 'secondary' })} href="/auth/register">{t('auth.createAccount')}</Link>
       }
       title={t('emptyStates.authTitle')}
       variant="auth"

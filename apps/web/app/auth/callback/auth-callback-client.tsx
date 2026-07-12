@@ -1,6 +1,6 @@
 'use client'
 
-import { EmptyState } from '@kino/ui'
+import { EmptyState } from '@/components/kino'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AuthSkeleton } from '@/components/skeletons/page-skeletons'
@@ -52,7 +52,7 @@ export function AuthCallbackClient() {
         setError(signInError.message)
       } else {
         await ensureUserProfileFromAuthUser(data.session?.user).catch(() => undefined)
-        router.replace(consumeStoredAuthRedirect('/profile'))
+        router.replace(consumeStoredAuthRedirect('/discover'))
       }
     },
     [router]

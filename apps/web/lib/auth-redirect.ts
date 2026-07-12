@@ -27,7 +27,9 @@ export function getWebAuthCallbackUrl() {
 }
 
 export function isSafeInternalRedirect(value: string | null | undefined) {
-  return Boolean(value && value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/auth'))
+  return Boolean(
+    value && value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/auth')
+  )
 }
 
 export function storeAuthRedirect(pathname: string) {
@@ -35,7 +37,7 @@ export function storeAuthRedirect(pathname: string) {
   window.localStorage.setItem(AUTH_REDIRECT_STORAGE_KEY, pathname)
 }
 
-export function consumeStoredAuthRedirect(fallback = '/profile') {
+export function consumeStoredAuthRedirect(fallback = '/discover') {
   if (typeof window === 'undefined') return fallback
   const storedPath = window.localStorage.getItem(AUTH_REDIRECT_STORAGE_KEY)
   window.localStorage.removeItem(AUTH_REDIRECT_STORAGE_KEY)

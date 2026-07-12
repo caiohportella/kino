@@ -2,8 +2,9 @@
 
 import type { TMDbTitle } from '@kino/core'
 import { getDisplayTitle, getReleaseYear } from '@kino/core'
-import { Poster } from '@kino/ui'
+import { Poster } from '@/components/kino'
 import Link from 'next/link'
+import { titlePath } from '@/lib/routes'
 import { getTmdb } from '@/lib/services'
 
 export function MediaCard({ item }: { item: TMDbTitle }) {
@@ -14,7 +15,10 @@ export function MediaCard({ item }: { item: TMDbTitle }) {
   const poster = tmdb.getImageUrl(item.poster_path, 'w300')
 
   return (
-    <Link className="group grid min-w-0 gap-3 focus-ring" href={`/title/${item.id}?type=${type}`}>
+    <Link
+      className="group grid min-w-0 gap-3 focus-ring"
+      href={titlePath(item.id, title, type)}
+    >
       <Poster className="w-full rounded-md" src={poster} title={title} />
       <div className="min-w-0">
         <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-kino-text group-hover:text-kino-accent">

@@ -2,9 +2,9 @@
 
 import type { FollowerInfo, UserProfile } from '@kino/core'
 import { formatDate, isFutureDateOnly } from '@kino/core'
-import { EmptyState, Poster } from '@kino/ui'
+import { EmptyState, Poster } from '@/components/kino'
 import type { LucideIcon } from 'lucide-react'
-import { Film, ImagePlus, Search, Settings, Star, Tv, UserPlus, UserRoundCheck, UsersRound } from 'lucide-react'
+import { Film, Search, Star, Tv, UserPlus, UserRoundCheck, UsersRound } from 'lucide-react'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { useMemo, useState } from 'react'
@@ -14,6 +14,7 @@ import { BannerPickerDialog } from '@/components/banner-picker-dialog'
 import { DisplayTitle } from '@/components/display-title'
 import { MediaRow } from '@/components/media-row'
 import { ProfileSkeleton } from '@/components/skeletons/page-skeletons'
+import { ProfileShareDialog } from '@/components/profile-share-dialog'
 import { ProtectedEmpty } from '@/components/protected-empty'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -29,6 +30,7 @@ import { RatingStars } from '@/components/rating-stars'
 import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
 import { db, getTmdb } from '@/lib/services'
 import { cn } from '@/lib/utils'
+import { titlePath } from '@/lib/routes'
 import { useAuthStore } from '@/stores/auth-store'
 
 type SocialListType = 'followers' | 'following'
@@ -39,11 +41,16 @@ type UserSearchResult = {
   isSelf: boolean
 }
 
-export function ProfileView({ profileId }: { profileId?: string }) {
+export function ProfileView({ profileId, username }: { profileId?: string; username?: string }) {
   const user = useAuthStore((state) => state.user)
   const queryClient = useQueryClient()
   const { t } = useTranslation()
-  const targetUserId = profileId || user?.id
+  const resolvedProfile = useQuery({
+    queryKey: ['profile-by-username', username],
+    queryFn: () => db.getUserProfileByUsername(username!),
+    enabled: Boolean(username),
+  })
+  const targetUserId = profileId || resolvedProfile.data?.id || (!username ? user?.id : undefined)
   const isOwnProfile = Boolean(user?.id && targetUserId === user.id)
   const [bannerDialogOpen, setBannerDialogOpen] = useState(false)
   const [profileSearchOpen, setProfileSearchOpen] = useState(false)
@@ -107,7 +114,9 @@ export function ProfileView({ profileId }: { profileId?: string }) {
     queryKey: ['profile-social-list', targetUserId, socialListType],
     queryFn: () => {
       if (!targetUserId || !socialListType) return []
-      return socialListType === 'followers' ? db.getFollowers(targetUserId) : db.getFollowing(targetUserId)
+      return socialListType === 'followers'
+        ? db.getFollowers(targetUserId)
+        : db.getFollowing(targetUserId)
     },
     enabled: Boolean(targetUserId && socialListType),
   })
@@ -122,7 +131,9 @@ export function ProfileView({ profileId }: { profileId?: string }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile', targetUserId] })
-      queryClient.invalidateQueries({ queryKey: ['profile-social-list', targetUserId, socialListType] })
+      queryClient.invalidateQueries({
+        queryKey: ['profile-social-list', targetUserId, socialListType],
+      })
       queryClient.invalidateQueries({ queryKey: ['profile-user-search'] })
     },
   })
@@ -137,7 +148,10 @@ export function ProfileView({ profileId }: { profileId?: string }) {
     return { movieCount, seriesCount, averageMovieRating }
   }, [query.data])
 
-  const seriesIds = useMemo(() => query.data?.series.map((series) => series.id).sort() || [], [query.data?.series])
+  const seriesIds = useMemo(
+    () => query.data?.series.map((series) => series.id).sort() || [],
+    [query.data?.series]
+  )
   const seriesRatingQuery = useQuery({
     queryKey: ['profile-series-ratings', targetUserId, seriesIds.join('|')],
     queryFn: async () => {
@@ -154,7 +168,10 @@ export function ProfileView({ profileId }: { profileId?: string }) {
         rating: ratings[series.id] || 0,
       }))
       .filter((entry) => entry.rating > 0)
-      .sort((left, right) => right.rating - left.rating || left.series.title.localeCompare(right.series.title))
+      .sort(
+        (left, right) =>
+          right.rating - left.rating || left.series.title.localeCompare(right.series.title)
+      )
   }, [query.data?.series, seriesRatingQuery.data])
   const averageSeriesRating = useMemo(() => {
     if (seriesRatingRows.length === 0) return 0
@@ -165,7 +182,8 @@ export function ProfileView({ profileId }: { profileId?: string }) {
     return <ProtectedEmpty />
   }
 
-  if (query.isLoading) return <ProfileSkeleton label={t('common.loading')} />
+  if (resolvedProfile.isLoading || query.isLoading)
+    return <ProfileSkeleton label={t('common.loading')} />
 
   if (!query.data?.profile) {
     return <EmptyState body={t('common.tryAgain')} title={t('profile.title')} />
@@ -188,45 +206,25 @@ export function ProfileView({ profileId }: { profileId?: string }) {
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-kino-surface via-kino-surface/75 to-transparent" />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/55 via-black/20 to-transparent" />
 
-        {isOwnProfile ? (
-          <Button
-            className="absolute right-4 top-4 z-20 shadow-soft"
-            onClick={() => setBannerDialogOpen(true)}
-            size="sm"
-            variant="secondary"
-          >
-            <ImagePlus size={16} />
-            {t('modals.selectBanner')}
-          </Button>
-        ) : null}
-
         <div className="relative z-10 grid min-h-[540px] content-end gap-5 p-5 md:min-h-[588px] md:grid-cols-[128px_minmax(0,1fr)_auto] md:items-end md:p-6">
           <Avatar className="h-24 w-24 rounded-md border-4 border-kino-surface bg-kino-panel shadow-[0_18px_42px_rgb(0_0_0_/_0.35)] md:h-32 md:w-32">
-            <AvatarImage alt="" src={profile.avatar_url || undefined} />
+            <AvatarImage alt="" src={profile.avatar_url || undefined} className="rounded-md" />
             <AvatarFallback className="text-3xl">{initials}</AvatarFallback>
           </Avatar>
           <div className="min-w-0">
             <div className="text-sm font-semibold text-kino-muted">
               {profile.username ? `@${profile.username}` : t('profile.title')}
             </div>
-            <h1 className="mt-1 text-2xl font-semibold text-kino-text md:text-3xl">{profileName}</h1>
-            {profile.bio ? <p className="mt-3 max-w-2xl text-sm leading-6 text-kino-muted">{profile.bio}</p> : null}
+            <h1 className="mt-1 text-2xl font-semibold text-kino-text md:text-3xl">
+              {profileName}
+            </h1>
+            {profile.bio ? (
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-kino-muted">{profile.bio}</p>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-3 md:justify-end">
-            {isOwnProfile ? (
-              <>
-                <Link href="/settings">
-                  <Button variant="secondary">
-                    <Settings size={16} />
-                    {t('common.settings')}
-                  </Button>
-                </Link>
-                <Button onClick={() => setProfileSearchOpen(true)}>
-                  <Search size={16} />
-                  {t('profile.findPeople')}
-                </Button>
-              </>
-            ) : user ? (
+            {profile.username ? <ProfileShareDialog username={profile.username} /> : null}
+            {!isOwnProfile && user ? (
               <Button disabled={followMutation.isPending} onClick={() => followMutation.mutate()}>
                 {isFollowing ? <UserRoundCheck size={16} /> : <UserPlus size={16} />}
                 {isFollowing ? t('profile.following') : t('profile.follow')}
@@ -370,7 +368,11 @@ function SocialStatCard({
     >
       <div className="flex items-center justify-between gap-3">
         <div className="text-2xl font-semibold text-kino-text">{value}</div>
-        <Icon aria-hidden="true" className="text-kino-muted transition-colors group-hover:text-kino-text" size={18} />
+        <Icon
+          aria-hidden="true"
+          className="text-kino-muted transition-colors group-hover:text-kino-text"
+          size={18}
+        />
       </div>
       <div className="mt-2 text-sm font-semibold text-kino-muted group-hover:text-kino-text">
         {label}
@@ -396,7 +398,8 @@ function ProfileStatCard({
     <Component
       className={cn(
         'flex min-h-28 flex-col justify-center rounded-md border border-white/10 bg-white/[0.035] p-4 text-left',
-        onClick && 'cursor-pointer transition-colors hover:border-kino-accent/50 hover:bg-white/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent'
+        onClick &&
+          'cursor-pointer transition-colors hover:border-kino-accent/50 hover:bg-white/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent'
       )}
       onClick={onClick}
       type={onClick ? 'button' : undefined}
@@ -525,10 +528,7 @@ function SocialListDialog({
 }) {
   const { t } = useTranslation()
   const title = listType === 'following' ? t('profile.following') : t('profile.followers')
-  const emptyCopy =
-    listType === 'following'
-      ? t('profile.noUsersFound')
-      : t('profile.noUsersFound')
+  const emptyCopy = listType === 'following' ? t('profile.noUsersFound') : t('profile.noUsersFound')
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
@@ -541,12 +541,17 @@ function SocialListDialog({
 
         <div className="grid max-h-[58vh] gap-2 overflow-y-auto pr-1">
           {loading ? <DialogLoadingState label={t('common.loading')} /> : null}
-          {error ? <DialogEmptyState body={t('common.tryAgain')} title={t('common.failed')} /> : null}
-          {!loading && !error && users.length === 0 ? <DialogEmptyState body={emptyCopy} title={t('profile.noUsersFound')} /> : null}
+          {error ? (
+            <DialogEmptyState body={t('common.tryAgain')} title={t('common.failed')} />
+          ) : null}
+          {!loading && !error && users.length === 0 ? (
+            <DialogEmptyState body={emptyCopy} title={t('profile.noUsersFound')} />
+          ) : null}
 
           {!loading && !error
             ? users.map((profile) => {
-                const actionLabel = listType === 'followers' ? t('profile.remove') : t('profile.unfollow')
+                const actionLabel =
+                  listType === 'followers' ? t('profile.remove') : t('profile.unfollow')
                 return (
                   <ProfileUserRow
                     action={
@@ -620,29 +625,32 @@ function MovieRatingDialog({
   open: boolean
 }) {
   const { t } = useTranslation()
-  const localizedTitles = useLocalizedTitles(items.map((item) => ({ tmdbId: item.tmdb_id, type: 'movie' as const })))
+  const localizedTitles = useLocalizedTitles(
+    items.map((item) => ({ tmdbId: item.tmdb_id, type: 'movie' as const }))
+  )
   const rows = useMemo(
     () =>
       items
         .map((movie) => {
-          const localized = localizedTitles.data?.[localizedTitleKey({ tmdbId: movie.tmdb_id, type: 'movie' })]
+          const localized =
+            localizedTitles.data?.[localizedTitleKey({ tmdbId: movie.tmdb_id, type: 'movie' })]
           return {
             displayTitle: localized?.title || movie.title,
             movie,
             posterPath: localized?.posterPath ?? movie.cover_image,
           }
         })
-        .sort((left, right) => right.movie.rating - left.movie.rating || left.displayTitle.localeCompare(right.displayTitle))
+        .sort(
+          (left, right) =>
+            right.movie.rating - left.movie.rating ||
+            left.displayTitle.localeCompare(right.displayTitle)
+        )
         .slice(0, 10),
     [items, localizedTitles.data]
   )
 
   return (
-    <ProfileModal
-      onOpenChange={onOpenChange}
-      open={open}
-      title={t('profile.topRatedMovies')}
-    >
+    <ProfileModal onOpenChange={onOpenChange} open={open} title={t('profile.topRatedMovies')}>
       <RatingModalSummary
         averageRating={averageRating}
         label={t('profile.avgMovieRating')}
@@ -684,8 +692,16 @@ function RatingModalSummary({
   return (
     <div className="grid shrink-0 gap-4 rounded-md border border-white/10 bg-white/[0.035] p-4 sm:grid-cols-[170px_1fr]">
       <div className="grid place-items-center gap-2 rounded-md border border-white/10 bg-kino-surface px-4 py-5 text-center">
-        <div className="text-4xl font-semibold text-kino-text">{averageRating > 0 ? averageRating.toFixed(1) : '—'}</div>
-        <RatingStars className="justify-center" label={label} readonly size="sm" value={averageRating} />
+        <div className="text-4xl font-semibold text-kino-text">
+          {averageRating > 0 ? averageRating.toFixed(1) : '—'}
+        </div>
+        <RatingStars
+          className="justify-center"
+          label={label}
+          readonly
+          size="sm"
+          value={averageRating}
+        />
       </div>
       <div className="grid content-center gap-2">
         <p className="text-sm leading-6 text-kino-muted">{summary}</p>
@@ -735,18 +751,24 @@ function SeriesRatingDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
   items: Awaited<ReturnType<typeof db.getWatchedSeries>>
-  ratingRows: Array<{ series: Awaited<ReturnType<typeof db.getWatchedSeries>>[number]; rating: number }>
+  ratingRows: Array<{
+    series: Awaited<ReturnType<typeof db.getWatchedSeries>>[number]
+    rating: number
+  }>
   averageRating: number
   ratedCount: number
 }) {
   const { t } = useTranslation()
-  const localizedTitles = useLocalizedTitles(items.map((item) => ({ tmdbId: item.tmdb_id, type: 'tv' as const })))
+  const localizedTitles = useLocalizedTitles(
+    items.map((item) => ({ tmdbId: item.tmdb_id, type: 'tv' as const }))
+  )
 
   const rows = useMemo(
     () =>
       ratingRows
         .map(({ series, rating }) => {
-          const localized = localizedTitles.data?.[localizedTitleKey({ tmdbId: series.tmdb_id, type: 'tv' })]
+          const localized =
+            localizedTitles.data?.[localizedTitleKey({ tmdbId: series.tmdb_id, type: 'tv' })]
           const displayTitle = localized?.title || series.title
           const posterPath = localized?.posterPath ?? series.cover_image
 
@@ -757,46 +779,44 @@ function SeriesRatingDialog({
             posterPath,
           }
         })
-        .sort((left, right) => right.rating - left.rating || left.displayTitle.localeCompare(right.displayTitle))
+        .sort(
+          (left, right) =>
+            right.rating - left.rating || left.displayTitle.localeCompare(right.displayTitle)
+        )
         .slice(0, 10),
     [localizedTitles.data, ratingRows]
   )
 
   return (
-    <ProfileModal
-      onOpenChange={onOpenChange}
-      open={open}
-      title={t('profile.topRatedSeries')}
-    >
+    <ProfileModal onOpenChange={onOpenChange} open={open} title={t('profile.topRatedSeries')}>
+      <RatingModalSummary
+        averageRating={averageRating}
+        label={t('profile.avgSeriesRating')}
+        note={t('profile.seriesRatingsModalNote')}
+        summary={t('profile.seriesRatingsModalSummary', {
+          rated: ratedCount,
+          total: items.length,
+        })}
+      />
 
-        <RatingModalSummary
-          averageRating={averageRating}
-          label={t('profile.avgSeriesRating')}
-          note={t('profile.seriesRatingsModalNote')}
-          summary={t('profile.seriesRatingsModalSummary', {
-            rated: ratedCount,
-            total: items.length,
-          })}
-        />
-
-        <div className="grid min-h-0 flex-1 gap-2 overflow-y-auto pr-1">
-          {rows.length === 0 ? (
-            <DialogEmptyState
-              body={t('profile.seriesRatingsModalEmptyBody')}
-              title={t('profile.seriesRatingsModalEmptyTitle')}
+      <div className="grid min-h-0 flex-1 gap-2 overflow-y-auto pr-1">
+        {rows.length === 0 ? (
+          <DialogEmptyState
+            body={t('profile.seriesRatingsModalEmptyBody')}
+            title={t('profile.seriesRatingsModalEmptyTitle')}
+          />
+        ) : (
+          rows.map(({ series, rating, displayTitle, posterPath }, index) => (
+            <RatingModalRow
+              imageUrl={getTmdb().getImageUrl(posterPath, 'w200')}
+              key={series.id}
+              rank={index + 1}
+              rating={rating}
+              title={displayTitle}
             />
-          ) : (
-            rows.map(({ series, rating, displayTitle, posterPath }, index) => (
-              <RatingModalRow
-                imageUrl={getTmdb().getImageUrl(posterPath, 'w200')}
-                key={series.id}
-                rank={index + 1}
-                rating={rating}
-                title={displayTitle}
-              />
-            ))
-          )}
-        </div>
+          ))
+        )}
+      </div>
     </ProfileModal>
   )
 }
@@ -818,7 +838,7 @@ function ProfileUserRow({
     <div className="flex items-center justify-between gap-3 rounded-md border border-white/10 bg-white/[0.035] p-3">
       <Link
         className="focus-ring group flex min-w-0 flex-1 items-center gap-3 rounded-md"
-        href={`/profile/${profile.id}`}
+        href={profile.username ? `/${profile.username}` : '/settings'}
       >
         <Avatar className="h-12 w-12 rounded-full">
           <AvatarImage alt="" src={profile.avatar_url || undefined} />
@@ -829,7 +849,9 @@ function ProfileUserRow({
             {displayName}
           </span>
           <span className="block truncate text-xs text-kino-muted">{username}</span>
-          {subtitle ? <span className="mt-0.5 block truncate text-xs text-kino-accent">{subtitle}</span> : null}
+          {subtitle ? (
+            <span className="mt-0.5 block truncate text-xs text-kino-accent">{subtitle}</span>
+          ) : null}
         </span>
       </Link>
       {action ? <div className="shrink-0">{action}</div> : null}
@@ -839,7 +861,11 @@ function ProfileUserRow({
 
 function DialogLoadingState({ label }: { label: string }) {
   return (
-    <div aria-busy="true" className="grid min-h-32 gap-3 rounded-md border border-white/10 bg-white/[0.035] p-5" role="status">
+    <div
+      aria-busy="true"
+      className="grid min-h-32 gap-3 rounded-md border border-white/10 bg-white/[0.035] p-5"
+      role="status"
+    >
       <span className="sr-only">{label}</span>
       <div className="grid grid-cols-[40px_1fr] items-center gap-3">
         <Skeleton className="size-10 rounded-full" />
@@ -853,7 +879,9 @@ function DialogLoadingState({ label }: { label: string }) {
 }
 
 function DialogEmptyState({ title, body }: { title: string; body: string }) {
-  return <EmptyState body={body} className="min-h-56" size="compact" title={title} variant="profile" />
+  return (
+    <EmptyState body={body} className="min-h-56" size="compact" title={title} variant="profile" />
+  )
 }
 
 function ProfileShelf({
@@ -863,7 +891,13 @@ function ProfileShelf({
 }: {
   title: string
   type: 'movie' | 'tv'
-  items: Array<{ id: string; tmdb_id: number; title: string; cover_image: string | null; release_year: number }>
+  items: Array<{
+    id: string
+    tmdb_id: number
+    title: string
+    cover_image: string | null
+    release_year: number
+  }>
 }) {
   const { t } = useTranslation()
   const localizedTitles = useLocalizedTitles(items.map((item) => ({ tmdbId: item.tmdb_id, type })))
@@ -877,27 +911,34 @@ function ProfileShelf({
     const releaseYear = localized?.year ?? item.release_year
 
     return (
-      <Link className="grid min-w-0 content-start gap-3" href={`/title/${item.tmdb_id}?type=${type}`} key={item.id}>
-        <Poster className="w-full rounded-md" src={getTmdb().getImageUrl(posterPath, 'w300')} title={displayTitle} />
+      <Link
+        className="grid min-w-0 content-start gap-3"
+        href={titlePath(item.tmdb_id, item.title, type)}
+        key={item.id}
+      >
+        <Poster
+          className="w-full rounded-md"
+          src={getTmdb().getImageUrl(posterPath, 'w300')}
+          title={displayTitle}
+        />
         <div className="min-w-0">
-          <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-kino-text">{displayTitle}</h3>
-          <p className="mt-1 text-xs text-kino-muted">{releaseYear || t('profile.releaseYearUnknown')}</p>
+          <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-kino-text">
+            {displayTitle}
+          </h3>
+          <p className="mt-1 text-xs text-kino-muted">
+            {releaseYear || t('profile.releaseYearUnknown')}
+          </p>
         </div>
       </Link>
     )
   }
 
-  return (
-    <ProfileTitleRow items={items} renderTitleCard={renderTitleCard} title={title} />
-  )
+  return <ProfileTitleRow items={items} renderTitleCard={renderTitleCard} title={title} />
 }
 
 function SeriesShelf({ items }: { items: Awaited<ReturnType<typeof db.getWatchedSeries>> }) {
   const { t } = useTranslation()
-  const watchedSeries = useMemo(
-    () => items.filter((series) => series.is_series_completed),
-    [items]
-  )
+  const watchedSeries = useMemo(() => items.filter((series) => series.is_series_completed), [items])
   const keepWatchingSeries = useMemo(
     () => items.filter((series) => !series.is_series_completed),
     [items]
@@ -942,32 +983,48 @@ function SeriesShelfRow({
     return emptyBody ? (
       <section>
         <h2 className="mb-3 text-xl font-semibold text-kino-text">{title}</h2>
-        <EmptyState body={emptyBody} size="compact" title={t('emptyStates.keepWatchingTitle')} variant="cinema" />
+        <EmptyState
+          body={emptyBody}
+          size="compact"
+          title={t('emptyStates.keepWatchingTitle')}
+          variant="cinema"
+        />
       </section>
     ) : null
   }
 
   const renderTitleCard = (series: (typeof items)[number]) => {
-    const localized = localizedTitles.data?.[localizedTitleKey({ tmdbId: series.tmdb_id, type: 'tv' })]
+    const localized =
+      localizedTitles.data?.[localizedTitleKey({ tmdbId: series.tmdb_id, type: 'tv' })]
     const displayTitle = localized?.title || series.title
     const posterPath = localized?.posterPath ?? series.cover_image
     const releaseYear = localized?.year ?? series.release_year
 
     return (
-      <Link className="grid min-w-0 content-start gap-3" href={`/title/${series.tmdb_id}?type=tv`} key={series.id}>
-        <Poster className="w-full rounded-md" src={getTmdb().getImageUrl(posterPath, 'w300')} title={displayTitle} />
+      <Link
+        className="grid min-w-0 content-start gap-3"
+        href={titlePath(series.tmdb_id, series.title, 'tv')}
+        key={series.id}
+      >
+        <Poster
+          className="w-full rounded-md"
+          src={getTmdb().getImageUrl(posterPath, 'w300')}
+          title={displayTitle}
+        />
         <div className="min-w-0">
-          <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-kino-text">{displayTitle}</h3>
-          <p className="mt-1 text-xs text-kino-muted">{releaseYear || t('profile.releaseYearUnknown')}</p>
+          <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-kino-text">
+            {displayTitle}
+          </h3>
+          <p className="mt-1 text-xs text-kino-muted">
+            {releaseYear || t('profile.releaseYearUnknown')}
+          </p>
           <SeriesStatusPill series={series} />
         </div>
       </Link>
     )
   }
 
-  return (
-    <ProfileTitleRow items={items} renderTitleCard={renderTitleCard} title={title} />
-  )
+  return <ProfileTitleRow items={items} renderTitleCard={renderTitleCard} title={title} />
 }
 
 const PROFILE_ROW_LIMIT = 12
@@ -1010,19 +1067,25 @@ function ProfileTitleRow<T>({
           open={showAllOpen}
           title={title}
         >
-          <div className="poster-grid min-h-0 flex-1 overflow-y-auto pr-1">{items.map(renderTitleCard)}</div>
+          <div className="poster-grid min-h-0 flex-1 overflow-y-auto pr-1">
+            {items.map(renderTitleCard)}
+          </div>
         </ProfileModal>
       ) : null}
     </section>
   )
 }
 
-function SeriesStatusPill({ series }: { series: Awaited<ReturnType<typeof db.getWatchedSeries>>[number] }) {
+function SeriesStatusPill({
+  series,
+}: {
+  series: Awaited<ReturnType<typeof db.getWatchedSeries>>[number]
+}) {
   const { t } = useTranslation()
 
   if (series.is_series_completed) {
     return (
-      <span className="mt-3 inline-flex min-h-7 items-center rounded-full bg-kino-accent px-3 text-xs font-bold text-white">
+      <span className="mt-3 inline-flex min-h-7 items-center rounded-full bg-kino-accent px-3 text-xs font-bold text-black">
         {t('profile.completed')}
       </span>
     )

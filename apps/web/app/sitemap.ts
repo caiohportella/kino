@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { TMDbService } from '@kino/core'
 import { absoluteUrl } from '@/lib/seo'
+import { personPath, titlePath } from '@/lib/routes'
 
 export const revalidate = 86400
 
@@ -47,19 +48,33 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (!tmdb) return entries
 
   try {
-    const [trending, popularMovies, popularTV, topRatedMovies, upcomingMovies, nowPlayingMovies, popularPeople] =
-      await Promise.all([
-        tmdb.getTrending('all', 'week'),
-        tmdb.getPopularMovies(),
-        tmdb.getPopularTV(),
-        tmdb.getTopRatedMovies(),
-        tmdb.getUpcomingMovies(),
-        tmdb.getNowPlayingMovies('US'),
-        tmdb.getPopularPeople(),
-      ])
+    const [
+      trending,
+      popularMovies,
+      popularTV,
+      topRatedMovies,
+      upcomingMovies,
+      nowPlayingMovies,
+      popularPeople,
+    ] = await Promise.all([
+      tmdb.getTrending('all', 'week'),
+      tmdb.getPopularMovies(),
+      tmdb.getPopularTV(),
+      tmdb.getTopRatedMovies(),
+      tmdb.getUpcomingMovies(),
+      tmdb.getNowPlayingMovies('US'),
+      tmdb.getPopularPeople(),
+    ])
 
     const movieAndSeries = uniqueBy(
-      [...trending, ...popularMovies, ...popularTV, ...topRatedMovies, ...upcomingMovies, ...nowPlayingMovies],
+      [
+        ...trending,
+        ...popularMovies,
+        ...popularTV,
+        ...topRatedMovies,
+        ...upcomingMovies,
+        ...nowPlayingMovies,
+      ],
       (item) => `${item.media_type || 'movie'}:${item.id}`
     ).slice(0, 40)
 
@@ -67,7 +82,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       const type = item.media_type === 'tv' ? 'tv' : 'movie'
       const publishedAt = item.release_date || item.first_air_date
       entries.push({
-        url: absoluteUrl(`/title/${item.id}?type=${type}`),
+        url: absoluteUrl(titlePath(item.id, item.title || item.name || `title-${item.id}`, type)),
         lastModified: publishedAt ? new Date(`${publishedAt}T12:00:00Z`) : now,
         changeFrequency: 'monthly',
         priority: type === 'tv' ? 0.7 : 0.8,
@@ -76,7 +91,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     for (const person of popularPeople.slice(0, 24)) {
       entries.push({
-        url: absoluteUrl(`/person/${person.id}`),
+        url: absoluteUrl(personPath(person.id, person.name)),
         lastModified: now,
         changeFrequency: 'monthly',
         priority: 0.7,

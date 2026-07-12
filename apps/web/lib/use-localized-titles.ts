@@ -68,7 +68,9 @@ export function useLocalizedTitles(items: LocalizedTitleRequest[]) {
         })
       )
 
-      return Object.fromEntries(entries.filter((entry): entry is NonNullable<typeof entry> => entry !== null))
+      return Object.fromEntries(
+        entries.filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+      )
     },
     enabled: uniqueItems.length > 0,
     staleTime: 1000 * 60 * 30,

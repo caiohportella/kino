@@ -2,6 +2,7 @@ import { getDisplayTitle, getReleaseYear } from '@kino/core'
 import { ImageResponse } from 'next/og'
 import { FallbackOg, getOgImageOptions, OG_SIZE, PersonOg } from '@/lib/og'
 import { safeImageData } from '@/lib/og-images'
+import { parseResourceSegment } from '@/lib/routes'
 import { getPersonSeoData } from '@/lib/server-tmdb'
 
 export const runtime = 'edge'
@@ -22,7 +23,7 @@ export default async function OpenGraphImage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const personId = Number(id)
+  const personId = parseResourceSegment(id).id
 
   if (!Number.isFinite(personId) || personId <= 0) {
     return new ImageResponse(<FallbackOg label="Person" title="Person not found" />, await getOgImageOptions())

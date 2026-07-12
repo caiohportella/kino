@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { FooterSocialLinks } from '@/components/footer-social-links'
 import { useTranslation } from '@/lib/i18n'
+import { KinoLogo } from '@/components/kino-logo'
 
 export function AppFooter() {
   const currentYear = new Date().getFullYear()
@@ -12,11 +13,8 @@ export function AppFooter() {
     <footer className="border-t border-white/[0.06] py-5">
       <div className="content-frame flex flex-col gap-4 px-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div className="grid gap-1">
-          <Link
-            className="w-fit text-lg font-black italic tracking-normal text-kino-text"
-            href="/discover"
-          >
-            Kino<span className="text-kino-accent">.</span>
+          <Link className="w-fit" href="/discover">
+            <KinoLogo width={86} />
           </Link>
           <p className="text-xs text-kino-muted">
             {t('appFooter.copyright', { year: currentYear })}

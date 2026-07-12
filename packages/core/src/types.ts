@@ -1,5 +1,6 @@
 export type MediaType = 'movie' | 'tv'
 export type WatchType = 'first-time' | 'rewatch'
+export type OgImageKind = 'profile' | 'title' | 'person' | 'watchlist' | 'settings'
 
 export interface TMDbTitle {
   id: number
