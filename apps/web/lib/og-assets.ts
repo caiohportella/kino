@@ -1,0 +1,19 @@
+const DEFAULT_SITE_ORIGIN = 'https://kino.vercel.app'
+
+function siteOrigin() {
+  const value =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.EXPO_PUBLIC_WEB_URL ||
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+    process.env.VERCEL_URL
+
+  if (!value) return DEFAULT_SITE_ORIGIN
+  const origin = value.replace(/\/+$/, '')
+  return origin.startsWith('http://') || origin.startsWith('https://')
+    ? origin
+    : `https://${origin}`
+}
+
+// The landing page and OG renderer share this public asset. Keeping it as an
+// absolute URL prevents the PNG bytes from being copied into Edge JavaScript.
+export const KINO_OG_LOGO_URL = new URL('/kino-logo.png', siteOrigin()).toString()

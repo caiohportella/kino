@@ -1,13 +1,11 @@
 import { Fragment, type CSSProperties, type ReactNode } from "react";
-import { formatRuntime } from "@kino/core";
 import type {
   PublicProfileOgData,
   PublicWatchlistOgData,
 } from "./server-supabase";
 import { getInitials } from "./og-images";
 import { KINO_LOGO_ASPECT_RATIO } from "./brand";
-import { KINO_LOGO_DATA_URL } from "./og-logo-data";
-import { trimText } from "./seo";
+import { KINO_OG_LOGO_URL } from "./og-assets";
 
 export { getOgImageOptions, OG_SIZE } from "./og-fonts";
 export const OG_CONTENT_TYPE = "image/png";
@@ -23,6 +21,19 @@ const colors = {
   muted: "#b0b0b0",
   subtle: "#7d7d7d",
 };
+
+function trimText(value: string, maxLength: number) {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
+}
+
+function formatRuntime(minutes?: number) {
+  if (!minutes || minutes <= 0) return "";
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  if (hours === 0) return `${remainder}m`;
+  return remainder === 0 ? `${hours}h` : `${hours}h ${remainder}m`;
+}
 
 const frame: CSSProperties = {
   position: "relative",
@@ -194,7 +205,7 @@ export function OgKinoLogo({ src }: { src?: OgImage | null }) {
   return (
     <img
       alt="Kino"
-      src={(src || KINO_LOGO_DATA_URL) as string}
+      src={(src || KINO_OG_LOGO_URL) as string}
       style={{
         width,
         height: Math.round(width / KINO_LOGO_ASPECT_RATIO),
