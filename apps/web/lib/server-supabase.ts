@@ -1,11 +1,26 @@
-import { createClient } from "@supabase/supabase-js";
+function supabaseConfig() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) throw new Error("Missing public Supabase configuration");
+  return { key, url: url.replace(/\/+$/, "") };
+}
 
-function serverClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "https://example.supabase.co",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "missing-anon-key",
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  );
+async function supabaseFetch<T>(pathname: string, init?: RequestInit) {
+  const { key, url } = supabaseConfig();
+  const response = await fetch(`${url}/rest/v1/${pathname}`, {
+    ...init,
+    headers: {
+      accept: "application/vnd.pgrst.object+json",
+      apikey: key,
+      authorization: `Bearer ${key}`,
+      "content-type": "application/json",
+      ...init?.headers,
+    },
+  });
+
+  if (response.status === 406 || response.status === 404) return null;
+  if (!response.ok) throw new Error(`Supabase request failed (${response.status})`);
+  return (await response.json()) as T;
 }
 
 interface PublicProfileOgRow {
@@ -19,12 +34,10 @@ interface PublicProfileOgRow {
 }
 
 export async function getPublicProfileOgDataByUsername(username: string) {
-  const client = serverClient();
-  const { data, error } = await client
-    .rpc("get_public_profile_og_data", { profile_username: username })
-    .returns<PublicProfileOgRow[]>()
-    .maybeSingle();
-  if (error) throw error;
+  const data = await supabaseFetch<PublicProfileOgRow>(
+    "rpc/get_public_profile_og_data",
+    { method: "POST", body: JSON.stringify({ profile_username: username }) },
+  );
   if (!data) return null;
 
   return {
@@ -47,12 +60,9 @@ export type PublicProfileOgData = NonNullable<
 export async function getPublicProfileOgData(
   id: string,
 ): Promise<PublicProfileOgData | null> {
-  const { data, error } = await serverClient()
-    .from("user_profiles")
-    .select("username")
-    .eq("id", id)
-    .maybeSingle();
-  if (error) throw error;
+  const data = await supabaseFetch<{ username: string | null }>(
+    `user_profiles?select=username&id=eq.${encodeURIComponent(id)}`,
+  );
   if (!data?.username) return null;
   return getPublicProfileOgDataByUsername(data.username);
 }
@@ -74,11 +84,13 @@ export interface PublicWatchlistOgData {
 export async function getPublicWatchlistOgData(
   id: string,
 ): Promise<PublicWatchlistOgData | null> {
-  const { data } = await serverClient()
-    .from("watchlists")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
+  const data = await supabaseFetch<{
+    name: string;
+    description: string | null;
+    is_shared: boolean;
+  }>(
+    `watchlists?select=name,description,is_shared&id=eq.${encodeURIComponent(id)}`,
+  );
   if (!data || !data.is_shared) return null;
   return {
     name: data.name as string,

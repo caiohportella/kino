@@ -1,36 +1,50 @@
-import { OG_BLACK_ITALIC_BASE64 } from './og-font-data'
-import { OG_BOLD_BASE64 } from './og-font-bold-data'
-import { OG_REGULAR_BASE64 } from './og-font-regular-data'
-
 export const OG_SIZE = { width: 1200, height: 630 }
 
-function decodeFont(value: string) {
-  return Uint8Array.from(atob(value), (character) => character.charCodeAt(0)).buffer
+// Noto Sans is licensed under the SIL Open Font License 1.1. These versioned,
+// official Google Fonts assets keep binaries out of every Edge function bundle.
+const FONT_URLS = {
+  normal:
+    'https://fonts.gstatic.com/s/notosans/v42/o-0bIpQlx3QUlC5A4PNB6Ryti20_6n1iPHjc5a7duw.woff2',
+  blackItalic:
+    'https://fonts.gstatic.com/s/notosans/v42/o-0kIpQlx3QUlC5A4PNr4C5OaxRsfNNlKbCePevHtVtX57DGjDU1QJ4Z2VDSyA.woff2',
+} as const
+
+type OgFont = {
+  name: string
+  data: ArrayBuffer
+  style: 'normal' | 'italic'
+  weight: 400 | 700 | 900
+}
+
+let fontPromise: Promise<OgFont[]> | undefined
+
+async function fetchFont(url: string) {
+  const response = await fetch(url, { cache: 'force-cache' })
+  if (!response.ok) throw new Error(`Unable to load OG font (${response.status})`)
+  return response.arrayBuffer()
+}
+
+export function loadOgFonts() {
+  if (process.env.OG_DISABLE_REMOTE_FONTS === '1') return Promise.resolve([])
+
+  fontPromise ??= Promise.all([
+    fetchFont(FONT_URLS.normal),
+    fetchFont(FONT_URLS.blackItalic),
+  ])
+    .then(([normal, blackItalic]) => [
+      { name: 'Kino Body', data: normal, style: 'normal', weight: 400 },
+      { name: 'Kino Body', data: normal, style: 'normal', weight: 700 },
+      { name: 'Kino OG', data: blackItalic, style: 'italic', weight: 900 },
+    ] satisfies OgFont[])
+    .catch(() => [])
+
+  return fontPromise
 }
 
 export async function getOgImageOptions(headers?: HeadersInit) {
   return {
     ...OG_SIZE,
-    fonts: [
-      {
-        name: 'Kino Body',
-        data: decodeFont(OG_REGULAR_BASE64),
-        style: 'normal' as const,
-        weight: 400 as const,
-      },
-      {
-        name: 'Kino Body',
-        data: decodeFont(OG_BOLD_BASE64),
-        style: 'normal' as const,
-        weight: 700 as const,
-      },
-      {
-        name: 'Kino OG',
-        data: decodeFont(OG_BLACK_ITALIC_BASE64),
-        style: 'italic' as const,
-        weight: 900 as const,
-      },
-    ],
+    fonts: await loadOgFonts(),
     headers,
   }
 }
