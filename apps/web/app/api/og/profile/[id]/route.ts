@@ -6,14 +6,15 @@ import { getPublicProfileOgData } from '@/lib/server-supabase'
 
 export const runtime = 'edge'
 
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
   try {
     const data = await getPublicProfileOgData(id)
     if (!data) return image(createElement(FallbackOg, { title: 'This profile is unavailable.', label: 'Profile preview' }))
     const avatar = await safeImageData(data.avatarUrl)
-    return image(createElement(ProfileOg, { avatar, data }))
+    const logo = new URL('/kino-logo.png', request.url).toString()
+    return image(createElement(ProfileOg, { avatar, data, logo }))
   } catch {
     return image(createElement(FallbackOg, { title: 'This profile is unavailable.', label: 'Profile preview' }))
   }

@@ -10,7 +10,7 @@ async function supabaseFetch<T>(pathname: string, init?: RequestInit) {
   const response = await fetch(`${url}/rest/v1/${pathname}`, {
     ...init,
     headers: {
-      accept: "application/vnd.pgrst.object+json",
+      accept: "application/json",
       apikey: key,
       authorization: `Bearer ${key}`,
       "content-type": "application/json",
@@ -18,9 +18,29 @@ async function supabaseFetch<T>(pathname: string, init?: RequestInit) {
     },
   });
 
-  if (response.status === 406 || response.status === 404) return null;
+  if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Supabase request failed (${response.status})`);
   return (await response.json()) as T;
+}
+
+async function supabaseCount(pathname: string) {
+  const { key, url } = supabaseConfig();
+  const response = await fetch(`${url}/rest/v1/${pathname}`, {
+    method: "HEAD",
+    headers: {
+      apikey: key,
+      authorization: `Bearer ${key}`,
+      prefer: "count=exact",
+    },
+  });
+  if (!response.ok) return 0;
+  const range = response.headers.get("content-range");
+  const count = Number(range?.split("/")[1]);
+  return Number.isFinite(count) ? count : 0;
+}
+
+function firstRow<T>(data: T | T[] | null) {
+  return Array.isArray(data) ? (data[0] ?? null) : data;
 }
 
 interface PublicProfileOgRow {
@@ -34,11 +54,12 @@ interface PublicProfileOgRow {
 }
 
 export async function getPublicProfileOgDataByUsername(username: string) {
-  const data = await supabaseFetch<PublicProfileOgRow>(
+  const response = await supabaseFetch<PublicProfileOgRow | PublicProfileOgRow[]>(
     "rpc/get_public_profile_og_data",
     { method: "POST", body: JSON.stringify({ profile_username: username }) },
   );
-  if (!data) return null;
+  const data = firstRow(response);
+  if (!data) return getPublicProfileOgDataFallback(username);
 
   return {
     avatarUrl: data.avatar_url as string | null,
@@ -53,6 +74,38 @@ export async function getPublicProfileOgDataByUsername(username: string) {
   };
 }
 
+async function getPublicProfileOgDataFallback(username: string) {
+  const encodedUsername = encodeURIComponent(username);
+  const response = await supabaseFetch<Array<{
+    id: string;
+    username: string | null;
+    display_name: string | null;
+    avatar_url: string | null;
+    bio: string | null;
+  }>>(
+    `user_profiles?select=id,username,display_name,avatar_url,bio&username=ilike.${encodedUsername}&limit=1`,
+  );
+  const profile = firstRow(response);
+  if (!profile) return null;
+
+  const userId = encodeURIComponent(profile.id);
+  const [movieRatings, episodesWatched, diaryEntries] = await Promise.all([
+    supabaseCount(`title_ratings?select=id&user_id=eq.${userId}&rating=gt.0`),
+    supabaseCount(`episode_ratings?select=id&user_id=eq.${userId}`),
+    supabaseCount(`watch_diary?select=id&user_id=eq.${userId}`),
+  ]);
+
+  return {
+    avatarUrl: profile.avatar_url,
+    bio: profile.bio,
+    diaryEntries,
+    displayName: profile.display_name || profile.username || "Kino member",
+    episodesWatched,
+    movieRatings,
+    username: profile.username,
+  };
+}
+
 export type PublicProfileOgData = NonNullable<
   Awaited<ReturnType<typeof getPublicProfileOgDataByUsername>>
 >;
@@ -60,9 +113,10 @@ export type PublicProfileOgData = NonNullable<
 export async function getPublicProfileOgData(
   id: string,
 ): Promise<PublicProfileOgData | null> {
-  const data = await supabaseFetch<{ username: string | null }>(
-    `user_profiles?select=username&id=eq.${encodeURIComponent(id)}`,
+  const response = await supabaseFetch<Array<{ username: string | null }>>(
+    `user_profiles?select=username&id=eq.${encodeURIComponent(id)}&limit=1`,
   );
+  const data = firstRow(response);
   if (!data?.username) return null;
   return getPublicProfileOgDataByUsername(data.username);
 }
@@ -84,13 +138,14 @@ export interface PublicWatchlistOgData {
 export async function getPublicWatchlistOgData(
   id: string,
 ): Promise<PublicWatchlistOgData | null> {
-  const data = await supabaseFetch<{
+  const response = await supabaseFetch<Array<{
     name: string;
     description: string | null;
     is_shared: boolean;
-  }>(
-    `watchlists?select=name,description,is_shared&id=eq.${encodeURIComponent(id)}`,
+  }>>(
+    `watchlists?select=name,description,is_shared&id=eq.${encodeURIComponent(id)}&limit=1`,
   );
+  const data = firstRow(response);
   if (!data || !data.is_shared) return null;
   return {
     name: data.name as string,

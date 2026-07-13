@@ -1,11 +1,13 @@
 const LOCAL_SITE_ORIGIN = 'http://localhost:3000'
 
 function siteOrigin() {
+  if (process.env.NODE_ENV === 'development') return LOCAL_SITE_ORIGIN
+
   const value =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.EXPO_PUBLIC_WEB_URL ||
+    process.env.VERCEL_URL ||
     process.env.VERCEL_PROJECT_PRODUCTION_URL ||
-    process.env.VERCEL_URL
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.EXPO_PUBLIC_WEB_URL
 
   // Vercel always exposes VERCEL_URL for deployed functions. Locally, point
   // back at the running Next.js server instead of an unrelated production host.

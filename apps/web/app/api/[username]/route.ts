@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 import { createElement } from "react";
 
 import { getOgImageOptions, ProfileOg } from "@/lib/og";
+import { safeImageData } from "@/lib/og-images";
 import { getPublicProfileOgDataByUsername } from "@/lib/server-supabase";
 
 const fallbackProfileData = {
@@ -15,7 +16,7 @@ const fallbackProfileData = {
 };
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ username: string }> },
 ) {
   const { username } = await params;
@@ -23,11 +24,14 @@ export async function GET(
   try {
     const profile = await getPublicProfileOgDataByUsername(username);
 
-    const data = profile ?? fallbackProfileData;
+    const data = profile ?? { ...fallbackProfileData, username };
+    const avatar = await safeImageData(data.avatarUrl);
+    const logo = new URL('/kino-logo.png', request.url).toString();
     return new ImageResponse(
       createElement(ProfileOg, {
-        avatar: data.avatarUrl,
+        avatar,
         data,
+        logo,
       }),
       await getOgImageOptions({
         "cache-control": "public, max-age=300, stale-while-revalidate=3600",
@@ -39,8 +43,9 @@ export async function GET(
         avatar: null,
         data: {
           ...fallbackProfileData,
-          username: null,
+          username,
         },
+        logo: new URL('/kino-logo.png', request.url).toString(),
       }),
       await getOgImageOptions({
         "cache-control": "public, max-age=86400",

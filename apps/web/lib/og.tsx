@@ -1239,8 +1239,10 @@ function Avatar({
       {image ? (
         <img
           alt=""
+          height={size}
           src={image as string}
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          width={size}
         />
       ) : (
         getInitials(name)
