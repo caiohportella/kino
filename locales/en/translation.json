@@ -187,7 +187,14 @@
     "next": "Next:",
     "last": "Last:",
     "searchUsers": "Search users...",
-    "noUsersFound": "No users found"
+    "noUsersFound": "No users found",
+    "shareProfile": "Share profile",
+    "shareDescription": "Scan the QR code or copy the link to share this Kino profile.",
+    "linkCopied": "Profile link copied",
+    "copyFailed": "Could not copy the profile link",
+    "qrCodeAlt": "QR code for this Kino profile",
+    "copiedFeedback": "Copied to clipboard",
+    "tapToCopy": "Select the link to copy it"
   },
   "settings": {
     "language": "Language",

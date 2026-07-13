@@ -10,7 +10,9 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) =>
+        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
+      )
   )
   self.clients.claim()
 })
@@ -21,7 +23,9 @@ self.addEventListener('fetch', (event) => {
   if (requestUrl.origin !== self.location.origin) return
 
   if (event.request.mode === 'navigate') {
-    event.respondWith(fetch(event.request).catch(async () => (await caches.match('/')) || Response.error()))
+    event.respondWith(
+      fetch(event.request).catch(async () => (await caches.match('/')) || Response.error())
+    )
     return
   }
 

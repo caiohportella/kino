@@ -170,7 +170,14 @@
     "next": "Próximo:",
     "last": "Último:",
     "searchUsers": "Buscar usuários...",
-    "noUsersFound": "Nenhum usuário encontrado"
+    "noUsersFound": "Nenhum usuário encontrado",
+    "shareProfile": "Compartilhar perfil",
+    "shareDescription": "Escaneie o QR code ou copie o link para compartilhar este perfil do Kino.",
+    "linkCopied": "Link do perfil copiado",
+    "copyFailed": "Não foi possível copiar o link do perfil",
+    "qrCodeAlt": "QR code deste perfil do Kino",
+    "copiedFeedback": "Copiado para a área de transferência",
+    "tapToCopy": "Selecione o link para copiá-lo"
   },
   "settings": {
     "language": "Idioma",

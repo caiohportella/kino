@@ -103,7 +103,7 @@ export function WatchedSeriesModal({
                 })()}
                 <OscarBadge tmdbId={item.tmdb_id} />
               </View>
-              {item.is_series_completed ? (
+              {item.is_series_completed || item.is_caught_up ? (
                 <Text className="text-[#1DB954] text-[10px] font-medium">{t('profile.completed')}</Text>
               ) : item.next_episode ? (
                 <View className="gap-1">

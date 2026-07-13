@@ -61,12 +61,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             >
               <Icon
                 aria-hidden="true"
-                className={message.tone === 'success' ? 'mt-0.5 text-kino-accent' : 'mt-0.5 text-red-300'}
+                className={
+                  message.tone === 'success' ? 'mt-0.5 text-kino-accent' : 'mt-0.5 text-red-300'
+                }
                 size={18}
               />
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold text-kino-text">{message.title}</div>
-                {message.body ? <div className="mt-1 text-xs leading-5 text-kino-muted">{message.body}</div> : null}
+                {message.body ? (
+                  <div className="mt-1 text-xs leading-5 text-kino-muted">{message.body}</div>
+                ) : null}
               </div>
               <Button
                 aria-label={t('common.close')}

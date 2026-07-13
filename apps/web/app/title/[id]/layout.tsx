@@ -1,35 +1,52 @@
-import type { Metadata } from 'next'
-import { cache, type ReactNode } from 'react'
-import { getTitleSeoDataById } from '@/lib/server-tmdb'
+import type { Metadata } from "next";
+import { permanentRedirect } from "next/navigation";
+import { cache, type ReactNode } from "react";
+import {
+  isCanonicalResourceSegment,
+  parseResourceSegment,
+  titlePath,
+} from "@/lib/routes";
+import { getTitleSeoDataBySegment } from "@/lib/server-tmdb";
 import {
   SITE_DESCRIPTION,
   SITE_NAME,
   absoluteUrl,
   buildTitleDescription,
   buildTitleSchema,
-} from '@/lib/seo'
+  getTitlePresentation,
+  socialImage,
+} from "@/lib/seo";
+import { socialMetadataText } from "@/lib/text";
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const { id } = await params
-  const tmdbId = Number(id)
+  const { id } = await params;
+  const segment = parseResourceSegment(id);
+  const tmdbId = segment.id;
 
   if (!Number.isFinite(tmdbId) || tmdbId <= 0) {
     return {
-      title: 'Title not found',
+      title: "Title not found",
       description: SITE_DESCRIPTION,
       robots: { index: false, follow: false },
-    }
+    };
   }
 
   try {
-    const details = await getTitleSeoDataById(tmdbId)
-    const pageTitle = `${details.title}${details.year ? ` (${details.year})` : ''}`
-    const description = buildTitleDescription(details)
-    const canonical = absoluteUrl(`/title/${tmdbId}?type=${details.type}`)
+    const details = await getTitleSeoDataBySegment(tmdbId, segment.slug, "en");
+    const presentation = getTitlePresentation(details);
+    const pageTitle = socialMetadataText(presentation.title);
+    const description = socialMetadataText(buildTitleDescription(details));
+    const canonicalPath = titlePath(tmdbId, details.title, details.type);
+    const canonical = absoluteUrl(canonicalPath);
+    const canonicalRoute = canonicalPath.split("?")[0];
+    const image = socialImage(
+      `${canonicalRoute}/opengraph-image?type=${details.type}`,
+      `${pageTitle} on Kino`,
+    );
 
     return {
       title: pageTitle,
@@ -39,9 +56,10 @@ export async function generateMetadata({
       },
       openGraph: {
         description,
+        images: [image],
         siteName: SITE_NAME,
         title: pageTitle,
-        type: 'website',
+        type: "website",
         url: canonical,
       },
       robots: {
@@ -49,13 +67,14 @@ export async function generateMetadata({
         follow: true,
       },
       twitter: {
-        card: 'summary_large_image',
+        card: "summary_large_image",
         description,
+        images: [image],
         title: pageTitle,
       },
-    }
+    };
   } catch {
-    const fallbackTitle = `Title ${tmdbId}`
+    const fallbackTitle = `Title ${tmdbId}`;
     return {
       title: fallbackTitle,
       description: SITE_DESCRIPTION,
@@ -70,47 +89,55 @@ export async function generateMetadata({
         description: SITE_DESCRIPTION,
         siteName: SITE_NAME,
         title: fallbackTitle,
-        type: 'website',
+        type: "website",
         url: absoluteUrl(`/title/${tmdbId}`),
       },
       twitter: {
-        card: 'summary_large_image',
+        card: "summary_large_image",
         description: SITE_DESCRIPTION,
         title: fallbackTitle,
       },
-    }
+    };
   }
 }
 
-const getTitleJsonLd = cache(async (tmdbId: number) => {
-  const details = await getTitleSeoDataById(tmdbId)
+const getTitleJsonLd = cache(async (tmdbId: number, slug: string) => {
+  const details = await getTitleSeoDataBySegment(tmdbId, slug);
   return buildTitleSchema({
     details,
-    url: absoluteUrl(`/title/${tmdbId}?type=${details.type}`),
-  })
-})
+    url: absoluteUrl(titlePath(tmdbId, details.title, details.type)),
+  });
+});
 
 export default async function TitleLayout({
   children,
   params,
 }: {
-  children: ReactNode
-  params: Promise<{ id: string }>
+  children: ReactNode;
+  params: Promise<{ id: string }>;
 }) {
-  const { id } = await params
-  const tmdbId = Number(id)
+  const { id } = await params;
+  const segment = parseResourceSegment(id);
+  const tmdbId = segment.id;
 
   if (!Number.isFinite(tmdbId) || tmdbId <= 0) {
-    return children
+    return children;
   }
 
-  const jsonLd = await getTitleJsonLd(tmdbId)
-  const safeJsonLd = JSON.stringify(jsonLd).replace(/</g, '\\u003c')
+  const details = await getTitleSeoDataBySegment(tmdbId, segment.slug);
+  const canonicalPath = titlePath(tmdbId, details.title, details.type);
+  if (!isCanonicalResourceSegment(id, tmdbId, details.title))
+    permanentRedirect(canonicalPath);
+  const jsonLd = await getTitleJsonLd(tmdbId, segment.slug);
+  const safeJsonLd = JSON.stringify(jsonLd).replace(/</g, "\\u003c");
 
   return (
     <>
-      <script dangerouslySetInnerHTML={{ __html: safeJsonLd }} type="application/ld+json" />
+      <script
+        dangerouslySetInnerHTML={{ __html: safeJsonLd }}
+        type="application/ld+json"
+      />
       {children}
     </>
-  )
+  );
 }

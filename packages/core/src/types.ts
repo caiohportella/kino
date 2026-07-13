@@ -1,5 +1,6 @@
 export type MediaType = 'movie' | 'tv'
 export type WatchType = 'first-time' | 'rewatch'
+export type OgImageKind = 'profile' | 'title' | 'person' | 'watchlist' | 'settings'
 
 export interface TMDbTitle {
   id: number
@@ -276,6 +277,8 @@ export interface WatchedSeries extends PersistedTitle {
     air_date?: string
   } | null
   is_series_completed?: boolean
+  is_caught_up?: boolean
+  watched_episode_keys?: string[]
 }
 
 export interface PersistedTitle {

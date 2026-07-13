@@ -1,6 +1,6 @@
 'use client'
 
-import { EmptyState } from '@kino/ui'
+import { EmptyState } from '@/components/kino'
 import { Compass, LogIn, RotateCcw, Search, Undo2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -53,11 +53,9 @@ export function HttpErrorState({ status, onRetry }: { status: ErrorCode; onRetry
   const translationKey = `errors.${status}`
 
   const homeAction = (
-    <Button asChild variant="secondary">
-      <Link href="/discover">
-        <Compass data-icon="inline-start" />
-        {t('errors.actions.home')}
-      </Link>
+    <Button nativeButton={false} render={<Link href="/discover" />} variant="secondary">
+      <Compass data-icon="inline-start" />
+      {t('errors.actions.home')}
     </Button>
   )
 
@@ -66,11 +64,9 @@ export function HttpErrorState({ status, onRetry }: { status: ErrorCode; onRetry
 
   if (status === 401) {
     primaryAction = (
-      <Button asChild>
-        <Link href="/auth/login">
-          <LogIn data-icon="inline-start" />
-          {t('errors.actions.signIn')}
-        </Link>
+      <Button nativeButton={false} render={<Link href="/auth/login" />}>
+        <LogIn data-icon="inline-start" />
+        {t('errors.actions.signIn')}
       </Button>
     )
   } else if (status === 403) {
@@ -89,19 +85,15 @@ export function HttpErrorState({ status, onRetry }: { status: ErrorCode; onRetry
     )
   } else {
     primaryAction = (
-      <Button asChild>
-        <Link href="/discover">
-          <Compass data-icon="inline-start" />
-          {t('errors.actions.home')}
-        </Link>
+      <Button render={<Link href="/discover" />} nativeButton={false}>
+        <Compass data-icon="inline-start" />
+        {t('errors.actions.home')}
       </Button>
     )
     secondaryAction = (
-      <Button asChild variant="secondary">
-        <Link href="/search">
-          <Search data-icon="inline-start" />
-          {t('errors.actions.search')}
-        </Link>
+      <Button render={<Link href="/search" />} variant="secondary" nativeButton={false}>
+        <Search data-icon="inline-start" />
+        {t('errors.actions.search')}
       </Button>
     )
   }

@@ -34,7 +34,9 @@ export function ExternalLinksSection({
       <div
         className={cn(
           'grid gap-3',
-          compact ? 'grid-cols-[repeat(auto-fill,84px)]' : 'grid-cols-[repeat(auto-fit,minmax(84px,1fr))]'
+          compact
+            ? 'grid-cols-[repeat(auto-fill,84px)]'
+            : 'grid-cols-[repeat(auto-fit,minmax(84px,1fr))]'
         )}
       >
         {availableProviders.map((provider) => (
@@ -56,7 +58,12 @@ export function ExternalLinksSection({
                 src={provider.iconUrl}
               />
             ) : (
-              <span className={cn('grid size-8 place-items-center', provider.icon && 'text-kino-accent')}>
+              <span
+                className={cn(
+                  'grid size-8 place-items-center',
+                  provider.icon && 'text-kino-accent'
+                )}
+              >
                 {provider.icon}
               </span>
             )}

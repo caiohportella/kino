@@ -1,6 +1,9 @@
 'use client'
 
-import { Button, Card, EmptyState, Field } from '@kino/ui'
+import { EmptyState } from '@/components/kino'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { LabeledField as Field } from '@/components/ui/labeled-field'
 import { formatDate } from '@kino/core'
 import { Clipboard, Plus } from 'lucide-react'
 import Link from 'next/link'
@@ -68,7 +71,11 @@ export default function WatchlistsPage() {
           placeholder="ABCD1234"
           value={shareCode}
         />
-        <Button disabled={!shareCode.trim() || joinMutation.isPending} onClick={() => joinMutation.mutate()} tone="secondary">
+        <Button
+          disabled={!shareCode.trim() || joinMutation.isPending}
+          onClick={() => joinMutation.mutate()}
+          variant="secondary"
+        >
           <Clipboard size={16} />
           {t('modals.join')}
         </Button>
@@ -78,7 +85,9 @@ export default function WatchlistsPage() {
 
       {!query.isLoading && query.data?.length === 0 ? (
         <EmptyState
-          action={<Button onClick={() => setDialogOpen(true)}>{t('watchlists.createWatchlist')}</Button>}
+          action={
+            <Button onClick={() => setDialogOpen(true)}>{t('watchlists.createWatchlist')}</Button>
+          }
           body={t('watchlists.emptyState')}
           illustrationLabel={t('emptyStates.watchlistIllustration')}
           title={t('watchlists.title')}
@@ -92,9 +101,13 @@ export default function WatchlistsPage() {
             <Card className="h-full p-5 transition hover:border-kino-accent/60 hover:bg-white/[0.04]">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <h2 className="truncate text-xl font-semibold text-kino-text">{watchlist.name}</h2>
+                  <h2 className="truncate text-xl font-semibold text-kino-text">
+                    {watchlist.name}
+                  </h2>
                   {watchlist.description ? (
-                    <p className="mt-2 line-clamp-2 text-sm leading-6 text-kino-muted">{watchlist.description}</p>
+                    <p className="mt-2 line-clamp-2 text-sm leading-6 text-kino-muted">
+                      {watchlist.description}
+                    </p>
                   ) : null}
                 </div>
                 {watchlist.isShared ? (

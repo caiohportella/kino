@@ -1,6 +1,8 @@
 'use client'
 
-import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
+import { type ReactNode } from 'react'
+import { revealVariants } from '@/components/landing/motion'
 import { cn } from '@/lib/utils'
 
 export function LandingReveal({
@@ -10,30 +12,17 @@ export function LandingReveal({
   children: ReactNode
   className?: string
 }) {
-  const ref = useRef<HTMLDivElement | null>(null)
-  const [visible, setVisible] = useState(false)
-
-  useEffect(() => {
-    const node = ref.current
-    if (!node) return
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting) {
-          setVisible(true)
-          observer.disconnect()
-        }
-      },
-      { rootMargin: '0px 0px -10% 0px', threshold: 0.18 }
-    )
-
-    observer.observe(node)
-    return () => observer.disconnect()
-  }, [])
+  const reduceMotion = useReducedMotion()
 
   return (
-    <div className={cn('landing-reveal', visible && 'is-visible', className)} ref={ref}>
+    <motion.div
+      className={cn(className)}
+      initial={reduceMotion ? false : 'hidden'}
+      variants={revealVariants}
+      viewport={{ once: true, amount: 0.18, margin: '0px 0px -10% 0px' }}
+      whileInView="visible"
+    >
       {children}
-    </div>
+    </motion.div>
   )
 }

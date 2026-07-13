@@ -1,12 +1,12 @@
-import type { Metadata } from 'next'
-import type { ReactNode } from 'react'
-import { SITE_DESCRIPTION, SITE_NAME, absoluteUrl } from '@/lib/seo'
+import type { Metadata } from "next";
+import type { ReactNode } from "react";
+import { SITE_DESCRIPTION, SITE_NAME, absoluteUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: 'Settings',
-  description: 'Edit your Kino profile, language, and account settings.',
+  title: "Settings",
+  description: "Edit your Kino profile, language, and account settings.",
   alternates: {
-    canonical: absoluteUrl('/settings'),
+    canonical: absoluteUrl("/settings"),
   },
   robots: {
     index: false,
@@ -15,17 +15,17 @@ export const metadata: Metadata = {
   openGraph: {
     description: SITE_DESCRIPTION,
     siteName: SITE_NAME,
-    title: 'Settings | Kino',
-    type: 'website',
-    url: absoluteUrl('/settings'),
+    title: "Settings | Kino",
+    type: "website",
+    url: absoluteUrl("/settings"),
   },
   twitter: {
-    card: 'summary_large_image',
+    card: "summary_large_image",
     description: SITE_DESCRIPTION,
-    title: 'Settings | Kino',
+    title: "Settings | Kino",
   },
-}
+};
 
 export default function SettingsLayout({ children }: { children: ReactNode }) {
-  return children
+  return children;
 }

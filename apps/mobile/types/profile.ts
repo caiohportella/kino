@@ -32,6 +32,12 @@ export interface WatchedSeries {
   director?: { id: number; name: string; profile_path: string | null }
   total_seasons?: number
   total_episodes?: number
+  seasons_metadata?: {
+    season_number: number
+    episode_count: number
+    air_date?: string | null
+  }[] | null
+  watched_episode_keys?: string[]
   watched_episode_count: number
   latest_rating: number
   latest_watched_at: string
@@ -45,4 +51,5 @@ export interface WatchedSeries {
     air_date?: string
   } | null
   is_series_completed?: boolean
+  is_caught_up?: boolean
 }

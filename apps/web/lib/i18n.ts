@@ -21,14 +21,21 @@ export const resources: Record<KinoLanguage, TranslationResource> = {
   pt,
 }
 
-export const supportedLanguages = ['en', 'fr', 'it', 'no', 'pt'] as const satisfies readonly KinoLanguage[]
+export const supportedLanguages = [
+  'en',
+  'fr',
+  'it',
+  'no',
+  'pt',
+] as const satisfies readonly KinoLanguage[]
 
 export function isSupportedLanguage(language: string): language is KinoLanguage {
   return supportedLanguages.includes(language as KinoLanguage)
 }
 
 export function translate(language: KinoLanguage, key: string, options: TranslationOptions = {}) {
-  const template = resolveTranslation(resources[language], key) ?? resolveTranslation(resources.en, key)
+  const template =
+    resolveTranslation(resources[language], key) ?? resolveTranslation(resources.en, key)
   const fallback = options.defaultValue ?? key
   return interpolate(template ?? fallback, options)
 }

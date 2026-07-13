@@ -35,8 +35,8 @@ export function FeatureHighlights() {
             <AccentDots>{t('landing.features.headline')}</AccentDots>
           </h2>
           <p className="mt-5 text-base leading-8 text-kino-muted">
-            Kino opens the catalog first and saves the account request for moments that create a personal library.
-            The result is a calmer first visit and a clearer reason to sign in.
+            Kino opens the catalog first and saves the account request for moments that create a
+            personal library. The result is a calmer first visit and a clearer reason to sign in.
           </p>
         </div>
 
@@ -52,7 +52,8 @@ export function FeatureHighlights() {
                 <span className="text-sm font-bold">Progressive Web App</span>
               </div>
               <p className="mt-4 text-sm leading-6 text-kino-muted">
-                Install Kino from the browser, keep the same visual language on mobile, and pick up where you left off.
+                Install Kino from the browser, keep the same visual language on mobile, and pick up
+                where you left off.
               </p>
             </div>
             <HighlightCard {...highlightCards[2]} />
@@ -70,8 +71,8 @@ export function FeatureHighlights() {
               <AccentDots>A complete public pass through Kino.</AccentDots>
             </h3>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-kino-muted">
-              Anonymous visitors can search, inspect cast and crew, check providers, watch trailers, and move through
-              public pages without being interrupted.
+              Anonymous visitors can search, inspect cast and crew, check providers, watch trailers,
+              and move through public pages without being interrupted.
             </p>
           </div>
           <div className="flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-semibold text-kino-muted">

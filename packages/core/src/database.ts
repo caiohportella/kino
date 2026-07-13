@@ -128,6 +128,17 @@ export class KinoDatabaseService {
     return (data ?? null) as UserProfile | null
   }
 
+  async getUserProfileByUsername(username: string) {
+    const { data, error } = await this.supabase
+      .from('user_profiles')
+      .select('*')
+      .ilike('username', username.trim())
+      .maybeSingle()
+
+    if (error) throw error
+    return (data ?? null) as UserProfile | null
+  }
+
   async searchUsers(query: string) {
     const trimmedQuery = query.trim()
     if (trimmedQuery.length < 2) return []
@@ -241,17 +252,25 @@ export class KinoDatabaseService {
     return Array.from(byTitle.values()).map((series) => {
       const watchedCount = series.watchedEpisodeKeys.size
       const totalEpisodes = series.total_episodes || 0
-      const firstUnwatchedEpisode = findFirstUnwatchedEpisode(series.seasons_metadata, series.watchedEpisodeKeys)
-      const hasSeasonMetadata = Boolean(
-        series.seasons_metadata?.some((season) => season.season_number > 0 && season.episode_count > 0)
+      const firstUnwatchedEpisode = findFirstUnwatchedEpisode(
+        series.seasons_metadata,
+        series.watchedEpisodeKeys
       )
-      const completed = totalEpisodes > 0 && (hasSeasonMetadata ? !firstUnwatchedEpisode : watchedCount >= totalEpisodes)
+      const hasSeasonMetadata = Boolean(
+        series.seasons_metadata?.some(
+          (season) => season.season_number > 0 && season.episode_count > 0
+        )
+      )
+      const completed =
+        totalEpisodes > 0 &&
+        (hasSeasonMetadata ? !firstUnwatchedEpisode : watchedCount >= totalEpisodes)
       const nextEpisode = completed ? null : firstUnwatchedEpisode
       const { watchedEpisodeKeys: _watchedEpisodeKeys, ...cleanSeries } = series
 
       return {
         ...cleanSeries,
         watched_episode_count: watchedCount,
+        watched_episode_keys: Array.from(series.watchedEpisodeKeys),
         next_episode: nextEpisode,
         is_series_completed: completed,
       }
@@ -295,21 +314,27 @@ export class KinoDatabaseService {
 
       if (error) throw error
 
-      const pageRows = ((data ?? []) as unknown as Array<
-        Omit<WatchDiaryRow, 'titles'> & {
-          titles?: WatchDiaryRow['titles'] | WatchDiaryRow['titles'][]
-        }
-      >).map<WatchDiaryRow>((entry) => ({
+      const pageRows = (
+        (data ?? []) as unknown as Array<
+          Omit<WatchDiaryRow, 'titles'> & {
+            titles?: WatchDiaryRow['titles'] | WatchDiaryRow['titles'][]
+          }
+        >
+      ).map<WatchDiaryRow>((entry) => ({
         ...entry,
-        titles: Array.isArray(entry.titles) ? entry.titles[0] ?? null : entry.titles ?? null,
+        titles: Array.isArray(entry.titles) ? (entry.titles[0] ?? null) : (entry.titles ?? null),
       }))
 
       rows.push(...pageRows)
       if (pageRows.length < fetchSize) break
     }
 
-    const movieTitleIds = rows.filter((entry) => entry.titles?.type === 'movie').map((entry) => entry.title_id)
-    const tvTitleIds = rows.filter((entry) => entry.titles?.type === 'tv').map((entry) => entry.title_id)
+    const movieTitleIds = rows
+      .filter((entry) => entry.titles?.type === 'movie')
+      .map((entry) => entry.title_id)
+    const tvTitleIds = rows
+      .filter((entry) => entry.titles?.type === 'tv')
+      .map((entry) => entry.title_id)
     const ratings: Record<string, number> = {}
 
     if (movieTitleIds.length > 0) {
@@ -341,11 +366,19 @@ export class KinoDatabaseService {
     }
 
     if (allTitleIds.length > 0) {
-      const [{ data: communityMovieRatings, error: movieStatsError }, { data: communityEpisodeRatings, error: episodeStatsError }] =
-        await Promise.all([
-          this.supabase.from('title_ratings').select('title_id, user_id, rating').in('title_id', allTitleIds),
-          this.supabase.from('episode_ratings').select('title_id, user_id, rating').in('title_id', allTitleIds),
-        ])
+      const [
+        { data: communityMovieRatings, error: movieStatsError },
+        { data: communityEpisodeRatings, error: episodeStatsError },
+      ] = await Promise.all([
+        this.supabase
+          .from('title_ratings')
+          .select('title_id, user_id, rating')
+          .in('title_id', allTitleIds),
+        this.supabase
+          .from('episode_ratings')
+          .select('title_id, user_id, rating')
+          .in('title_id', allTitleIds),
+      ])
       if (movieStatsError) throw movieStatsError
       if (episodeStatsError) throw episodeStatsError
 
@@ -495,12 +528,22 @@ export class KinoDatabaseService {
   }
 
   async getTitleByTmdbId(tmdbId: number) {
-    const { data, error } = await this.supabase.from('titles').select('*').eq('tmdb_id', tmdbId).maybeSingle()
+    const { data, error } = await this.supabase
+      .from('titles')
+      .select('*')
+      .eq('tmdb_id', tmdbId)
+      .maybeSingle()
     if (error) throw error
     return data ? this.mapTitleToDetails(data as TitleRow) : null
   }
 
-  async rateTitle(titleId: string, rating: number, watchType: WatchType, watchedAt: Date, notes?: string) {
+  async rateTitle(
+    titleId: string,
+    rating: number,
+    watchType: WatchType,
+    watchedAt: Date,
+    notes?: string
+  ) {
     const user = await this.getRequiredUserId()
     const { data: existing } = await this.supabase
       .from('title_ratings')
@@ -517,7 +560,10 @@ export class KinoDatabaseService {
     }
 
     const query = existing
-      ? this.supabase.from('title_ratings').update(payload).eq('id', (existing as { id: string }).id)
+      ? this.supabase
+          .from('title_ratings')
+          .update(payload)
+          .eq('id', (existing as { id: string }).id)
       : this.supabase.from('title_ratings').insert({ ...payload, user_id: user, title_id: titleId })
 
     const { data, error } = await query.select().single()
@@ -563,7 +609,10 @@ export class KinoDatabaseService {
     }
 
     const query = existing
-      ? this.supabase.from('episode_ratings').update(payload).eq('id', (existing as { id: string }).id)
+      ? this.supabase
+          .from('episode_ratings')
+          .update(payload)
+          .eq('id', (existing as { id: string }).id)
       : this.supabase.from('episode_ratings').insert({
           ...payload,
           user_id: user,
@@ -601,7 +650,10 @@ export class KinoDatabaseService {
     if (episodes.length === 0) return []
 
     const user = await this.getRequiredUserId()
-    const existingByEpisode = new Map<number, Pick<EpisodeRatingRow, 'rating' | 'watch_type' | 'watched_at'>>()
+    const existingByEpisode = new Map<
+      number,
+      Pick<EpisodeRatingRow, 'rating' | 'watch_type' | 'watched_at'>
+    >()
 
     if (rating === null) {
       const { data: existing, error: existingError } = await this.supabase
@@ -627,7 +679,8 @@ export class KinoDatabaseService {
       episode_number: episode.episode_number,
       rating: rating ?? existingByEpisode.get(episode.episode_number)?.rating ?? null,
       watch_type: existingByEpisode.get(episode.episode_number)?.watch_type ?? watchType,
-      watched_at: existingByEpisode.get(episode.episode_number)?.watched_at ?? watchedAt.toISOString(),
+      watched_at:
+        existingByEpisode.get(episode.episode_number)?.watched_at ?? watchedAt.toISOString(),
     }))
 
     const { data, error } = await this.supabase
@@ -753,7 +806,11 @@ export class KinoDatabaseService {
 
   async deleteWatchDiaryEntry(entryId: string) {
     const user = await this.getRequiredUserId()
-    const { error } = await this.supabase.from('watch_diary').delete().eq('id', entryId).eq('user_id', user)
+    const { error } = await this.supabase
+      .from('watch_diary')
+      .delete()
+      .eq('id', entryId)
+      .eq('user_id', user)
     if (error) throw error
   }
 
@@ -815,7 +872,11 @@ export class KinoDatabaseService {
   }
 
   async getWatchlist(watchlistId: string) {
-    const { data, error } = await this.supabase.from('watchlists').select('*').eq('id', watchlistId).maybeSingle()
+    const { data, error } = await this.supabase
+      .from('watchlists')
+      .select('*')
+      .eq('id', watchlistId)
+      .maybeSingle()
     if (error) throw error
     return data ? this.mapWatchlist(data as WatchlistRow) : null
   }
@@ -987,11 +1048,19 @@ export class KinoDatabaseService {
   }
 
   async getFollowCounts(userId: string) {
-    const [{ count: followers, error: followersError }, { count: following, error: followingError }] =
-      await Promise.all([
-        this.supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('following_id', userId),
-        this.supabase.from('follows').select('following_id', { count: 'exact', head: true }).eq('follower_id', userId),
-      ])
+    const [
+      { count: followers, error: followersError },
+      { count: following, error: followingError },
+    ] = await Promise.all([
+      this.supabase
+        .from('follows')
+        .select('follower_id', { count: 'exact', head: true })
+        .eq('following_id', userId),
+      this.supabase
+        .from('follows')
+        .select('following_id', { count: 'exact', head: true })
+        .eq('follower_id', userId),
+    ])
 
     if (followersError) throw followersError
     if (followingError) throw followingError
@@ -1016,7 +1085,11 @@ export class KinoDatabaseService {
     if (diaryError) throw diaryError
 
     const table = type === 'movie' ? 'title_ratings' : 'episode_ratings'
-    const { error } = await this.supabase.from(table).delete().eq('user_id', user).eq('title_id', titleId)
+    const { error } = await this.supabase
+      .from(table)
+      .delete()
+      .eq('user_id', user)
+      .eq('title_id', titleId)
     if (error) throw error
   }
 
@@ -1056,7 +1129,11 @@ export class KinoDatabaseService {
       .eq(matchColumn, userId)
 
     if (error) throw error
-    const rows = (data ?? []) as { follower_id?: string; following_id?: string; created_at: string }[]
+    const rows = (data ?? []) as {
+      follower_id?: string
+      following_id?: string
+      created_at: string
+    }[]
     const ids = rows.map((row) => row[idColumn]).filter((id): id is string => Boolean(id))
     const profiles = await this.getProfilesByIds(ids)
     const mutualMap = new Map<string, string>()
@@ -1078,7 +1155,11 @@ export class KinoDatabaseService {
       const { data: mutuals, error: mutualError } = await mutualQuery
       if (mutualError) throw mutualError
 
-      for (const mutual of (mutuals ?? []) as { follower_id?: string; following_id?: string; created_at: string }[]) {
+      for (const mutual of (mutuals ?? []) as {
+        follower_id?: string
+        following_id?: string
+        created_at: string
+      }[]) {
         const id = mode === 'followers' ? mutual.following_id : mutual.follower_id
         if (id) mutualMap.set(id, mutual.created_at)
       }

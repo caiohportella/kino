@@ -1,5 +1,6 @@
 'use client'
 
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Globe2, Languages, Laptop, Smartphone } from 'lucide-react'
 import { AccentDots } from '@/components/landing/accent-dots'
 import { LandingReveal } from '@/components/landing/landing-reveal'
@@ -58,6 +59,7 @@ export function CrossPlatformSection() {
 
 export function InternationalizationSection() {
   const { i18n, t } = useTranslation()
+  const reduceMotion = useReducedMotion()
   const dateFormatter = new Intl.DateTimeFormat(i18n.language, {
     dateStyle: 'medium',
   })
@@ -78,21 +80,23 @@ export function InternationalizationSection() {
           <div className="grid gap-4">
             <div className="flex flex-wrap gap-2" role="group" aria-label={t('settings.language')}>
               {supportedLanguages.map((language) => (
-                <button
+                <motion.button
                   aria-pressed={language === i18n.language}
                   className={
                     language === i18n.language
-                      ? 'rounded-md bg-kino-accent px-3 py-2 text-sm font-bold text-black transition-colors hover:bg-kino-accent-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent'
-                      : 'rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-bold text-kino-muted transition-colors hover:bg-white/[0.08] hover:text-kino-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent'
+                      ? 'rounded-md bg-kino-accent px-3 py-2 text-sm font-bold text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent'
+                      : 'rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-bold text-kino-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent'
                   }
                   key={language}
                   onClick={() => {
                     void i18n.changeLanguage(language)
                   }}
                   type="button"
+                  whileHover={reduceMotion ? undefined : { y: -2 }}
+                  whileTap={reduceMotion ? undefined : { scale: 0.97 }}
                 >
                   {t(`landing.i18n.languages.${language}`)}
-                </button>
+                </motion.button>
               ))}
             </div>
             <div className="rounded-md border border-white/10 bg-black/20 p-4">
@@ -100,7 +104,18 @@ export function InternationalizationSection() {
                 <Globe2 size={16} />
                 {t('landing.i18n.exampleLabel')}
               </div>
-              <p className="mt-4 text-2xl font-bold text-kino-text">{dateFormatter.format(new Date(2026, 2, 18))}</p>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.p
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-4 text-2xl font-bold text-kino-text"
+                  exit={reduceMotion ? undefined : { opacity: 0, y: -6 }}
+                  initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                  key={i18n.language}
+                  transition={{ duration: reduceMotion ? 0 : 0.24 }}
+                >
+                  {dateFormatter.format(new Date(2026, 2, 18))}
+                </motion.p>
+              </AnimatePresence>
               <p className="mt-2 text-sm leading-6 text-kino-muted">
                 {t('landing.i18n.exampleBody')}
               </p>

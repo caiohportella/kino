@@ -80,7 +80,9 @@ export function BannerPickerDialog({
     },
     onSuccess: (images) => setMediaImages(images),
     onError: (mutationError) => {
-      setError(mutationError instanceof Error ? mutationError.message : 'Could not load TMDB images.')
+      setError(
+        mutationError instanceof Error ? mutationError.message : 'Could not load TMDB images.'
+      )
     },
   })
 
@@ -96,7 +98,9 @@ export function BannerPickerDialog({
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>Select profile banner</DialogTitle>
-          <DialogDescription>Search TMDB and choose a backdrop image for your profile header.</DialogDescription>
+          <DialogDescription>
+            Search TMDB and choose a backdrop image for your profile header.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4">
@@ -107,7 +111,9 @@ export function BannerPickerDialog({
                 Results
               </Button>
               <div className="min-w-0 text-right">
-                <div className="truncate text-sm font-semibold text-kino-text">{getDisplayTitle(selectedMedia)}</div>
+                <div className="truncate text-sm font-semibold text-kino-text">
+                  {getDisplayTitle(selectedMedia)}
+                </div>
                 <div className="text-xs text-kino-muted">{mediaImages.length} backdrop options</div>
               </div>
             </div>
@@ -131,7 +137,11 @@ export function BannerPickerDialog({
                 value={query}
               />
               <Button disabled={!query.trim() || searchMutation.isPending} type="submit">
-                {searchMutation.isPending ? <Skeleton className="size-4 rounded-full bg-black/20" /> : <Search size={16} />}
+                {searchMutation.isPending ? (
+                  <Skeleton className="size-4 rounded-full bg-black/20" />
+                ) : (
+                  <Search size={16} />
+                )}
                 Search
               </Button>
             </form>
@@ -162,7 +172,9 @@ export function BannerPickerDialog({
                       type="button"
                     >
                       <div className="aspect-[2/3] overflow-hidden rounded bg-black/30">
-                        {poster ? <img alt="" className="h-full w-full object-cover" src={poster} /> : null}
+                        {poster ? (
+                          <img alt="" className="h-full w-full object-cover" src={poster} />
+                        ) : null}
                       </div>
                       <div className="min-w-0">
                         <div className="line-clamp-2 font-semibold text-kino-text">{title}</div>
@@ -178,7 +190,9 @@ export function BannerPickerDialog({
             </div>
           ) : (
             <div className="max-h-[56vh] overflow-y-auto pr-1">
-              {imagesMutation.isPending ? <MediaModalSkeleton label="Loading backdrops..." /> : null}
+              {imagesMutation.isPending ? (
+                <MediaModalSkeleton label="Loading backdrops..." />
+              ) : null}
               {!imagesMutation.isPending && mediaImages.length === 0 ? (
                 <div className="grid place-items-center rounded-md border border-white/10 bg-white/[0.03] px-5 py-10 text-center">
                   <ImageOff className="text-kino-subtle" size={36} />
@@ -201,9 +215,15 @@ export function BannerPickerDialog({
                       onClick={() => saveMutation.mutate(savedUrl)}
                       type="button"
                     >
-                      <img alt="" className="aspect-video w-full object-cover transition group-hover:scale-[1.02]" src={previewUrl} />
+                      <img
+                        alt=""
+                        className="aspect-video w-full object-cover transition group-hover:scale-[1.02]"
+                        src={previewUrl}
+                      />
                       <div className="flex items-center justify-between gap-3 px-3 py-2 text-xs text-kino-muted">
-                        <span>{image.width} x {image.height}</span>
+                        <span>
+                          {image.width} x {image.height}
+                        </span>
                         <span>{image.vote_average ? image.vote_average.toFixed(1) : 'TMDB'}</span>
                       </div>
                     </button>
@@ -215,7 +235,10 @@ export function BannerPickerDialog({
 
           {error || saveMutation.error ? (
             <p className="text-sm text-red-300">
-              {error || (saveMutation.error instanceof Error ? saveMutation.error.message : 'Could not update banner.')}
+              {error ||
+                (saveMutation.error instanceof Error
+                  ? saveMutation.error.message
+                  : 'Could not update banner.')}
             </p>
           ) : null}
 
@@ -228,7 +251,11 @@ export function BannerPickerDialog({
               <Trash2 size={16} />
               Remove banner
             </Button>
-            <Button disabled={saveMutation.isPending} onClick={() => onOpenChange(false)} variant="secondary">
+            <Button
+              disabled={saveMutation.isPending}
+              onClick={() => onOpenChange(false)}
+              variant="secondary"
+            >
               Cancel
             </Button>
           </div>

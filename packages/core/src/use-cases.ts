@@ -7,6 +7,19 @@ export interface NextEpisodeCandidate {
   air_date?: string
 }
 
+export interface EpisodeAvailability {
+  season_number: number
+  episode_number: number
+  air_date?: string | null
+}
+
+export interface ReleasedSeriesProgress {
+  releasedEpisodeCount: number
+  watchedReleasedEpisodeCount: number
+  nextEpisode: NextEpisodeCandidate | null
+  isCaughtUp: boolean
+}
+
 const SERIES_COMPLETED_STATUSES = new Set(['ended', 'canceled', 'cancelled', 'complete', 'completed', 'finished'])
 
 export function clampRating(value: number) {
@@ -31,6 +44,78 @@ export function calculateSeriesProgress(series: Pick<WatchedSeries, 'total_episo
 
 export function getEpisodeKey(seasonNumber: number, episodeNumber: number) {
   return `${seasonNumber}-${episodeNumber}`
+}
+
+export function isOfficiallyReleasedEpisode(
+  episode: EpisodeAvailability,
+  now = new Date()
+) {
+  if (episode.season_number <= 0 || episode.episode_number <= 0 || !episode.air_date) return false
+  const parsed = parseDateOnly(episode.air_date)
+  if (!parsed) return false
+
+  const [year, month, day] = episode.air_date.split('-').map(Number)
+  if (
+    !year ||
+    !month ||
+    !day ||
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() + 1 !== month ||
+    parsed.getDate() !== day
+  ) {
+    return false
+  }
+
+  return !isFutureDateOnly(episode.air_date, now)
+}
+
+export function resolveReleasedSeriesProgress(
+  episodes: EpisodeAvailability[],
+  watchedEpisodeKeys: ReadonlySet<string>,
+  now = new Date()
+): ReleasedSeriesProgress {
+  const releasedEpisodes = episodes
+    .filter((episode) => isOfficiallyReleasedEpisode(episode, now))
+    .sort(
+      (left, right) =>
+        left.season_number - right.season_number || left.episode_number - right.episode_number
+    )
+  const watchedReleasedEpisodeCount = releasedEpisodes.filter((episode) =>
+    watchedEpisodeKeys.has(getEpisodeKey(episode.season_number, episode.episode_number))
+  ).length
+  const next = releasedEpisodes.find(
+    (episode) => !watchedEpisodeKeys.has(getEpisodeKey(episode.season_number, episode.episode_number))
+  )
+
+  return {
+    releasedEpisodeCount: releasedEpisodes.length,
+    watchedReleasedEpisodeCount,
+    nextEpisode: next
+      ? {
+          season: next.season_number,
+          episode: next.episode_number,
+          air_date: next.air_date || undefined,
+        }
+      : null,
+    isCaughtUp: watchedEpisodeKeys.size > 0 && !next,
+  }
+}
+
+export function applyReleasedSeriesProgress<T extends WatchedSeries>(
+  series: T,
+  episodes: EpisodeAvailability[],
+  now = new Date()
+): T {
+  const watchedEpisodeKeys = new Set(series.watched_episode_keys || [])
+  const progress = resolveReleasedSeriesProgress(episodes, watchedEpisodeKeys, now)
+
+  return {
+    ...series,
+    total_episodes: progress.releasedEpisodeCount,
+    watched_episode_count: progress.watchedReleasedEpisodeCount,
+    next_episode: progress.nextEpisode,
+    is_caught_up: progress.isCaughtUp,
+  }
 }
 
 export function isCompletedSeriesStatus(status: string | null | undefined) {
