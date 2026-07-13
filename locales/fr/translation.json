@@ -6,6 +6,11 @@
     "watchlists": "Listes",
     "profile": "Profil"
   },
+  "accountMenu": {
+    "open": "Ouvrir le menu du compte",
+    "profile": "Ouvrir votre profil",
+    "userFallback": "Utilisateur"
+  },
   "home": {
     "trending": "Tendances du jour",
     "popularMovies": "Films populaires",
@@ -45,11 +50,33 @@
     "failedToAddToDiary": "Échec de l'ajout au journal: {{message}}"
   },
   "errors": {
-    "401": { "title": "Votre billet vous attend.", "body": "Connectez-vous pour continuer dans cette partie de Kino.", "illustration": "401, connexion requise" },
-    "403": { "title": "Cette séance est privée.", "body": "Vous n'avez pas l'autorisation de consulter cette page.", "illustration": "403, accès refusé" },
-    "404": { "title": "Scène introuvable.", "body": "La page recherchée n'existe pas ou a peut-être été déplacée.", "illustration": "404, page introuvable" },
-    "500": { "title": "Coupez ! Un problème est survenu.", "body": "Une erreur inattendue a interrompu cette scène. Réessayez dans un instant.", "illustration": "500, erreur inattendue" },
-    "actions": { "home": "Retour à la découverte", "back": "Retour", "retry": "Réessayer", "search": "Rechercher sur Kino", "signIn": "Se connecter" }
+    "401": {
+      "title": "Votre billet vous attend.",
+      "body": "Connectez-vous pour continuer dans cette partie de Kino.",
+      "illustration": "401, connexion requise"
+    },
+    "403": {
+      "title": "Cette séance est privée.",
+      "body": "Vous n'avez pas l'autorisation de consulter cette page.",
+      "illustration": "403, accès refusé"
+    },
+    "404": {
+      "title": "Scène introuvable.",
+      "body": "La page recherchée n'existe pas ou a peut-être été déplacée.",
+      "illustration": "404, page introuvable"
+    },
+    "500": {
+      "title": "Coupez ! Un problème est survenu.",
+      "body": "Une erreur inattendue a interrompu cette scène. Réessayez dans un instant.",
+      "illustration": "500, erreur inattendue"
+    },
+    "actions": {
+      "home": "Retour à la découverte",
+      "back": "Retour",
+      "retry": "Réessayer",
+      "search": "Rechercher sur Kino",
+      "signIn": "Se connecter"
+    }
   },
   "notFound": {
     "title": "Cette scène n'est pas dans le montage final.",
@@ -77,11 +104,77 @@
   "diaryFilters": {
     "watchType": "Statut de visionnage",
     "anyWatchType": "Tous les statuts",
-    "filters": "Filtres", "description": "Filtrez et triez les entrées de votre journal.", "rating": "Note", "diaryYear": "Année du journal", "decade": "Décennie", "genre": "Genre", "sortBy": "Trier par", "anyRating": "Toutes les notes", "noRating": "Sans note", "chooseRating": "Choisir une note", "stars": "{{count}} étoiles", "anyYear": "Toutes les années", "anyDecade": "Toutes les décennies", "anyGenre": "Tous les genres", "reset": "Réinitialiser les filtres", "activeCount": "{{count}} filtres actifs", "noMatches": "Aucune entrée correspondante", "noMatchesBody": "Modifiez ou réinitialisez les filtres du journal.",
-    "sortGroups": { "watchedDate": "Date de visionnage", "reviewActivity": "Activité des critiques", "diaryCount": "Nombre d'entrées", "titleName": "Nom du titre", "popularity": "Popularité", "releaseDate": "Date de sortie", "averageRating": "Note moyenne", "userRating": "Votre note", "runtime": "Durée" },
-    "sortOptions": { "watched-desc": "Plus récent", "watched-asc": "Plus ancien", "activity-desc": "Plus récent", "activity-asc": "Plus ancien", "count-desc": "Plus élevé", "count-asc": "Plus faible", "title-asc": "A–Z", "title-desc": "Z–A", "popularity-desc": "Plus élevée", "popularity-asc": "Plus faible", "release-desc": "Plus récente", "release-asc": "Plus ancienne", "average-desc": "Plus élevée", "average-asc": "Plus faible", "rating-desc": "Plus élevée", "rating-asc": "Plus faible", "runtime-desc": "Plus longue", "runtime-asc": "Plus courte" }
+    "filters": "Filtres",
+    "description": "Filtrez et triez les entrées de votre journal.",
+    "rating": "Note",
+    "diaryYear": "Année du journal",
+    "decade": "Décennie",
+    "genre": "Genre",
+    "sortBy": "Trier par",
+    "anyRating": "Toutes les notes",
+    "noRating": "Sans note",
+    "chooseRating": "Choisir une note",
+    "stars": "{{count}} étoiles",
+    "anyYear": "Toutes les années",
+    "anyDecade": "Toutes les décennies",
+    "anyGenre": "Tous les genres",
+    "reset": "Réinitialiser les filtres",
+    "activeCount": "{{count}} filtres actifs",
+    "noMatches": "Aucune entrée correspondante",
+    "noMatchesBody": "Modifiez ou réinitialisez les filtres du journal.",
+    "sortGroups": {
+      "watchedDate": "Date de visionnage",
+      "reviewActivity": "Activité des critiques",
+      "diaryCount": "Nombre d'entrées",
+      "titleName": "Nom du titre",
+      "popularity": "Popularité",
+      "releaseDate": "Date de sortie",
+      "averageRating": "Note moyenne",
+      "userRating": "Votre note",
+      "runtime": "Durée"
+    },
+    "sortOptions": {
+      "watched-desc": "Plus récent",
+      "watched-asc": "Plus ancien",
+      "activity-desc": "Plus récent",
+      "activity-asc": "Plus ancien",
+      "count-desc": "Plus élevé",
+      "count-asc": "Plus faible",
+      "title-asc": "A–Z",
+      "title-desc": "Z–A",
+      "popularity-desc": "Plus élevée",
+      "popularity-asc": "Plus faible",
+      "release-desc": "Plus récente",
+      "release-asc": "Plus ancienne",
+      "average-desc": "Plus élevée",
+      "average-asc": "Plus faible",
+      "rating-desc": "Plus élevée",
+      "rating-asc": "Plus faible",
+      "runtime-desc": "Plus longue",
+      "runtime-asc": "Plus courte"
+    }
   },
-  "genres": { "12": "Aventure", "14": "Fantastique", "16": "Animation", "18": "Drame", "27": "Horreur", "28": "Action", "35": "Comédie", "36": "Histoire", "37": "Western", "53": "Thriller", "80": "Crime", "99": "Documentaire", "878": "Science-fiction", "9648": "Mystère", "10402": "Musique", "10749": "Romance", "10751": "Familial", "10752": "Guerre", "10770": "Téléfilm" },
+  "genres": {
+    "12": "Aventure",
+    "14": "Fantastique",
+    "16": "Animation",
+    "18": "Drame",
+    "27": "Horreur",
+    "28": "Action",
+    "35": "Comédie",
+    "36": "Histoire",
+    "37": "Western",
+    "53": "Thriller",
+    "80": "Crime",
+    "99": "Documentaire",
+    "878": "Science-fiction",
+    "9648": "Mystère",
+    "10402": "Musique",
+    "10749": "Romance",
+    "10751": "Familial",
+    "10752": "Guerre",
+    "10770": "Téléfilm"
+  },
   "appFooter": {
     "copyright": "© {{year}} Kino",
     "metadataProvidedBy": "Métadonnées de films et séries fournies par",
@@ -139,6 +232,13 @@
     "following": "Abonnements",
     "follow": "Suivre",
     "findPeople": "Trouver des profils",
+    "shareProfile": "Partager le profil",
+    "shareDescription": "Scannez le code QR ou copiez le lien public de ce profil.",
+    "linkCopied": "Lien du profil copié",
+    "copiedFeedback": "Copié dans le presse-papiers",
+    "tapToCopy": "Sélectionnez le lien pour le copier",
+    "copyFailed": "Impossible de copier le lien du profil",
+    "qrCodeAlt": "Code QR de ce profil Kino",
     "avgMovieRating": "Note moyenne des films",
     "avgSeriesRating": "Note moyenne des séries",
     "keepWatching": "Continuer à regarder",

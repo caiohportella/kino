@@ -6,6 +6,11 @@
     "watchlists": "Watchlists",
     "profile": "Profile"
   },
+  "accountMenu": {
+    "open": "Open account menu",
+    "profile": "Open your profile",
+    "userFallback": "User"
+  },
   "home": {
     "trending": "Trending Today",
     "popularMovies": "Popular Movies",
@@ -45,11 +50,33 @@
     "failedToAddToDiary": "Failed to add to diary: {{message}}"
   },
   "errors": {
-    "401": { "title": "Your ticket is waiting.", "body": "Sign in to continue into this part of Kino.", "illustration": "401, sign-in required" },
-    "403": { "title": "This screening is private.", "body": "You don't have permission to view this page.", "illustration": "403, access denied" },
-    "404": { "title": "Scene not found.", "body": "The page you're looking for doesn't exist or may have been moved.", "illustration": "404, page not found" },
-    "500": { "title": "Cut! Something went wrong.", "body": "An unexpected error interrupted this scene. Try again in a moment.", "illustration": "500, unexpected error" },
-    "actions": { "home": "Back to discover", "back": "Go back", "retry": "Try again", "search": "Search Kino", "signIn": "Sign in" }
+    "401": {
+      "title": "Your ticket is waiting.",
+      "body": "Sign in to continue into this part of Kino.",
+      "illustration": "401, sign-in required"
+    },
+    "403": {
+      "title": "This screening is private.",
+      "body": "You don't have permission to view this page.",
+      "illustration": "403, access denied"
+    },
+    "404": {
+      "title": "Scene not found.",
+      "body": "The page you're looking for doesn't exist or may have been moved.",
+      "illustration": "404, page not found"
+    },
+    "500": {
+      "title": "Cut! Something went wrong.",
+      "body": "An unexpected error interrupted this scene. Try again in a moment.",
+      "illustration": "500, unexpected error"
+    },
+    "actions": {
+      "home": "Back to discover",
+      "back": "Go back",
+      "retry": "Try again",
+      "search": "Search Kino",
+      "signIn": "Sign in"
+    }
   },
   "notFound": {
     "title": "This scene isn't in the final cut.",
@@ -95,10 +122,59 @@
     "activeCount": "{{count}} active filters",
     "noMatches": "No matching entries",
     "noMatchesBody": "Try changing or resetting your diary filters.",
-    "sortGroups": { "watchedDate": "Watched date", "reviewActivity": "Review activity", "diaryCount": "Diary count", "titleName": "Title name", "popularity": "Popularity", "releaseDate": "Release date", "averageRating": "Average rating", "userRating": "User rating", "runtime": "Runtime" },
-    "sortOptions": { "watched-desc": "Newest first", "watched-asc": "Earliest first", "activity-desc": "Newest first", "activity-asc": "Earliest first", "count-desc": "Highest first", "count-asc": "Lowest first", "title-asc": "A–Z", "title-desc": "Z–A", "popularity-desc": "Highest first", "popularity-asc": "Lowest first", "release-desc": "Newest first", "release-asc": "Earliest first", "average-desc": "Highest first", "average-asc": "Lowest first", "rating-desc": "Highest first", "rating-asc": "Lowest first", "runtime-desc": "Longest first", "runtime-asc": "Shortest first" }
+    "sortGroups": {
+      "watchedDate": "Watched date",
+      "reviewActivity": "Review activity",
+      "diaryCount": "Diary count",
+      "titleName": "Title name",
+      "popularity": "Popularity",
+      "releaseDate": "Release date",
+      "averageRating": "Average rating",
+      "userRating": "User rating",
+      "runtime": "Runtime"
+    },
+    "sortOptions": {
+      "watched-desc": "Newest first",
+      "watched-asc": "Earliest first",
+      "activity-desc": "Newest first",
+      "activity-asc": "Earliest first",
+      "count-desc": "Highest first",
+      "count-asc": "Lowest first",
+      "title-asc": "A–Z",
+      "title-desc": "Z–A",
+      "popularity-desc": "Highest first",
+      "popularity-asc": "Lowest first",
+      "release-desc": "Newest first",
+      "release-asc": "Earliest first",
+      "average-desc": "Highest first",
+      "average-asc": "Lowest first",
+      "rating-desc": "Highest first",
+      "rating-asc": "Lowest first",
+      "runtime-desc": "Longest first",
+      "runtime-asc": "Shortest first"
+    }
   },
-  "genres": { "12": "Adventure", "14": "Fantasy", "16": "Animation", "18": "Drama", "27": "Horror", "28": "Action", "35": "Comedy", "36": "History", "37": "Western", "53": "Thriller", "80": "Crime", "99": "Documentary", "878": "Science Fiction", "9648": "Mystery", "10402": "Music", "10749": "Romance", "10751": "Family", "10752": "War", "10770": "TV Movie" },
+  "genres": {
+    "12": "Adventure",
+    "14": "Fantasy",
+    "16": "Animation",
+    "18": "Drama",
+    "27": "Horror",
+    "28": "Action",
+    "35": "Comedy",
+    "36": "History",
+    "37": "Western",
+    "53": "Thriller",
+    "80": "Crime",
+    "99": "Documentary",
+    "878": "Science Fiction",
+    "9648": "Mystery",
+    "10402": "Music",
+    "10749": "Romance",
+    "10751": "Family",
+    "10752": "War",
+    "10770": "TV Movie"
+  },
   "appFooter": {
     "copyright": "© {{year}} Kino",
     "metadataProvidedBy": "Film and TV metadata provided by",
@@ -156,6 +232,13 @@
     "following": "Following",
     "follow": "Follow",
     "findPeople": "Find people",
+    "shareProfile": "Share profile",
+    "shareDescription": "Scan the QR code or copy this public profile link.",
+    "linkCopied": "Profile link copied",
+    "copiedFeedback": "Copied to clipboard",
+    "tapToCopy": "Select the link to copy it",
+    "copyFailed": "Could not copy the profile link",
+    "qrCodeAlt": "QR code for this Kino profile",
     "avgMovieRating": "Avg movie rating",
     "avgSeriesRating": "Avg series rating",
     "keepWatching": "Keep Watching",
@@ -483,7 +566,7 @@
       "headline": "Built for the way you actually watch.",
       "diary": {
         "headline": "A diary that stays with you.",
-        "body": "Log every film and episode with a date, a rating, and a note. See exactly what you watched, when, and how you felt about it ? years later."
+        "body": "Log every film and episode with a date, a rating, and a note. See exactly what you watched, when, and how you felt about it — years later."
       },
       "progress": {
         "headline": "Track every episode, every season.",
@@ -499,7 +582,7 @@
       },
       "search": {
         "headline": "Find anything, instantly.",
-        "body": "Search the entire TMDB catalog ? movies, TV shows, people ? with filters for genre, rating, and more."
+        "body": "Search the entire TMDB catalog — movies, TV shows, people — with filters for genre, rating, and more."
       },
       "stats": {
         "headline": "Understand your viewing habits.",
@@ -514,13 +597,13 @@
     "i18n": {
       "eyebrow": "International",
       "headline": "Made for the world.",
-      "body": "Kino speaks English, French, Italian, Norwegian, and Portuguese. Localized dates, localized content ? feel at home wherever you are.",
+      "body": "Kino speaks English, French, Italian, Norwegian, and Portuguese. Localized dates, localized content — feel at home wherever you are.",
       "languages": {
         "en": "English",
-        "fr": "Fran?ais",
+        "fr": "Français",
         "it": "Italiano",
         "no": "Norsk",
-        "pt": "Portugu?s"
+        "pt": "Português"
       },
       "exampleLabel": "Localized example",
       "exampleBody": "Dates, interface labels, and localized TMDB content follow the selected language."
