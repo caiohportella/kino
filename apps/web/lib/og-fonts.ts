@@ -3,10 +3,12 @@ export const OG_SIZE = { width: 1200, height: 630 }
 // Noto Sans is licensed under the SIL Open Font License 1.1. These versioned,
 // official Google Fonts assets keep binaries out of every Edge function bundle.
 const FONT_URLS = {
-  normal:
-    'https://fonts.gstatic.com/s/notosans/v42/o-0bIpQlx3QUlC5A4PNB6Ryti20_6n1iPHjc5a7duw.woff2',
+  regular:
+    'https://fonts.gstatic.com/s/notosans/v42/o-0mIpQlx3QUlC5A4PNB6Ryti20_6n1iPHjcz6L1SoM-jCpoiyD9A99d.ttf',
+  bold:
+    'https://fonts.gstatic.com/s/notosans/v42/o-0mIpQlx3QUlC5A4PNB6Ryti20_6n1iPHjcz6L1SoM-jCpoiyAaBN9d.ttf',
   blackItalic:
-    'https://fonts.gstatic.com/s/notosans/v42/o-0kIpQlx3QUlC5A4PNr4C5OaxRsfNNlKbCePevHtVtX57DGjDU1QJ4Z2VDSyA.woff2',
+    'https://fonts.gstatic.com/s/notosans/v42/o-0kIpQlx3QUlC5A4PNr4C5OaxRsfNNlKbCePevHtVtX57DGjDU1QJ4Z6Vc.ttf',
 } as const
 
 type OgFont = {
@@ -21,19 +23,30 @@ let fontPromise: Promise<OgFont[]> | undefined
 async function fetchFont(url: string) {
   const response = await fetch(url, { cache: 'force-cache' })
   if (!response.ok) throw new Error(`Unable to load OG font (${response.status})`)
-  return response.arrayBuffer()
+  const data = await response.arrayBuffer()
+  assertSupportedOpenType(data)
+  return data
+}
+
+function assertSupportedOpenType(data: ArrayBuffer) {
+  const bytes = new Uint8Array(data, 0, Math.min(data.byteLength, 4))
+  const signature = String.fromCharCode(...bytes)
+  const isTrueType = bytes[0] === 0 && bytes[1] === 1 && bytes[2] === 0 && bytes[3] === 0
+  const isSupported = isTrueType || ['OTTO', 'true', 'typ1', 'wOFF'].includes(signature)
+  if (!isSupported) throw new Error(`Unsupported OG font signature ${signature || 'empty'}`)
 }
 
 export function loadOgFonts() {
   if (process.env.OG_DISABLE_REMOTE_FONTS === '1') return Promise.resolve([])
 
   fontPromise ??= Promise.all([
-    fetchFont(FONT_URLS.normal),
+    fetchFont(FONT_URLS.regular),
+    fetchFont(FONT_URLS.bold),
     fetchFont(FONT_URLS.blackItalic),
   ])
-    .then(([normal, blackItalic]) => [
-      { name: 'Kino Body', data: normal, style: 'normal', weight: 400 },
-      { name: 'Kino Body', data: normal, style: 'normal', weight: 700 },
+    .then(([regular, bold, blackItalic]) => [
+      { name: 'Kino Body', data: regular, style: 'normal', weight: 400 },
+      { name: 'Kino Body', data: bold, style: 'normal', weight: 700 },
       { name: 'Kino OG', data: blackItalic, style: 'italic', weight: 900 },
     ] satisfies OgFont[])
     .catch(() => [])

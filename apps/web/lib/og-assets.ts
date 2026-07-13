@@ -1,4 +1,4 @@
-const DEFAULT_SITE_ORIGIN = 'https://kino.vercel.app'
+const LOCAL_SITE_ORIGIN = 'http://localhost:3000'
 
 function siteOrigin() {
   const value =
@@ -7,7 +7,9 @@ function siteOrigin() {
     process.env.VERCEL_PROJECT_PRODUCTION_URL ||
     process.env.VERCEL_URL
 
-  if (!value) return DEFAULT_SITE_ORIGIN
+  // Vercel always exposes VERCEL_URL for deployed functions. Locally, point
+  // back at the running Next.js server instead of an unrelated production host.
+  if (!value) return LOCAL_SITE_ORIGIN
   const origin = value.replace(/\/+$/, '')
   return origin.startsWith('http://') || origin.startsWith('https://')
     ? origin

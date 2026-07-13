@@ -202,15 +202,18 @@ function wrapOgHeading(value: string, maxWidth: number, size: number) {
 
 export function OgKinoLogo({ src }: { src?: OgImage | null }) {
   const width = 126;
+  const height = Math.round(width / KINO_LOGO_ASPECT_RATIO);
   return (
     <img
       alt="Kino"
+      height={height}
       src={(src || KINO_OG_LOGO_URL) as string}
       style={{
         width,
-        height: Math.round(width / KINO_LOGO_ASPECT_RATIO),
+        height,
         objectFit: "contain",
       }}
+      width={width}
     />
   );
 }
