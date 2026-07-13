@@ -270,7 +270,14 @@
     "next": "Neste:",
     "last": "Siste:",
     "searchUsers": "Søk brukere...",
-    "noUsersFound": "Ingen brukere funnet"
+    "noUsersFound": "Ingen brukere funnet",
+    "shareProfile": "Del profil",
+    "shareDescription": "Skann QR-koden eller kopier lenken for å dele denne Kino-profilen.",
+    "linkCopied": "Profillenken er kopiert",
+    "copyFailed": "Kunne ikke kopiere profillenken",
+    "qrCodeAlt": "QR-kode for denne Kino-profilen",
+    "copiedFeedback": "Kopiert til utklippstavlen",
+    "tapToCopy": "Velg lenken for å kopiere den"
   },
   "settings": {
     "language": "Språk",

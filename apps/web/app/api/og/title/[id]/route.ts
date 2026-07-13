@@ -5,6 +5,7 @@ import { createElement, type ReactElement } from 'react'
 import { FallbackOg, getOgImageOptions, TitleOg } from '@/lib/og'
 import { safeImageData } from '@/lib/og-images'
 import { getTitleSeoData } from '@/lib/server-tmdb'
+import { getTitlePresentation } from '@/lib/seo'
 
 export const runtime = 'edge'
 
@@ -19,6 +20,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   try {
     const details = await getTitleSeoData(tmdbId, type, 'en')
+    const presentation = getTitlePresentation(details)
     const [backdrop, poster] = await Promise.all([
       safeImageData(details.backdropImage),
       safeImageData(details.coverImage),
@@ -28,9 +30,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       backdrop,
       genres: details.genres.map((genre) => genre.name),
       poster,
-      title: details.title,
+      runtime: details.runtime,
+      seasons: details.totalSeasons,
+      status: details.status,
+      synopsis: details.synopsis,
+      title: presentation.title,
       type,
-      year: details.year,
+      year: presentation.year,
     }))
   } catch {
     return image(createElement(FallbackOg, { title: 'This title is unavailable.', label: 'Title preview' }))

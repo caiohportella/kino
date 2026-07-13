@@ -10245,6 +10245,14 @@ snapshots:
     dependencies:
       fill-range: 7.1.1
 
+  browserslist@4.28.1:
+    dependencies:
+      baseline-browser-mapping: 2.10.41
+      caniuse-lite: 1.0.30001800
+      electron-to-chromium: 1.5.385
+      node-releases: 2.0.50
+      update-browserslist-db: 1.2.3(browserslist@4.28.1)
+
   browserslist@4.28.4:
     dependencies:
       baseline-browser-mapping: 2.10.41

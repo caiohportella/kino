@@ -1,6 +1,7 @@
 {
   "extends": "@kino/config/tsconfig/next",
   "compilerOptions": {
+    "jsx": "preserve",
     "baseUrl": ".",
     "paths": {
       "@/*": ["./*"],

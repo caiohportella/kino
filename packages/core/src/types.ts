@@ -277,6 +277,8 @@ export interface WatchedSeries extends PersistedTitle {
     air_date?: string
   } | null
   is_series_completed?: boolean
+  is_caught_up?: boolean
+  watched_episode_keys?: string[]
 }
 
 export interface PersistedTitle {

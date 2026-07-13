@@ -1,17 +1,23 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { SITE_NAME, absoluteUrl } from "@/lib/seo";
+import { SITE_NAME, absoluteUrl, socialImage } from "@/lib/seo";
+
+const description =
+  "Browse trending movies, popular TV series, new releases, and top-rated picks in Kino.";
+const image = socialImage(
+  "/discover/opengraph-image",
+  "Discover movies and series on Kino",
+);
 
 export const metadata: Metadata = {
   title: "Discover",
-  description:
-    "Browse trending movies, popular TV series, new releases, and top-rated picks in Kino.",
+  description,
   alternates: {
     canonical: absoluteUrl("/discover"),
   },
   openGraph: {
-    description:
-      "Browse trending movies, popular TV series, new releases, and top-rated picks in Kino.",
+    description,
+    images: [image],
     siteName: SITE_NAME,
     title: "Discover | Kino",
     type: "website",
@@ -19,8 +25,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    description:
-      "Browse trending movies, popular TV series, new releases, and top-rated picks in Kino.",
+    description,
+    images: [image],
     title: "Discover | Kino",
   },
 };

@@ -3,7 +3,13 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import { Providers } from "./providers";
 import { AppShell } from "@/components/app-shell";
-import { SITE_DESCRIPTION, SITE_NAME, getSiteOrigin } from "@/lib/seo";
+import {
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  absoluteUrl,
+  getSiteOrigin,
+  socialImage,
+} from "@/lib/seo";
 import { Nunito_Sans } from "next/font/google";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +23,33 @@ export const metadata: Metadata = {
   },
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,
+  alternates: {
+    canonical: absoluteUrl("/"),
+  },
+  openGraph: {
+    description: SITE_DESCRIPTION,
+    images: [
+      socialImage(
+        "/opengraph-image",
+        "Kino — discover, track, and share movies and series",
+      ),
+    ],
+    siteName: SITE_NAME,
+    title: SITE_NAME,
+    type: "website",
+    url: absoluteUrl("/"),
+  },
+  twitter: {
+    card: "summary_large_image",
+    description: SITE_DESCRIPTION,
+    images: [
+      socialImage(
+        "/opengraph-image",
+        "Kino — discover, track, and share movies and series",
+      ),
+    ],
+    title: SITE_NAME,
+  },
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,

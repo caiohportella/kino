@@ -270,6 +270,7 @@ export class KinoDatabaseService {
       return {
         ...cleanSeries,
         watched_episode_count: watchedCount,
+        watched_episode_keys: Array.from(series.watchedEpisodeKeys),
         next_episode: nextEpisode,
         is_series_completed: completed,
       }

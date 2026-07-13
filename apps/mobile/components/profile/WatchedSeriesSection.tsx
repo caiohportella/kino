@@ -14,6 +14,7 @@ type WatchedSeries = {
   cover_image: string | null
   last_episode?: { season: number; episode: number } | null
   is_series_completed?: boolean
+  is_caught_up?: boolean
   next_episode?: { season: number; episode: number; air_date?: string } | null
 }
 
@@ -29,11 +30,11 @@ export function WatchedSeriesSection({ series, onSeriesPress, onLongPress, onVie
   const tmdb = getTMDbService()
   const items = useMemo(() => series.map(s => ({ tmdb_id: s.tmdb_id, type: 'tv' as const })), [series])
   const localizedData = useLocalizedMediaData(items)
-  const watchedSeries = useMemo(() => series.filter((item) => item.is_series_completed), [series])
-  const keepWatchingSeries = useMemo(() => series.filter((item) => !item.is_series_completed), [series])
+  const watchedSeries = useMemo(() => series.filter((item) => !item.next_episode), [series])
+  const keepWatchingSeries = useMemo(() => series.filter((item) => Boolean(item.next_episode)), [series])
 
   const getStatusBadge = (item: WatchedSeries) => {
-    if (item.is_series_completed) {
+    if (item.is_series_completed || item.is_caught_up) {
       return (
         <View className="absolute bottom-2 left-1 bg-accent/90 rounded-md px-1.5 py-0.5">
           <Text className="text-[10px] font-medium text-white">{t('profile.completed')}</Text>

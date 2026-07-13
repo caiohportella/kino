@@ -1,7 +1,7 @@
 'use client'
 
 import type { FollowerInfo, UserProfile } from '@kino/core'
-import { formatDate, isFutureDateOnly } from '@kino/core'
+import { applyReleasedSeriesProgress, formatDate, isFutureDateOnly } from '@kino/core'
 import { EmptyState, Poster } from '@/components/kino'
 import type { LucideIcon } from 'lucide-react'
 import { Film, Search, Star, Tv, UserPlus, UserRoundCheck, UsersRound } from 'lucide-react'
@@ -33,6 +33,41 @@ import { cn } from '@/lib/utils'
 import { titlePath } from '@/lib/routes'
 import { useAuthStore } from '@/stores/auth-store'
 
+async function refreshSeriesAvailability(
+  items: Awaited<ReturnType<typeof db.getWatchedSeries>>
+) {
+  const tmdb = getTmdb()
+
+  return Promise.all(
+    items.map(async (series) => {
+      const metadataSeasons = (series.seasons_metadata || []).filter(
+        (season) =>
+          season.season_number > 0 &&
+          season.episode_count > 0
+      )
+      if (metadataSeasons.length === 0) return series
+
+      const seasons = metadataSeasons.filter(
+        (season) => !isFutureDateOnly(season.air_date)
+      )
+      if (seasons.length === 0) return applyReleasedSeriesProgress(series, [])
+
+      const results = await Promise.all(
+        seasons.map((season) =>
+          tmdb.getSeasonDetails(series.tmdb_id, season.season_number).catch(() => null)
+        )
+      )
+      if (results.some((season) => season === null)) return series
+      const loadedSeasons = results.filter((season) => season !== null)
+
+      return applyReleasedSeriesProgress(
+        series,
+        loadedSeasons.flatMap((season) => season.episodes)
+      )
+    })
+  )
+}
+
 type SocialListType = 'followers' | 'following'
 
 type UserSearchResult = {
@@ -62,13 +97,14 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
   const query = useQuery({
     queryKey: ['profile', targetUserId],
     queryFn: async () => {
-      const [profile, movies, series, counts, isFollowing] = await Promise.all([
+      const [profile, movies, storedSeries, counts, isFollowing] = await Promise.all([
         db.getUserProfile(targetUserId!),
         db.getWatchedMovies(targetUserId!),
         db.getWatchedSeries(targetUserId!),
         db.getFollowCounts(targetUserId!),
         user && !isOwnProfile ? db.checkFollowStatus(targetUserId!) : Promise.resolve(false),
       ])
+      const series = await refreshSeriesAvailability(storedSeries)
       return { profile, movies, series, counts, isFollowing }
     },
     enabled: Boolean(targetUserId),
@@ -938,9 +974,9 @@ function ProfileShelf({
 
 function SeriesShelf({ items }: { items: Awaited<ReturnType<typeof db.getWatchedSeries>> }) {
   const { t } = useTranslation()
-  const watchedSeries = useMemo(() => items.filter((series) => series.is_series_completed), [items])
+  const watchedSeries = useMemo(() => items.filter((series) => !series.next_episode), [items])
   const keepWatchingSeries = useMemo(
-    () => items.filter((series) => !series.is_series_completed),
+    () => items.filter((series) => Boolean(series.next_episode)),
     [items]
   )
   const localizedTitleRequests = useMemo(
@@ -1083,7 +1119,7 @@ function SeriesStatusPill({
 }) {
   const { t } = useTranslation()
 
-  if (series.is_series_completed) {
+  if (series.is_series_completed || series.is_caught_up) {
     return (
       <span className="mt-3 inline-flex min-h-7 items-center rounded-full bg-kino-accent px-3 text-xs font-bold text-black">
         {t('profile.completed')}

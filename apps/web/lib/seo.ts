@@ -40,6 +40,18 @@ export function socialImage(pathname: string, alt: string) {
   };
 }
 
+export function getTitlePresentation(
+  details: Pick<TitleDetails, "title" | "year">,
+) {
+  const title = details.title.replace(/\s+/g, " ").trim();
+  const year =
+    Number.isInteger(details.year) && details.year >= 1888
+      ? details.year
+      : null;
+
+  return { title, year };
+}
+
 export function trimText(value: string, maxLength: number) {
   const normalized = value.replace(/\s+/g, " ").trim();
   if (normalized.length <= maxLength) return normalized;

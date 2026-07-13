@@ -1,9 +1,12 @@
 import { Fragment, type CSSProperties, type ReactNode } from "react";
+import { formatRuntime } from "@kino/core";
 import type {
   PublicProfileOgData,
   PublicWatchlistOgData,
 } from "./server-supabase";
 import { getInitials } from "./og-images";
+import { KINO_LOGO_ASPECT_RATIO } from "./brand";
+import { KINO_LOGO_DATA_URL } from "./og-logo-data";
 import { trimText } from "./seo";
 
 export { getOgImageOptions, OG_SIZE } from "./og-fonts";
@@ -33,22 +36,39 @@ const frame: CSSProperties = {
 };
 
 export function KinoFrame({
+  background,
   children,
   label,
   logo,
 }: {
+  background?: OgImage | null;
   children: ReactNode;
   label: string;
   logo?: OgImage | null;
 }) {
   return (
     <div style={frame}>
+      {background ? (
+        <img
+          alt=""
+          src={background as string}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+          }}
+        />
+      ) : null}
       <div
         style={{
           position: "absolute",
           inset: 0,
           background:
-            "radial-gradient(circle at 12% 8%, rgba(29,185,84,0.18), transparent 32%), radial-gradient(circle at 88% 100%, rgba(29,185,84,0.08), transparent 28%), linear-gradient(120deg, #121212 0%, #151716 58%, #101110 100%)",
+            background
+              ? "radial-gradient(circle at 12% 8%, rgba(29,185,84,0.18), transparent 32%), linear-gradient(90deg, rgba(10,11,11,0.96) 0%, rgba(12,13,13,0.90) 48%, rgba(10,11,11,0.68) 100%)"
+              : "radial-gradient(circle at 12% 8%, rgba(29,185,84,0.18), transparent 32%), radial-gradient(circle at 88% 100%, rgba(29,185,84,0.08), transparent 28%), linear-gradient(120deg, #121212 0%, #151716 58%, #101110 100%)",
         }}
       />
       <FilmRail side="left" />
@@ -70,15 +90,7 @@ export function KinoFrame({
             justifyContent: "space-between",
           }}
         >
-          {logo ? (
-            <img
-              alt="Kino"
-              src={logo as string}
-              style={{ width: 126, height: 64, objectFit: "cover" }}
-            />
-          ) : (
-            <OgAccentDotsWordmark />
-          )}
+          <OgKinoLogo src={logo} />
           <div
             style={{
               display: "flex",
@@ -177,21 +189,53 @@ function wrapOgHeading(value: string, maxWidth: number, size: number) {
   return lines;
 }
 
-export function OgAccentDotsWordmark() {
+export function OgKinoLogo({ src }: { src?: OgImage | null }) {
+  const width = 126;
+  return (
+    <img
+      alt="Kino"
+      src={(src || KINO_LOGO_DATA_URL) as string}
+      style={{
+        width,
+        height: Math.round(width / KINO_LOGO_ASPECT_RATIO),
+        objectFit: "contain",
+      }}
+    />
+  );
+}
+
+export function OgMetadataRow({ items }: { items: Array<string | null | undefined> }) {
+  const visibleItems = items.filter((item): item is string => Boolean(item?.trim()));
+  if (visibleItems.length === 0) return null;
+
   return (
     <div
       style={{
         display: "flex",
-        color: colors.text,
-        fontFamily: "Kino OG",
-        fontSize: 32,
-        fontStyle: "italic",
-        fontWeight: 900,
-        letterSpacing: 0,
-        lineHeight: 1,
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: 10,
+        color: colors.muted,
+        fontSize: 19,
+        fontWeight: 700,
       }}
     >
-      <OgAccentDotsText size={32} value="Kino." />
+      {visibleItems.map((item, index) => (
+        <Fragment key={`${item}-${index}`}>
+          {index > 0 ? (
+            <div
+              style={{
+                width: 4,
+                height: 4,
+                display: "flex",
+                borderRadius: 999,
+                background: colors.subtle,
+              }}
+            />
+          ) : null}
+          <div style={{ display: "flex" }}>{item}</div>
+        </Fragment>
+      ))}
     </div>
   );
 }
@@ -311,6 +355,43 @@ export function HomeOg() {
   );
 }
 
+export function DiscoverOg() {
+  return (
+    <KinoFrame label="Discover">
+      <div
+        style={{
+          display: "flex",
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 62,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 24,
+            maxWidth: 650,
+          }}
+        >
+          <OgAccentDotsHeading maxWidth={650}>Discover.</OgAccentDotsHeading>
+          <SupportingText maxWidth={610}>
+            Find trending stories, new releases, and acclaimed movies and
+            series worth keeping.
+          </SupportingText>
+          <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
+            {["Trending", "New releases", "Top rated"].map((item) => (
+              <MetaPill key={item}>{item}</MetaPill>
+            ))}
+          </div>
+        </div>
+        <DiscoverOgIllustration />
+      </div>
+    </KinoFrame>
+  );
+}
+
 function AbstractReel() {
   return (
     <div
@@ -374,52 +455,47 @@ function AbstractReel() {
 export function TitleOg({
   backdrop,
   poster,
+  synopsis,
   title,
   year,
   type,
   genres,
-  rating,
+  runtime,
+  seasons,
+  status,
 }: {
-  backdrop: OgImage | null;
-  poster: OgImage | null;
+  backdrop?: OgImage | null;
+  poster?: OgImage | null;
+  synopsis?: string | null;
   title: string;
-  year: number;
+  year?: number | null;
   type: "movie" | "tv";
   genres: string[];
-  rating?: number;
+  runtime?: number | null;
+  seasons?: number | null;
+  status?: string | null;
 }) {
+  const typeLabel = type === "tv" ? "TV Series" : "Movie";
+  const detailLabel =
+    type === "movie"
+      ? formatRuntime(runtime || undefined) || null
+      : seasons && seasons > 0
+        ? `${seasons} ${seasons === 1 ? "season" : "seasons"}`
+        : null;
+  const secondaryItems = [
+    ...genres.slice(0, type === "tv" && status ? 2 : 3),
+    type === "tv" ? status : null,
+  ];
+
   return (
-    <div style={frame}>
-      {backdrop ? (
-        <img
-          alt=""
-          src={backdrop as string}
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-          }}
-        />
-      ) : null}
+    <KinoFrame background={backdrop} label={typeLabel}>
       <div
         style={{
-          position: "absolute",
-          inset: 0,
           display: "flex",
-          background:
-            "linear-gradient(90deg, rgba(10,11,11,0.96) 0%, rgba(12,13,13,0.88) 48%, rgba(10,11,11,0.52) 100%)",
-        }}
-      />
-      <div
-        style={{
-          position: "relative",
-          display: "flex",
-          width: "100%",
-          height: "100%",
-          padding: "56px 70px",
-          gap: 58,
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 52,
         }}
       >
         <div
@@ -427,48 +503,216 @@ export function TitleOg({
             display: "flex",
             flex: 1,
             flexDirection: "column",
-            justifyContent: "space-between",
+            justifyContent: "center",
+            gap: 15,
           }}
         >
-          <OgAccentDotsWordmark />
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <MetaPill>{type === "tv" ? "Series" : "Movie"}</MetaPill>
-              {year ? (
-                <div
-                  style={{ display: "flex", color: colors.muted, fontSize: 20 }}
-                >
-                  {year}
-                </div>
-              ) : null}
-              {rating && rating > 0 ? (
-                <div
-                  style={{ display: "flex", color: colors.muted, fontSize: 20 }}
-                >{`Rated ${rating.toFixed(1)}`}</div>
-              ) : null}
+          {year ? (
+            <div
+              style={{
+                display: "flex",
+                color: colors.muted,
+                fontSize: 19,
+                fontWeight: 700,
+                letterSpacing: "0.12em",
+              }}
+            >
+              {year}
             </div>
-            <OgAccentDotsHeading maxWidth={720}>
-              {trimText(title, 56)}
-            </OgAccentDotsHeading>
-            {genres.length > 0 ? (
-              <div
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  color: colors.muted,
-                  fontSize: 20,
-                }}
-              >
-                {genres.slice(0, 3).join("  ·  ")}
-              </div>
-            ) : null}
-          </div>
-          <div style={{ display: "flex", color: colors.subtle, fontSize: 18 }}>
-            Save it. Rate it. Remember it.
-          </div>
+          ) : null}
+          <OgAccentDotsHeading maxWidth={690} size={60}>
+            {trimText(title, 64)}
+          </OgAccentDotsHeading>
+          <OgMetadataRow items={[typeLabel, detailLabel]} />
+          {synopsis?.trim() ? (
+            <div
+              style={{
+                display: "flex",
+                maxWidth: 660,
+                color: colors.muted,
+                fontSize: 21,
+                lineHeight: 1.34,
+              }}
+            >
+              {trimText(synopsis, 145)}
+            </div>
+          ) : null}
+          <OgMetadataRow items={secondaryItems} />
+          <div
+            style={{
+              width: 72,
+              height: 3,
+              display: "flex",
+              marginTop: 6,
+              background: colors.accent,
+            }}
+          />
         </div>
-        <Poster image={poster} title={title} />
+        <TitleOgArtwork poster={poster} />
       </div>
+    </KinoFrame>
+  );
+}
+
+export function TitleOgArtwork({ poster }: { poster?: OgImage | null }) {
+  if (poster) {
+    return (
+      <div
+        style={{
+          position: "relative",
+          width: 360,
+          height: 430,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            width: 322,
+            height: 322,
+            display: "flex",
+            borderRadius: 999,
+            background:
+              "radial-gradient(circle, rgba(29,185,84,0.17) 0%, rgba(29,185,84,0.04) 52%, transparent 72%)",
+          }}
+        />
+        <div
+          style={{
+            position: "relative",
+            width: 270,
+            height: 405,
+            display: "flex",
+            overflow: "hidden",
+            borderRadius: 16,
+            background: colors.surface,
+            border: "1px solid rgba(255,255,255,0.14)",
+            boxShadow: "0 28px 68px rgba(0,0,0,0.46)",
+          }}
+        >
+          <img
+            alt=""
+            src={poster as string}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: 360,
+        height: 400,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          width: 330,
+          height: 330,
+          display: "flex",
+          borderRadius: 999,
+          background:
+            "radial-gradient(circle, rgba(29,185,84,0.17) 0%, rgba(29,185,84,0.04) 52%, transparent 72%)",
+        }}
+      />
+      <div
+        style={{
+          position: "relative",
+          width: 326,
+          height: 226,
+          display: "flex",
+          overflow: "hidden",
+          borderRadius: 18,
+          background: "linear-gradient(145deg, #26342c, #171a18 58%, #101110)",
+          border: "1px solid rgba(255,255,255,0.12)",
+          boxShadow: "0 26px 64px rgba(0,0,0,0.42)",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            left: -34,
+            bottom: -86,
+            width: 250,
+            height: 250,
+            display: "flex",
+            borderRadius: 999,
+            background: "rgba(29,185,84,0.16)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            right: 34,
+            top: 30,
+            width: 82,
+            height: 82,
+            display: "flex",
+            borderRadius: 999,
+            background: "rgba(232,232,229,0.12)",
+            border: "1px solid rgba(255,255,255,0.10)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 52,
+            height: 2,
+            display: "flex",
+            background: "rgba(255,255,255,0.16)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            left: 34,
+            bottom: 28,
+            width: 96,
+            height: 6,
+            display: "flex",
+            borderRadius: 999,
+            background: colors.accent,
+          }}
+        />
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          left: 4,
+          top: 54,
+          width: 58,
+          height: 78,
+          display: "flex",
+          borderRadius: 10,
+          background: colors.surface,
+          border: "1px solid rgba(255,255,255,0.10)",
+          transform: "rotate(-8deg)",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          right: 0,
+          bottom: 48,
+          width: 76,
+          height: 104,
+          display: "flex",
+          borderRadius: 12,
+          background: "#1c2921",
+          border: "1px solid rgba(29,185,84,0.34)",
+          transform: "rotate(7deg)",
+        }}
+      />
     </div>
   );
 }
@@ -528,7 +772,7 @@ export function PersonOg({
             justifyContent: "space-between",
           }}
         >
-          <OgAccentDotsWordmark />
+          <OgKinoLogo />
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <MetaPill>{role || "Film and television"}</MetaPill>
@@ -650,53 +894,6 @@ function PersonPortrait({
   );
 }
 
-function Poster({ image, title }: { image: OgImage | null; title: string }) {
-  return (
-    <div
-      style={{
-        width: 320,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <div
-        style={{
-          position: "relative",
-          width: 286,
-          height: 430,
-          display: "flex",
-          overflow: "hidden",
-          borderRadius: 14,
-          background: colors.surface,
-          border: "1px solid rgba(255,255,255,0.12)",
-        }}
-      >
-        {image ? (
-          <img
-            alt=""
-            src={image as string}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
-        ) : (
-          <PosterPlaceholder title={title} />
-        )}
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: 92,
-            display: "flex",
-            background: "linear-gradient(transparent, rgba(0,0,0,0.76))",
-          }}
-        />
-      </div>
-    </div>
-  );
-}
-
 function PosterPlaceholder({ title }: { title: string }) {
   return (
     <div
@@ -710,12 +907,8 @@ function PosterPlaceholder({ title }: { title: string }) {
         background: "linear-gradient(145deg, #252925, #171817)",
       }}
     >
-      <div style={{ color: colors.accent, fontSize: 18, fontWeight: 800 }}>
-        KINO
-      </div>
       <div
         style={{
-          marginTop: 10,
           color: colors.text,
           fontSize: 28,
           fontWeight: 800,
@@ -1062,7 +1255,7 @@ export function WatchlistsOg() {
             Save the next watch, shape a theme, or build a shared list together.
           </SupportingText>
         </div>
-        <PosterStack />
+        <WatchlistsOgIllustration />
       </div>
     </KinoFrame>
   );
@@ -1207,7 +1400,202 @@ function FeatureMark({ kind }: { kind: "discover" | "search" }) {
   );
 }
 
-function PosterStack() {
+export function WatchlistsOgIllustration() {
+  const lists = [
+    {
+      title: "Weekend picks",
+      count: "8 titles",
+      top: 20,
+      left: 34,
+      accent: true,
+      collaborators: false,
+    },
+    {
+      title: "Our watchlist",
+      count: "12 titles",
+      top: 142,
+      left: 4,
+      accent: false,
+      collaborators: true,
+    },
+    {
+      title: "Quiet favorites",
+      count: "6 titles",
+      top: 264,
+      left: 48,
+      accent: false,
+      collaborators: false,
+    },
+  ];
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: 390,
+        height: 410,
+        display: "flex",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          inset: 18,
+          display: "flex",
+          borderRadius: 28,
+          background:
+            "radial-gradient(circle at 58% 48%, rgba(29,185,84,0.13), transparent 64%)",
+        }}
+      />
+      {lists.map((list, listIndex) => (
+        <div
+          key={list.title}
+          style={{
+            position: "absolute",
+            top: list.top,
+            left: list.left,
+            width: 334,
+            height: 112,
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+            padding: "14px 16px",
+            borderRadius: 16,
+            background: list.accent ? "#1b2b21" : colors.panel,
+            border: list.accent
+              ? "1px solid rgba(29,185,84,0.48)"
+              : "1px solid rgba(255,255,255,0.10)",
+            boxShadow: "0 20px 46px rgba(0,0,0,0.34)",
+          }}
+        >
+          <div style={{ display: "flex", gap: 5 }}>
+            {[0, 1, 2].map((posterIndex) => (
+              <div
+                key={posterIndex}
+                style={{
+                  width: 38,
+                  height: 60,
+                  display: "flex",
+                  borderRadius: 6,
+                  background:
+                    posterIndex === 1
+                      ? "linear-gradient(145deg, #304338, #1c2821)"
+                      : listIndex === 1
+                        ? "linear-gradient(145deg, #343434, #222222)"
+                        : "linear-gradient(145deg, #26312b, #1b211e)",
+                  border: "1px solid rgba(255,255,255,0.10)",
+                }}
+              />
+            ))}
+          </div>
+          <div
+            style={{
+              minWidth: 0,
+              display: "flex",
+              flex: 1,
+              flexDirection: "column",
+              gap: 7,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                color: colors.text,
+                fontSize: 19,
+                fontWeight: 800,
+              }}
+            >
+              {list.title}
+            </div>
+            <div
+              style={{ display: "flex", color: colors.muted, fontSize: 15 }}
+            >
+              {list.count}
+            </div>
+            {list.collaborators ? (
+              <div style={{ display: "flex", alignItems: "center" }}>
+                {["#b9f6ce", "#99a89f", "#65736b"].map(
+                  (background, avatarIndex) => (
+                    <div
+                      key={background}
+                      style={{
+                        width: 24,
+                        height: 24,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginLeft: avatarIndex === 0 ? 0 : -7,
+                        borderRadius: 999,
+                        background,
+                        border: "2px solid #171717",
+                        color: "#102017",
+                        fontSize: 9,
+                        fontWeight: 900,
+                      }}
+                    >
+                      {avatarIndex + 1}
+                    </div>
+                  ),
+                )}
+              </div>
+            ) : null}
+          </div>
+          <div
+            style={{
+              width: 34,
+              height: 34,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 999,
+              background: list.accent
+                ? colors.accent
+                : "rgba(255,255,255,0.07)",
+              color: list.accent ? "#07130b" : colors.accentSoft,
+            }}
+          >
+            {listIndex === 2 ? (
+              <div
+                style={{
+                  width: 9,
+                  height: 15,
+                  display: "flex",
+                  borderRight: "3px solid #b9f6ce",
+                  borderBottom: "3px solid #b9f6ce",
+                  transform: "rotate(45deg)",
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 15,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 3,
+                }}
+              >
+                {[0, 1, 2].map((line) => (
+                  <div
+                    key={line}
+                    style={{
+                      width: line === 2 ? 10 : 15,
+                      height: 2,
+                      display: "flex",
+                      borderRadius: 999,
+                      background: list.accent ? "#07130b" : colors.accentSoft,
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function DiscoverOgIllustration() {
   return (
     <div
       style={{ position: "relative", width: 360, height: 400, display: "flex" }}

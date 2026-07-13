@@ -15,7 +15,7 @@ const fallbackProfileData = {
 };
 
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ username: string }> },
 ) {
   const { username } = await params;
@@ -24,13 +24,10 @@ export async function GET(
     const profile = await getPublicProfileOgDataByUsername(username);
 
     const data = profile ?? fallbackProfileData;
-    const logo = new URL("/kino-logo.png", request.url).toString();
-
     return new ImageResponse(
       createElement(ProfileOg, {
         avatar: data.avatarUrl,
         data,
-        logo,
       }),
       await getOgImageOptions({
         "cache-control": "public, max-age=300, stale-while-revalidate=3600",

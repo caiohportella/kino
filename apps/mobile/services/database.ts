@@ -206,6 +206,7 @@ export class DatabaseService {
       return {
         ...series,
         watched_episode_count: series.watchedEpisodes.size,
+        watched_episode_keys: Array.from(series.watchedEpisodes),
         watchedEpisodes: undefined, // Clean up helper field
         next_episode: nextEpisode,
         is_series_completed: isSeriesCompleted,

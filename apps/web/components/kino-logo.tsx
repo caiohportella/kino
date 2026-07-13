@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import { cn } from '@/lib/utils'
+import { KINO_LOGO_ASPECT_RATIO, KINO_LOGO_PATH } from '@/lib/brand'
 
 interface KinoLogoProps {
   variant?: 'compact' | 'full'
@@ -16,7 +17,7 @@ export function KinoLogo({
   priority = false,
   label = 'Kino',
 }: KinoLogoProps) {
-  const height = Math.round(width * (1024 / 1536))
+  const height = Math.round(width / KINO_LOGO_ASPECT_RATIO)
 
   return (
     <span
@@ -29,7 +30,7 @@ export function KinoLogo({
         fill
         priority={priority}
         sizes={`${width}px`}
-        src="/kino-logo.png"
+        src={KINO_LOGO_PATH}
       />
     </span>
   )

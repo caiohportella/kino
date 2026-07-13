@@ -48,7 +48,7 @@ export function SeasonSelector({
 
           return (
             <TabsTrigger
-              className="shrink-0 rounded-full border border-white/10 bg-white/4 px-4 text-kino-muted hover:border-white/20 hover:text-kino-text focus-visible:border-kino-accent focus-visible:ring-kino-accent/40 data-active:border-kino-accent data-active:bg-kino-accent data-active:text-black"
+              className="shrink-0 rounded-full border border-white/10 bg-white/4 px-4 text-kino-muted hover:border-white/20 hover:text-kino-text focus-visible:border-kino-accent focus-visible:ring-kino-accent/40 data-active:border-kino-accent data-active:bg-kino-accent data-active:!text-black"
               key={season.season_number}
               ref={isActive ? activeTriggerRef : undefined}
               value={String(season.season_number)}
