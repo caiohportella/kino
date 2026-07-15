@@ -29,5 +29,5 @@ export function normalizeProfileUsername(value: string) {
 }
 
 export function profileOgPath(username: string) {
-  return `/api/${encodeURIComponent(username)}`
+  return `/api/${encodeURIComponent(username)}?v=3`
 }

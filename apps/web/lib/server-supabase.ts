@@ -1,3 +1,5 @@
+import { createClient } from "@supabase/supabase-js";
+
 function supabaseConfig() {
   const url =
     process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -31,22 +33,6 @@ async function supabaseFetch<T>(pathname: string, init?: RequestInit) {
     throw new Error(`Supabase request failed (${response.status}${details})`);
   }
   return (await response.json()) as T;
-}
-
-async function supabaseCount(pathname: string) {
-  const { key, url } = supabaseConfig();
-  const response = await fetch(`${url}/rest/v1/${pathname}`, {
-    method: "HEAD",
-    headers: {
-      apikey: key,
-      authorization: `Bearer ${key}`,
-      prefer: "count=exact",
-    },
-  });
-  if (!response.ok) return 0;
-  const range = response.headers.get("content-range");
-  const count = Number(range?.split("/")[1]);
-  return Number.isFinite(count) ? count : 0;
 }
 
 function firstRow<T>(data: T | T[] | null) {
@@ -104,47 +90,28 @@ export async function getPublicProfileOgDataByUsername(username: string) {
 }
 
 async function getPublicProfileOgDataFallback(username: string) {
-  const encodedUsername = encodeURIComponent(username);
-  const response = await supabaseFetch<
-    Array<{
-      id: string;
-      username: string | null;
-      display_name: string | null;
-      avatar_url: string | null;
-      banner_url: string | null;
-      bio: string | null;
-    }>
-  >(
-    `user_profiles?select=id,username,display_name,avatar_url,banner_url,bio&username=ilike.${encodedUsername}&limit=1`
-  );
-  const profile = firstRow(response);
+  const { key, url } = supabaseConfig();
+  const client = createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data: profile, error } = await client
+    .from("user_profiles")
+    .select("id,username,display_name,avatar_url,banner_url,bio")
+    .ilike("username", username)
+    .maybeSingle();
+  if (error) throw error;
   if (!profile) return null;
-
-  const userId = encodeURIComponent(profile.id);
-  const [movieRows, seriesRows, diaryEntries] = await Promise.all([
-    supabaseFetch<Array<{ title_id: string }>>(
-      `title_ratings?select=title_id,title:titles!inner(type)&user_id=eq.${userId}&title.type=eq.movie`,
-    ),
-    supabaseFetch<Array<{ title_id: string }>>(
-      `episode_ratings?select=title_id,title:titles!inner(type)&user_id=eq.${userId}&title.type=eq.tv`,
-    ),
-    supabaseCount(`watch_diary?select=id&user_id=eq.${userId}`),
-  ]);
 
   return {
     avatarUrl: profile.avatar_url,
     bannerUrl: profile.banner_url,
     bio: profile.bio,
-    diaryEntries,
+    diaryEntries: 0,
     displayName: profile.display_name || profile.username || "Kino member",
-    moviesWatched: uniqueTitleCount(movieRows),
-    seriesWatched: uniqueTitleCount(seriesRows),
+    moviesWatched: 0,
+    seriesWatched: 0,
     username: profile.username,
   };
-}
-
-function uniqueTitleCount(rows: Array<{ title_id: string }> | null) {
-  return new Set((rows || []).map((row) => row.title_id).filter(Boolean)).size;
 }
 
 function toSafeCount(value: number | string | null) {

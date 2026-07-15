@@ -15,6 +15,9 @@ export async function GET(
 ) {
   const routeParams = await params;
   const username = normalizeProfileUsername(routeParams.username);
+  const logo = await safeImageData(
+    new URL("/kino-logo.png", request.url).toString(),
+  );
 
   if (!username || isReservedProfileRoute(username)) {
     console.warn("[profile-og] rejected invalid or reserved username", {
@@ -24,6 +27,7 @@ export async function GET(
     return image(
       createElement(FallbackOg, {
         label: "Profile preview",
+        logo,
         title: "This profile is unavailable.",
       }),
     );
@@ -40,16 +44,16 @@ export async function GET(
       return image(
         createElement(FallbackOg, {
           label: "Profile preview",
+          logo,
           title: "This profile is unavailable.",
         }),
       );
     }
 
     const data = profile;
-    const [avatar, background, logo] = await Promise.all([
+    const [avatar, background] = await Promise.all([
       safeImageData(data.avatarUrl),
       safeImageData(data.bannerUrl),
-      safeImageData(new URL("/kino-logo.png", request.url).toString()),
     ]);
     return image(
       createElement(ProfileOg, {
@@ -68,6 +72,7 @@ export async function GET(
     return image(
       createElement(FallbackOg, {
         label: "Profile preview",
+        logo,
         title: "This profile is unavailable.",
       }),
     );

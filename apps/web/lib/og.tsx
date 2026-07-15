@@ -967,7 +967,13 @@ export function ProfileOg({
     ["Diary", data.diaryEntries],
   ] as const;
   return (
-    <KinoFrame background={background} label="Public profile" logo={logo}>
+    <KinoFrame
+      background={background}
+      backgroundOpacity={0.66}
+      backgroundOverlay="linear-gradient(90deg, rgba(7,9,8,0.90) 0%, rgba(7,9,8,0.78) 54%, rgba(7,9,8,0.68) 100%), linear-gradient(180deg, rgba(4,5,5,0.34) 0%, rgba(9,14,11,0.74) 100%)"
+      label="Public profile"
+      logo={logo}
+    >
       <div style={{ display: "flex", flex: 1, alignItems: "center", gap: 62 }}>
         <div
           style={{
@@ -1956,12 +1962,14 @@ function DiaryTimeline() {
 export function FallbackOg({
   title = "This page stepped out of frame.",
   label = "Kino",
+  logo,
 }: {
   title?: string;
   label?: string;
+  logo?: OgImage | null;
 }) {
   return (
-    <KinoFrame label={label}>
+    <KinoFrame label={label} logo={logo}>
       <div
         style={{
           display: "flex",

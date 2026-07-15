@@ -12,10 +12,11 @@ export const runtime = 'edge'
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const tmdbId = Number(id)
+  const logo = await safeImageData(new URL('/kino-logo.png', request.url).toString())
   const type: MediaType = request.nextUrl.searchParams.get('type') === 'tv' ? 'tv' : 'movie'
 
   if (!Number.isFinite(tmdbId) || tmdbId <= 0) {
-    return image(createElement(FallbackOg, { title: 'This title is unavailable.', label: 'Title preview' }))
+    return image(createElement(FallbackOg, { title: 'This title is unavailable.', label: 'Title preview', logo }))
   }
 
   try {
@@ -29,6 +30,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return image(createElement(TitleOg, {
       backdrop,
       genres: details.genres.map((genre) => genre.name),
+      logo,
       poster,
       runtime: details.runtime,
       seasons: details.totalSeasons,
@@ -39,7 +41,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       year: presentation.year,
     }))
   } catch {
-    return image(createElement(FallbackOg, { title: 'This title is unavailable.', label: 'Title preview' }))
+    return image(createElement(FallbackOg, { title: 'This title is unavailable.', label: 'Title preview', logo }))
   }
 }
 

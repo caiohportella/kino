@@ -8,7 +8,6 @@ import {
   profileOgPath,
 } from "@/lib/profile-routes";
 import { absoluteUrl } from "@/lib/seo";
-import { getPublicProfileOgDataByUsername } from "@/lib/server-supabase";
 
 async function getProfile(username: string) {
   if (isReservedProfileRoute(username)) return null;
@@ -21,11 +20,12 @@ async function getProfile(username: string) {
       "missing-anon-key",
     { auth: { persistSession: false, autoRefreshToken: false } },
   );
-  const { data } = await client
+  const { data, error } = await client
     .from("user_profiles")
     .select("*")
     .ilike("username", username)
     .maybeSingle();
+  if (error) throw error;
   return data;
 }
 
@@ -41,7 +41,7 @@ export async function generateMetadata({
   let profile;
   let lookupFailed = false;
   try {
-    profile = await getPublicProfileOgDataByUsername(username);
+    profile = await getProfile(username);
   } catch (error) {
     lookupFailed = true;
     console.error("[profile-metadata] profile lookup failed", {
@@ -54,7 +54,7 @@ export async function generateMetadata({
   const canonicalUsername = profile?.username || username;
   const canonical = absoluteUrl(`/${encodeURIComponent(canonicalUsername)}`);
   const title =
-    profile?.displayName ||
+    profile?.display_name ||
     (profile
       ? canonicalUsername
       : lookupFailed

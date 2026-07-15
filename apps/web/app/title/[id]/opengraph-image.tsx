@@ -25,10 +25,15 @@ export default async function OpenGraphImage({
   const { id } = await params;
   const segment = parseResourceSegment(id);
   const tmdbId = segment.id;
+  const logo = await safeImageData(KINO_OG_LOGO_URL);
 
   if (!Number.isFinite(tmdbId) || tmdbId <= 0) {
     return new ImageResponse(
-      <FallbackOg label="Title preview" title="This title is unavailable." />,
+      <FallbackOg
+        label="Title preview"
+        logo={logo}
+        title="This title is unavailable."
+      />,
       await getOgImageOptions()
     );
   }
@@ -36,10 +41,9 @@ export default async function OpenGraphImage({
   try {
     const details = await getTitleSeoDataBySegment(tmdbId, segment.slug, "en");
     const presentation = getTitlePresentation(details);
-    const [backdrop, poster, logo] = await Promise.all([
+    const [backdrop, poster] = await Promise.all([
       safeImageData(details.backdropImage),
       safeImageData(details.coverImage),
-      safeImageData(KINO_OG_LOGO_URL),
     ]);
 
     return new ImageResponse(
@@ -60,7 +64,11 @@ export default async function OpenGraphImage({
     );
   } catch {
     return new ImageResponse(
-      <FallbackOg label="Title preview" title="This title is unavailable." />,
+      <FallbackOg
+        label="Title preview"
+        logo={logo}
+        title="This title is unavailable."
+      />,
       await getOgImageOptions()
     );
   }

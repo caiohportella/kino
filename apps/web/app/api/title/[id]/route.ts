@@ -15,6 +15,9 @@ export async function GET(
 ) {
   const { id } = await params;
   const tmdbId = Number(id);
+  const logo = await safeImageData(
+    new URL("/kino-logo.png", request.url).toString(),
+  );
   const type: MediaType =
     request.nextUrl.searchParams.get("type") === "tv" ? "tv" : "movie";
 
@@ -23,6 +26,7 @@ export async function GET(
       createElement(FallbackOg, {
         title: "This title is unavailable.",
         label: "Title preview",
+        logo,
       }),
     );
   }
@@ -39,6 +43,7 @@ export async function GET(
       createElement(TitleOg, {
         backdrop,
         genres: details.genres.map((genre) => genre.name),
+        logo,
         poster,
         runtime: details.runtime,
         seasons: details.totalSeasons,
@@ -54,6 +59,7 @@ export async function GET(
       createElement(FallbackOg, {
         title: "This title is unavailable.",
         label: "Title preview",
+        logo,
       }),
     );
   }

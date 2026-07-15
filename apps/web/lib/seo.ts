@@ -2,6 +2,7 @@ import type { TMDbPerson, TitleDetails } from "@kino/core";
 import { cache } from "react";
 
 const DEFAULT_SITE_URL = "https://kino.vercel.app";
+const LOCAL_SITE_URL = "http://localhost:3000";
 
 export const SITE_NAME = "Kino";
 export const SITE_DESCRIPTION =
@@ -17,14 +18,16 @@ function normalizeOrigin(value: string | undefined) {
     : `https://${origin}`;
 }
 
-export const getSiteOrigin = cache(() =>
-  normalizeOrigin(
+export const getSiteOrigin = cache(() => {
+  if (process.env.NODE_ENV === "development") return LOCAL_SITE_URL;
+
+  return normalizeOrigin(
     process.env.NEXT_PUBLIC_SITE_URL ||
       process.env.EXPO_PUBLIC_WEB_URL ||
       process.env.VERCEL_PROJECT_PRODUCTION_URL ||
       process.env.VERCEL_URL,
-  ),
-);
+  );
+});
 
 export function absoluteUrl(pathname: string) {
   return new URL(pathname, getSiteOrigin()).toString();
