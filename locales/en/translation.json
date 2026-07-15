@@ -488,6 +488,8 @@
     "add": "Add",
     "added": "Added",
     "share": "Share",
+    "linkCopied": "Link copied",
+    "copyFailed": "Could not copy the link",
     "success": "Success",
     "failed": "Failed",
     "tryAgain": "Please try again.",
@@ -530,6 +532,8 @@
     "addARate": "add a rate?"
   },
   "person": {
+    "share": "Share",
+    "shareText": "Check out {{name}} on Kino.",
     "biography": "Biography",
     "knownFor": "Known For",
     "errorLoading": "Failed to load details.",

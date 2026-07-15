@@ -17,7 +17,7 @@ export async function safeImageData(value: string | null | undefined) {
     const contentType = response.headers.get("content-type")?.split(";")[0];
     if (
       !contentType ||
-      !["image/png", "image/jpeg", "image/jpg", "image/gif"].includes(
+      !["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"].includes(
         contentType,
       )
     ) {

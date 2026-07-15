@@ -447,6 +447,8 @@
     "add": "Legg til",
     "added": "Lagt til",
     "share": "Del",
+    "linkCopied": "Lenken er kopiert",
+    "copyFailed": "Kunne ikke kopiere lenken",
     "success": "Suksess",
     "failed": "Feilet",
     "tryAgain": "Vennligst prøv igjen.",
@@ -489,6 +491,8 @@
     "addARate": "legg til en vurdering?"
   },
   "person": {
+    "share": "Del",
+    "shareText": "Se {{name}} pÃ¥ Kino.",
     "biography": "Biografi",
     "knownFor": "Kjent for",
     "errorLoading": "Kunne ikke laste detaljer.",

@@ -97,15 +97,18 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
   const query = useQuery({
     queryKey: ['profile', targetUserId],
     queryFn: async () => {
-      const [profile, movies, storedSeries, counts, isFollowing] = await Promise.all([
+      const [profile, movies, storedSeries, counts, isFollowing, publicStats] = await Promise.all([
         db.getUserProfile(targetUserId!),
         db.getWatchedMovies(targetUserId!),
         db.getWatchedSeries(targetUserId!),
         db.getFollowCounts(targetUserId!),
         user && !isOwnProfile ? db.checkFollowStatus(targetUserId!) : Promise.resolve(false),
+        username
+          ? db.getPublicProfileStatsByUsername(username).catch(() => null)
+          : Promise.resolve(null),
       ])
       const series = await refreshSeriesAvailability(storedSeries)
-      return { profile, movies, series, counts, isFollowing }
+      return { profile, movies, series, counts, isFollowing, publicStats }
     },
     enabled: Boolean(targetUserId),
   })
@@ -175,8 +178,12 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
   })
 
   const stats = useMemo(() => {
-    const movieCount = query.data?.movies.length || 0
-    const seriesCount = query.data?.series.length || 0
+    const movieCount =
+      query.data?.publicStats?.moviesWatched ??
+      new Set(query.data?.movies.map((movie) => movie.id) || []).size
+    const seriesCount =
+      query.data?.publicStats?.seriesWatched ??
+      new Set(query.data?.series.map((series) => series.id) || []).size
     const averageMovieRating =
       movieCount > 0
         ? (query.data?.movies.reduce((sum, movie) => sum + movie.rating, 0) || 0) / movieCount

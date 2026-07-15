@@ -36,7 +36,7 @@ export function AccountMenu() {
   }
 
   return (
-    <div className="flex items-center">
+    <div className="hidden items-center lg:flex">
       <Button
         aria-label={t('accountMenu.profile')}
         className="h-8 gap-1.5 rounded-r-none px-2"
@@ -85,5 +85,60 @@ export function AccountMenu() {
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
+  )
+}
+
+function useMobileAccountData() {
+  const user = useAuthStore((state) => state.user)
+  const signOut = useAuthStore((state) => state.signOut)
+  const router = useRouter()
+  const { t } = useTranslation()
+  const profile = useQuery({
+    queryKey: ['navbar-profile', user?.id],
+    queryFn: () => db.getUserProfile(user!.id),
+    enabled: Boolean(user),
+  })
+  const profileUsername = profile.data?.username || user?.user_metadata?.username
+  const username = profileUsername || t('accountMenu.userFallback')
+  const fallback = String(username).slice(0, 2).toUpperCase()
+
+  return { fallback, profile, profileUsername, router, signOut, t, username }
+}
+
+export function MobileProfileMenuItem() {
+  const { fallback, profile, profileUsername, router, username } = useMobileAccountData()
+
+  return (
+    <DropdownMenuItem
+      className="min-h-12"
+      disabled={!profileUsername}
+      onSelect={() => profileUsername && router.push(`/${profileUsername}`)}
+    >
+      <Avatar className="size-8 rounded-full">
+        <AvatarImage alt="" src={profile.data?.avatar_url || undefined} />
+        <AvatarFallback className="text-xs">{fallback}</AvatarFallback>
+      </Avatar>
+      <span className="min-w-0 truncate">@{username}</span>
+    </DropdownMenuItem>
+  )
+}
+
+export function MobileAccountActions() {
+  const { router, signOut, t } = useMobileAccountData()
+  async function logout() {
+    await signOut()
+    router.replace('/')
+  }
+  return (
+    <>
+      <DropdownMenuItem onSelect={() => router.push('/settings')}>
+        <Settings aria-hidden="true" className="size-4" />
+        {t('common.settings')}
+      </DropdownMenuItem>
+      <DropdownMenuItem variant="destructive" onSelect={() => void logout()}>
+        <LogOut aria-hidden="true" className="size-4" />
+        {t('settings.logout')}
+      </DropdownMenuItem>
+    </>
   )
 }

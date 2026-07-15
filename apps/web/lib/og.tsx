@@ -48,11 +48,15 @@ const frame: CSSProperties = {
 
 export function KinoFrame({
   background,
+  backgroundOpacity = 1,
+  backgroundOverlay,
   children,
   label,
   logo,
 }: {
   background?: OgImage | null;
+  backgroundOpacity?: number;
+  backgroundOverlay?: string;
   children: ReactNode;
   label: string;
   logo?: OgImage | null;
@@ -69,6 +73,7 @@ export function KinoFrame({
             width: "100%",
             height: "100%",
             objectFit: "cover",
+            opacity: backgroundOpacity,
           }}
         />
       ) : null}
@@ -77,9 +82,10 @@ export function KinoFrame({
           position: "absolute",
           inset: 0,
           background:
-            background
+            backgroundOverlay ||
+            (background
               ? "radial-gradient(circle at 12% 8%, rgba(29,185,84,0.18), transparent 32%), linear-gradient(90deg, rgba(10,11,11,0.96) 0%, rgba(12,13,13,0.90) 48%, rgba(10,11,11,0.68) 100%)"
-              : "radial-gradient(circle at 12% 8%, rgba(29,185,84,0.18), transparent 32%), radial-gradient(circle at 88% 100%, rgba(29,185,84,0.08), transparent 28%), linear-gradient(120deg, #121212 0%, #151716 58%, #101110 100%)",
+              : "radial-gradient(circle at 12% 8%, rgba(29,185,84,0.18), transparent 32%), radial-gradient(circle at 88% 100%, rgba(29,185,84,0.08), transparent 28%), linear-gradient(120deg, #121212 0%, #151716 58%, #101110 100%)"),
         }}
       />
       <FilmRail side="left" />
@@ -218,8 +224,14 @@ export function OgKinoLogo({ src }: { src?: OgImage | null }) {
   );
 }
 
-export function OgMetadataRow({ items }: { items: Array<string | null | undefined> }) {
-  const visibleItems = items.filter((item): item is string => Boolean(item?.trim()));
+export function OgMetadataRow({
+  items,
+}: {
+  items: Array<string | null | undefined>;
+}) {
+  const visibleItems = items.filter((item): item is string =>
+    Boolean(item?.trim())
+  );
   if (visibleItems.length === 0) return null;
 
   return (
@@ -391,8 +403,8 @@ export function DiscoverOg() {
         >
           <OgAccentDotsHeading maxWidth={650}>Discover.</OgAccentDotsHeading>
           <SupportingText maxWidth={610}>
-            Find trending stories, new releases, and acclaimed movies and
-            series worth keeping.
+            Find trending stories, new releases, and acclaimed movies and series
+            worth keeping.
           </SupportingText>
           <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
             {["Trending", "New releases", "Top rated"].map((item) => (
@@ -468,6 +480,7 @@ function AbstractReel() {
 
 export function TitleOg({
   backdrop,
+  logo,
   poster,
   synopsis,
   title,
@@ -479,6 +492,7 @@ export function TitleOg({
   status,
 }: {
   backdrop?: OgImage | null;
+  logo?: OgImage | null;
   poster?: OgImage | null;
   synopsis?: string | null;
   title: string;
@@ -502,7 +516,13 @@ export function TitleOg({
   ];
 
   return (
-    <KinoFrame background={backdrop} label={typeLabel}>
+    <KinoFrame
+      background={backdrop}
+      backgroundOpacity={0.28}
+      backgroundOverlay="radial-gradient(circle at 12% 8%, rgba(29,185,84,0.16), transparent 31%), linear-gradient(90deg, rgba(8,9,9,0.97) 0%, rgba(10,11,11,0.92) 48%, rgba(8,9,9,0.76) 100%)"
+      label={typeLabel}
+      logo={logo}
+    >
       <div
         style={{
           display: "flex",
@@ -788,13 +808,8 @@ export function PersonOg({
         >
           <OgKinoLogo />
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center" }}>
               <MetaPill>{role || "Film and television"}</MetaPill>
-              <div
-                style={{ display: "flex", color: colors.muted, fontSize: 20 }}
-              >
-                Person
-              </div>
             </div>
             <OgAccentDotsHeading maxWidth={680} size={64}>
               {trimText(name, 52)}
@@ -938,19 +953,21 @@ function PosterPlaceholder({ title }: { title: string }) {
 export function ProfileOg({
   data,
   avatar,
+  background,
   logo,
 }: {
   data: PublicProfileOgData;
   avatar: OgImage | null;
+  background?: OgImage | null;
   logo?: OgImage | null;
 }) {
   const stats = [
-    ["Ratings", data.movieRatings],
-    ["Episodes", data.episodesWatched],
+    ["Movies", data.moviesWatched],
+    ["Series", data.seriesWatched],
     ["Diary", data.diaryEntries],
   ] as const;
   return (
-    <KinoFrame label="Public profile" logo={logo}>
+    <KinoFrame background={background} label="Public profile" logo={logo}>
       <div style={{ display: "flex", flex: 1, alignItems: "center", gap: 62 }}>
         <div
           style={{
@@ -1001,7 +1018,7 @@ export function ProfileOg({
           >
             {trimText(
               data.bio || "Movies, series, and a viewing history kept on Kino.",
-              150,
+              150
             )}
           </div>
           <div
@@ -1523,9 +1540,7 @@ export function WatchlistsOgIllustration() {
             >
               {list.title}
             </div>
-            <div
-              style={{ display: "flex", color: colors.muted, fontSize: 15 }}
-            >
+            <div style={{ display: "flex", color: colors.muted, fontSize: 15 }}>
               {list.count}
             </div>
             {list.collaborators ? (
@@ -1551,7 +1566,7 @@ export function WatchlistsOgIllustration() {
                     >
                       {avatarIndex + 1}
                     </div>
-                  ),
+                  )
                 )}
               </div>
             ) : null}
@@ -1686,7 +1701,7 @@ export function WatchlistOg({
   const visibleParticipants = data.participants.slice(0, 5);
   const remainder = Math.max(
     0,
-    data.participants.length - visibleParticipants.length,
+    data.participants.length - visibleParticipants.length
   );
   return (
     <KinoFrame label="Shared watchlist">

@@ -4,13 +4,18 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { ProfileView } from "@/components/profile-view";
 import { absoluteUrl } from "@/lib/seo";
 import { isReservedProfileRoute } from "@/lib/profile-routes";
+import { getPublicProfileOgDataByUsername } from "@/lib/server-supabase";
 
 async function getProfile(username: string) {
   if (isReservedProfileRoute(username)) return null;
   const client = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "https://example.supabase.co",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "missing-anon-key",
-    { auth: { persistSession: false, autoRefreshToken: false } },
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+      process.env.EXPO_PUBLIC_SUPABASE_URL ||
+      "https://example.supabase.co",
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+      "missing-anon-key",
+    { auth: { persistSession: false, autoRefreshToken: false } }
   );
   const { data } = await client
     .from("user_profiles")
@@ -26,17 +31,18 @@ export async function generateMetadata({
   params: Promise<{ username: string }>;
 }): Promise<Metadata> {
   const { username } = await params;
-  const profile = await getProfile(username);
+  const profile = await getPublicProfileOgDataByUsername(username);
 
   if (!profile) return {};
 
-  const canonical = absoluteUrl(`/${profile.username}`);
-  const title = profile.display_name || profile.username;
+  const canonicalUsername = profile.username || username;
+  const canonical = absoluteUrl(`/${canonicalUsername}`);
+  const title = profile.displayName || canonicalUsername;
   const description =
     profile.bio ||
-    `See @${profile.username}'s movies, series, ratings, and diary on Kino.`;
+    `See @${canonicalUsername}'s movies, series, ratings, and diary on Kino.`;
 
-  const image = absoluteUrl(`/api/${encodeURIComponent(profile.username)}`);
+  const image = absoluteUrl(`/api/${encodeURIComponent(canonicalUsername)}`);
 
   return {
     title,
