@@ -22,13 +22,15 @@ export function PageHeader({
         hasBody ? 'mb-6 gap-4 pb-5' : 'mb-5 gap-3 pb-4'
       )}
     >
-      <div className="max-w-3xl">
-        <h1 className="text-3xl font-black italic tracking-normal md:text-4xl">
+      <div className="min-w-0 max-w-3xl">
+        <h1 className="break-words text-3xl font-black italic tracking-normal md:text-4xl">
           <DisplayTitle title={title} />
         </h1>
         {body ? <p className="mt-3 max-w-2xl text-sm leading-6 text-kino-muted">{body}</p> : null}
       </div>
-      {action ? <div className="flex shrink-0 items-center gap-3">{action}</div> : null}
+      {action ? (
+        <div className="flex max-w-full flex-wrap items-center gap-3 md:shrink-0">{action}</div>
+      ) : null}
     </header>
   )
 }

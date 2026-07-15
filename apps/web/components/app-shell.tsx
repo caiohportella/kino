@@ -12,7 +12,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
+  DropdownMenuGroup,
+  DropdownMenuLinkItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -97,22 +98,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             <KinoLogo className="h-10 w-[60px]" priority width={60} />
           </Link>
 
-          <nav
-            aria-label="Primary"
-            className="hidden items-center gap-1 lg:flex"
-          >
+          <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">
             {navItems.map((item) => {
               const active =
                 pathname === item.href ||
                 (item.href !== "/discover" && pathname.startsWith(item.href));
               const Icon = item.icon;
               return (
-                <Link
-                  className="header-link"
-                  data-active={active}
-                  href={item.href}
-                  key={item.href}
-                >
+                <Link className="header-link" data-active={active} href={item.href} key={item.href}>
                   <Icon size={17} />
                   {t(item.labelKey)}
                 </Link>
@@ -139,31 +132,33 @@ export function AppShell({ children }: { children: ReactNode }) {
                     }
                   />
                   <DropdownMenuContent align="end" className="w-64">
-                    <MobileProfileMenuItem />
+                    <DropdownMenuGroup>
+                      <MobileProfileMenuItem />
+                    </DropdownMenuGroup>
                     <DropdownMenuSeparator className="my-2" />
-                    {navItems.map((item) => {
-                      const active =
-                        pathname === item.href ||
-                        (item.href !== "/discover" &&
-                          pathname.startsWith(item.href));
-                      const Icon = item.icon;
-                      return (
-                        <DropdownMenuItem
-                          render={
-                            <Link href={item.href}>
-                              <Icon size={16} />
-                              {t(item.labelKey)}
-                            </Link>
-                          }
-                          className={cn(
-                            active && "bg-white/[0.06] text-kino-text"
-                          )}
-                          key={item.href}
-                        ></DropdownMenuItem>
-                      );
-                    })}
+                    <DropdownMenuGroup>
+                      {navItems.map((item) => {
+                        const active =
+                          pathname === item.href ||
+                          (item.href !== "/discover" && pathname.startsWith(item.href));
+                        const Icon = item.icon;
+                        return (
+                          <DropdownMenuLinkItem
+                            closeOnClick
+                            render={<Link href={item.href} />}
+                            className={cn(active && "bg-white/[0.06] text-kino-text")}
+                            key={item.href}
+                          >
+                            <Icon size={16} />
+                            {t(item.labelKey)}
+                          </DropdownMenuLinkItem>
+                        );
+                      })}
+                    </DropdownMenuGroup>
                     <DropdownMenuSeparator className="my-2" />
-                    <MobileAccountActions />
+                    <DropdownMenuGroup>
+                      <MobileAccountActions />
+                    </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>

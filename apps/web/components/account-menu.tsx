@@ -68,7 +68,7 @@ export function AccountMenu() {
         />
 
         <DropdownMenuContent align="end" className="min-w-44">
-          <DropdownMenuItem onSelect={() => router.push('/settings')}>
+          <DropdownMenuItem onClick={() => router.push('/settings')}>
             <Settings aria-hidden="true" className="size-4" />
             {t('common.settings')}
           </DropdownMenuItem>
@@ -77,7 +77,7 @@ export function AccountMenu() {
 
           <DropdownMenuItem
             className="text-destructive focus:text-destructive"
-            onSelect={() => void logout()}
+            onClick={() => void logout()}
           >
             <LogOut aria-hidden="true" className="size-4" />
             {t('settings.logout')}
@@ -112,7 +112,7 @@ export function MobileProfileMenuItem() {
     <DropdownMenuItem
       className="min-h-12"
       disabled={!profileUsername}
-      onSelect={() => profileUsername && router.push(`/${profileUsername}`)}
+      onClick={() => profileUsername && router.push(`/${profileUsername}`)}
     >
       <Avatar className="size-8 rounded-full">
         <AvatarImage alt="" src={profile.data?.avatar_url || undefined} />
@@ -131,11 +131,11 @@ export function MobileAccountActions() {
   }
   return (
     <>
-      <DropdownMenuItem onSelect={() => router.push('/settings')}>
+      <DropdownMenuItem onClick={() => router.push('/settings')}>
         <Settings aria-hidden="true" className="size-4" />
         {t('common.settings')}
       </DropdownMenuItem>
-      <DropdownMenuItem variant="destructive" onSelect={() => void logout()}>
+      <DropdownMenuItem variant="destructive" onClick={() => void logout()}>
         <LogOut aria-hidden="true" className="size-4" />
         {t('settings.logout')}
       </DropdownMenuItem>

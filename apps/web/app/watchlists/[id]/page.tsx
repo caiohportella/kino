@@ -244,18 +244,23 @@ export default function WatchlistDetailPage() {
       />
 
       {participants.length > 0 ? (
-        <Card className="mb-6 flex-row flex-wrap items-center gap-3 p-4">
+        <Card className="mb-6 w-full min-w-0 max-w-full flex-row flex-wrap items-center gap-3 p-4">
           <span className="text-sm font-semibold text-kino-muted">
             {t('watchlists.participants')}
           </span>
           {participants.map((profile) => (
             <Link
-              className={buttonVariants({ variant: 'secondary' })}
+              className={buttonVariants({
+                className: 'min-w-0 max-w-full',
+                variant: 'secondary',
+              })}
               key={profile.id}
               href={`/${profile.username}`}
             >
               <ProfileAvatar profile={profile} size="sm" />
-              {profile.display_name || profile.username || t('watchlists.kinoUser')}
+              <span className="min-w-0 truncate">
+                {profile.display_name || profile.username || t('watchlists.kinoUser')}
+              </span>
             </Link>
           ))}
         </Card>
