@@ -28,7 +28,6 @@ import {
   Eye,
   Plus,
   Save,
-  Share2,
   Star,
   Ticket,
   Trash2,
@@ -48,6 +47,7 @@ import { SeasonSelector } from '@/components/season-selector'
 import { MediaModalSkeleton, TitleSkeleton } from '@/components/skeletons/page-skeletons'
 import { RatingStars } from '@/components/rating-stars'
 import { WatchlistDialog } from '@/components/watchlist-dialog'
+import { ShareButton } from '@/components/share-button'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -274,20 +274,6 @@ export default function TitlePage() {
     router.push('/auth/login')
   }
 
-  async function handleShare() {
-    if (!title) return
-    const url = window.location.href
-    if (navigator.share) {
-      await navigator.share({
-        title: title.title,
-        text: t('title.checkOut', { title: title.title }),
-        url,
-      })
-      return
-    }
-    await navigator.clipboard.writeText(url)
-  }
-
   if (titleQuery.isLoading) return <TitleSkeleton label={t('common.loading')} />
 
   if (titleQuery.error || !title) {
@@ -313,10 +299,10 @@ export default function TitlePage() {
   const canUsePersonalActions = Boolean(user && title.id !== ANON_TITLE_ID)
   const titleActions = (
     <>
-      <div className="flex w-full flex-wrap gap-3 sm:w-auto">
+      <div className="grid w-full grid-cols-1 gap-3 min-[390px]:grid-cols-2 sm:flex sm:w-auto sm:flex-wrap">
         <Button
           aria-label={userData?.isWatchlisted ? t('title.watchlisted') : t('title.watchlist')}
-          className="min-w-36 flex-1 sm:flex-none"
+          className="min-h-11 w-full whitespace-normal px-4 leading-tight sm:w-auto sm:min-w-36 sm:whitespace-nowrap"
           disabled={Boolean(user) && title.id === ANON_TITLE_ID}
           onClick={() => {
             if (!canUsePersonalActions) {
@@ -327,13 +313,11 @@ export default function TitlePage() {
           }}
         >
           <BookmarkPlus size={17} />
-          <span>
-            {userData?.isWatchlisted ? t('title.watchlisted') : t('title.watchlist')}
-          </span>
+          <span>{userData?.isWatchlisted ? t('title.watchlisted') : t('title.watchlist')}</span>
         </Button>
         <Button
           aria-label={userData?.lastWatch ? t('title.removeHistory') : t('title.diary')}
-          className="min-w-36 flex-1 sm:flex-none"
+          className="min-h-11 w-full whitespace-normal px-4 leading-tight sm:w-auto sm:min-w-36 sm:whitespace-nowrap"
           disabled={(Boolean(user) && title.id === ANON_TITLE_ID) || diaryMutation.isPending}
           onClick={() => {
             if (!canUsePersonalActions) {
@@ -345,19 +329,14 @@ export default function TitlePage() {
           variant="secondary"
         >
           <CalendarCheck size={17} />
-          <span>
-            {userData?.lastWatch ? t('title.removeHistory') : t('title.diary')}
-          </span>
+          <span>{userData?.lastWatch ? t('title.removeHistory') : t('title.diary')}</span>
         </Button>
-        <Button
-          aria-label={t('common.share')}
-          className="min-w-32 flex-1 sm:flex-none"
-          onClick={handleShare}
-          variant="secondary"
-        >
-          <Share2 size={17} />
-          <span>{t('common.share')}</span>
-        </Button>
+        <ShareButton
+          className="min-h-11 w-full min-[390px]:col-span-2 sm:w-auto sm:min-w-32"
+          text={t('title.checkOut', { title: title.title })}
+          title={title.title}
+          url={`${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
+        />
       </div>
       {type === 'movie' && isNowPlayingInBrazil ? (
         <Button

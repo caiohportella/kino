@@ -447,6 +447,8 @@
     "add": "Adicionar",
     "added": "Adicionado",
     "share": "Compartilhar",
+    "linkCopied": "Link copiado",
+    "copyFailed": "NÃ£o foi possÃ­vel copiar o link",
     "success": "Sucesso",
     "failed": "Falhou",
     "tryAgain": "Por favor, tente novamente.",
@@ -489,6 +491,8 @@
     "addARate": "adicionar uma nota?"
   },
   "person": {
+    "share": "Compartilhar",
+    "shareText": "Veja {{name}} no Kino.",
     "biography": "Biografia",
     "knownFor": "Conhecido(a) por",
     "errorLoading": "Falha ao carregar detalhes.",

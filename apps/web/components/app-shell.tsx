@@ -13,11 +13,16 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
-import { AccountMenu } from "@/components/account-menu";
+import {
+  AccountMenu,
+  MobileAccountActions,
+  MobileProfileMenuItem,
+} from "@/components/account-menu";
 
 const authenticatedNavItems = [
   { href: "/discover", labelKey: "tabs.home", icon: Compass },
@@ -133,7 +138,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                       </Button>
                     }
                   />
-                  <DropdownMenuContent>
+                  <DropdownMenuContent align="end" className="w-64">
+                    <MobileProfileMenuItem />
+                    <DropdownMenuSeparator className="my-2" />
                     {navItems.map((item) => {
                       const active =
                         pathname === item.href ||
@@ -149,12 +156,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                             </Link>
                           }
                           className={cn(
-                            active && "bg-white/[0.06] text-kino-text",
+                            active && "bg-white/[0.06] text-kino-text"
                           )}
                           key={item.href}
                         ></DropdownMenuItem>
                       );
                     })}
+                    <DropdownMenuSeparator className="my-2" />
+                    <MobileAccountActions />
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>

@@ -447,6 +447,8 @@
     "add": "Aggiungi",
     "added": "Aggiunto",
     "share": "Condividi",
+    "linkCopied": "Link copiato",
+    "copyFailed": "Impossibile copiare il link",
     "success": "Successo",
     "failed": "Fallito",
     "tryAgain": "Per favore riprova.",
@@ -489,6 +491,8 @@
     "addARate": "aggiungi un voto?"
   },
   "person": {
+    "share": "Condividi",
+    "shareText": "Scopri {{name}} su Kino.",
     "biography": "Biografia",
     "knownFor": "Conosciuto/a per",
     "errorLoading": "Impossibile caricare i dettagli.",

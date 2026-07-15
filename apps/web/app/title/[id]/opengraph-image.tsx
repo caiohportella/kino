@@ -8,6 +8,7 @@ import {
 } from "@/lib/og";
 import { parseResourceSegment } from "@/lib/routes";
 import { safeImageData } from "@/lib/og-images";
+import { KINO_OG_LOGO_URL } from "@/lib/og-assets";
 import { getTitleSeoDataBySegment } from "@/lib/server-tmdb";
 import { getTitlePresentation } from "@/lib/seo";
 
@@ -28,22 +29,24 @@ export default async function OpenGraphImage({
   if (!Number.isFinite(tmdbId) || tmdbId <= 0) {
     return new ImageResponse(
       <FallbackOg label="Title preview" title="This title is unavailable." />,
-      await getOgImageOptions(),
+      await getOgImageOptions()
     );
   }
 
   try {
     const details = await getTitleSeoDataBySegment(tmdbId, segment.slug, "en");
     const presentation = getTitlePresentation(details);
-    const [backdrop, poster] = await Promise.all([
+    const [backdrop, poster, logo] = await Promise.all([
       safeImageData(details.backdropImage),
       safeImageData(details.coverImage),
+      safeImageData(KINO_OG_LOGO_URL),
     ]);
 
     return new ImageResponse(
       <TitleOg
         backdrop={backdrop}
         genres={details.genres.map((genre) => genre.name)}
+        logo={logo}
         poster={poster}
         runtime={details.runtime}
         seasons={details.totalSeasons}
@@ -53,12 +56,12 @@ export default async function OpenGraphImage({
         type={details.type}
         year={presentation.year}
       />,
-      await getOgImageOptions(),
+      await getOgImageOptions()
     );
   } catch {
     return new ImageResponse(
       <FallbackOg label="Title preview" title="This title is unavailable." />,
-      await getOgImageOptions(),
+      await getOgImageOptions()
     );
   }
 }

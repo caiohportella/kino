@@ -25,6 +25,11 @@ import { findFirstUnwatchedEpisode, getEpisodeKey } from './use-cases'
 
 type SupabaseErrorLike = { code?: string }
 
+function toSafeCount(value: unknown) {
+  const count = Number(value)
+  return Number.isFinite(count) && count >= 0 ? count : 0
+}
+
 interface TitleRow {
   id: string
   tmdb_id: number
@@ -275,6 +280,20 @@ export class KinoDatabaseService {
         is_series_completed: completed,
       }
     })
+  }
+
+  async getPublicProfileStatsByUsername(username: string) {
+    const { data, error } = await this.supabase.rpc('get_public_profile_og_data', {
+      profile_username: username,
+    })
+    if (error) throw error
+    const row = Array.isArray(data) ? data[0] : data
+    if (!row) return null
+    return {
+      diaryEntries: toSafeCount(row.diary_entries),
+      moviesWatched: toSafeCount(row.movies_watched),
+      seriesWatched: toSafeCount(row.series_watched),
+    }
   }
 
   async getDiaryEntries(userId: string, limit?: number) {

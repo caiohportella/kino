@@ -23,6 +23,7 @@ import {
   type ExternalLinkProvider,
 } from '@/components/external-links-section'
 import { PersonSkeleton } from '@/components/skeletons/page-skeletons'
+import { ShareButton } from '@/components/share-button'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { getTmdb } from '@/lib/services'
@@ -30,12 +31,14 @@ import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/stores/settings-store'
 import { getPersonImagePaths } from '@/lib/person-visuals'
 import { parseResourceSegment, personPath, titlePath } from '@/lib/routes'
+import { useTranslation } from '@/lib/i18n'
 
 export default function PersonPage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
   const personId = parseResourceSegment(params.id).id
   const language = useSettingsStore((state) => state.language)
+  const { t } = useTranslation()
   const validPersonId = Number.isFinite(personId) && personId > 0
 
   const personQuery = useQuery({
@@ -122,6 +125,15 @@ export default function PersonPage() {
             ) : null}
             <div className="mt-4 max-w-3xl text-sm font-semibold text-kino-text">
               <LifeMetadata person={person} />
+            </div>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <ShareButton
+                className="min-h-11 min-w-32"
+                label={t('person.share')}
+                text={t('person.shareText', { name: person.name })}
+                title={person.name}
+                url={personPath(person.id, person.name)}
+              />
             </div>
           </div>
         </div>
