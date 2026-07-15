@@ -32,5 +32,5 @@ test('normalizes and safely encodes profile route usernames', () => {
   assert.equal(normalizeProfileUsername('kino%20fan'), 'kino fan')
   assert.equal(normalizeProfileUsername('%E0%A4%A'), null)
   assert.equal(normalizeProfileUsername('nested/name'), null)
-  assert.equal(profileOgPath('kino fan'), '/api/kino%20fan?v=3')
+  assert.equal(profileOgPath('kino fan'), '/api/kino%20fan?v=4')
 })

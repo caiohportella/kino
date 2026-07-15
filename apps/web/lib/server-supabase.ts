@@ -10,6 +10,13 @@ function supabaseConfig() {
   return { key, url: url.replace(/\/+$/, "") };
 }
 
+function createPublicSupabaseClient() {
+  const { key, url } = supabaseConfig();
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
 async function supabaseFetch<T>(pathname: string, init?: RequestInit) {
   const { key, url } = supabaseConfig();
   const response = await fetch(`${url}/rest/v1/${pathname}`, {
@@ -53,12 +60,12 @@ interface PublicProfileOgRow {
 }
 
 export async function getPublicProfileOgDataByUsername(username: string) {
-  const response = await supabaseFetch<
-    PublicProfileOgRow | PublicProfileOgRow[]
-  >("rpc/get_public_profile_og_data", {
-    method: "POST",
-    body: JSON.stringify({ profile_username: username }),
-  }).catch(() => null);
+  const client = createPublicSupabaseClient();
+  const { data: response, error } = await client.rpc(
+    "get_public_profile_og_data",
+    { profile_username: username },
+  );
+  if (error) return getPublicProfileOgDataFallback(username);
   const data = firstRow(response);
   if (!data) return getPublicProfileOgDataFallback(username);
 
@@ -90,10 +97,7 @@ export async function getPublicProfileOgDataByUsername(username: string) {
 }
 
 async function getPublicProfileOgDataFallback(username: string) {
-  const { key, url } = supabaseConfig();
-  const client = createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  const client = createPublicSupabaseClient();
   const { data: profile, error } = await client
     .from("user_profiles")
     .select("id,username,display_name,avatar_url,banner_url,bio")
