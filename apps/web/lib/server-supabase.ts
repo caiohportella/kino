@@ -21,9 +21,15 @@ async function supabaseFetch<T>(pathname: string, init?: RequestInit) {
     },
   });
 
-  if (response.status === 404) return null;
-  if (!response.ok)
-    throw new Error(`Supabase request failed (${response.status})`);
+  if (!response.ok) {
+    const details = await response
+      .json()
+      .then((body: { code?: unknown }) =>
+        typeof body.code === "string" ? `, ${body.code}` : "",
+      )
+      .catch(() => "");
+    throw new Error(`Supabase request failed (${response.status}${details})`);
+  }
   return (await response.json()) as T;
 }
 
@@ -56,6 +62,8 @@ interface PublicProfileOgRow {
   movies_watched: number | string | null;
   series_watched: number | string | null;
   diary_entries: number | string | null;
+  movie_ratings?: number | string | null;
+  episodes_watched?: number | string | null;
 }
 
 export async function getPublicProfileOgDataByUsername(username: string) {
@@ -68,6 +76,19 @@ export async function getPublicProfileOgDataByUsername(username: string) {
   const data = firstRow(response);
   if (!data) return getPublicProfileOgDataFallback(username);
 
+  if (data.movies_watched == null || data.series_watched == null) {
+    try {
+      const fallback = await getPublicProfileOgDataFallback(username);
+      if (fallback) return fallback;
+    } catch (error) {
+      console.warn("[profile-og-data] legacy RPC aggregate fallback failed", {
+        error: error instanceof Error ? error.message : "Unknown error",
+        stage: "legacy-rpc-aggregate",
+        username,
+      });
+    }
+  }
+
   return {
     avatarUrl: data.avatar_url as string | null,
     bannerUrl: data.banner_url as string | null,
@@ -76,8 +97,8 @@ export async function getPublicProfileOgDataByUsername(username: string) {
     displayName: (data.display_name ||
       data.username ||
       "Kino member") as string,
-    moviesWatched: toSafeCount(data.movies_watched),
-    seriesWatched: toSafeCount(data.series_watched),
+    moviesWatched: toSafeCount(data.movies_watched ?? data.movie_ratings ?? 0),
+    seriesWatched: toSafeCount(data.series_watched ?? data.episodes_watched ?? 0),
     username: data.username as string | null,
   };
 }

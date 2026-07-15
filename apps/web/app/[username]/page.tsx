@@ -2,8 +2,12 @@ import type { Metadata } from "next";
 import { createClient } from "@supabase/supabase-js";
 import { notFound, permanentRedirect } from "next/navigation";
 import { ProfileView } from "@/components/profile-view";
+import {
+  isReservedProfileRoute,
+  normalizeProfileUsername,
+  profileOgPath,
+} from "@/lib/profile-routes";
 import { absoluteUrl } from "@/lib/seo";
-import { isReservedProfileRoute } from "@/lib/profile-routes";
 import { getPublicProfileOgDataByUsername } from "@/lib/server-supabase";
 
 async function getProfile(username: string) {
@@ -15,7 +19,7 @@ async function getProfile(username: string) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
       process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
       "missing-anon-key",
-    { auth: { persistSession: false, autoRefreshToken: false } }
+    { auth: { persistSession: false, autoRefreshToken: false } },
   );
   const { data } = await client
     .from("user_profiles")
@@ -30,26 +34,45 @@ export async function generateMetadata({
 }: {
   params: Promise<{ username: string }>;
 }): Promise<Metadata> {
-  const { username } = await params;
-  const profile = await getPublicProfileOgDataByUsername(username);
+  const routeParams = await params;
+  const username = normalizeProfileUsername(routeParams.username);
+  if (!username || isReservedProfileRoute(username)) return {};
 
-  if (!profile) return {};
+  let profile;
+  let lookupFailed = false;
+  try {
+    profile = await getPublicProfileOgDataByUsername(username);
+  } catch (error) {
+    lookupFailed = true;
+    console.error("[profile-metadata] profile lookup failed", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      stage: "profile-lookup",
+      username,
+    });
+  }
 
-  const canonicalUsername = profile.username || username;
-  const canonical = absoluteUrl(`/${canonicalUsername}`);
-  const title = profile.displayName || canonicalUsername;
+  const canonicalUsername = profile?.username || username;
+  const canonical = absoluteUrl(`/${encodeURIComponent(canonicalUsername)}`);
+  const title =
+    profile?.displayName ||
+    (profile
+      ? canonicalUsername
+      : lookupFailed
+        ? "Profile unavailable"
+        : "Profile not found");
   const description =
-    profile.bio ||
-    `See @${canonicalUsername}'s movies, series, ratings, and diary on Kino.`;
-
-  const image = absoluteUrl(`/api/${encodeURIComponent(canonicalUsername)}`);
+    profile?.bio ||
+    (profile
+      ? `See @${canonicalUsername}'s movies, series, ratings, and diary on Kino.`
+      : lookupFailed
+        ? `The Kino profile @${canonicalUsername} could not be loaded.`
+        : `The Kino profile @${canonicalUsername} does not exist.`);
+  const image = absoluteUrl(profileOgPath(canonicalUsername));
 
   return {
     title,
     description,
-    alternates: {
-      canonical,
-    },
+    alternates: { canonical },
     openGraph: {
       title,
       description,
@@ -60,7 +83,7 @@ export async function generateMetadata({
           url: image,
           width: 1200,
           height: 630,
-          alt: `${title}’s Kino profile`,
+          alt: profile ? `${title}'s Kino profile` : "Kino profile unavailable",
         },
       ],
     },
@@ -79,10 +102,15 @@ export default async function UsernameProfilePage({
   params: Promise<{ username: string }>;
 }) {
   const { username } = await params;
-  const profile = await getProfile(username);
-  if (!profile) notFound();
-  if (profile.username !== username) {
-    permanentRedirect(`/${profile.username}`);
+  const normalizedUsername = normalizeProfileUsername(username);
+  if (!normalizedUsername || isReservedProfileRoute(normalizedUsername)) {
+    notFound();
   }
-  return <ProfileView username={username} />;
+
+  const profile = await getProfile(normalizedUsername);
+  if (!profile) notFound();
+  if (profile.username !== normalizedUsername) {
+    permanentRedirect(`/${encodeURIComponent(profile.username)}`);
+  }
+  return <ProfileView username={normalizedUsername} />;
 }
