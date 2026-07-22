@@ -4,10 +4,24 @@ import type { TMDbTitle } from '@kino/core'
 import { getDisplayTitle, getReleaseYear } from '@kino/core'
 import { Poster } from '@/components/kino'
 import Link from 'next/link'
+import type { Ref } from 'react'
 import { titlePath } from '@/lib/routes'
 import { getTmdb } from '@/lib/services'
+import { cn } from '@/lib/utils'
 
-export function MediaCard({ item }: { item: TMDbTitle }) {
+export function MediaCard({
+  active,
+  id,
+  item,
+  linkRef,
+  role,
+}: {
+  active?: boolean
+  id?: string
+  item: TMDbTitle
+  linkRef?: Ref<HTMLAnchorElement>
+  role?: string
+}) {
   const tmdb = getTmdb()
   const title = getDisplayTitle(item)
   const type = item.media_type === 'tv' ? 'tv' : 'movie'
@@ -16,8 +30,15 @@ export function MediaCard({ item }: { item: TMDbTitle }) {
 
   return (
     <Link
-      className="group grid min-w-0 gap-3 focus-ring"
+      aria-selected={active}
+      className={cn(
+        'group grid min-w-0 gap-3 focus-ring',
+        active && 'rounded-md ring-2 ring-kino-accent/40'
+      )}
       href={titlePath(item.id, title, type)}
+      id={id}
+      ref={linkRef}
+      role={role}
     >
       <Poster className="w-full rounded-md" src={poster} title={title} />
       <div className="min-w-0">

@@ -7,7 +7,7 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
 import { ModalDialog as Dialog } from '@/components/ui/modal-dialog'
-import { Check, Copy, LogOut, Pencil, Trash2 } from 'lucide-react'
+import { LoaderCircle, Lock, LockOpen, LogOut, Pencil, Save, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { titlePath } from '@/lib/routes'
 import { useParams, useRouter } from 'next/navigation'
@@ -30,9 +30,13 @@ import { useToast } from '@/components/toast-provider'
 import type { LocalizedTitleMap } from '@/lib/use-localized-titles'
 import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
 import { db, getTmdb } from '@/lib/services'
-import { cn } from '@/lib/utils'
 import { useTranslation } from '@/lib/i18n'
 import { useAuthStore } from '@/stores/auth-store'
+import {
+  ShareCodeCopyButton,
+  ShareCodeDisplay,
+  WatchlistSharedBadge,
+} from '@/components/watchlist-sharing'
 
 interface WatchlistDetailData {
   watchlist: Watchlist | null
@@ -50,7 +54,6 @@ export default function WatchlistDetailPage() {
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [leaveOpen, setLeaveOpen] = useState(false)
-  const [copied, setCopied] = useState(false)
   const [removeTarget, setRemoveTarget] = useState<WatchlistItemDetails | null>(null)
   const detailQueryKey = ['watchlist-detail', params.id] as const
 
@@ -161,20 +164,6 @@ export default function WatchlistDetailPage() {
     },
   })
 
-  async function handleCopyShareCode() {
-    if (!copyText) return
-
-    try {
-      if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable')
-      await navigator.clipboard.writeText(copyText)
-      setCopied(true)
-      notify({ tone: 'success', title: t('watchlists.copiedToClipboard') })
-      window.setTimeout(() => setCopied(false), 1800)
-    } catch {
-      notify({ tone: 'error', title: t('watchlists.copyFailed') })
-    }
-  }
-
   if (query.isLoading) return <WatchlistsSkeleton detail label={t('watchlists.loadingWatchlist')} />
 
   if (!query.data?.watchlist) {
@@ -195,20 +184,7 @@ export default function WatchlistDetailPage() {
       <PageHeader
         action={
           <div className="flex flex-wrap gap-3">
-            {copyText ? (
-              <Button
-                aria-label={t('watchlists.copyShareCode')}
-                className={cn(
-                  'transition-transform duration-150 active:scale-95',
-                  copied && 'scale-95'
-                )}
-                onClick={handleCopyShareCode}
-                variant="secondary"
-              >
-                {copied ? <Check size={16} /> : <Copy size={16} />}
-                <span className="font-mono tracking-[0.16em]">{copyText}</span>
-              </Button>
-            ) : null}
+            {watchlist.isShared && copyText ? <ShareCodeCopyButton code={copyText} showCode /> : null}
             {isOwner ? (
               <>
                 <Button onClick={() => setEditOpen(true)} variant="secondary">
@@ -480,9 +456,11 @@ function EditWatchlistDialog({
 }) {
   const { t } = useTranslation()
   const { notify } = useToast()
+  const queryClient = useQueryClient()
   const [name, setName] = useState(watchlist.name)
   const [description, setDescription] = useState(watchlist.description || '')
   const [isShared, setIsShared] = useState(watchlist.isShared)
+  const [shareCode, setShareCode] = useState(watchlist.shareCode || '')
   const mutation = useMutation({
     mutationFn: () =>
       db.updateWatchlist(watchlist.id, {
@@ -490,12 +468,72 @@ function EditWatchlistDialog({
         description,
         isShared,
       }),
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      queryClient.setQueryData<WatchlistDetailData>(['watchlist-detail', watchlist.id], (current) =>
+        current ? { ...current, watchlist: updated } : current
+      )
+      queryClient.setQueriesData<Watchlist[]>({ queryKey: ['watchlists'] }, (current) =>
+        current?.map((item) => item.id === updated.id ? updated : item)
+      )
       notify({ tone: 'success', title: t('watchlists.editSaved') })
       onSaved()
       onClose()
     },
     onError: () => notify({ tone: 'error', title: t('common.failedToSave') }),
+  })
+  const privacyMutation = useMutation({
+    mutationFn: (makePublic: boolean) => db.setWatchlistPrivacy(watchlist.id, makePublic),
+    onMutate: async (makePublic) => {
+      const detailKey = ['watchlist-detail', watchlist.id]
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: detailKey }),
+        queryClient.cancelQueries({ queryKey: ['watchlists'] }),
+      ])
+      const previousDetail = queryClient.getQueryData<WatchlistDetailData>(detailKey)
+      const previousLists = queryClient.getQueriesData<Watchlist[]>({ queryKey: ['watchlists'] })
+      setIsShared(makePublic)
+      if (!makePublic) setShareCode('')
+      const applyOptimistic = (item: Watchlist) => item.id === watchlist.id
+        ? { ...item, isShared: makePublic, shareCode: makePublic ? item.shareCode : undefined }
+        : item
+      queryClient.setQueryData<WatchlistDetailData>(detailKey, (current) =>
+        current?.watchlist
+          ? { ...current, watchlist: applyOptimistic(current.watchlist) }
+          : current
+      )
+      queryClient.setQueriesData<Watchlist[]>({ queryKey: ['watchlists'] }, (current) =>
+        current?.map(applyOptimistic)
+      )
+      return { previousDetail, previousLists }
+    },
+    onSuccess: (updated) => {
+      setShareCode(updated.shareCode || '')
+      setIsShared(updated.isShared)
+      queryClient.setQueryData<WatchlistDetailData>(['watchlist-detail', watchlist.id], (current) =>
+        current ? { ...current, watchlist: updated } : current
+      )
+      queryClient.setQueriesData<Watchlist[]>({ queryKey: ['watchlists'] }, (current) =>
+        current?.map((item) => item.id === updated.id ? updated : item)
+      )
+      queryClient.invalidateQueries({ queryKey: ['watchlist-picker'] })
+      notify({
+        tone: 'success',
+        title: updated.isShared ? t('watchlists.nowPublic') : t('watchlists.nowPrivate'),
+      })
+    },
+    onError: (_error, _makePublic, context) => {
+      setIsShared(watchlist.isShared)
+      setShareCode(watchlist.shareCode || '')
+      if (context?.previousDetail) {
+        queryClient.setQueryData(['watchlist-detail', watchlist.id], context.previousDetail)
+      }
+      for (const [key, data] of context?.previousLists || []) queryClient.setQueryData(key, data)
+      notify({ tone: 'error', title: t('watchlists.privacyFailed') })
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['watchlists'] })
+      queryClient.invalidateQueries({ queryKey: ['watchlist-detail', watchlist.id] })
+    },
   })
 
   useEffect(() => {
@@ -503,6 +541,7 @@ function EditWatchlistDialog({
       setName(watchlist.name)
       setDescription(watchlist.description || '')
       setIsShared(watchlist.isShared)
+      setShareCode(watchlist.shareCode || '')
     }
   }, [open, watchlist])
 
@@ -519,19 +558,54 @@ function EditWatchlistDialog({
           onChange={(event) => setDescription(event.target.value)}
           value={description}
         />
-        <label className="flex items-center gap-3 rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm text-kino-text">
-          <input
-            checked={isShared}
-            onChange={(event) => setIsShared(event.target.checked)}
-            type="checkbox"
-          />
-          {t('modals.shareHint')}
-        </label>
+        <section
+          aria-labelledby="watchlist-sharing-title"
+          className="grid gap-5 rounded-md border border-border bg-muted/20 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(220px,0.9fr)] sm:items-start"
+        >
+          <div className="grid min-w-0 content-start gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-sm font-semibold text-kino-text" id="watchlist-sharing-title">
+                {t('watchlists.sharing')}
+              </h3>
+            </div>
+            <p className="text-sm leading-6 text-kino-muted">
+              {isShared ? t('watchlists.sharingPublicDescription') : t('watchlists.sharingPrivateDescription')}
+            </p>
+          </div>
+
+          <div className="grid min-w-0 content-start gap-2 ">
+            {isShared && shareCode ? (
+              <ShareCodeDisplay code={shareCode} />
+            ) : null}
+            <Button
+              aria-live="polite"
+              className="min-h-10 w-full min-w-0 whitespace-normal text-center leading-tight"
+              disabled={privacyMutation.isPending}
+              onClick={() => privacyMutation.mutate(!isShared)}
+              type="button"
+              variant="secondary"
+            >
+              {privacyMutation.isPending ? (
+                <LoaderCircle className="animate-spin" data-icon="inline-start" />
+              ) : isShared ? (
+                <Lock data-icon="inline-start" />
+              ) : (
+                <LockOpen data-icon="inline-start" />
+              )}
+              {privacyMutation.isPending
+                ? t('watchlists.updatingPrivacy')
+                : isShared
+                  ? t('watchlists.makePrivate')
+                  : t('watchlists.makePublic')}
+            </Button>
+          </div>
+        </section>
         <div className="flex justify-end gap-3">
           <Button onClick={onClose} variant="secondary">
             {t('common.cancel')}
           </Button>
-          <Button disabled={mutation.isPending || !name.trim()} onClick={() => mutation.mutate()}>
+          <Button className="min-w-36" disabled={mutation.isPending || !name.trim()} onClick={() => mutation.mutate()}>
+            {mutation.isPending ? <LoaderCircle className="animate-spin" data-icon="inline-start" /> : <Save data-icon="inline-start" />}
             {mutation.isPending ? t('common.loading') : t('modals.saveChanges')}
           </Button>
         </div>

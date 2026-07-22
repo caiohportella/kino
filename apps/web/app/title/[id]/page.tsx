@@ -24,6 +24,7 @@ import {
   BookmarkPlus,
   CalendarCheck,
   CalendarDays,
+  ChevronDown,
   CheckCircle2,
   Eye,
   Plus,
@@ -37,6 +38,7 @@ import Link from 'next/link'
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Confetti from 'react-confetti'
+import { enUS, fr, it, nb, ptBR } from 'date-fns/locale'
 import { useTranslation } from '@/lib/i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -62,6 +64,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Card } from '@/components/ui/card'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Dialog,
   DialogContent,
@@ -69,7 +72,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { SingleDatePicker } from '@/components/single-date-picker'
+import {
+  SplitButton,
+  SplitButtonMain,
+  SplitButtonSecondary,
+} from '@/components/ui/split-button'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { db, getTmdb } from '@/lib/services'
@@ -138,6 +146,8 @@ export default function TitlePage() {
   const queryClient = useQueryClient()
   const { t } = useTranslation()
   const [watchlistOpen, setWatchlistOpen] = useState(false)
+  const [diaryCalendarOpen, setDiaryCalendarOpen] = useState(false)
+  const [diaryDate, setDiaryDate] = useState(() => new Date())
 
   const titleQuery = useQuery({
     queryKey: ['title-metadata', tmdbId, type, language],
@@ -251,12 +261,12 @@ export default function TitlePage() {
   })
 
   const diaryMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (watchedAt?: Date) => {
       if (!title) return
-      if (userDataQuery.data?.lastWatch) {
+      if (userDataQuery.data?.lastWatch && !watchedAt) {
         await db.removeMediaHistory(title.id, title.type)
       } else {
-        await db.addWatchDiaryEntry(title.id, new Date(), 'first-time')
+        await db.addWatchDiaryEntry(title.id, watchedAt || new Date(), 'first-time')
       }
     },
     onSuccess: () => {
@@ -265,6 +275,8 @@ export default function TitlePage() {
       })
       queryClient.invalidateQueries({ queryKey: ['diary', user?.id] })
       queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+      setDiaryCalendarOpen(false)
+      setDiaryDate(new Date())
     },
   })
 
@@ -296,6 +308,9 @@ export default function TitlePage() {
   const isNowPlayingInBrazil =
     nowPlayingQuery.data?.some((movie) => movie.id === title.tmdbId) ?? false
   const upcomingSeason = getUpcomingSeason(title)
+  const diaryLocale = { en: enUS, fr, it, no: nb, pt: ptBR }[language] || enUS
+  const today = new Date()
+  const earliestDiaryDate = new Date(Math.max(title.year || 1900, 1900), 0, 1)
   const canUsePersonalActions = Boolean(user && title.id !== ANON_TITLE_ID)
   const titleActions = (
     <>
@@ -315,22 +330,55 @@ export default function TitlePage() {
           <BookmarkPlus size={17} />
           <span>{userData?.isWatchlisted ? t('title.watchlisted') : t('title.watchlist')}</span>
         </Button>
-        <Button
-          aria-label={userData?.lastWatch ? t('title.removeHistory') : t('title.diary')}
-          className="min-h-11 w-full whitespace-normal px-4 leading-tight sm:w-auto sm:min-w-36 sm:whitespace-nowrap"
-          disabled={(Boolean(user) && title.id === ANON_TITLE_ID) || diaryMutation.isPending}
-          onClick={() => {
-            if (!canUsePersonalActions) {
-              requestAuthForCurrentTitle()
-              return
-            }
-            diaryMutation.mutate()
-          }}
-          variant="secondary"
-        >
-          <CalendarCheck size={17} />
-          <span>{userData?.lastWatch ? t('title.removeHistory') : t('title.diary')}</span>
-        </Button>
+        {userData?.lastWatch ? (
+          <Button
+            aria-label={t('title.removeHistory')}
+            className="min-h-11 w-full whitespace-normal px-4 leading-tight sm:w-auto sm:min-w-36 sm:whitespace-nowrap"
+            disabled={diaryMutation.isPending}
+            onClick={() => diaryMutation.mutate(undefined)}
+            variant="secondary"
+          >
+            <CalendarCheck size={17} /><span>{t('title.removeHistory')}</span>
+          </Button>
+        ) : (
+          <SplitButton aria-label={t('title.diary')} className="w-full sm:w-auto sm:min-w-36">
+            <SplitButtonMain
+              disabled={(Boolean(user) && title.id === ANON_TITLE_ID) || diaryMutation.isPending}
+              onClick={() => {
+                if (!canUsePersonalActions) return requestAuthForCurrentTitle()
+                diaryMutation.mutate(new Date())
+              }}
+            >
+              <CalendarCheck /><span className="truncate">{t('title.diary')}</span>
+            </SplitButtonMain>
+            <SingleDatePicker
+              disabled={diaryMutation.isPending}
+              endMonth={today}
+              locale={diaryLocale}
+              onOpenChange={(nextOpen) => {
+                if (nextOpen && !canUsePersonalActions) {
+                  requestAuthForCurrentTitle()
+                  return
+                }
+                setDiaryCalendarOpen(nextOpen)
+              }}
+              onSelect={(date) => {
+                if (diaryMutation.isPending) return
+                const localDay = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12)
+                setDiaryDate(localDay)
+                diaryMutation.mutate(localDay)
+              }}
+              open={diaryCalendarOpen}
+              selected={diaryDate}
+              startMonth={earliestDiaryDate}
+              trigger={
+                <SplitButtonSecondary aria-label={t('title.chooseDiaryDate')}>
+                  <ChevronDown />
+                </SplitButtonSecondary>
+              }
+            />
+          </SplitButton>
+        )}
         <ShareButton
           className="min-h-11 w-full min-[390px]:col-span-2 sm:w-auto sm:min-w-32"
           text={t('title.checkOut', { title: title.title })}

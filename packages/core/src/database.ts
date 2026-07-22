@@ -885,6 +885,21 @@ export class KinoDatabaseService {
     return this.mapWatchlist(data as WatchlistRow)
   }
 
+  async setWatchlistPrivacy(watchlistId: string, isShared: boolean) {
+    const { data, error } = await this.supabase
+      .from('watchlists')
+      .update({
+        is_shared: isShared,
+        share_code: isShared ? this.createShareCode() : null,
+      })
+      .eq('id', watchlistId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return this.mapWatchlist(data as WatchlistRow)
+  }
+
   async deleteWatchlist(watchlistId: string) {
     const { error } = await this.supabase.from('watchlists').delete().eq('id', watchlistId)
     if (error) throw error
@@ -1026,10 +1041,13 @@ export class KinoDatabaseService {
 
   async followUser(targetUserId: string) {
     const user = await this.getRequiredUserId()
-    const { error } = await this.supabase
+    const { data, error } = await this.supabase
       .from('follows')
       .insert({ follower_id: user, following_id: targetUserId })
+      .select('created_at')
+      .single()
     if (error) throw error
+    return (data as { created_at: string }).created_at
   }
 
   async unfollowUser(targetUserId: string) {
@@ -1064,6 +1082,43 @@ export class KinoDatabaseService {
       .maybeSingle()
     if (error) throw error
     return Boolean(data)
+  }
+
+  async getFollowRelationship(targetUserId: string) {
+    const user = await this.getUserId()
+    if (!user || user === targetUserId) {
+      return { isFollowing: false, isFollowedBy: false, isMutual: false }
+    }
+    const [{ data: following, error: followingError }, { data: followedBy, error: followedByError }] =
+      await Promise.all([
+        this.supabase
+          .from('follows')
+          .select('created_at')
+          .eq('follower_id', user)
+          .eq('following_id', targetUserId)
+          .maybeSingle(),
+        this.supabase
+          .from('follows')
+          .select('created_at')
+          .eq('follower_id', targetUserId)
+          .eq('following_id', user)
+          .maybeSingle(),
+      ])
+    if (followingError) throw followingError
+    if (followedByError) throw followedByError
+    const isMutual = Boolean(following && followedBy)
+    const timestamps = [following?.created_at, followedBy?.created_at].filter(
+      (value): value is string => Boolean(value)
+    )
+    return {
+      isFollowing: Boolean(following),
+      isFollowedBy: Boolean(followedBy),
+      isMutual,
+      mutualSince:
+        isMutual && timestamps.length === 2
+          ? timestamps.sort((left, right) => Date.parse(right) - Date.parse(left))[0]
+          : undefined,
+    }
   }
 
   async getFollowCounts(userId: string) {
@@ -1155,32 +1210,31 @@ export class KinoDatabaseService {
     }[]
     const ids = rows.map((row) => row[idColumn]).filter((id): id is string => Boolean(id))
     const profiles = await this.getProfilesByIds(ids)
-    const mutualMap = new Map<string, string>()
+    const viewerId = await this.getUserId()
+    const viewerFollowing = new Map<string, string>()
+    const viewerFollowers = new Map<string, string>()
 
-    if (ids.length > 0) {
-      const mutualQuery =
-        mode === 'followers'
-          ? this.supabase
-              .from('follows')
-              .select('following_id, created_at')
-              .eq('follower_id', userId)
-              .in('following_id', ids)
-          : this.supabase
-              .from('follows')
-              .select('follower_id, created_at')
-              .eq('following_id', userId)
-              .in('follower_id', ids)
+    if (viewerId && ids.length > 0) {
+      const [followingResult, followersResult] = await Promise.all([
+        this.supabase
+          .from('follows')
+          .select('following_id, created_at')
+          .eq('follower_id', viewerId)
+          .in('following_id', ids),
+        this.supabase
+          .from('follows')
+          .select('follower_id, created_at')
+          .eq('following_id', viewerId)
+          .in('follower_id', ids),
+      ])
+      if (followingResult.error) throw followingResult.error
+      if (followersResult.error) throw followersResult.error
 
-      const { data: mutuals, error: mutualError } = await mutualQuery
-      if (mutualError) throw mutualError
-
-      for (const mutual of (mutuals ?? []) as {
-        follower_id?: string
-        following_id?: string
-        created_at: string
-      }[]) {
-        const id = mode === 'followers' ? mutual.following_id : mutual.follower_id
-        if (id) mutualMap.set(id, mutual.created_at)
+      for (const follow of (followingResult.data ?? []) as { following_id: string; created_at: string }[]) {
+        viewerFollowing.set(follow.following_id, follow.created_at)
+      }
+      for (const follow of (followersResult.data ?? []) as { follower_id: string; created_at: string }[]) {
+        viewerFollowers.set(follow.follower_id, follow.created_at)
       }
     }
 
@@ -1189,11 +1243,20 @@ export class KinoDatabaseService {
         const id = row[idColumn]
         if (!id) return null
         const profile = profiles.get(id)
-        const mutualSince = mutualMap.get(id)
+        const followingAt = viewerFollowing.get(id)
+        const followedByAt = viewerFollowers.get(id)
+        const mutualSince = followingAt && followedByAt
+          ? [followingAt, followedByAt].sort(
+              (left, right) => Date.parse(right) - Date.parse(left)
+            )[0]
+          : undefined
         if (!profile) return null
         return {
           ...profile,
           followedAt: row.created_at,
+          isSelf: id === viewerId,
+          isFollowing: Boolean(followingAt),
+          isFollowedBy: Boolean(followedByAt),
           isMutual: Boolean(mutualSince),
           mutualSince,
         }

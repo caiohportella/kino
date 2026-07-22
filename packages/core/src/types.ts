@@ -119,8 +119,43 @@ export interface TMDbPerson {
   homepage?: string | null
   profile_path: string | null
   known_for_department: string
+  known_for?: TMDbTitle[]
   external_ids?: TMDbPersonExternalIds
   combined_credits?: TMDbPersonCombinedCredits
+}
+
+export type SearchResult =
+  | {
+      kind: 'title'
+      id: number
+      mediaType: MediaType
+      name: string
+      imagePath: string | null
+      year?: number
+      media: TMDbTitle
+    }
+  | {
+      kind: 'person'
+      id: number
+      name: string
+      avatarUrl: string | null
+      backgroundUrl: string | null
+      summary?: string
+    }
+  | {
+      kind: 'user'
+      id: string
+      name: string
+      username: string
+      avatarUrl: string | null
+      backgroundUrl: string | null
+    }
+
+export interface FollowRelationship {
+  isFollowing: boolean
+  isFollowedBy: boolean
+  isMutual: boolean
+  mutualSince?: string
 }
 
 export interface TMDbPersonCredit extends TMDbTitle {
@@ -251,6 +286,9 @@ export interface UserProfile {
 
 export interface FollowerInfo extends UserProfile {
   followedAt: string
+  isSelf: boolean
+  isFollowing: boolean
+  isFollowedBy: boolean
   isMutual: boolean
   mutualSince?: string
 }

@@ -17,6 +17,7 @@ import { useToast } from '@/components/toast-provider'
 import { WatchlistDialog } from '@/components/watchlist-dialog'
 import { db } from '@/lib/services'
 import { useAuthStore } from '@/stores/auth-store'
+import { WatchlistSharedBadge } from '@/components/watchlist-sharing'
 
 export default function WatchlistsPage() {
   const user = useAuthStore((state) => state.user)
@@ -115,9 +116,7 @@ export default function WatchlistsPage() {
                   ) : null}
                 </div>
                 {watchlist.isShared ? (
-                  <span className="shrink-0 rounded-md bg-kino-accent/15 px-3 py-1 text-xs font-semibold text-kino-accent">
-                    {t('watchlists.shared')}
-                  </span>
+                  <WatchlistSharedBadge />
                 ) : null}
               </div>
               <div className="mt-6 border-t border-white/10 pt-4 text-xs font-semibold text-kino-muted">

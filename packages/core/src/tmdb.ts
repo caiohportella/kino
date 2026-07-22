@@ -134,6 +134,13 @@ export class TMDbService {
     return data.results
   }
 
+  async searchPeople(query: string, page = 1) {
+    return this.request<{ results: TMDbPerson[]; total_pages: number; total_results: number }>(
+      '/search/person',
+      { query, page: String(page) }
+    )
+  }
+
   getImageUrl(path: string | null, size: 'w200' | 'w300' | 'w500' | 'w780' | 'original' = 'w500') {
     if (!path) return null
     if (path.startsWith('http')) return path

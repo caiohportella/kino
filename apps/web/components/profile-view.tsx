@@ -1,10 +1,10 @@
 'use client'
 
 import type { FollowerInfo, UserProfile } from '@kino/core'
-import { applyReleasedSeriesProgress, formatDate, isFutureDateOnly } from '@kino/core'
+import { applyReleasedSeriesProgress, formatDate, isFutureDateOnly, parseDateOnly } from '@kino/core'
 import { EmptyState, Poster } from '@/components/kino'
 import type { LucideIcon } from 'lucide-react'
-import { Film, Search, Star, Tv, UserPlus, UserRoundCheck, UsersRound } from 'lucide-react'
+import { CalendarDays, Film, LoaderCircle, Search, Star, Tv, UserPlus, UserRoundCheck, UsersRound } from 'lucide-react'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { useMemo, useState } from 'react'
@@ -18,6 +18,7 @@ import { ProfileShareDialog } from '@/components/profile-share-dialog'
 import { ProtectedEmpty } from '@/components/protected-empty'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { useToast } from '@/components/toast-provider'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Dialog,
@@ -32,6 +33,7 @@ import { db, getTmdb } from '@/lib/services'
 import { cn } from '@/lib/utils'
 import { titlePath } from '@/lib/routes'
 import { useAuthStore } from '@/stores/auth-store'
+import { useSettingsStore } from '@/stores/settings-store'
 
 async function refreshSeriesAvailability(
   items: Awaited<ReturnType<typeof db.getWatchedSeries>>
@@ -76,9 +78,28 @@ type UserSearchResult = {
   isSelf: boolean
 }
 
+function formatMutualSince(
+  timestamp: string,
+  locale: string,
+  t: ReturnType<typeof useTranslation>['t']
+) {
+  const date = parseDateOnly(timestamp.slice(0, 10))
+  if (!date) return null
+
+  return t('profile.mutualsSince', {
+    date: new Intl.DateTimeFormat(locale, {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(date),
+  })
+}
+
 export function ProfileView({ profileId, username }: { profileId?: string; username?: string }) {
   const user = useAuthStore((state) => state.user)
+  const language = useSettingsStore((state) => state.language)
   const queryClient = useQueryClient()
+  const { notify } = useToast()
   const { t } = useTranslation()
   const resolvedProfile = useQuery({
     queryKey: ['profile-by-username', username],
@@ -97,18 +118,25 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
   const query = useQuery({
     queryKey: ['profile', targetUserId],
     queryFn: async () => {
-      const [profile, movies, storedSeries, counts, isFollowing, publicStats] = await Promise.all([
+      const [profile, movies, storedSeries, counts, relationship, publicStats] = await Promise.all([
         db.getUserProfile(targetUserId!),
         db.getWatchedMovies(targetUserId!),
         db.getWatchedSeries(targetUserId!),
         db.getFollowCounts(targetUserId!),
-        user && !isOwnProfile ? db.checkFollowStatus(targetUserId!) : Promise.resolve(false),
+        user && !isOwnProfile
+          ? db.getFollowRelationship(targetUserId!)
+          : Promise.resolve({
+              isFollowing: false,
+              isFollowedBy: false,
+              isMutual: false,
+              mutualSince: undefined as string | undefined,
+            }),
         username
           ? db.getPublicProfileStatsByUsername(username).catch(() => null)
           : Promise.resolve(null),
       ])
       const series = await refreshSeriesAvailability(storedSeries)
-      return { profile, movies, series, counts, isFollowing, publicStats }
+      return { profile, movies, series, counts, relationship, publicStats }
     },
     enabled: Boolean(targetUserId),
   })
@@ -116,7 +144,7 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
   const followMutation = useMutation({
     mutationFn: async () => {
       if (!targetUserId || !query.data) return
-      if (query.data.isFollowing) await db.unfollowUser(targetUserId)
+      if (query.data.relationship.isFollowing) await db.unfollowUser(targetUserId)
       else await db.followUser(targetUserId)
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['profile', targetUserId] }),
@@ -161,19 +189,43 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
   })
 
   const socialListActionMutation = useMutation({
-    mutationFn: async ({ listType, userId }: { listType: SocialListType; userId: string }) => {
-      if (listType === 'followers') {
-        await db.removeFollower(userId)
-        return
+    mutationFn: async ({ userId, isFollowing }: { userId: string; isFollowing: boolean }) => {
+      if (isFollowing) {
+        await db.unfollowUser(userId)
+        return { followedAt: undefined }
       }
-      await db.unfollowUser(userId)
+      return { followedAt: await db.followUser(userId) }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile', targetUserId] })
-      queryClient.invalidateQueries({
-        queryKey: ['profile-social-list', targetUserId, socialListType],
-      })
+    onSuccess: ({ followedAt }, variables) => {
+      const key = ['profile-social-list', targetUserId, socialListType]
+      queryClient.setQueryData<FollowerInfo[]>(key, (current) => current?.map((entry) => {
+        if (entry.id !== variables.userId) return entry
+        const isFollowing = !variables.isFollowing
+        const isMutual = isFollowing && entry.isFollowedBy
+        return { ...entry, isFollowing, isMutual, mutualSince: isMutual ? followedAt : undefined }
+      }))
+      notify({ tone: 'success', title: t(variables.isFollowing ? 'profile.unfollowedUser' : 'profile.followedUser') })
+      queryClient.invalidateQueries({ queryKey: ['profile'] })
+      queryClient.invalidateQueries({ queryKey: ['profile-social-list'] })
       queryClient.invalidateQueries({ queryKey: ['profile-user-search'] })
+    },
+    onMutate: async ({ userId, isFollowing }) => {
+      const key = ['profile-social-list', targetUserId, socialListType]
+      await queryClient.cancelQueries({ queryKey: key })
+      const previous = queryClient.getQueryData<FollowerInfo[]>(key)
+      queryClient.setQueryData<FollowerInfo[]>(key, (current) => current?.map((entry) =>
+        entry.id === userId
+          ? { ...entry, isFollowing: !isFollowing, isMutual: !isFollowing && entry.isFollowedBy, mutualSince: undefined }
+          : entry
+      ))
+      return { previous, key }
+    },
+    onError: (_error, variables, context) => {
+      if (context?.previous) queryClient.setQueryData(context.key, context.previous)
+      notify({
+        tone: 'error',
+        title: t(variables.isFollowing ? 'common.failed' : 'profile.failedToFollowUser'),
+      })
     },
   })
 
@@ -232,9 +284,12 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
     return <EmptyState body={t('common.tryAgain')} title={t('profile.title')} />
   }
 
-  const { profile, movies, series, counts, isFollowing } = query.data
+  const { profile, movies, series, counts, relationship } = query.data
   const profileName = profile.display_name || profile.username || t('profile.user')
   const initials = getInitials(profile)
+  const mutualSinceLabel = !isOwnProfile && relationship.isMutual && relationship.mutualSince
+    ? formatMutualSince(relationship.mutualSince, language, t)
+    : null
 
   return (
     <div className="content-frame">
@@ -255,6 +310,12 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
             <AvatarFallback className="text-3xl">{initials}</AvatarFallback>
           </Avatar>
           <div className="min-w-0">
+            {mutualSinceLabel ? (
+              <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-kino-muted">
+                <CalendarDays aria-hidden="true" size={14} />
+                {mutualSinceLabel}
+              </div>
+            ) : null}
             <div className="text-sm font-semibold text-kino-muted">
               {profile.username ? `@${profile.username}` : t('profile.title')}
             </div>
@@ -269,8 +330,8 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
             {profile.username ? <ProfileShareDialog username={profile.username} /> : null}
             {!isOwnProfile && user ? (
               <Button disabled={followMutation.isPending} onClick={() => followMutation.mutate()}>
-                {isFollowing ? <UserRoundCheck size={16} /> : <UserPlus size={16} />}
-                {isFollowing ? t('profile.following') : t('profile.follow')}
+                {relationship.isFollowing ? <UserRoundCheck size={16} /> : <UserPlus size={16} />}
+                {relationship.isFollowing ? t('profile.following') : relationship.isFollowedBy ? t('profile.followBack') : t('profile.follow')}
               </Button>
             ) : null}
           </div>
@@ -349,10 +410,10 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
 
       <SocialListDialog
         actionPending={socialListActionMutation.isPending}
-        isOwnProfile={isOwnProfile}
+        pendingUserId={socialListActionMutation.variables?.userId}
         listType={socialListType}
         loading={socialListQuery.isFetching}
-        onAction={(listType, userId) => socialListActionMutation.mutate({ listType, userId })}
+        onAction={(profile) => socialListActionMutation.mutate({ userId: profile.id, isFollowing: profile.isFollowing })}
         onOpenChange={(open) => {
           if (!open) setSocialListType(null)
         }}
@@ -539,7 +600,6 @@ function UserSearchDialog({
               }
               key={result.profile.id}
               profile={result.profile}
-              subtitle={result.isFollowing ? t('profile.following') : undefined}
             />
           ))}
         </div>
@@ -555,9 +615,9 @@ function SocialListDialog({
   users,
   loading,
   error,
-  isOwnProfile,
   onAction,
   actionPending,
+  pendingUserId,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -565,9 +625,9 @@ function SocialListDialog({
   users: FollowerInfo[]
   loading: boolean
   error: Error | null
-  isOwnProfile: boolean
-  onAction: (listType: SocialListType, userId: string) => void
+  onAction: (profile: FollowerInfo) => void
   actionPending: boolean
+  pendingUserId?: string
 }) {
   const { t } = useTranslation()
   const title = listType === 'following' ? t('profile.following') : t('profile.followers')
@@ -593,29 +653,30 @@ function SocialListDialog({
 
           {!loading && !error
             ? users.map((profile) => {
-                const actionLabel =
-                  listType === 'followers' ? t('profile.remove') : t('profile.unfollow')
+                const isPending = actionPending && pendingUserId === profile.id
+                const actionLabel = profile.isFollowing
+                  ? t('profile.unfollow')
+                  : profile.isFollowedBy
+                    ? t('profile.followBack')
+                    : t('profile.follow')
                 return (
                   <ProfileUserRow
                     action={
-                      isOwnProfile && listType ? (
+                      !profile.isSelf ? (
                         <Button
+                          aria-label={isPending ? t('profile.followingUser') : actionLabel}
                           disabled={actionPending}
-                          onClick={() => onAction(listType, profile.id)}
+                          onClick={() => onAction(profile)}
                           size="sm"
                           variant="secondary"
                         >
-                          {actionLabel}
+                          {isPending ? <LoaderCircle aria-hidden="true" className="animate-spin" size={15} /> : null}
+                          {isPending ? t('profile.followingUser') : actionLabel}
                         </Button>
-                      ) : profile.isMutual ? (
-                        <span className="rounded-md border border-kino-accent/30 bg-kino-accent/10 px-3 py-1.5 text-xs font-semibold text-kino-accent">
-                          {t('profile.following')}
-                        </span>
                       ) : null
                     }
                     key={profile.id}
                     profile={profile}
-                    subtitle={profile.isMutual ? t('profile.following') : undefined}
                   />
                 )
               })
@@ -866,11 +927,9 @@ function SeriesRatingDialog({
 
 function ProfileUserRow({
   profile,
-  subtitle,
   action,
 }: {
   profile: UserProfile
-  subtitle?: string
   action?: ReactNode
 }) {
   const { t } = useTranslation()
@@ -892,9 +951,6 @@ function ProfileUserRow({
             {displayName}
           </span>
           <span className="block truncate text-xs text-kino-muted">{username}</span>
-          {subtitle ? (
-            <span className="mt-0.5 block truncate text-xs text-kino-accent">{subtitle}</span>
-          ) : null}
         </span>
       </Link>
       {action ? <div className="shrink-0">{action}</div> : null}
