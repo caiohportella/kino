@@ -1614,10 +1614,12 @@ export function WatchlistOg({
   data,
   images,
   avatars,
+  logo,
 }: {
   data: PublicWatchlistOgData
   images: Array<OgImage | null>
   avatars: Array<OgImage | null>
+  logo?: OgImage | null
 }) {
   const visibleParticipants = data.participants.slice(0, 1)
   const remainder = 0
@@ -1626,6 +1628,7 @@ export function WatchlistOg({
       backgroundContent={<WatchlistBackground images={images} />}
       backgroundOverlay="linear-gradient(90deg, rgba(7,9,8,0.96) 0%, rgba(7,9,8,0.88) 48%, rgba(7,9,8,0.70) 100%), linear-gradient(180deg, rgba(4,5,5,0.28) 0%, rgba(9,14,11,0.78) 100%)"
       label="Public watchlist"
+      logo={logo}
     >
       <div style={{ display: 'flex', flex: 1, alignItems: 'center' }}>
         <div

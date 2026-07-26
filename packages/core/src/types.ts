@@ -328,6 +328,7 @@ export interface Watchlist {
 export type WatchlistVisibility = 'private' | 'shared' | 'public'
 
 export interface PublicWatchlistSummary extends Watchlist {
+  coverVersion: string
   titleCount: number
   coverImages: string[]
   owner?: Pick<UserProfile, 'id' | 'avatar_url' | 'display_name' | 'username'>

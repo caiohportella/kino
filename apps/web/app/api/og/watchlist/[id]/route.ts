@@ -1,6 +1,7 @@
 import { ImageResponse } from 'next/og'
 import { createElement, type ReactElement } from 'react'
 import { FallbackOg, getOgImageOptions, WatchlistOg } from '@/lib/og'
+import { KINO_OG_LOGO_URL } from '@/lib/og-assets'
 import { safeImageData } from '@/lib/og-images'
 import { getPublicWatchlistOgData } from '@/lib/server-supabase'
 
@@ -19,15 +20,16 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         })
       )
 
-    const [images, avatar] = await Promise.all([
+    const [images, avatar, logo] = await Promise.all([
       Promise.all(
         data.titles
           .slice(0, 6)
           .map((title) => safeImageData(title.cover_image || title.backdrop_image))
       ),
       safeImageData(data.owner.avatarUrl),
+      safeImageData(KINO_OG_LOGO_URL),
     ])
-    return image(createElement(WatchlistOg, { avatars: [avatar], data, images }))
+    return image(createElement(WatchlistOg, { avatars: [avatar], data, images, logo }))
   } catch {
     return image(
       createElement(FallbackOg, {

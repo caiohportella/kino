@@ -12,25 +12,8 @@
     "userFallback": "Bruker"
   },
   "sharing": {
-    "description": "Velg hvordan du vil dele dette fra Kino.",
-    "defaultText": "Sjekk ut {{title}} på Kino:",
     "profileText": "Se @{{username}} på Kino:",
-    "watchlistText": "Utforsk {{title}} på Kino:",
-    "whatsapp": "WhatsApp",
-    "reddit": "Reddit",
-    "x": "X",
-    "facebook": "Facebook",
-    "telegram": "Telegram",
-    "instagramStories": "Forbered for Instagram Stories",
-    "tiktok": "Del til TikTok",
-    "copyLink": "Kopier lenke",
-    "copied": "Kopiert",
-    "copyFailed": "Kunne ikke kopiere",
-    "moreOptions": "Flere alternativer",
-    "email": "E-post",
-    "finishInSelectedApp": "Velg mål i delingsmenyen for å fullføre.",
-    "unavailable": "Deling er ikke tilgjengelig for dette elementet",
-    "privateUnavailable": "Dette private elementet kan ikke deles utenfor Kino."
+    "watchlistText": "Utforsk {{title}} på Kino:"
   },
   "home": {
     "trending": "Populært i dag",
@@ -223,7 +206,8 @@
     "visibilityUpdated": "Listens synlighet er oppdatert",
     "visibilityFailed": "Kunne ikke oppdatere synligheten",
     "publicWatchlist": "Offentlig liste",
-    "watchlistCount": "{{count}} titler",
+    "watchlistCount_one": "{{count}} tittel",
+    "watchlistCount_other": "{{count}} titler",
     "loginPrompt": "Logg inn for å opprette og administrere lister",
     "emptyState": "Ingen lister ennå. Opprett en for å komme i gang!",
     "createWatchlist": "Opprett liste",

@@ -1,24 +1,24 @@
 'use client'
 
-import { EmptyState } from '@/components/kino'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { LabeledField as Field } from '@/components/ui/labeled-field'
 import { formatDate } from '@kino/core'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Clipboard, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
-import { useTranslation } from '@/lib/i18n'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { WatchlistsSkeleton } from '@/components/skeletons/page-skeletons'
+import { EmptyState } from '@/components/kino'
 import { PageHeader } from '@/components/page-header'
 import { ProtectedEmpty } from '@/components/protected-empty'
+import { WatchlistsSkeleton } from '@/components/skeletons/page-skeletons'
 import { useToast } from '@/components/toast-provider'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { LabeledField as Field } from '@/components/ui/labeled-field'
 import { WatchlistDialog } from '@/components/watchlist-dialog'
+import { WatchlistVisibilityBadge } from '@/components/watchlist-sharing'
+import { useTranslation } from '@/lib/i18n'
+import { watchlistPath } from '@/lib/routes'
 import { db } from '@/lib/services'
 import { useAuthStore } from '@/stores/auth-store'
-import { WatchlistVisibilityBadge } from '@/components/watchlist-sharing'
-import { watchlistPath } from '@/lib/routes'
 
 export default function WatchlistsPage() {
   const user = useAuthStore((state) => state.user)
@@ -128,7 +128,13 @@ export default function WatchlistsPage() {
 
       <WatchlistDialog
         onClose={() => setDialogOpen(false)}
-        onSaved={() => queryClient.invalidateQueries({ queryKey: ['watchlists', user.id] })}
+        onSaved={() => {
+          void Promise.all([
+            queryClient.invalidateQueries({ queryKey: ['watchlists', user.id] }),
+            queryClient.invalidateQueries({ queryKey: ['profile', user.id] }),
+            queryClient.invalidateQueries({ queryKey: ['public-watchlists'] }),
+          ])
+        }}
         open={dialogOpen}
       />
     </div>

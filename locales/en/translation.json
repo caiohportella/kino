@@ -12,25 +12,8 @@
     "userFallback": "User"
   },
   "sharing": {
-    "description": "Choose how you want to share this from Kino.",
-    "defaultText": "Check out {{title}} on Kino:",
     "profileText": "See @{{username}} on Kino:",
-    "watchlistText": "Explore {{title}} on Kino:",
-    "whatsapp": "WhatsApp",
-    "reddit": "Reddit",
-    "x": "X",
-    "facebook": "Facebook",
-    "telegram": "Telegram",
-    "instagramStories": "Prepare for Instagram Stories",
-    "tiktok": "Share to TikTok",
-    "copyLink": "Copy link",
-    "copied": "Copied",
-    "copyFailed": "Copy failed",
-    "moreOptions": "More options",
-    "email": "Email",
-    "finishInSelectedApp": "Choose the destination in the share sheet to finish posting.",
-    "unavailable": "Sharing is unavailable for this item",
-    "privateUnavailable": "This private item cannot be shared outside Kino."
+    "watchlistText": "Explore {{title}} on Kino:"
   },
   "home": {
     "trending": "Trending Today",
@@ -223,7 +206,8 @@
     "visibilityUpdated": "Watchlist visibility updated",
     "visibilityFailed": "Failed to update visibility",
     "publicWatchlist": "Public watchlist",
-    "watchlistCount": "{{count}} titles",
+    "watchlistCount_one": "{{count}} title",
+    "watchlistCount_other": "{{count}} titles",
     "loginPrompt": "Log in to create and manage watchlists",
     "emptyState": "No watchlists yet. Create one to get started!",
     "createWatchlist": "Create Watchlist",

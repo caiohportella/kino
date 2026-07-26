@@ -32,8 +32,7 @@ export function ogImagePath(
   id?: string | number,
   query?: Record<string, string>
 ) {
-  const encodedId =
-    id === undefined ? undefined : encodeURIComponent(String(id))
+  const encodedId = id === undefined ? undefined : encodeURIComponent(String(id))
 
   const path =
     kind === 'profile' && encodedId
@@ -49,11 +48,14 @@ export function watchlistPath(id: string, name: string) {
   return `/watchlists/${id}-${slugify(name)}`
 }
 
+export function watchlistCoverPath(id: string, cacheKey?: string) {
+  const path = `/api/og/watchlist/${encodeURIComponent(id)}/cover`
+  return cacheKey ? `${path}?v=${encodeURIComponent(cacheKey)}` : path
+}
+
 export function parseWatchlistSegment(segment: string) {
   const id = segment.slice(0, 36)
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    id
-  )
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
     ? { id, slug: segment.slice(37) }
     : { id: segment, slug: '' }
 }

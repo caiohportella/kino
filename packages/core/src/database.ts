@@ -23,6 +23,7 @@ import type {
   WatchlistItem,
   WatchlistItemDetails,
 } from './types'
+import { createWatchlistCoverVersion } from './watchlist-cover'
 import { findFirstUnwatchedEpisode, getEpisodeKey } from './use-cases'
 
 type SupabaseErrorLike = { code?: string }
@@ -189,14 +190,28 @@ export class KinoDatabaseService {
   }
 
   async getWatchedMovies(userId: string) {
-    const { data, error } = await this.supabase
-      .from('title_ratings')
-      .select('*, title:titles(*)')
-      .eq('user_id', userId)
-      .order('watched_at', { ascending: false })
+    const [ratingsResult, diaryResult] = await Promise.all([
+      this.supabase
+        .from('title_ratings')
+        .select('*, title:titles(*)')
+        .eq('user_id', userId)
+        .order('watched_at', { ascending: false }),
+      this.supabase
+        .from('watch_diary')
+        .select('title_id, watched_at')
+        .eq('user_id', userId)
+        .order('watched_at', { ascending: false }),
+    ])
 
-    if (error) throw error
-    const rows = (data ?? []) as TitleRatingRow[]
+    if (ratingsResult.error) throw ratingsResult.error
+    if (diaryResult.error) throw diaryResult.error
+    const rows = (ratingsResult.data ?? []) as TitleRatingRow[]
+    const latestDiaryWatchByTitle = new Map<string, string>()
+    for (const entry of diaryResult.data ?? []) {
+      if (!latestDiaryWatchByTitle.has(entry.title_id)) {
+        latestDiaryWatchByTitle.set(entry.title_id, entry.watched_at)
+      }
+    }
 
     return rows
       .filter((row): row is TitleRatingRow & { title: TitleRow } => row.title?.type === 'movie')
@@ -204,9 +219,10 @@ export class KinoDatabaseService {
         ...this.mapPersistedTitle(row.title),
         type: 'movie' as const,
         rating: row.rating ?? 0,
-        watched_at: row.watched_at,
+        watched_at: latestDiaryWatchByTitle.get(row.title_id) ?? row.watched_at,
         user_rating_id: row.id,
       }))
+      .sort((left, right) => Date.parse(right.watched_at) - Date.parse(left.watched_at))
   }
 
   async getWatchedSeries(userId: string) {
@@ -954,18 +970,27 @@ export class KinoDatabaseService {
       ((data ?? []) as WatchlistRow[]).map(async (row) => {
         const { data: items, error: itemsError } = await this.supabase
           .from('watchlist_items')
-          .select('title:titles(cover_image)')
+          .select('id,title_id,added_at,title:titles(cover_image)')
           .eq('watchlist_id', row.id)
+          .order('added_at', { ascending: false })
+          .order('id', { ascending: true })
         if (itemsError) throw itemsError
-        const covers = (items ?? [])
-          .map((item) => {
-            const title = item.title as unknown as { cover_image: string | null } | null
-            return title?.cover_image
-          })
+        const coverInputs = (items ?? []).map((item) => {
+          const title = item.title as unknown as { cover_image: string | null } | null
+          return {
+            addedAt: item.added_at,
+            itemId: item.id,
+            posterPath: title?.cover_image ?? null,
+            titleId: item.title_id,
+          }
+        })
+        const covers = coverInputs
+          .map((item) => item.posterPath)
           .filter((cover): cover is string => Boolean(cover))
         return {
           ...this.mapWatchlist(row),
-          coverImages: covers.slice(0, 4),
+          coverImages: covers.slice(0, 6),
+          coverVersion: createWatchlistCoverVersion(row.updated_at, row.visibility, coverInputs),
           titleCount: items?.length || 0,
         }
       })

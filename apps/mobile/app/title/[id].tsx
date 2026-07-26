@@ -1,33 +1,33 @@
-import { useState } from 'react'
-import {
-  View,
-  Text,
-  ScrollView,
-  Image,
-  ActivityIndicator,
-  TouchableOpacity,
-  Alert,
-  Linking,
-} from 'react-native'
-import { useLocalSearchParams, useRouter, Stack } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { dbService } from '~/services/database'
 import { isCompletedSeriesStatus } from '@kino/core'
-import { RatingStars } from '~/components/common/RatingStars'
-import { SeasonSection } from '~/components/title/SeasonSection'
-import { FriendRatings } from '~/components/title/FriendRatings'
-import { WatchlistSelectorModal } from '~/components/modals/WatchlistSelectorModal'
-import { PersonalityModal } from '~/components/modals/PersonalityModal'
-import { CommunityStats } from '~/components/title/CommunityStats'
-import { useAuth } from '@/hooks/useAuth'
-import type { MediaType } from '~/types'
-import { useTitleMetadata, useTitleUserData, TITLE_DATA_KEYS } from '@/hooks/useTitleData'
-import { useFriendTitleRatings } from '~/hooks/data/useFriendRatings'
 import { useQueryClient } from '@tanstack/react-query'
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useOscarData, getOscarNominationsLegacy } from '~/services/awards'
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Linking,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native'
+import { useAuth } from '@/hooks/useAuth'
+import { TITLE_DATA_KEYS, useTitleMetadata, useTitleUserData } from '@/hooks/useTitleData'
+import { RatingStars } from '~/components/common/RatingStars'
+import { PersonalityModal } from '~/components/modals/PersonalityModal'
+import { WatchlistSelectorModal } from '~/components/modals/WatchlistSelectorModal'
+import { CommunityStats } from '~/components/title/CommunityStats'
+import { FriendRatings } from '~/components/title/FriendRatings'
+import { SeasonSection } from '~/components/title/SeasonSection'
+import { useFriendTitleRatings } from '~/hooks/data/useFriendRatings'
 import { useTheaterStatus } from '~/hooks/data/useTheaterStatus'
-import { KinoShareModal } from '~/components/modals/KinoShareModal'
+import { getOscarNominationsLegacy, useOscarData } from '~/services/awards'
+import { dbService } from '~/services/database'
+import type { MediaType } from '~/types'
+import { shareNativeResource } from '~/utils/native-share'
 
 export default function TitleDetailScreen() {
   const { id, type } = useLocalSearchParams<{ id: string; type: MediaType }>()
@@ -39,7 +39,6 @@ export default function TitleDetailScreen() {
   const [showWatchlistModal, setShowWatchlistModal] = useState(false)
   const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
-  const [shareOpen, setShareOpen] = useState(false)
 
   const tmdbId = parseInt(id)
 
@@ -86,8 +85,9 @@ export default function TitleDetailScreen() {
     try {
       // Default to first-time for quick rating, or use existing if set
       const currentWatchType = userRating?.watchType || 'first-time'
+      const watchedAt = userRating?.watchedAt || new Date()
 
-      await dbService.rateTitle(title.id, rating, currentWatchType, new Date())
+      await dbService.rateTitle(title.id, rating, currentWatchType, watchedAt)
 
       // Invalidate user data to refresh stats and rating
       queryClient.invalidateQueries({
@@ -261,7 +261,13 @@ export default function TitleDetailScreen() {
 
             <TouchableOpacity
               className="flex-row items-center justify-center rounded-lg border border-accent bg-surface px-4 py-3"
-              onPress={() => setShareOpen(true)}
+              onPress={() =>
+                void shareNativeResource({
+                  canonicalUrl: `https://kino.app/title/${tmdbId}?type=${type}`,
+                  shareText: t('title.checkOut', { title: title.title }),
+                  title: title.title,
+                })
+              }
             >
               <Ionicons name="share-outline" size={20} color="#1DB954" />
             </TouchableOpacity>
@@ -461,17 +467,6 @@ export default function TitleDetailScreen() {
         onClose={() => setSelectedPersonId(null)}
         personId={selectedPersonId}
       />
-      {title ? (
-        <KinoShareModal
-          onClose={() => setShareOpen(false)}
-          resource={{
-            canonicalUrl: `https://kino.app/title/${tmdbId}?type=${type}`,
-            shareText: t('title.checkOut', { title: title.title }),
-            title: title.title,
-          }}
-          visible={shareOpen}
-        />
-      ) : null}
     </>
   )
 }

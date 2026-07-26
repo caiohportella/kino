@@ -106,6 +106,7 @@ export function RatingStars({
                   className="absolute inset-y-0 left-0 z-10 w-1/2 rounded-l-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent disabled:cursor-not-allowed"
                   disabled={disabled}
                   onClick={() => setRating(star - 0.5)}
+                  onBlur={() => setHovered(null)}
                   onFocus={() => setHovered(star - 0.5)}
                   onKeyDown={handleKeyDown}
                   onMouseEnter={() => setHovered(star - 0.5)}
@@ -119,6 +120,7 @@ export function RatingStars({
                   className="absolute inset-y-0 right-0 z-10 w-1/2 rounded-r-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent disabled:cursor-not-allowed"
                   disabled={disabled}
                   onClick={() => setRating(star)}
+                  onBlur={() => setHovered(null)}
                   onFocus={() => setHovered(star)}
                   onKeyDown={handleKeyDown}
                   onMouseEnter={() => setHovered(star)}

@@ -3,29 +3,31 @@
 import type {
   EpisodeRating,
   MediaType,
-  TMDbCast,
-  TMDbEpisode,
   TitleDetails,
   TitleRatingStats,
-  WatchType,
+  TMDbCast,
+  TMDbEpisode,
   Watchlist,
+  WatchType,
 } from '@kino/core'
-import { formatDate as formatKinoDate, getTMDbImageUrl } from '@kino/core'
 import {
   calculateSeasonRatingSummary,
+  formatDate as formatKinoDate,
   formatRuntime,
+  getTMDbImageUrl,
   isCompletedSeriesStatus,
   isFutureDateOnly,
   transformMovieToTitleDetails,
   transformTVToTitleDetails,
 } from '@kino/core'
-import { EmptyState, Poster, ProgressBar, Stat } from '@/components/kino'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { enUS, fr, it, nb, ptBR } from 'date-fns/locale'
 import {
   BookmarkPlus,
   CalendarCheck,
   CalendarDays,
-  ChevronDown,
   CheckCircle2,
+  ChevronDown,
   Eye,
   Plus,
   Save,
@@ -36,27 +38,25 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import Confetti from 'react-confetti'
-import { enUS, fr, it, nb, ptBR } from 'date-fns/locale'
-import { useTranslation } from '@/lib/i18n'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ExternalLinksSection,
   type ExternalLinkProvider,
+  ExternalLinksSection,
 } from '@/components/external-links-section'
+import { EmptyState, Poster, ProgressBar, Stat } from '@/components/kino'
+import { RatingStars } from '@/components/rating-stars'
 import { SeasonSelector } from '@/components/season-selector'
+import { ShareButton } from '@/components/share-button'
+import { SingleDatePicker } from '@/components/single-date-picker'
+import { MediaModalSkeleton, TitleSkeleton } from '@/components/skeletons/page-skeletons'
 import {
   FranchiseTitles,
   MoreLikeThis,
+  type TitleContextData,
   TrailerCard,
   WatchProvidersCard,
-  type TitleContextData,
 } from '@/components/title-context'
-import { MediaModalSkeleton, TitleSkeleton } from '@/components/skeletons/page-skeletons'
-import { RatingStars } from '@/components/rating-stars'
-import { WatchlistDialog } from '@/components/watchlist-dialog'
-import { ShareButton } from '@/components/share-button'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -71,7 +71,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Card } from '@/components/ui/card'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Dialog,
   DialogContent,
@@ -80,16 +79,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { SingleDatePicker } from '@/components/single-date-picker'
-import { SplitButton, SplitButtonMain, SplitButtonSecondary } from '@/components/ui/split-button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Separator } from '@/components/ui/separator'
+import { SplitButton, SplitButtonMain, SplitButtonSecondary } from '@/components/ui/split-button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { db, getTmdb } from '@/lib/services'
+import { WatchlistDialog } from '@/components/watchlist-dialog'
 import { storeAuthRedirect } from '@/lib/auth-redirect'
+import { useTranslation } from '@/lib/i18n'
+import { parseResourceSegment, personPath } from '@/lib/routes'
+import { db, getTmdb } from '@/lib/services'
+import { publishWatchlistChange } from '@/lib/watchlist-cache-sync'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 import { useSettingsStore } from '@/stores/settings-store'
-import { parseResourceSegment, personPath } from '@/lib/routes'
 
 const ANON_TITLE_ID = '00000000-0000-0000-0000-000000000000'
 const EXTERNAL_LOGOS = {
@@ -200,9 +202,8 @@ export default function TitlePage() {
   const userDataQuery = useQuery({
     queryKey: ['title-user-data', title?.id, user?.id],
     queryFn: async () => {
-      if (!title || title.id === ANON_TITLE_ID || !user) {
-        return { userRating: null, lastWatch: null, isWatchlisted: false }
-      }
+      if (!title || title.id === ANON_TITLE_ID || !user)
+        throw new Error('User data is unavailable.')
 
       const [userRating, lastWatch, isWatchlisted] = await Promise.all([
         db.getUserRating(title.id),
@@ -211,7 +212,7 @@ export default function TitlePage() {
       ])
       return { userRating, lastWatch, isWatchlisted }
     },
-    enabled: Boolean(title),
+    enabled: Boolean(title && user),
   })
 
   const statsQuery = useQuery({
@@ -243,8 +244,23 @@ export default function TitlePage() {
   })
 
   const rateMutation = useMutation({
-    mutationFn: (rating: number) => db.rateTitle(title!.id, rating, 'first-time', new Date()),
-    onSuccess: () => {
+    mutationFn: (rating: number) => {
+      const existingRating = userDataQuery.data?.userRating
+      return db.rateTitle(
+        title!.id,
+        rating,
+        existingRating?.watchType ?? 'first-time',
+        existingRating?.watchedAt ?? new Date()
+      )
+    },
+    onSuccess: (userRating) => {
+      queryClient.setQueryData<{
+        userRating: Awaited<ReturnType<typeof db.getUserRating>>
+        lastWatch: Awaited<ReturnType<typeof db.getLastWatchEntry>>
+        isWatchlisted: boolean
+      }>(['title-user-data', title?.id, user?.id], (current) =>
+        current ? { ...current, userRating } : current
+      )
       queryClient.invalidateQueries({
         queryKey: ['title-user-data', title?.id, user?.id],
       })
@@ -320,6 +336,9 @@ export default function TitlePage() {
   }
 
   const userData = userDataQuery.data
+  const personalRating = userData?.userRating
+  const currentUserRating =
+    personalRating?.userId === user?.id ? Number(personalRating?.rating ?? 0) : 0
   const ticketsUrl = `https://www.ingresso.com.br/busca/resultado?q=${encodeURIComponent(title.title)}`
   const isNowPlayingInBrazil =
     nowPlayingQuery.data?.some((movie) => movie.id === title.tmdbId) ?? false
@@ -399,10 +418,8 @@ export default function TitlePage() {
         )}
         <ShareButton
           className="min-h-11 w-full min-[390px]:col-span-2 sm:w-auto sm:min-w-32"
-          imageUrl={`/api/og/title/${tmdbId}?type=${type}`}
           text={t('title.checkOut', { title: title.title })}
           title={title.title}
-          type="title"
           url={`${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
         />
       </div>
@@ -451,9 +468,9 @@ export default function TitlePage() {
                       disabled={rateMutation.isPending}
                       onChange={(rating) => rateMutation.mutate(rating)}
                       size="lg"
-                      value={userData?.userRating?.rating || 0}
+                      value={currentUserRating}
                     />
-                    {userData?.userRating?.rating ? (
+                    {currentUserRating ? (
                       <AlertDialog>
                         <div className="mt-3 flex justify-center">
                           <AlertDialogTrigger
@@ -707,13 +724,17 @@ function WatchlistPicker({
         await db.addToWatchlist(watchlist.id, titleId)
       }
     },
-    onSuccess: () => {
+    onSuccess: (_result, watchlist) => {
+      publishWatchlistChange(watchlist.id)
       queryClient.invalidateQueries({
         queryKey: ['watchlist-picker', userId, titleId],
       })
       queryClient.invalidateQueries({
         queryKey: ['title-user-data', titleId, userId],
       })
+      queryClient.invalidateQueries({ queryKey: ['watchlists', userId] })
+      queryClient.invalidateQueries({ queryKey: ['profile', userId] })
+      queryClient.invalidateQueries({ queryKey: ['public-watchlists'] })
     },
   })
 

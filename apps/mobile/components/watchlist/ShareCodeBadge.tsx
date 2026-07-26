@@ -2,17 +2,15 @@ import { View, Text } from 'react-native'
 
 interface ShareCodeBadgeProps {
   label: string
-  variant?: 'blue' | 'green' | 'default'
+  variant?: 'green' | 'default'
   className?: string
 }
 
-export function ShareCodeBadge({ label, variant = 'blue', className = '' }: ShareCodeBadgeProps) {
+export function ShareCodeBadge({ label, variant = 'green', className = '' }: ShareCodeBadgeProps) {
   const getColors = () => {
     switch (variant) {
-      case 'blue':
-        return { bg: 'bg-blue-900/50', text: 'text-blue-300' }
       case 'green':
-        return { bg: 'bg-green-900/50', text: 'text-green-300' }
+        return { bg: 'border border-accent/30 bg-accent/10', text: 'text-accent' }
       default:
         return { bg: 'bg-surface', text: 'text-text-secondary' }
     }

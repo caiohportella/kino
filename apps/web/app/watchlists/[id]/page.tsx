@@ -2,19 +2,16 @@
 
 import type { UserProfile, Watchlist, WatchlistItemDetails, WatchlistVisibility } from '@kino/core'
 import { formatDate } from '@kino/core'
-import { EmptyState, Poster } from '@/components/kino'
-import { Button, buttonVariants } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
-import { ModalDialog as Dialog } from '@/components/ui/modal-dialog'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LoaderCircle, LogOut, Pencil, Save, Trash2 } from 'lucide-react'
 import Link from 'next/link'
-import { parseWatchlistSegment, titlePath, watchlistPath } from '@/lib/routes'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { WatchlistsSkeleton } from '@/components/skeletons/page-skeletons'
+import { EmptyState, Poster } from '@/components/kino'
 import { PageHeader } from '@/components/page-header'
+import { ShareButton } from '@/components/share-button'
+import { WatchlistsSkeleton } from '@/components/skeletons/page-skeletons'
+import { useToast } from '@/components/toast-provider'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,15 +23,19 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { useToast } from '@/components/toast-provider'
-import type { LocalizedTitleMap } from '@/lib/use-localized-titles'
-import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
-import { db, getTmdb } from '@/lib/services'
-import { useTranslation } from '@/lib/i18n'
-import { useAuthStore } from '@/stores/auth-store'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
+import { ModalDialog as Dialog } from '@/components/ui/modal-dialog'
 import { ShareCodeDisplay } from '@/components/watchlist-sharing'
 import { WatchlistVisibilitySelector } from '@/components/watchlist-visibility-selector'
-import { ShareButton } from '@/components/share-button'
+import { useTranslation } from '@/lib/i18n'
+import { parseWatchlistSegment, titlePath, watchlistPath } from '@/lib/routes'
+import { db, getTmdb } from '@/lib/services'
+import { publishWatchlistChange } from '@/lib/watchlist-cache-sync'
+import type { LocalizedTitleMap } from '@/lib/use-localized-titles'
+import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
+import { useAuthStore } from '@/stores/auth-store'
 
 interface WatchlistDetailData {
   watchlist: Watchlist | null
@@ -122,10 +123,16 @@ export default function WatchlistDetailPage() {
       notify({ tone: 'error', title: t('watchlists.failedToRemoveItem') })
     },
     onSuccess: () => {
+      publishWatchlistChange(watchlistId)
       notify({ tone: 'success', title: t('watchlists.itemRemoved') })
       setRemoveTarget(null)
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: detailQueryKey }),
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: detailQueryKey }),
+        queryClient.invalidateQueries({ queryKey: ['profile'] }),
+        queryClient.invalidateQueries({ queryKey: ['public-watchlists'] }),
+      ]),
   })
 
   const deleteMutation = useMutation({
@@ -144,9 +151,14 @@ export default function WatchlistDetailPage() {
       notify({ tone: 'error', title: t('watchlists.failedToDeleteWatchlist') })
     },
     onSuccess: () => {
+      publishWatchlistChange(watchlistId)
       notify({ tone: 'success', title: t('watchlists.deleted') })
       queryClient.removeQueries({ queryKey: detailQueryKey })
-      queryClient.invalidateQueries({ queryKey: ['watchlists', user?.id] })
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['watchlists', user?.id] }),
+        queryClient.invalidateQueries({ queryKey: ['profile'] }),
+        queryClient.invalidateQueries({ queryKey: ['public-watchlists'] }),
+      ])
       router.replace('/watchlists')
     },
   })
@@ -199,20 +211,15 @@ export default function WatchlistDetailPage() {
           <div className="flex flex-wrap gap-3">
             {watchlist.visibility === 'shared' && copyText ? (
               <ShareButton
-                subtitle={t('watchlists.sharedWatchlist')}
                 text={t('sharing.watchlistText', { title: watchlist.name })}
                 title={watchlist.name}
-                type="watchlist"
                 url={`/watchlists/shared/${encodeURIComponent(copyText)}`}
               />
             ) : null}
             {watchlist.visibility === 'public' ? (
               <ShareButton
-                imageUrl={`/api/og/watchlist/${watchlist.id}`}
-                subtitle={t('watchlists.watchlistCount', { count: items.length })}
                 text={t('sharing.watchlistText', { title: watchlist.name })}
                 title={watchlist.name}
-                type="watchlist"
                 url={watchlistPath(watchlist.id, watchlist.name)}
               />
             ) : null}
@@ -334,8 +341,12 @@ export default function WatchlistDetailPage() {
       <EditWatchlistDialog
         onClose={() => setEditOpen(false)}
         onSaved={() => {
-          queryClient.invalidateQueries({ queryKey: detailQueryKey })
-          queryClient.invalidateQueries({ queryKey: ['watchlists', user?.id] })
+          void Promise.all([
+            queryClient.invalidateQueries({ queryKey: detailQueryKey }),
+            queryClient.invalidateQueries({ queryKey: ['watchlists', user?.id] }),
+            queryClient.invalidateQueries({ queryKey: ['profile'] }),
+            queryClient.invalidateQueries({ queryKey: ['public-watchlists'] }),
+          ])
         }}
         open={editOpen}
         watchlist={watchlist}
@@ -499,6 +510,7 @@ function EditWatchlistDialog({
         description,
       }),
     onSuccess: (updated) => {
+      publishWatchlistChange(updated.id)
       queryClient.setQueryData<WatchlistDetailData>(
         ['watchlist-detail', watchlist.id],
         (current) => (current ? { ...current, watchlist: updated } : current)
@@ -543,6 +555,7 @@ function EditWatchlistDialog({
       return { previousDetail, previousLists }
     },
     onSuccess: (updated) => {
+      publishWatchlistChange(updated.id)
       setShareCode(updated.shareCode || '')
       setVisibility(updated.visibility)
       queryClient.setQueryData<WatchlistDetailData>(

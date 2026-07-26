@@ -7,7 +7,7 @@ import {
   isFutureDateOnly,
   parseDateOnly,
 } from '@kino/core'
-import { EmptyState, Poster } from '@/components/kino'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { LucideIcon } from 'lucide-react'
 import {
   CalendarDays,
@@ -22,19 +22,19 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
-import { useMemo, useState } from 'react'
-import { useTranslation } from '@/lib/i18n'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useState } from 'react'
 import { BannerPickerDialog } from '@/components/banner-picker-dialog'
 import { DisplayTitle } from '@/components/display-title'
+import { EmptyState, Poster } from '@/components/kino'
 import { MediaRow } from '@/components/media-row'
-import { ProfileSkeleton } from '@/components/skeletons/page-skeletons'
-import { ProfileShareDialog } from '@/components/profile-share-dialog'
+import { ProfileShareButton } from '@/components/profile-share-button'
 import { ProtectedEmpty } from '@/components/protected-empty'
+import { RatingStars } from '@/components/rating-stars'
+import { ProfileSkeleton } from '@/components/skeletons/page-skeletons'
+import { TitleCard } from '@/components/title-card'
+import { useToast } from '@/components/toast-provider'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { useToast } from '@/components/toast-provider'
-import { Skeleton } from '@/components/ui/skeleton'
 import {
   Dialog,
   DialogContent,
@@ -42,13 +42,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { RatingStars } from '@/components/rating-stars'
-import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useTranslation } from '@/lib/i18n'
+import { normalizeProfileWatchlistCard } from '@/lib/profile-watchlist-card'
+import { titlePath, watchlistCoverPath, watchlistPath } from '@/lib/routes'
 import { db, getTmdb } from '@/lib/services'
+import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
 import { cn } from '@/lib/utils'
-import { titlePath, watchlistPath } from '@/lib/routes'
 import { useAuthStore } from '@/stores/auth-store'
 import { useSettingsStore } from '@/stores/settings-store'
+import { subscribeToWatchlistChanges } from '@/lib/watchlist-cache-sync'
 
 async function refreshSeriesAvailability(items: Awaited<ReturnType<typeof db.getWatchedSeries>>) {
   const tmdb = getTmdb()
@@ -123,6 +126,15 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
   const [socialListType, setSocialListType] = useState<SocialListType | null>(null)
   const [movieRatingOpen, setMovieRatingOpen] = useState(false)
   const [seriesRatingOpen, setSeriesRatingOpen] = useState(false)
+
+  useEffect(
+    () =>
+      subscribeToWatchlistChanges(() => {
+        void queryClient.invalidateQueries({ queryKey: ['profile', targetUserId] })
+        void queryClient.invalidateQueries({ queryKey: ['public-watchlists'] })
+      }),
+    [queryClient, targetUserId]
+  )
 
   const query = useQuery({
     queryKey: ['profile', targetUserId],
@@ -351,7 +363,7 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
             ) : null}
           </div>
           <div className="flex flex-wrap gap-3 md:justify-end">
-            {profile.username ? <ProfileShareDialog username={profile.username} /> : null}
+            {profile.username ? <ProfileShareButton username={profile.username} /> : null}
             {!isOwnProfile && user ? (
               <Button disabled={followMutation.isPending} onClick={() => followMutation.mutate()}>
                 {relationship.isFollowing ? <UserRoundCheck size={16} /> : <UserPlus size={16} />}
@@ -1037,25 +1049,17 @@ function ProfileShelf({
     const releaseYear = localized?.year ?? item.release_year
 
     return (
-      <Link
-        className="grid min-w-0 content-start gap-3"
-        href={titlePath(item.tmdb_id, item.title, type)}
+      <TitleCard
+        item={{
+          href: titlePath(item.tmdb_id, item.title, type),
+          id: item.id,
+          imageAlt: displayTitle,
+          imageUrl: getTmdb().getImageUrl(posterPath, 'w300'),
+          subtitle: String(releaseYear || t('profile.releaseYearUnknown')),
+          title: displayTitle,
+        }}
         key={item.id}
-      >
-        <Poster
-          className="w-full rounded-md"
-          src={getTmdb().getImageUrl(posterPath, 'w300')}
-          title={displayTitle}
-        />
-        <div className="min-w-0">
-          <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-kino-text">
-            {displayTitle}
-          </h3>
-          <p className="mt-1 text-xs text-kino-muted">
-            {releaseYear || t('profile.releaseYearUnknown')}
-          </p>
-        </div>
-      </Link>
+      />
     )
   }
 
@@ -1066,45 +1070,19 @@ function PublicWatchlistShelf({ items }: { items: PublicWatchlistSummary[] }) {
   const { t } = useTranslation()
   if (items.length === 0) return null
 
+  const cards = items.map((watchlist) =>
+    normalizeProfileWatchlistCard(watchlist, {
+      count: t('watchlists.watchlistCount', { count: watchlist.titleCount }),
+      href: watchlistPath(watchlist.id, watchlist.name),
+      imageUrl: watchlistCoverPath(watchlist.id, watchlist.coverVersion),
+    })
+  )
   return (
-    <section className="mt-8 min-w-0">
-      <h2 className="mb-4 text-lg font-semibold text-kino-text">{t('watchlists.title')}</h2>
-      <MediaRow aria-label={t('watchlists.title')}>
-        {items.map((watchlist) => (
-          <Link
-            className="grid w-[240px] min-w-[240px] content-start gap-3"
-            href={watchlistPath(watchlist.id, watchlist.name)}
-            key={watchlist.id}
-          >
-            <div className="grid aspect-[16/10] grid-cols-2 overflow-hidden rounded-md border border-white/10 bg-kino-panel shadow-soft">
-              {Array.from({ length: 4 }, (_, index) => {
-                const cover = watchlist.coverImages[index]
-                return cover ? (
-                  <img
-                    alt=""
-                    className="h-full min-h-0 w-full object-cover"
-                    key={`${watchlist.id}-${index}`}
-                    src={getTmdb().getImageUrl(cover, 'w300') || undefined}
-                  />
-                ) : (
-                  <span
-                    aria-hidden="true"
-                    className="bg-[linear-gradient(135deg,rgb(29_185_84_/_0.14),rgb(255_255_255_/_0.04))]"
-                    key={`${watchlist.id}-${index}`}
-                  />
-                )
-              })}
-            </div>
-            <div className="min-w-0">
-              <h3 className="truncate text-sm font-semibold text-kino-text">{watchlist.name}</h3>
-              <p className="mt-1 text-xs text-kino-muted">
-                {t('watchlists.watchlistCount', { count: watchlist.titleCount })}
-              </p>
-            </div>
-          </Link>
-        ))}
-      </MediaRow>
-    </section>
+    <ProfileTitleRow
+      items={cards}
+      renderTitleCard={(item) => <TitleCard item={item} key={item.id} />}
+      title={t('watchlists.title')}
+    />
   )
 }
 
@@ -1173,26 +1151,19 @@ function SeriesShelfRow({
     const releaseYear = localized?.year ?? series.release_year
 
     return (
-      <Link
-        className="grid min-w-0 content-start gap-3"
-        href={titlePath(series.tmdb_id, series.title, 'tv')}
+      <TitleCard
+        item={{
+          href: titlePath(series.tmdb_id, series.title, 'tv'),
+          id: series.id,
+          imageAlt: displayTitle,
+          imageUrl: getTmdb().getImageUrl(posterPath, 'w300'),
+          subtitle: String(releaseYear || t('profile.releaseYearUnknown')),
+          title: displayTitle,
+        }}
         key={series.id}
       >
-        <Poster
-          className="w-full rounded-md"
-          src={getTmdb().getImageUrl(posterPath, 'w300')}
-          title={displayTitle}
-        />
-        <div className="min-w-0">
-          <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-kino-text">
-            {displayTitle}
-          </h3>
-          <p className="mt-1 text-xs text-kino-muted">
-            {releaseYear || t('profile.releaseYearUnknown')}
-          </p>
-          <SeriesStatusPill series={series} />
-        </div>
-      </Link>
+        <SeriesStatusPill series={series} />
+      </TitleCard>
     )
   }
 

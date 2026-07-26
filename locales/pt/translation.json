@@ -12,25 +12,8 @@
     "userFallback": "Usuário"
   },
   "sharing": {
-    "description": "Escolha como compartilhar este conteúdo do Kino.",
-    "defaultText": "Confira {{title}} no Kino:",
     "profileText": "Veja @{{username}} no Kino:",
-    "watchlistText": "Explore {{title}} no Kino:",
-    "whatsapp": "WhatsApp",
-    "reddit": "Reddit",
-    "x": "X",
-    "facebook": "Facebook",
-    "telegram": "Telegram",
-    "instagramStories": "Preparar para Stories do Instagram",
-    "tiktok": "Compartilhar no TikTok",
-    "copyLink": "Copiar link",
-    "copied": "Copiado",
-    "copyFailed": "Não foi possível copiar",
-    "moreOptions": "Mais opções",
-    "email": "E-mail",
-    "finishInSelectedApp": "Escolha o destino na tela de compartilhamento para concluir a publicação.",
-    "unavailable": "O compartilhamento não está disponível para este item",
-    "privateUnavailable": "Este item privado não pode ser compartilhado fora do Kino."
+    "watchlistText": "Explore {{title}} no Kino:"
   },
   "home": {
     "trending": "Em Alta Hoje",
@@ -223,7 +206,8 @@
     "visibilityUpdated": "Visibilidade da lista atualizada",
     "visibilityFailed": "Não foi possível atualizar a visibilidade",
     "publicWatchlist": "Lista pública",
-    "watchlistCount": "{{count}} títulos",
+    "watchlistCount_one": "{{count}} título",
+    "watchlistCount_other": "{{count}} títulos",
     "loginPrompt": "Faça login para criar e gerenciar listas",
     "emptyState": "Nenhuma lista ainda. Crie uma para começar!",
     "createWatchlist": "Criar Lista",

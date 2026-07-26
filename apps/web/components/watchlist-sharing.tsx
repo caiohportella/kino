@@ -1,7 +1,7 @@
 'use client'
 
 import type { WatchlistVisibility } from '@kino/core'
-import { Check, Copy } from 'lucide-react'
+import { Check, Copy, Globe2, Link2, Lock } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useToast } from '@/components/toast-provider'
 import { Button } from '@/components/ui/button'
@@ -20,16 +20,16 @@ export function WatchlistVisibilityBadge({
   visibility: WatchlistVisibility
 }) {
   const { t } = useTranslation()
+  const Icon = visibility === 'private' ? Lock : visibility === 'shared' ? Link2 : Globe2
   return (
     <span
       className={cn(
-        'shrink-0 rounded-md px-3 py-1 text-xs font-semibold',
-        visibility === 'private'
-          ? 'bg-blue-500/15 text-blue-300'
-          : 'bg-kino-accent/15 text-kino-accent',
+        'inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded-md border px-3 py-1 text-xs font-semibold',
+        'border-kino-accent/20 bg-kino-accent/[0.06] text-kino-muted',
         className
       )}
     >
+      <Icon aria-hidden="true" size={13} />
       {t(`watchlists.visibilityLabels.${visibility}`)}
     </span>
   )

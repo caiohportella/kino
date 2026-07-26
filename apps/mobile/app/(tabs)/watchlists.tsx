@@ -100,7 +100,6 @@ export default function WatchlistsScreen() {
                       <Text className="text-xl font-bold text-text-primary mr-2" numberOfLines={1}>
                         {item.name}
                       </Text>
-
                     </View>
                     <Ionicons name="chevron-forward" size={20} color="#666" />
                   </View>
@@ -116,7 +115,11 @@ export default function WatchlistsScreen() {
                       {t('watchlists.created')} {formatDate(item.createdAt)}
                     </Text>
                     {item.isShared && (
-                      <ShareCodeBadge label={t('watchlists.shared')} variant="blue" className='mb-2' />
+                      <ShareCodeBadge
+                        className="mb-2"
+                        label={t('watchlists.shared')}
+                        variant="green"
+                      />
                     )}
                   </View>
                 </TouchableOpacity>

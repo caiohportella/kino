@@ -153,9 +153,10 @@ export async function getPublicWatchlistOgData(id: string): Promise<PublicWatchl
       .maybeSingle(),
     client
       .from('watchlist_items')
-      .select('title:titles(title,cover_image,backdrop_image)')
+      .select('id,title:titles(title,cover_image,backdrop_image)')
       .eq('watchlist_id', id)
-      .order('added_at'),
+      .order('added_at', { ascending: false })
+      .order('id', { ascending: true }),
   ])
   if (itemsError) throw itemsError
   const titles = (items ?? []).flatMap((item) => {

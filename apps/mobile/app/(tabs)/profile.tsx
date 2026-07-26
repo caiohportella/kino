@@ -1,27 +1,25 @@
-import { View, ScrollView, RefreshControl, ActivityIndicator, Alert } from 'react-native'
-import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router'
-import { useAuth } from '@/hooks/useAuth'
-import { dbService } from '~/services/database'
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { ActivityIndicator, Alert, RefreshControl, ScrollView, View } from 'react-native'
+import { useAuth } from '@/hooks/useAuth'
 import { Skeleton } from '~/components/common/Skeleton'
 import UserListModal from '~/components/modals/UserListModal'
-import { useTranslation } from 'react-i18next'
-
-// Profile components
-import { UnauthenticatedView } from '~/components/profile/UnauthenticatedView'
+import { WatchedMoviesModal } from '~/components/modals/WatchedMoviesModal'
+import { WatchedSeriesModal } from '~/components/modals/WatchedSeriesModal'
 import { ProfileHeader } from '~/components/profile/ProfileHeader'
 import { ProfileStats } from '~/components/profile/ProfileStats'
+// Profile components
+import { UnauthenticatedView } from '~/components/profile/UnauthenticatedView'
+import { UserSearchModal } from '~/components/profile/UserSearchModal'
 import { WatchedMoviesSection } from '~/components/profile/WatchedMoviesSection'
 import { WatchedSeriesSection } from '~/components/profile/WatchedSeriesSection'
-import { UserSearchModal } from '~/components/profile/UserSearchModal'
-import { WatchedSeriesModal } from '~/components/modals/WatchedSeriesModal'
-import { WatchedMoviesModal } from '~/components/modals/WatchedMoviesModal'
-import { KinoShareModal } from '~/components/modals/KinoShareModal'
-
+import { useFollowSystem } from '~/hooks/profile/useFollowSystem'
 // Custom hooks
 import { useProfileData } from '~/hooks/profile/useProfileData'
-import { useFollowSystem } from '~/hooks/profile/useFollowSystem'
 import { useUserSearch } from '~/hooks/profile/useUserSearch'
+import { dbService } from '~/services/database'
+import { shareNativeResource } from '~/utils/native-share'
 
 export default function ProfileScreen() {
   const { user, isAuthenticated } = useAuth()
@@ -41,7 +39,6 @@ export default function ProfileScreen() {
 
   const [watchedSeriesModalVisible, setWatchedSeriesModalVisible] = useState(false)
   const [watchedMoviesModalVisible, setWatchedMoviesModalVisible] = useState(false)
-  const [shareOpen, setShareOpen] = useState(false)
 
   // Reload data when screen comes into focus
   useFocusEffect(
@@ -53,7 +50,16 @@ export default function ProfileScreen() {
   )
 
   // Handlers
-  const handleShare = () => setShareOpen(true)
+  const handleShare = () => {
+    if (!profile) return
+    void shareNativeResource({
+      canonicalUrl: `https://kino.app/${profile.username || profile.id}`,
+      shareText: t('sharing.profileText', {
+        username: profile.username || profile.display_name || 'kino',
+      }),
+      title: profile.display_name || profile.username || t('profile.user'),
+    })
+  }
 
   const handleMoviePress = (tmdbId: number) => {
     router.push(`/title/${tmdbId}?type=movie`)
@@ -203,20 +209,6 @@ export default function ProfileScreen() {
         onMoviePress={handleMoviePress}
         onLongPress={(movie) => handleDeleteMedia(movie.tmdb_id, movie.title, 'movie')}
       />
-      {profile ? (
-        <KinoShareModal
-          onClose={() => setShareOpen(false)}
-          resource={{
-            canonicalUrl: `https://kino.app/${profile.username || profile.id}`,
-            shareText: t('sharing.profileText', {
-              username: profile.username || profile.display_name || 'kino',
-            }),
-            subtitle: profile.username ? `@${profile.username}` : undefined,
-            title: profile.display_name || profile.username || t('profile.user'),
-          }}
-          visible={shareOpen}
-        />
-      ) : null}
     </View>
   )
 }

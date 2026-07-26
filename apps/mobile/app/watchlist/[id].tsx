@@ -310,7 +310,7 @@ export default function WatchlistDetailScreen() {
         <View className="flex-row items-center gap-3 mb-6">
           <TouchableOpacity onPress={handleCopyCode}>
             <Animated.View style={blinkStyle}>
-              <ShareCodeBadge label={watchlist.shareCode} variant="blue" className="px-3 py-2" />
+              <ShareCodeBadge label={watchlist.shareCode} variant="green" className="px-3 py-2" />
             </Animated.View>
           </TouchableOpacity>
 

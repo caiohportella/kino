@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
 import { ModalDialog as Dialog } from '@/components/ui/modal-dialog'
 import { db } from '@/lib/services'
+import { publishWatchlistChange } from '@/lib/watchlist-cache-sync'
 import { WatchlistVisibilitySelector } from '@/components/watchlist-visibility-selector'
 
 export function WatchlistDialog({
@@ -34,7 +35,13 @@ export function WatchlistDialog({
     setSaving(true)
     setError(null)
     try {
-      await db.createWatchlist(name.trim(), description.trim() || undefined, undefined, visibility)
+      const watchlist = await db.createWatchlist(
+        name.trim(),
+        description.trim() || undefined,
+        undefined,
+        visibility
+      )
+      publishWatchlistChange(watchlist.id)
       setName('')
       setDescription('')
       setVisibility('private')

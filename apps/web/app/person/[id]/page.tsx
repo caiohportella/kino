@@ -2,7 +2,7 @@
 
 import type { TMDbPerson, TMDbPersonCredit } from '@kino/core'
 import { formatDate, getDisplayTitle, getKnownForCredits, getReleaseYear } from '@kino/core'
-import { EmptyState, Poster } from '@/components/kino'
+import { useQuery } from '@tanstack/react-query'
 import {
   ArrowLeft,
   BriefcaseBusiness,
@@ -17,21 +17,21 @@ import {
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import {
-  ExternalLinksSection,
   type ExternalLinkProvider,
+  ExternalLinksSection,
 } from '@/components/external-links-section'
-import { PersonSkeleton } from '@/components/skeletons/page-skeletons'
+import { EmptyState, Poster } from '@/components/kino'
 import { ShareButton } from '@/components/share-button'
+import { PersonSkeleton } from '@/components/skeletons/page-skeletons'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { useTranslation } from '@/lib/i18n'
+import { getPersonImagePaths } from '@/lib/person-visuals'
+import { parseResourceSegment, personPath, titlePath } from '@/lib/routes'
 import { getTmdb } from '@/lib/services'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/stores/settings-store'
-import { getPersonImagePaths } from '@/lib/person-visuals'
-import { parseResourceSegment, personPath, titlePath } from '@/lib/routes'
-import { useTranslation } from '@/lib/i18n'
 
 export default function PersonPage() {
   const params = useParams<{ id: string }>()
@@ -129,11 +129,9 @@ export default function PersonPage() {
             <div className="mt-5 flex flex-wrap gap-3">
               <ShareButton
                 className="min-h-11 min-w-32"
-                imageUrl={`/person/${params.id}/opengraph-image`}
                 label={t('person.share')}
                 text={t('person.shareText', { name: person.name })}
                 title={person.name}
-                type="person"
                 url={personPath(person.id, person.name)}
               />
             </div>

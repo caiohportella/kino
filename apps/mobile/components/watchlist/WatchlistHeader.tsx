@@ -48,8 +48,8 @@ export function WatchlistHeader({
         )}
 
         {watchlist.isShared && watchlist.shareCode && (
-          <View className="mt-2 bg-blue-900/30 px-3 py-1 rounded-full border border-blue-500/30">
-            <Text className="text-blue-300 text-xs font-mono tracking-widest">
+          <View className="mt-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1">
+            <Text className="font-mono text-xs tracking-widest text-accent">
               CODE: {watchlist.shareCode}
             </Text>
           </View>

@@ -7,6 +7,7 @@ import no from '../../../locales/no/translation.json'
 import pt from '../../../locales/pt/translation.json'
 import type { KinoLanguage } from '@/stores/settings-store'
 import { useSettingsStore } from '@/stores/settings-store'
+import { getPluralTranslationKey } from './i18n-plural'
 
 type TranslationResource = Record<string, unknown>
 type TranslationOptions = Record<string, string | number | boolean | null | undefined> & {
@@ -34,8 +35,16 @@ export function isSupportedLanguage(language: string): language is KinoLanguage 
 }
 
 export function translate(language: KinoLanguage, key: string, options: TranslationOptions = {}) {
+  const resolvedKey = getPluralTranslationKey(
+    language,
+    key,
+    typeof options.count === 'number' ? options.count : undefined
+  )
   const template =
-    resolveTranslation(resources[language], key) ?? resolveTranslation(resources.en, key)
+    resolveTranslation(resources[language], resolvedKey) ??
+    resolveTranslation(resources.en, resolvedKey) ??
+    resolveTranslation(resources[language], key) ??
+    resolveTranslation(resources.en, key)
   const fallback = options.defaultValue ?? key
   return interpolate(template ?? fallback, options)
 }
