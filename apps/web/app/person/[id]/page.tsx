@@ -129,9 +129,11 @@ export default function PersonPage() {
             <div className="mt-5 flex flex-wrap gap-3">
               <ShareButton
                 className="min-h-11 min-w-32"
+                imageUrl={`/person/${params.id}/opengraph-image`}
                 label={t('person.share')}
                 text={t('person.shareText', { name: person.name })}
                 title={person.name}
+                type="person"
                 url={personPath(person.id, person.name)}
               />
             </div>

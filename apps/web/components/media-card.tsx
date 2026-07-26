@@ -1,12 +1,11 @@
 'use client'
 
 import type { TMDbTitle } from '@kino/core'
-import { getDisplayTitle, getReleaseYear } from '@kino/core'
+import { getDisplayTitle, getReleaseYear, getTMDbImageUrl } from '@kino/core'
 import { Poster } from '@/components/kino'
 import Link from 'next/link'
 import type { Ref } from 'react'
 import { titlePath } from '@/lib/routes'
-import { getTmdb } from '@/lib/services'
 import { cn } from '@/lib/utils'
 
 export function MediaCard({
@@ -22,11 +21,10 @@ export function MediaCard({
   linkRef?: Ref<HTMLAnchorElement>
   role?: string
 }) {
-  const tmdb = getTmdb()
   const title = getDisplayTitle(item)
   const type = item.media_type === 'tv' ? 'tv' : 'movie'
   const year = getReleaseYear(item)
-  const poster = tmdb.getImageUrl(item.poster_path, 'w300')
+  const poster = getTMDbImageUrl(item.poster_path, 'w300')
 
   return (
     <Link

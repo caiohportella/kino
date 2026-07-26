@@ -1,5 +1,6 @@
 export * from './types'
 export * from './tmdb'
+export * from './tmdb-context'
 export * from './use-cases'
 export * from './database'
 export * from './imports'

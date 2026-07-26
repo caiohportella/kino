@@ -316,7 +316,7 @@ Using both avoids turning global state into a dumping ground. It also keeps the 
 
 ### Why Imports Are Parsed Locally
 
-The import flow accepts TV Time ZIP exports and Letterboxd CSV exports, but parsing happens on the client before anything is written to Supabase.
+The import flow accepts Letterboxd CSV exports, but parsing happens on the client before anything is written to Supabase.
 
 That decision improves privacy and user trust:
 
@@ -427,7 +427,6 @@ The implementation is intentionally lightweight, which keeps translation overhea
 
 ### Import
 
--  TV Time ZIP import
 -  Letterboxd CSV import
 -  local file parsing before persistence
 -  row-by-row review and editing

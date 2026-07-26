@@ -1,5 +1,6 @@
 'use client'
 
+import type { WatchlistVisibility } from '@kino/core'
 import { Check, Copy } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useToast } from '@/components/toast-provider'
@@ -8,10 +9,28 @@ import { useTranslation } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 
 export function WatchlistSharedBadge({ className }: { className?: string }) {
+  return <WatchlistVisibilityBadge className={className} visibility="shared" />
+}
+
+export function WatchlistVisibilityBadge({
+  className,
+  visibility,
+}: {
+  className?: string
+  visibility: WatchlistVisibility
+}) {
   const { t } = useTranslation()
   return (
-    <span className={cn('shrink-0 rounded-md bg-kino-accent/15 px-3 py-1 text-xs font-semibold text-kino-accent', className)}>
-      {t('watchlists.shared')}
+    <span
+      className={cn(
+        'shrink-0 rounded-md px-3 py-1 text-xs font-semibold',
+        visibility === 'private'
+          ? 'bg-blue-500/15 text-blue-300'
+          : 'bg-kino-accent/15 text-kino-accent',
+        className
+      )}
+    >
+      {t(`watchlists.visibilityLabels.${visibility}`)}
     </span>
   )
 }
@@ -32,15 +51,20 @@ export function ShareCodeCopyButton({
   const [copied, setCopied] = useState(false)
   const resetTimer = useRef<number | null>(null)
 
-  useEffect(() => () => {
-    if (resetTimer.current) window.clearTimeout(resetTimer.current)
-  }, [])
+  useEffect(
+    () => () => {
+      if (resetTimer.current) window.clearTimeout(resetTimer.current)
+    },
+    []
+  )
 
   async function copyCode() {
     if (!code || copied) return
     try {
       if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable')
-      await navigator.clipboard.writeText(code)
+      await navigator.clipboard.writeText(
+        `${window.location.origin}/watchlists/shared/${encodeURIComponent(code)}`
+      )
       setCopied(true)
       notify({ tone: 'success', title: t('watchlists.copiedToClipboard') })
       resetTimer.current = window.setTimeout(() => setCopied(false), 1800)
@@ -63,7 +87,11 @@ export function ShareCodeCopyButton({
       variant="secondary"
     >
       {copied ? <Check data-icon="inline-start" /> : <Copy data-icon="inline-start" />}
-      {iconOnly ? <span className="sr-only">{copied ? t('watchlists.copied') : t('watchlists.copyCode')}</span> : (
+      {iconOnly ? (
+        <span className="sr-only">
+          {copied ? t('watchlists.copied') : t('watchlists.copyCode')}
+        </span>
+      ) : (
         <span className={showCode ? 'font-mono tracking-[0.16em]' : undefined}>
           {copied ? t('watchlists.copied') : showCode ? code : t('watchlists.copyCode')}
         </span>

@@ -15,14 +15,12 @@ import { WatchedSeriesSection } from '~/components/profile/WatchedSeriesSection'
 import { UserSearchModal } from '~/components/profile/UserSearchModal'
 import { WatchedSeriesModal } from '~/components/modals/WatchedSeriesModal'
 import { WatchedMoviesModal } from '~/components/modals/WatchedMoviesModal'
+import { KinoShareModal } from '~/components/modals/KinoShareModal'
 
 // Custom hooks
 import { useProfileData } from '~/hooks/profile/useProfileData'
 import { useFollowSystem } from '~/hooks/profile/useFollowSystem'
 import { useUserSearch } from '~/hooks/profile/useUserSearch'
-
-// Helpers
-import { shareProfile } from '~/utils/profile/profileHelpers'
 
 export default function ProfileScreen() {
   const { user, isAuthenticated } = useAuth()
@@ -42,6 +40,7 @@ export default function ProfileScreen() {
 
   const [watchedSeriesModalVisible, setWatchedSeriesModalVisible] = useState(false)
   const [watchedMoviesModalVisible, setWatchedMoviesModalVisible] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
 
   // Reload data when screen comes into focus
   useFocusEffect(
@@ -53,7 +52,7 @@ export default function ProfileScreen() {
   )
 
   // Handlers
-  const handleShare = () => shareProfile(profile, isOwnProfile)
+  const handleShare = () => setShareOpen(true)
 
   const handleMoviePress = (tmdbId: number) => {
     router.push(`/title/${tmdbId}?type=movie`)
@@ -174,6 +173,20 @@ export default function ProfileScreen() {
         movies={watchedMovies}
         onMoviePress={handleMoviePress}
       />
+      {profile ? (
+        <KinoShareModal
+          onClose={() => setShareOpen(false)}
+          resource={{
+            canonicalUrl: `https://kino.app/${profile.username || profile.id}`,
+            shareText: t('sharing.profileText', {
+              username: profile.username || profile.display_name || 'kino',
+            }),
+            subtitle: profile.username ? `@${profile.username}` : undefined,
+            title: profile.display_name || profile.username || t('profile.user'),
+          }}
+          visible={shareOpen}
+        />
+      ) : null}
     </View>
   )
 }

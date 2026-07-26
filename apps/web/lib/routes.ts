@@ -44,3 +44,16 @@ export function ogImagePath(
 
   return params.size ? `${path}?${params.toString()}` : path
 }
+
+export function watchlistPath(id: string, name: string) {
+  return `/watchlists/${id}-${slugify(name)}`
+}
+
+export function parseWatchlistSegment(segment: string) {
+  const id = segment.slice(0, 36)
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    id
+  )
+    ? { id, slug: segment.slice(37) }
+    : { id: segment, slug: '' }
+}

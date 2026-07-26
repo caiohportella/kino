@@ -1,11 +1,13 @@
 'use client'
 
+import type { WatchlistVisibility } from '@kino/core'
 import { useState } from 'react'
 import { useTranslation } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
 import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
 import { ModalDialog as Dialog } from '@/components/ui/modal-dialog'
 import { db } from '@/lib/services'
+import { WatchlistVisibilitySelector } from '@/components/watchlist-visibility-selector'
 
 export function WatchlistDialog({
   open,
@@ -18,7 +20,7 @@ export function WatchlistDialog({
 }) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [isShared, setIsShared] = useState(false)
+  const [visibility, setVisibility] = useState<WatchlistVisibility>('private')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { t } = useTranslation()
@@ -32,10 +34,10 @@ export function WatchlistDialog({
     setSaving(true)
     setError(null)
     try {
-      await db.createWatchlist(name.trim(), description.trim() || undefined, undefined, isShared)
+      await db.createWatchlist(name.trim(), description.trim() || undefined, undefined, visibility)
       setName('')
       setDescription('')
-      setIsShared(false)
+      setVisibility('private')
       onSaved()
       onClose()
     } catch (caught) {
@@ -58,14 +60,7 @@ export function WatchlistDialog({
           onChange={(event) => setDescription(event.target.value)}
           value={description}
         />
-        <label className="flex items-center gap-3 rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-sm text-kino-text">
-          <input
-            checked={isShared}
-            onChange={(event) => setIsShared(event.target.checked)}
-            type="checkbox"
-          />
-          {t('modals.shareHint')}
-        </label>
+        <WatchlistVisibilitySelector onChange={setVisibility} value={visibility} />
         {error ? <p className="text-sm text-red-300">{error}</p> : null}
         <div className="flex justify-end gap-3">
           <Button onClick={onClose} variant="secondary">

@@ -33,6 +33,19 @@ export interface TMDbMovie extends TMDbTitle {
   runtime?: number
   genres: TMDbGenre[]
   external_ids?: TMDbExternalIds
+  belongs_to_collection?: TMDbCollectionSummary | null
+}
+
+export interface TMDbCollectionSummary {
+  id: number
+  name: string
+  poster_path: string | null
+  backdrop_path: string | null
+}
+
+export interface TMDbCollection extends TMDbCollectionSummary {
+  overview: string
+  parts: TMDbTitle[]
 }
 
 export interface TMDbTVShow extends TMDbTitle {
@@ -95,6 +108,56 @@ export interface TMDbImage {
 export interface TMDbCredits {
   cast: TMDbCast[]
   crew: TMDbCast[]
+}
+
+export interface TMDbVideo {
+  id: string
+  iso_639_1: string | null
+  iso_3166_1: string | null
+  key: string
+  name: string
+  official: boolean
+  published_at: string
+  site: string
+  type: string
+}
+
+export interface TMDbVideoResponse {
+  id: number
+  results: TMDbVideo[]
+}
+
+export interface TMDbWatchProvider {
+  display_priority?: number
+  logo_path: string | null
+  provider_id: number
+  provider_name: string
+}
+
+export interface TMDbWatchProviderRegion {
+  ads?: TMDbWatchProvider[]
+  buy?: TMDbWatchProvider[]
+  flatrate?: TMDbWatchProvider[]
+  free?: TMDbWatchProvider[]
+  link?: string
+  rent?: TMDbWatchProvider[]
+}
+
+export interface TMDbWatchProviderResponse {
+  id: number
+  results: Record<string, TMDbWatchProviderRegion>
+}
+
+export type WatchProviderCategory = 'stream' | 'free' | 'ads' | 'rent' | 'buy'
+
+export interface NormalizedWatchProvider extends TMDbWatchProvider {
+  category: WatchProviderCategory
+}
+
+export interface NormalizedWatchProviders {
+  groups: Partial<Record<WatchProviderCategory, NormalizedWatchProvider[]>>
+  link: string | null
+  region: string
 }
 
 export interface TMDbPersonExternalIds {
@@ -254,10 +317,20 @@ export interface Watchlist {
   name: string
   description?: string
   thumbnail?: string
+  visibility: WatchlistVisibility
+  /** @deprecated Use visibility. */
   isShared: boolean
   shareCode?: string
   createdAt: Date
   updatedAt: Date
+}
+
+export type WatchlistVisibility = 'private' | 'shared' | 'public'
+
+export interface PublicWatchlistSummary extends Watchlist {
+  titleCount: number
+  coverImages: string[]
+  owner?: Pick<UserProfile, 'id' | 'avatar_url' | 'display_name' | 'username'>
 }
 
 export interface WatchlistItem {
@@ -349,7 +422,7 @@ export interface TitleRatingStats {
   starBreakdown: Record<number, number>
 }
 
-export type ImportSource = 'tvtime' | 'letterboxd'
+export type ImportSource = 'letterboxd'
 export type ImportConfidence = 'high' | 'medium' | 'low'
 
 export interface ImportEpisodePayload {

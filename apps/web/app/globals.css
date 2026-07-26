@@ -5,8 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans:
-    Aptos, "Helvetica Neue", "Noto Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: Aptos, "Helvetica Neue", "Noto Sans", ui-sans-serif, system-ui, sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -42,6 +41,7 @@
 
 :root {
   color-scheme: dark;
+  --app-header-height: 68px;
   --kino-bg: #121212;
   --kino-bg-rgb: 18 18 18;
   --kino-panel: #171717;
@@ -224,7 +224,7 @@ a {
 .app-header-inner {
   display: flex;
   width: min(100%, 1320px);
-  min-height: 68px;
+  min-height: var(--app-header-height);
   align-items: center;
   gap: 24px;
   margin-inline: auto;
@@ -270,11 +270,9 @@ a {
 }
 
 .media-row {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 156px;
-  align-items: start;
-  gap: 18px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
   padding: 4px 2px 14px;
   scrollbar-width: none;
@@ -285,6 +283,15 @@ a {
   user-select: none;
 }
 
+.media-row-track {
+  display: grid;
+  width: max-content;
+  grid-auto-flow: column;
+  grid-auto-columns: 156px;
+  align-items: start;
+  gap: 18px;
+}
+
 .media-row::-webkit-scrollbar {
   display: none;
 }
@@ -293,9 +300,20 @@ a {
   cursor: grabbing;
 }
 
-.media-row > * {
+.media-row-track > * {
   width: 156px;
   min-width: 0;
+}
+
+@media (width >= 64rem) and (height >= 760px) {
+  .title-sidebar {
+    position: sticky;
+    top: calc(var(--app-header-height) + 1.5rem);
+    max-height: calc(100vh - var(--app-header-height) - 3rem);
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
 }
 
 .sidebar-link {
@@ -349,12 +367,7 @@ a {
   position: absolute;
   inset: 0;
   content: "";
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgb(255 255 255 / 0.065),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.065), transparent);
   transform: translateX(-100%);
   animation: skeleton-shimmer 1.6s ease-in-out infinite;
 }
@@ -520,9 +533,7 @@ a {
   transform: translateY(-1px);
 }
 
-.kino-calendar
-  .rdp-day:not(.rdp-selected)
-  .rdp-day_button:hover:not(:disabled) {
+.kino-calendar .rdp-day:not(.rdp-selected) .rdp-day_button:hover:not(:disabled) {
   color: var(--kino-accent);
 }
 
@@ -585,12 +596,12 @@ a {
     font-size: 0.9rem;
   }
 
-  .media-row {
+  .media-row-track {
     grid-auto-columns: 136px;
     gap: 14px;
   }
 
-  .media-row > * {
+  .media-row-track > * {
     width: 136px;
   }
 }

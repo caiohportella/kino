@@ -10,7 +10,7 @@ import type {
   WatchType,
   Watchlist,
 } from '@kino/core'
-import { formatDate as formatKinoDate } from '@kino/core'
+import { formatDate as formatKinoDate, getTMDbImageUrl } from '@kino/core'
 import {
   calculateSeasonRatingSummary,
   formatRuntime,
@@ -46,6 +46,13 @@ import {
   type ExternalLinkProvider,
 } from '@/components/external-links-section'
 import { SeasonSelector } from '@/components/season-selector'
+import {
+  FranchiseTitles,
+  MoreLikeThis,
+  TrailerCard,
+  WatchProvidersCard,
+  type TitleContextData,
+} from '@/components/title-context'
 import { MediaModalSkeleton, TitleSkeleton } from '@/components/skeletons/page-skeletons'
 import { RatingStars } from '@/components/rating-stars'
 import { WatchlistDialog } from '@/components/watchlist-dialog'
@@ -71,13 +78,10 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from '@/components/ui/dialog'
 import { SingleDatePicker } from '@/components/single-date-picker'
-import {
-  SplitButton,
-  SplitButtonMain,
-  SplitButtonSecondary,
-} from '@/components/ui/split-button'
+import { SplitButton, SplitButtonMain, SplitButtonSecondary } from '@/components/ui/split-button'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { db, getTmdb } from '@/lib/services'
@@ -91,8 +95,6 @@ const ANON_TITLE_ID = '00000000-0000-0000-0000-000000000000'
 const EXTERNAL_LOGOS = {
   letterboxd: 'https://a.ltrbxd.com/logos/letterboxd-decal-dots-neg-rgb.svg',
   tmdb: 'https://www.themoviedb.org/assets/2/v4/logos/v2/blue_square_2-d537fb228cf3ded904ef09b136fe3fec72548ebc1fea3fbbd1ad9e36364db38b.svg',
-  tvTime:
-    'https://cdn.brandfetch.io/idRVkKuKdb/w/39/h/39/theme/dark/logo.png?c=1dxbfHSJFAPEGdCLU4o5B',
   seriesGraph:
     'https://seriesgraph.com/_next/image?url=https:%2F%2Fimages.seriesgraph.com%2Ffictional-posters%2F2e65671e-4c85-40a1-b184-44be9a8153a5-10ba660c-a406-42fc-aee1-74f87f822aca-1779031627029.jpg&w=1080&q=75',
 } as const
@@ -226,6 +228,20 @@ export default function TitlePage() {
     gcTime: 60 * 60 * 1000,
   })
 
+  const contextQuery = useQuery<TitleContextData>({
+    queryKey: ['title-context', tmdbId, type, language],
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/tmdb/title/${tmdbId}/context?type=${type}&language=${encodeURIComponent(language)}`
+      )
+      if (!response.ok) throw new Error('Title context is unavailable.')
+      return response.json() as Promise<TitleContextData>
+    },
+    enabled: Number.isFinite(tmdbId),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+  })
+
   const rateMutation = useMutation({
     mutationFn: (rating: number) => db.rateTitle(title!.id, rating, 'first-time', new Date()),
     onSuccess: () => {
@@ -338,7 +354,8 @@ export default function TitlePage() {
             onClick={() => diaryMutation.mutate(undefined)}
             variant="secondary"
           >
-            <CalendarCheck size={17} /><span>{t('title.removeHistory')}</span>
+            <CalendarCheck size={17} />
+            <span>{t('title.removeHistory')}</span>
           </Button>
         ) : (
           <SplitButton aria-label={t('title.diary')} className="w-full sm:w-auto sm:min-w-36">
@@ -349,7 +366,8 @@ export default function TitlePage() {
                 diaryMutation.mutate(new Date())
               }}
             >
-              <CalendarCheck /><span className="truncate">{t('title.diary')}</span>
+              <CalendarCheck />
+              <span className="truncate">{t('title.diary')}</span>
             </SplitButtonMain>
             <SingleDatePicker
               disabled={diaryMutation.isPending}
@@ -381,8 +399,10 @@ export default function TitlePage() {
         )}
         <ShareButton
           className="min-h-11 w-full min-[390px]:col-span-2 sm:w-auto sm:min-w-32"
+          imageUrl={`/api/og/title/${tmdbId}?type=${type}`}
           text={t('title.checkOut', { title: title.title })}
           title={title.title}
+          type="title"
           url={`${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
         />
       </div>
@@ -404,8 +424,8 @@ export default function TitlePage() {
     <div className="content-frame">
       <TitleHeader actions={titleActions} title={title} upcomingSeason={upcomingSeason} />
 
-      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="grid items-start gap-6">
+      <div className="grid w-full min-w-0 max-w-full items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <main className="grid w-full min-w-0 max-w-full items-start gap-6">
           <Card className="self-start p-5 md:p-6">
             <h2 className="text-xl font-semibold text-kino-text">
               {t('title.synopsis', { defaultValue: 'Synopsis' })}
@@ -419,7 +439,7 @@ export default function TitlePage() {
           </Card>
 
           {title.type === 'movie' ? (
-            <div className="grid gap-5 md:max-w-xl">
+            <div className="grid w-full min-w-0 max-w-full gap-5">
               <Card className="self-start p-5 text-center md:p-6">
                 <h2 className="mb-4 text-xl font-semibold text-kino-text">
                   {t('title.rateMovie')}
@@ -480,8 +500,6 @@ export default function TitlePage() {
                   </Button>
                 )}
               </Card>
-              <CommunityRatingsPanel stats={statsQuery.data} type={title.type} />
-              <ExternalLinksPanel title={title} />
             </div>
           ) : null}
 
@@ -496,19 +514,72 @@ export default function TitlePage() {
               />
             </Card>
           ) : null}
-        </div>
 
-        <aside className="grid content-start gap-5">
-          <CreditsPanel title={title} />
-
-          {title.type === 'tv' ? (
+          {title.type === 'movie' ? (
             <>
               <CommunityRatingsPanel stats={statsQuery.data} type={title.type} />
-              <ExternalLinksPanel title={title} />
+              <FranchiseTitles
+                items={contextQuery.data?.franchiseTitles}
+                loading={contextQuery.isLoading}
+              />
+              <MoreLikeThis
+                error={contextQuery.data?.errors.recommendations || contextQuery.isError}
+                items={contextQuery.data?.recommendations}
+                loading={contextQuery.isLoading}
+              />
             </>
           ) : null}
+        </main>
+
+        <aside className="title-sidebar grid w-full min-w-0 max-w-full content-start gap-5">
+          <div className="order-1">
+            <TrailerCard
+              error={contextQuery.data?.errors.trailer || contextQuery.isError}
+              loading={contextQuery.isLoading}
+              title={title.title}
+              trailer={contextQuery.data?.trailer}
+            />
+          </div>
+          <div className="order-2">
+            <WatchProvidersCard
+              error={contextQuery.data?.errors.providers || contextQuery.isError}
+              loading={contextQuery.isLoading}
+              media={{
+                mediaType: title.type,
+                releaseYear: title.year,
+                title: title.title,
+                tmdbId: title.tmdbId,
+              }}
+              providers={contextQuery.data?.providers}
+            />
+          </div>
+          <div className="order-3">
+            <ExternalLinksPanel title={title} />
+          </div>
+          {title.type === 'tv' ? (
+            <div className="order-4">
+              <CommunityRatingsPanel stats={statsQuery.data} type={title.type} />
+            </div>
+          ) : null}
+          <div className="order-5">
+            <CreditsPanel title={title} />
+          </div>
         </aside>
       </div>
+
+      {title.type === 'tv' ? (
+        <div className="mt-6 grid w-full min-w-0 max-w-full gap-6">
+          <FranchiseTitles
+            items={contextQuery.data?.franchiseTitles}
+            loading={contextQuery.isLoading}
+          />
+          <MoreLikeThis
+            error={contextQuery.data?.errors.recommendations || contextQuery.isError}
+            items={contextQuery.data?.recommendations}
+            loading={contextQuery.isLoading}
+          />
+        </div>
+      ) : null}
 
       <WatchlistPicker
         onClose={() => setWatchlistOpen(false)}
@@ -767,7 +838,13 @@ function CommunityRatingsPanel({
 function ExternalLinksPanel({ title }: { title: TitleDetails }) {
   const { t } = useTranslation()
   return (
-    <ExternalLinksSection providers={getTitleExternalLinks(title)} title={t('title.seeAlsoOn')} />
+    <Card className="p-5" size="sm">
+      <ExternalLinksSection
+        compact
+        providers={getTitleExternalLinks(title)}
+        title={t('title.seeAlsoOn')}
+      />
+    </Card>
   )
 }
 
@@ -799,16 +876,6 @@ function getTitleExternalLinks(title: TitleDetails): ExternalLinkProvider[] {
     })
   }
 
-  links.push({
-    href:
-      title.type === 'tv' && title.externalIds?.tvdb_id
-        ? `https://www.tvtime.com/en/show/${title.externalIds.tvdb_id}`
-        : `https://www.tvtime.com/en/search?q=${encodeURIComponent(title.title)}`,
-    brandColor: '#f7b900',
-    iconUrl: EXTERNAL_LOGOS.tvTime,
-    label: 'TV Time',
-  })
-
   if (title.type === 'tv') {
     links.push({
       href: `https://seriesgraph.com/show/${title.tmdbId}`,
@@ -823,22 +890,19 @@ function getTitleExternalLinks(title: TitleDetails): ExternalLinkProvider[] {
 
 function CreditsPanel({ title }: { title: TitleDetails }) {
   const { t } = useTranslation()
-  const directorLabel = title.type === 'tv' ? 'Creator' : 'Director'
-  const cast = title.cast.slice(0, 8)
+  const directorLabel = title.type === 'tv' ? t('title.creator') : t('title.director')
+  const cast = title.cast.slice(0, 5)
+  const hasMoreCast = title.cast.length > cast.length
 
   if (!title.director && cast.length === 0) return null
 
   return (
-    <Card className="grid gap-4 p-5">
-      <div>
-        <h2 className="text-lg font-semibold text-kino-text">{t('title.credits')}</h2>
-      </div>
+    <Card className="grid gap-4 p-5" size="sm">
+      <h2 className="text-lg font-semibold text-kino-text">{t('title.credits')}</h2>
 
       {title.director ? (
         <section className="grid gap-2">
-          <h3 className="text-xs font-semibold uppercase text-kino-subtle">
-            {title.type === 'tv' ? directorLabel : t('title.director')}
-          </h3>
+          <h3 className="text-xs font-semibold uppercase text-kino-subtle">{directorLabel}</h3>
           <CreditPersonLink
             person={title.director}
             roleLabel={title.director.job || directorLabel}
@@ -848,7 +912,7 @@ function CreditsPanel({ title }: { title: TitleDetails }) {
 
       {cast.length > 0 ? (
         <section className="grid gap-2">
-          <h3 className="text-xs font-semibold uppercase text-kino-subtle">{t('title.cast')}</h3>
+          <h3 className="text-xs font-semibold uppercase text-kino-subtle">{t('title.topCast')}</h3>
           <div className="grid gap-2">
             {cast.map((person) => (
               <CreditPersonLink
@@ -858,6 +922,32 @@ function CreditsPanel({ title }: { title: TitleDetails }) {
               />
             ))}
           </div>
+          {hasMoreCast ? (
+            <Dialog>
+              <DialogTrigger
+                render={
+                  <Button className="justify-start px-0" size="sm" variant="ghost">
+                    {t('title.seeFullCast')}
+                  </Button>
+                }
+              />
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>{t('title.fullCastFor', { title: title.title })}</DialogTitle>
+                  <DialogDescription>{t('title.fullCastDescription')}</DialogDescription>
+                </DialogHeader>
+                <div className="grid max-h-[65vh] gap-2 overflow-y-auto sm:grid-cols-2">
+                  {title.cast.map((person) => (
+                    <CreditPersonLink
+                      key={`${person.id}-${person.character || person.name}`}
+                      person={person}
+                      roleLabel={person.character}
+                    />
+                  ))}
+                </div>
+              </DialogContent>
+            </Dialog>
+          ) : null}
         </section>
       ) : null}
     </Card>
@@ -865,7 +955,8 @@ function CreditsPanel({ title }: { title: TitleDetails }) {
 }
 
 function CreditPersonLink({ person, roleLabel }: { person: TMDbCast; roleLabel?: string }) {
-  const avatar = getTmdb().getImageUrl(person.profile_path, 'w200')
+  const { t } = useTranslation()
+  const avatar = getTMDbImageUrl(person.profile_path, 'w200')
   const initials = person.name
     .split(' ')
     .map((part) => part[0])
@@ -875,8 +966,8 @@ function CreditPersonLink({ person, roleLabel }: { person: TMDbCast; roleLabel?:
 
   return (
     <Link
-      aria-label={`View ${person.name} profile`}
-      className="focus-ring group flex min-w-0 items-center gap-3 rounded-md border border-white/10 bg-white/[0.035] p-2 transition-colors hover:border-white/20 hover:bg-white/[0.06]"
+      aria-label={t('title.viewPersonProfile', { name: person.name })}
+      className="focus-ring group flex min-w-0 items-center gap-3 rounded-md p-1.5 transition-colors hover:bg-white/[0.05]"
       href={personPath(person.id, person.name)}
     >
       <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-md bg-white/[0.06] text-xs font-bold text-kino-muted">

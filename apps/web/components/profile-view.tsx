@@ -1,10 +1,25 @@
 'use client'
 
-import type { FollowerInfo, UserProfile } from '@kino/core'
-import { applyReleasedSeriesProgress, formatDate, isFutureDateOnly, parseDateOnly } from '@kino/core'
+import type { FollowerInfo, PublicWatchlistSummary, UserProfile } from '@kino/core'
+import {
+  applyReleasedSeriesProgress,
+  formatDate,
+  isFutureDateOnly,
+  parseDateOnly,
+} from '@kino/core'
 import { EmptyState, Poster } from '@/components/kino'
 import type { LucideIcon } from 'lucide-react'
-import { CalendarDays, Film, LoaderCircle, Search, Star, Tv, UserPlus, UserRoundCheck, UsersRound } from 'lucide-react'
+import {
+  CalendarDays,
+  Film,
+  LoaderCircle,
+  Search,
+  Star,
+  Tv,
+  UserPlus,
+  UserRoundCheck,
+  UsersRound,
+} from 'lucide-react'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { useMemo, useState } from 'react'
@@ -31,27 +46,21 @@ import { RatingStars } from '@/components/rating-stars'
 import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
 import { db, getTmdb } from '@/lib/services'
 import { cn } from '@/lib/utils'
-import { titlePath } from '@/lib/routes'
+import { titlePath, watchlistPath } from '@/lib/routes'
 import { useAuthStore } from '@/stores/auth-store'
 import { useSettingsStore } from '@/stores/settings-store'
 
-async function refreshSeriesAvailability(
-  items: Awaited<ReturnType<typeof db.getWatchedSeries>>
-) {
+async function refreshSeriesAvailability(items: Awaited<ReturnType<typeof db.getWatchedSeries>>) {
   const tmdb = getTmdb()
 
   return Promise.all(
     items.map(async (series) => {
       const metadataSeasons = (series.seasons_metadata || []).filter(
-        (season) =>
-          season.season_number > 0 &&
-          season.episode_count > 0
+        (season) => season.season_number > 0 && season.episode_count > 0
       )
       if (metadataSeasons.length === 0) return series
 
-      const seasons = metadataSeasons.filter(
-        (season) => !isFutureDateOnly(season.air_date)
-      )
+      const seasons = metadataSeasons.filter((season) => !isFutureDateOnly(season.air_date))
       if (seasons.length === 0) return applyReleasedSeriesProgress(series, [])
 
       const results = await Promise.all(
@@ -118,25 +127,27 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
   const query = useQuery({
     queryKey: ['profile', targetUserId],
     queryFn: async () => {
-      const [profile, movies, storedSeries, counts, relationship, publicStats] = await Promise.all([
-        db.getUserProfile(targetUserId!),
-        db.getWatchedMovies(targetUserId!),
-        db.getWatchedSeries(targetUserId!),
-        db.getFollowCounts(targetUserId!),
-        user && !isOwnProfile
-          ? db.getFollowRelationship(targetUserId!)
-          : Promise.resolve({
-              isFollowing: false,
-              isFollowedBy: false,
-              isMutual: false,
-              mutualSince: undefined as string | undefined,
-            }),
-        username
-          ? db.getPublicProfileStatsByUsername(username).catch(() => null)
-          : Promise.resolve(null),
-      ])
+      const [profile, movies, storedSeries, counts, relationship, publicStats, publicWatchlists] =
+        await Promise.all([
+          db.getUserProfile(targetUserId!),
+          db.getWatchedMovies(targetUserId!),
+          db.getWatchedSeries(targetUserId!),
+          db.getFollowCounts(targetUserId!),
+          user && !isOwnProfile
+            ? db.getFollowRelationship(targetUserId!)
+            : Promise.resolve({
+                isFollowing: false,
+                isFollowedBy: false,
+                isMutual: false,
+                mutualSince: undefined as string | undefined,
+              }),
+          username
+            ? db.getPublicProfileStatsByUsername(username).catch(() => null)
+            : Promise.resolve(null),
+          db.getPublicWatchlists(targetUserId!),
+        ])
       const series = await refreshSeriesAvailability(storedSeries)
-      return { profile, movies, series, counts, relationship, publicStats }
+      return { profile, movies, series, counts, relationship, publicStats, publicWatchlists }
     },
     enabled: Boolean(targetUserId),
   })
@@ -198,13 +209,18 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
     },
     onSuccess: ({ followedAt }, variables) => {
       const key = ['profile-social-list', targetUserId, socialListType]
-      queryClient.setQueryData<FollowerInfo[]>(key, (current) => current?.map((entry) => {
-        if (entry.id !== variables.userId) return entry
-        const isFollowing = !variables.isFollowing
-        const isMutual = isFollowing && entry.isFollowedBy
-        return { ...entry, isFollowing, isMutual, mutualSince: isMutual ? followedAt : undefined }
-      }))
-      notify({ tone: 'success', title: t(variables.isFollowing ? 'profile.unfollowedUser' : 'profile.followedUser') })
+      queryClient.setQueryData<FollowerInfo[]>(key, (current) =>
+        current?.map((entry) => {
+          if (entry.id !== variables.userId) return entry
+          const isFollowing = !variables.isFollowing
+          const isMutual = isFollowing && entry.isFollowedBy
+          return { ...entry, isFollowing, isMutual, mutualSince: isMutual ? followedAt : undefined }
+        })
+      )
+      notify({
+        tone: 'success',
+        title: t(variables.isFollowing ? 'profile.unfollowedUser' : 'profile.followedUser'),
+      })
       queryClient.invalidateQueries({ queryKey: ['profile'] })
       queryClient.invalidateQueries({ queryKey: ['profile-social-list'] })
       queryClient.invalidateQueries({ queryKey: ['profile-user-search'] })
@@ -213,11 +229,18 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
       const key = ['profile-social-list', targetUserId, socialListType]
       await queryClient.cancelQueries({ queryKey: key })
       const previous = queryClient.getQueryData<FollowerInfo[]>(key)
-      queryClient.setQueryData<FollowerInfo[]>(key, (current) => current?.map((entry) =>
-        entry.id === userId
-          ? { ...entry, isFollowing: !isFollowing, isMutual: !isFollowing && entry.isFollowedBy, mutualSince: undefined }
-          : entry
-      ))
+      queryClient.setQueryData<FollowerInfo[]>(key, (current) =>
+        current?.map((entry) =>
+          entry.id === userId
+            ? {
+                ...entry,
+                isFollowing: !isFollowing,
+                isMutual: !isFollowing && entry.isFollowedBy,
+                mutualSince: undefined,
+              }
+            : entry
+        )
+      )
       return { previous, key }
     },
     onError: (_error, variables, context) => {
@@ -284,12 +307,13 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
     return <EmptyState body={t('common.tryAgain')} title={t('profile.title')} />
   }
 
-  const { profile, movies, series, counts, relationship } = query.data
+  const { profile, movies, series, counts, relationship, publicWatchlists } = query.data
   const profileName = profile.display_name || profile.username || t('profile.user')
   const initials = getInitials(profile)
-  const mutualSinceLabel = !isOwnProfile && relationship.isMutual && relationship.mutualSince
-    ? formatMutualSince(relationship.mutualSince, language, t)
-    : null
+  const mutualSinceLabel =
+    !isOwnProfile && relationship.isMutual && relationship.mutualSince
+      ? formatMutualSince(relationship.mutualSince, language, t)
+      : null
 
   return (
     <div className="content-frame">
@@ -331,7 +355,11 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
             {!isOwnProfile && user ? (
               <Button disabled={followMutation.isPending} onClick={() => followMutation.mutate()}>
                 {relationship.isFollowing ? <UserRoundCheck size={16} /> : <UserPlus size={16} />}
-                {relationship.isFollowing ? t('profile.following') : relationship.isFollowedBy ? t('profile.followBack') : t('profile.follow')}
+                {relationship.isFollowing
+                  ? t('profile.following')
+                  : relationship.isFollowedBy
+                    ? t('profile.followBack')
+                    : t('profile.follow')}
               </Button>
             ) : null}
           </div>
@@ -367,7 +395,7 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
         />
       </div>
 
-      {movies.length === 0 && series.length === 0 ? (
+      {movies.length === 0 && series.length === 0 && publicWatchlists.length === 0 ? (
         <EmptyState
           body={t('emptyStates.profileBody')}
           illustrationLabel={t('emptyStates.profileIllustration')}
@@ -378,6 +406,7 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
         <>
           <ProfileShelf items={movies} title={t('profile.watchedMovies')} type="movie" />
           <SeriesShelf items={series} />
+          <PublicWatchlistShelf items={publicWatchlists} />
         </>
       )}
 
@@ -413,7 +442,9 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
         pendingUserId={socialListActionMutation.variables?.userId}
         listType={socialListType}
         loading={socialListQuery.isFetching}
-        onAction={(profile) => socialListActionMutation.mutate({ userId: profile.id, isFollowing: profile.isFollowing })}
+        onAction={(profile) =>
+          socialListActionMutation.mutate({ userId: profile.id, isFollowing: profile.isFollowing })
+        }
         onOpenChange={(open) => {
           if (!open) setSocialListType(null)
         }}
@@ -670,7 +701,9 @@ function SocialListDialog({
                           size="sm"
                           variant="secondary"
                         >
-                          {isPending ? <LoaderCircle aria-hidden="true" className="animate-spin" size={15} /> : null}
+                          {isPending ? (
+                            <LoaderCircle aria-hidden="true" className="animate-spin" size={15} />
+                          ) : null}
                           {isPending ? t('profile.followingUser') : actionLabel}
                         </Button>
                       ) : null
@@ -925,13 +958,7 @@ function SeriesRatingDialog({
   )
 }
 
-function ProfileUserRow({
-  profile,
-  action,
-}: {
-  profile: UserProfile
-  action?: ReactNode
-}) {
+function ProfileUserRow({ profile, action }: { profile: UserProfile; action?: ReactNode }) {
   const { t } = useTranslation()
   const displayName = profile.display_name || profile.username || t('profile.user')
   const username = profile.username ? `@${profile.username}` : t('profile.title')
@@ -1033,6 +1060,52 @@ function ProfileShelf({
   }
 
   return <ProfileTitleRow items={items} renderTitleCard={renderTitleCard} title={title} />
+}
+
+function PublicWatchlistShelf({ items }: { items: PublicWatchlistSummary[] }) {
+  const { t } = useTranslation()
+  if (items.length === 0) return null
+
+  return (
+    <section className="mt-8 min-w-0">
+      <h2 className="mb-4 text-lg font-semibold text-kino-text">{t('watchlists.title')}</h2>
+      <MediaRow aria-label={t('watchlists.title')}>
+        {items.map((watchlist) => (
+          <Link
+            className="grid w-[240px] min-w-[240px] content-start gap-3"
+            href={watchlistPath(watchlist.id, watchlist.name)}
+            key={watchlist.id}
+          >
+            <div className="grid aspect-[16/10] grid-cols-2 overflow-hidden rounded-md border border-white/10 bg-kino-panel shadow-soft">
+              {Array.from({ length: 4 }, (_, index) => {
+                const cover = watchlist.coverImages[index]
+                return cover ? (
+                  <img
+                    alt=""
+                    className="h-full min-h-0 w-full object-cover"
+                    key={`${watchlist.id}-${index}`}
+                    src={getTmdb().getImageUrl(cover, 'w300') || undefined}
+                  />
+                ) : (
+                  <span
+                    aria-hidden="true"
+                    className="bg-[linear-gradient(135deg,rgb(29_185_84_/_0.14),rgb(255_255_255_/_0.04))]"
+                    key={`${watchlist.id}-${index}`}
+                  />
+                )
+              })}
+            </div>
+            <div className="min-w-0">
+              <h3 className="truncate text-sm font-semibold text-kino-text">{watchlist.name}</h3>
+              <p className="mt-1 text-xs text-kino-muted">
+                {t('watchlists.watchlistCount', { count: watchlist.titleCount })}
+              </p>
+            </div>
+          </Link>
+        ))}
+      </MediaRow>
+    </section>
+  )
 }
 
 function SeriesShelf({ items }: { items: Awaited<ReturnType<typeof db.getWatchedSeries>> }) {

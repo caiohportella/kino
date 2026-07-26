@@ -18,6 +18,8 @@ import type {
   WatchedMovie,
   WatchedSeries,
   Watchlist,
+  WatchlistVisibility,
+  PublicWatchlistSummary,
   WatchlistItem,
   WatchlistItemDetails,
 } from './types'
@@ -98,6 +100,7 @@ interface WatchlistRow {
   description: string | null
   thumbnail: string | null
   is_shared: boolean
+  visibility: WatchlistVisibility
   share_code: string | null
   created_at: string
   updated_at: string
@@ -849,7 +852,12 @@ export class KinoDatabaseService {
     return data ? this.mapWatchDiaryEntry(data as WatchDiaryRow) : null
   }
 
-  async createWatchlist(name: string, description?: string, thumbnail?: string, isShared = false) {
+  async createWatchlist(
+    name: string,
+    description?: string,
+    thumbnail?: string,
+    visibility: WatchlistVisibility = 'private'
+  ) {
     const user = await this.getRequiredUserId()
     const { data, error } = await this.supabase
       .from('watchlists')
@@ -858,8 +866,9 @@ export class KinoDatabaseService {
         name,
         description,
         thumbnail,
-        is_shared: isShared,
-        share_code: isShared ? this.createShareCode() : null,
+        visibility,
+        is_shared: visibility === 'shared',
+        share_code: visibility === 'shared' ? this.createShareCode() : null,
       })
       .select()
       .single()
@@ -875,7 +884,7 @@ export class KinoDatabaseService {
         name: updates.name,
         description: updates.description,
         thumbnail: updates.thumbnail,
-        is_shared: updates.isShared,
+        visibility: updates.visibility,
       })
       .eq('id', watchlistId)
       .select()
@@ -885,12 +894,13 @@ export class KinoDatabaseService {
     return this.mapWatchlist(data as WatchlistRow)
   }
 
-  async setWatchlistPrivacy(watchlistId: string, isShared: boolean) {
+  async setWatchlistVisibility(watchlistId: string, visibility: WatchlistVisibility) {
     const { data, error } = await this.supabase
       .from('watchlists')
       .update({
-        is_shared: isShared,
-        share_code: isShared ? this.createShareCode() : null,
+        visibility,
+        is_shared: visibility === 'shared',
+        share_code: visibility === 'shared' ? this.createShareCode() : null,
       })
       .eq('id', watchlistId)
       .select()
@@ -913,6 +923,53 @@ export class KinoDatabaseService {
       .maybeSingle()
     if (error) throw error
     return data ? this.mapWatchlist(data as WatchlistRow) : null
+  }
+
+  async getWatchlistAccess(watchlistId: string) {
+    const userId = await this.getUserId()
+    const watchlist = await this.getWatchlist(watchlistId)
+    if (!watchlist) return { canEdit: false, isOwner: false }
+    const isOwner = Boolean(userId && watchlist.userId === userId)
+    if (!userId || isOwner) return { canEdit: isOwner, isOwner }
+    const { data, error } = await this.supabase
+      .from('watchlist_collaborators')
+      .select('can_edit')
+      .eq('watchlist_id', watchlistId)
+      .eq('user_id', userId)
+      .maybeSingle()
+    if (error) throw error
+    return { canEdit: Boolean(data?.can_edit), isOwner: false }
+  }
+
+  async getPublicWatchlists(userId: string): Promise<PublicWatchlistSummary[]> {
+    const { data, error } = await this.supabase
+      .from('watchlists')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('visibility', 'public')
+      .order('updated_at', { ascending: false })
+    if (error) throw error
+
+    return Promise.all(
+      ((data ?? []) as WatchlistRow[]).map(async (row) => {
+        const { data: items, error: itemsError } = await this.supabase
+          .from('watchlist_items')
+          .select('title:titles(cover_image)')
+          .eq('watchlist_id', row.id)
+        if (itemsError) throw itemsError
+        const covers = (items ?? [])
+          .map((item) => {
+            const title = item.title as unknown as { cover_image: string | null } | null
+            return title?.cover_image
+          })
+          .filter((cover): cover is string => Boolean(cover))
+        return {
+          ...this.mapWatchlist(row),
+          coverImages: covers.slice(0, 4),
+          titleCount: items?.length || 0,
+        }
+      })
+    )
   }
 
   async getUserWatchlists() {
@@ -975,13 +1032,12 @@ export class KinoDatabaseService {
   }
 
   async removeFromWatchlist(watchlistId: string, titleId: string) {
-    const user = await this.getRequiredUserId()
+    await this.getRequiredUserId()
     const { error } = await this.supabase
       .from('watchlist_items')
       .delete()
       .eq('watchlist_id', watchlistId)
       .eq('title_id', titleId)
-      .eq('added_by', user)
     if (error) throw error
   }
 
@@ -1032,6 +1088,24 @@ export class KinoDatabaseService {
     })
     if (error) throw error
     return this.mapWatchlist(data as WatchlistRow)
+  }
+
+  async getSharedWatchlistByCode(code: string) {
+    const { data, error } = await this.supabase.rpc('get_shared_watchlist_by_code', {
+      p_share_code: code.trim().toUpperCase(),
+    })
+    if (error) throw error
+    if (!data) return null
+    const payload = data as { watchlist: WatchlistRow; items: WatchlistItemRow[] }
+    return {
+      watchlist: this.mapWatchlist(payload.watchlist),
+      items: payload.items
+        .filter((row): row is WatchlistItemRow & { title: TitleRow } => Boolean(row.title))
+        .map<WatchlistItemDetails>((row) => ({
+          ...this.mapWatchlistItem(row),
+          title: this.mapPersistedTitle(row.title),
+        })),
+    }
   }
 
   async leaveWatchlist(watchlistId: string) {
@@ -1089,21 +1163,23 @@ export class KinoDatabaseService {
     if (!user || user === targetUserId) {
       return { isFollowing: false, isFollowedBy: false, isMutual: false }
     }
-    const [{ data: following, error: followingError }, { data: followedBy, error: followedByError }] =
-      await Promise.all([
-        this.supabase
-          .from('follows')
-          .select('created_at')
-          .eq('follower_id', user)
-          .eq('following_id', targetUserId)
-          .maybeSingle(),
-        this.supabase
-          .from('follows')
-          .select('created_at')
-          .eq('follower_id', targetUserId)
-          .eq('following_id', user)
-          .maybeSingle(),
-      ])
+    const [
+      { data: following, error: followingError },
+      { data: followedBy, error: followedByError },
+    ] = await Promise.all([
+      this.supabase
+        .from('follows')
+        .select('created_at')
+        .eq('follower_id', user)
+        .eq('following_id', targetUserId)
+        .maybeSingle(),
+      this.supabase
+        .from('follows')
+        .select('created_at')
+        .eq('follower_id', targetUserId)
+        .eq('following_id', user)
+        .maybeSingle(),
+    ])
     if (followingError) throw followingError
     if (followedByError) throw followedByError
     const isMutual = Boolean(following && followedBy)
@@ -1230,10 +1306,16 @@ export class KinoDatabaseService {
       if (followingResult.error) throw followingResult.error
       if (followersResult.error) throw followersResult.error
 
-      for (const follow of (followingResult.data ?? []) as { following_id: string; created_at: string }[]) {
+      for (const follow of (followingResult.data ?? []) as {
+        following_id: string
+        created_at: string
+      }[]) {
         viewerFollowing.set(follow.following_id, follow.created_at)
       }
-      for (const follow of (followersResult.data ?? []) as { follower_id: string; created_at: string }[]) {
+      for (const follow of (followersResult.data ?? []) as {
+        follower_id: string
+        created_at: string
+      }[]) {
         viewerFollowers.set(follow.follower_id, follow.created_at)
       }
     }
@@ -1245,11 +1327,12 @@ export class KinoDatabaseService {
         const profile = profiles.get(id)
         const followingAt = viewerFollowing.get(id)
         const followedByAt = viewerFollowers.get(id)
-        const mutualSince = followingAt && followedByAt
-          ? [followingAt, followedByAt].sort(
-              (left, right) => Date.parse(right) - Date.parse(left)
-            )[0]
-          : undefined
+        const mutualSince =
+          followingAt && followedByAt
+            ? [followingAt, followedByAt].sort(
+                (left, right) => Date.parse(right) - Date.parse(left)
+              )[0]
+            : undefined
         if (!profile) return null
         return {
           ...profile,
@@ -1366,7 +1449,8 @@ export class KinoDatabaseService {
       name: row.name,
       description: row.description || undefined,
       thumbnail: row.thumbnail || undefined,
-      isShared: row.is_shared,
+      visibility: row.visibility || (row.is_shared ? 'shared' : 'private'),
+      isShared: (row.visibility || (row.is_shared ? 'shared' : 'private')) === 'shared',
       shareCode: row.share_code || undefined,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),

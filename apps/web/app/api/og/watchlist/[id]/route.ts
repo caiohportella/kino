@@ -11,15 +11,30 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   try {
     const data = await getPublicWatchlistOgData(id)
-    if (!data) return image(createElement(FallbackOg, { title: 'This watchlist is private or unavailable.', label: 'Watchlist preview' }))
+    if (!data)
+      return image(
+        createElement(FallbackOg, {
+          title: 'This watchlist is private or unavailable.',
+          label: 'Watchlist preview',
+        })
+      )
 
-    const [images, avatars] = await Promise.all([
-      Promise.all(data.titles.slice(0, 3).map((title) => safeImageData(title.cover_image || title.backdrop_image))),
-      Promise.all(data.participants.slice(0, 5).map((participant) => safeImageData(participant.avatarUrl))),
+    const [images, avatar] = await Promise.all([
+      Promise.all(
+        data.titles
+          .slice(0, 6)
+          .map((title) => safeImageData(title.cover_image || title.backdrop_image))
+      ),
+      safeImageData(data.owner.avatarUrl),
     ])
-    return image(createElement(WatchlistOg, { avatars, data, images }))
+    return image(createElement(WatchlistOg, { avatars: [avatar], data, images }))
   } catch {
-    return image(createElement(FallbackOg, { title: 'This watchlist is private or unavailable.', label: 'Watchlist preview' }))
+    return image(
+      createElement(FallbackOg, {
+        title: 'This watchlist is private or unavailable.',
+        label: 'Watchlist preview',
+      })
+    )
   }
 }
 

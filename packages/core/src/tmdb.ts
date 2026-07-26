@@ -9,11 +9,22 @@ import type {
   TMDbPerson,
   TMDbTitle,
   TMDbTVShow,
+  TMDbVideoResponse,
+  TMDbWatchProviderResponse,
   TitleDetails,
 } from './types'
 
 const TMDB_API_BASE = 'https://api.themoviedb.org/3'
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p'
+
+export function getTMDbImageUrl(
+  path: string | null,
+  size: 'w200' | 'w300' | 'w500' | 'w780' | 'original' = 'w500'
+) {
+  if (!path) return null
+  if (path.startsWith('http')) return path
+  return `${TMDB_IMAGE_BASE}/${size}${path}`
+}
 
 const LANGUAGE_MAP: Record<string, string> = {
   en: 'en-US',
@@ -44,7 +55,9 @@ export class TMDbService {
 
     return {
       ...data,
-      results: data.results.filter((item) => item.media_type === 'movie' || item.media_type === 'tv'),
+      results: data.results.filter(
+        (item) => item.media_type === 'movie' || item.media_type === 'tv'
+      ),
     }
   }
 
@@ -109,6 +122,31 @@ export class TMDbService {
     return this.request<TMDbCredits>(`/tv/${tvId}/credits`)
   }
 
+  async getVideos(type: MediaType, id: number) {
+    return this.request<TMDbVideoResponse>(`/${type}/${id}/videos`)
+  }
+
+  async getWatchProviders(type: MediaType, id: number) {
+    return this.request<TMDbWatchProviderResponse>(`/${type}/${id}/watch/providers`, {
+      language: '',
+    })
+  }
+
+  async getRecommendations(type: MediaType, id: number) {
+    const data = await this.request<{ results: TMDbTitle[] }>(`/${type}/${id}/recommendations`)
+    return data.results.map((item) => ({ ...item, media_type: type }))
+  }
+
+  async getCollection(collectionId: number) {
+    const collection = await this.request<import('./types').TMDbCollection>(
+      `/collection/${collectionId}`
+    )
+    return {
+      ...collection,
+      parts: collection.parts.map((item) => ({ ...item, media_type: 'movie' as const })),
+    }
+  }
+
   async getSeasonDetails(tvId: number, seasonNumber: number) {
     return this.request<{ episodes: TMDbEpisode[] } & import('./types').TMDbSeason>(
       `/tv/${tvId}/season/${seasonNumber}`
@@ -142,15 +180,10 @@ export class TMDbService {
   }
 
   getImageUrl(path: string | null, size: 'w200' | 'w300' | 'w500' | 'w780' | 'original' = 'w500') {
-    if (!path) return null
-    if (path.startsWith('http')) return path
-    return `${TMDB_IMAGE_BASE}/${size}${path}`
+    return getTMDbImageUrl(path, size)
   }
 
-  getBackdropUrl(
-    path: string | null,
-    size: 'w300' | 'w780' | 'w1280' | 'original' = 'w1280'
-  ) {
+  getBackdropUrl(path: string | null, size: 'w300' | 'w780' | 'w1280' | 'original' = 'w1280') {
     if (!path) return null
     if (path.startsWith('http')) return path
     return `${TMDB_IMAGE_BASE}/${size}${path}`
@@ -189,7 +222,7 @@ export function transformMovieToTitleDetails(
     backdropImage: tmdb.getBackdropUrl(movie.backdrop_path),
     year: movie.release_date ? new Date(movie.release_date).getFullYear() : 0,
     genres: movie.genres || [],
-    cast: credits.cast.slice(0, 20),
+    cast: credits.cast,
     director: director ? { ...director, job: 'Director' } : undefined,
     runtime: movie.runtime,
     externalIds: movie.external_ids,
@@ -214,7 +247,7 @@ export function transformTVToTitleDetails(
     year: tv.first_air_date ? new Date(tv.first_air_date).getFullYear() : 0,
     status: tv.status,
     genres: tv.genres || [],
-    cast: credits.cast.slice(0, 20),
+    cast: credits.cast,
     director: creator ? { ...creator, job: 'Creator' } : undefined,
     totalSeasons: tv.number_of_seasons,
     totalEpisodes: tv.number_of_episodes,

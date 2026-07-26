@@ -19,7 +19,7 @@ export function MediaRow({
   return (
     <div
       {...props}
-      className={cn('media-row', className)}
+      className={cn('media-row w-full min-w-0 max-w-full', className)}
       data-dragging={dragScroll.isDragging ? 'true' : 'false'}
       onClickCapture={dragScroll.onClickCapture}
       onPointerCancel={dragScroll.onPointerCancel}
@@ -28,7 +28,7 @@ export function MediaRow({
       onPointerUp={dragScroll.onPointerUp}
       ref={dragScroll.ref}
     >
-      {children}
+      <div className="media-row-track">{children}</div>
     </div>
   )
 }

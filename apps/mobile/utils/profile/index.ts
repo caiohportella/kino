@@ -1,2 +1,2 @@
 // Profile utilities barrel export
-export { shareProfile } from './profileHelpers'
+export { getProfileShareResource } from './profileHelpers'

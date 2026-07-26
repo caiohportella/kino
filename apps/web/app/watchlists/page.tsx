@@ -17,7 +17,8 @@ import { useToast } from '@/components/toast-provider'
 import { WatchlistDialog } from '@/components/watchlist-dialog'
 import { db } from '@/lib/services'
 import { useAuthStore } from '@/stores/auth-store'
-import { WatchlistSharedBadge } from '@/components/watchlist-sharing'
+import { WatchlistVisibilityBadge } from '@/components/watchlist-sharing'
+import { watchlistPath } from '@/lib/routes'
 
 export default function WatchlistsPage() {
   const user = useAuthStore((state) => state.user)
@@ -100,7 +101,7 @@ export default function WatchlistsPage() {
         {(query.data || []).map((watchlist) => (
           <Link
             className="min-w-0 max-w-full"
-            href={`/watchlists/${watchlist.id}`}
+            href={watchlistPath(watchlist.id, watchlist.name)}
             key={watchlist.id}
           >
             <Card className="h-full w-full min-w-0 max-w-full p-5 transition hover:border-kino-accent/60 hover:bg-white/[0.04]">
@@ -115,9 +116,7 @@ export default function WatchlistsPage() {
                     </p>
                   ) : null}
                 </div>
-                {watchlist.isShared ? (
-                  <WatchlistSharedBadge />
-                ) : null}
+                <WatchlistVisibilityBadge visibility={watchlist.visibility} />
               </div>
               <div className="mt-6 border-t border-white/10 pt-4 text-xs font-semibold text-kino-muted">
                 {t('common.lastUpdated')} {formatDate(watchlist.updatedAt)}

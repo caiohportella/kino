@@ -100,6 +100,8 @@ CREATE TABLE IF NOT EXISTS watchlists (
   description TEXT,
   thumbnail TEXT,
   is_shared BOOLEAN DEFAULT FALSE,
+  visibility TEXT NOT NULL DEFAULT 'private'
+    CHECK (visibility IN ('private', 'shared', 'public')),
   share_code TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -201,26 +203,40 @@ AS $$
   WHERE user_id = p_user_id;
 $$;
 
+CREATE OR REPLACE FUNCTION is_watchlist_editor(p_watchlist_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM watchlist_collaborators
+    WHERE watchlist_id = p_watchlist_id
+      AND user_id = auth.uid()
+      AND can_edit = TRUE
+  );
+$$;
+
 -- Watchlists: Users can read public/shared or their own, manage their own
-CREATE POLICY "Users can view own and shared watchlists" ON watchlists FOR SELECT 
+CREATE POLICY "Watchlists are visible to permitted viewers" ON watchlists FOR SELECT
   USING (
     user_id = auth.uid() 
-    OR is_shared = TRUE 
+    OR visibility = 'public'
     OR id IN (SELECT get_user_collaborated_watchlist_ids(auth.uid()))
   );
 CREATE POLICY "Users can insert own watchlists" ON watchlists FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update own watchlists" ON watchlists FOR UPDATE 
-  USING (user_id = auth.uid() OR id IN (
-    SELECT watchlist_id FROM watchlist_collaborators 
-    WHERE user_id = auth.uid() AND can_edit = TRUE
-  ));
+  USING (user_id = auth.uid() OR is_watchlist_editor(id))
+  WITH CHECK (user_id = auth.uid() OR is_watchlist_editor(id));
 CREATE POLICY "Users can delete own watchlists" ON watchlists FOR DELETE USING (auth.uid() = user_id);
 
 -- Watchlist items: Users can read items from accessible watchlists, manage if owner/collaborator
 CREATE POLICY "Users can view items from accessible watchlists" ON watchlist_items FOR SELECT 
   USING (watchlist_id IN (
     SELECT id FROM watchlists 
-    WHERE user_id = auth.uid() OR is_shared = TRUE OR id IN (
+    WHERE user_id = auth.uid() OR visibility = 'public' OR id IN (
       SELECT watchlist_id FROM watchlist_collaborators WHERE user_id = auth.uid()
     )
   ));

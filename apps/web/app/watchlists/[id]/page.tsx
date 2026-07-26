@@ -1,15 +1,15 @@
 'use client'
 
-import type { UserProfile, Watchlist, WatchlistItemDetails } from '@kino/core'
+import type { UserProfile, Watchlist, WatchlistItemDetails, WatchlistVisibility } from '@kino/core'
 import { formatDate } from '@kino/core'
 import { EmptyState, Poster } from '@/components/kino'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
 import { ModalDialog as Dialog } from '@/components/ui/modal-dialog'
-import { LoaderCircle, Lock, LockOpen, LogOut, Pencil, Save, Trash2 } from 'lucide-react'
+import { LoaderCircle, LogOut, Pencil, Save, Trash2 } from 'lucide-react'
 import Link from 'next/link'
-import { titlePath } from '@/lib/routes'
+import { parseWatchlistSegment, titlePath, watchlistPath } from '@/lib/routes'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -32,20 +32,21 @@ import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-title
 import { db, getTmdb } from '@/lib/services'
 import { useTranslation } from '@/lib/i18n'
 import { useAuthStore } from '@/stores/auth-store'
-import {
-  ShareCodeCopyButton,
-  ShareCodeDisplay,
-  WatchlistSharedBadge,
-} from '@/components/watchlist-sharing'
+import { ShareCodeDisplay } from '@/components/watchlist-sharing'
+import { WatchlistVisibilitySelector } from '@/components/watchlist-visibility-selector'
+import { ShareButton } from '@/components/share-button'
 
 interface WatchlistDetailData {
   watchlist: Watchlist | null
   items: WatchlistItemDetails[]
   participants: UserProfile[]
+  canEdit: boolean
+  isOwner: boolean
 }
 
 export default function WatchlistDetailPage() {
   const params = useParams<{ id: string }>()
+  const watchlistId = parseWatchlistSegment(params.id).id
   const router = useRouter()
   const user = useAuthStore((state) => state.user)
   const queryClient = useQueryClient()
@@ -55,20 +56,21 @@ export default function WatchlistDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [leaveOpen, setLeaveOpen] = useState(false)
   const [removeTarget, setRemoveTarget] = useState<WatchlistItemDetails | null>(null)
-  const detailQueryKey = ['watchlist-detail', params.id] as const
+  const detailQueryKey = ['watchlist-detail', watchlistId] as const
 
   const query = useQuery<WatchlistDetailData>({
     queryKey: detailQueryKey,
     queryFn: async () => {
-      const [watchlist, items] = await Promise.all([
-        db.getWatchlist(params.id),
-        db.getWatchlistItems(params.id),
+      const [watchlist, items, access] = await Promise.all([
+        db.getWatchlist(watchlistId),
+        db.getWatchlistItems(watchlistId),
+        db.getWatchlistAccess(watchlistId),
       ])
-      if (!watchlist) return { watchlist, items, participants: [] }
+      if (!watchlist) return { watchlist, items, participants: [], ...access }
 
       const [owner, collaborators] = await Promise.all([
         db.getUserProfile(watchlist.userId),
-        db.getWatchlistCollaborators(watchlist.id),
+        db.getWatchlistCollaborators(watchlist.id).catch(() => []),
       ])
       const participants = Array.from(
         new Map(
@@ -78,7 +80,7 @@ export default function WatchlistDetailPage() {
         ).values()
       )
 
-      return { watchlist, items, participants }
+      return { watchlist, items, participants, ...access }
     },
   })
   const watchlistItems = query.data?.items || []
@@ -86,7 +88,8 @@ export default function WatchlistDetailPage() {
     watchlistItems.map((item) => ({ tmdbId: item.title.tmdb_id, type: item.title.type }))
   )
 
-  const isOwner = user?.id === query.data?.watchlist?.userId
+  const isOwner = query.data?.isOwner || false
+  const canEdit = query.data?.canEdit || false
   const copyText = query.data?.watchlist?.shareCode || ''
   const localizedTitleMap = localizedTitles.data || {}
   const removeTargetTitle = removeTarget
@@ -95,8 +98,15 @@ export default function WatchlistDetailPage() {
       ]?.title || removeTarget.title.title
     : t('diary.unknownTitle')
 
+  useEffect(() => {
+    const watchlist = query.data?.watchlist
+    if (!watchlist || watchlist.visibility !== 'public') return
+    const canonical = watchlistPath(watchlist.id, watchlist.name)
+    if (canonical !== `/watchlists/${params.id}`) router.replace(canonical)
+  }, [params.id, query.data?.watchlist, router])
+
   const removeMutation = useMutation({
-    mutationFn: (item: WatchlistItemDetails) => db.removeFromWatchlist(params.id, item.title.id),
+    mutationFn: (item: WatchlistItemDetails) => db.removeFromWatchlist(watchlistId, item.title.id),
     onMutate: async (item) => {
       await queryClient.cancelQueries({ queryKey: detailQueryKey })
       const previous = queryClient.getQueryData<WatchlistDetailData>(detailQueryKey)
@@ -119,13 +129,13 @@ export default function WatchlistDetailPage() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: () => db.deleteWatchlist(params.id),
+    mutationFn: () => db.deleteWatchlist(watchlistId),
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ['watchlists', user?.id] })
       const previous = queryClient.getQueryData<Watchlist[]>(['watchlists', user?.id])
       queryClient.setQueryData<Watchlist[]>(
         ['watchlists', user?.id],
-        (current) => current?.filter((watchlist) => watchlist.id !== params.id) ?? current
+        (current) => current?.filter((watchlist) => watchlist.id !== watchlistId) ?? current
       )
       return { previous }
     },
@@ -142,13 +152,13 @@ export default function WatchlistDetailPage() {
   })
 
   const leaveMutation = useMutation({
-    mutationFn: () => db.leaveWatchlist(params.id),
+    mutationFn: () => db.leaveWatchlist(watchlistId),
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ['watchlists', user?.id] })
       const previous = queryClient.getQueryData<Watchlist[]>(['watchlists', user?.id])
       queryClient.setQueryData<Watchlist[]>(
         ['watchlists', user?.id],
-        (current) => current?.filter((watchlist) => watchlist.id !== params.id) ?? current
+        (current) => current?.filter((watchlist) => watchlist.id !== watchlistId) ?? current
       )
       return { previous }
     },
@@ -178,29 +188,52 @@ export default function WatchlistDetailPage() {
   }
 
   const { watchlist, items, participants } = query.data
+  const isParticipant = Boolean(
+    user?.id && !isOwner && participants.some((participant) => participant.id === user.id)
+  )
 
   return (
     <div className="content-frame">
       <PageHeader
         action={
           <div className="flex flex-wrap gap-3">
-            {watchlist.isShared && copyText ? <ShareCodeCopyButton code={copyText} showCode /> : null}
-            {isOwner ? (
+            {watchlist.visibility === 'shared' && copyText ? (
+              <ShareButton
+                subtitle={t('watchlists.sharedWatchlist')}
+                text={t('sharing.watchlistText', { title: watchlist.name })}
+                title={watchlist.name}
+                type="watchlist"
+                url={`/watchlists/shared/${encodeURIComponent(copyText)}`}
+              />
+            ) : null}
+            {watchlist.visibility === 'public' ? (
+              <ShareButton
+                imageUrl={`/api/og/watchlist/${watchlist.id}`}
+                subtitle={t('watchlists.watchlistCount', { count: items.length })}
+                text={t('sharing.watchlistText', { title: watchlist.name })}
+                title={watchlist.name}
+                type="watchlist"
+                url={watchlistPath(watchlist.id, watchlist.name)}
+              />
+            ) : null}
+            {canEdit ? (
               <>
                 <Button onClick={() => setEditOpen(true)} variant="secondary">
                   <Pencil size={16} />
                   {t('watchlists.edit')}
                 </Button>
-                <Button
-                  disabled={deleteMutation.isPending}
-                  onClick={() => setDeleteOpen(true)}
-                  variant="destructive"
-                >
-                  <Trash2 size={16} />
-                  {deleteMutation.isPending ? t('watchlists.deleting') : t('common.delete')}
-                </Button>
+                {isOwner ? (
+                  <Button
+                    disabled={deleteMutation.isPending}
+                    onClick={() => setDeleteOpen(true)}
+                    variant="destructive"
+                  >
+                    <Trash2 size={16} />
+                    {deleteMutation.isPending ? t('watchlists.deleting') : t('common.delete')}
+                  </Button>
+                ) : null}
               </>
-            ) : user ? (
+            ) : isParticipant ? (
               <Button
                 disabled={leaveMutation.isPending}
                 onClick={() => setLeaveOpen(true)}
@@ -213,9 +246,7 @@ export default function WatchlistDetailPage() {
           </div>
         }
         body={watchlist.description || t('watchlists.defaultDescription')}
-        eyebrow={
-          watchlist.isShared ? t('watchlists.sharedWatchlist') : t('watchlists.privateWatchlist')
-        }
+        eyebrow={t(`watchlists.visibilityLabels.${watchlist.visibility}`)}
         title={watchlist.name}
       />
 
@@ -262,7 +293,7 @@ export default function WatchlistDetailPage() {
               key={item.id}
               localizedTitles={localizedTitleMap}
               onRemove={() => setRemoveTarget(item)}
-              showRemove={user?.id === item.addedBy}
+              showRemove={canEdit}
             />
           ))}
         </div>
@@ -459,21 +490,21 @@ function EditWatchlistDialog({
   const queryClient = useQueryClient()
   const [name, setName] = useState(watchlist.name)
   const [description, setDescription] = useState(watchlist.description || '')
-  const [isShared, setIsShared] = useState(watchlist.isShared)
+  const [visibility, setVisibility] = useState<WatchlistVisibility>(watchlist.visibility)
   const [shareCode, setShareCode] = useState(watchlist.shareCode || '')
   const mutation = useMutation({
     mutationFn: () =>
       db.updateWatchlist(watchlist.id, {
         name,
         description,
-        isShared,
       }),
     onSuccess: (updated) => {
-      queryClient.setQueryData<WatchlistDetailData>(['watchlist-detail', watchlist.id], (current) =>
-        current ? { ...current, watchlist: updated } : current
+      queryClient.setQueryData<WatchlistDetailData>(
+        ['watchlist-detail', watchlist.id],
+        (current) => (current ? { ...current, watchlist: updated } : current)
       )
       queryClient.setQueriesData<Watchlist[]>({ queryKey: ['watchlists'] }, (current) =>
-        current?.map((item) => item.id === updated.id ? updated : item)
+        current?.map((item) => (item.id === updated.id ? updated : item))
       )
       notify({ tone: 'success', title: t('watchlists.editSaved') })
       onSaved()
@@ -481,9 +512,10 @@ function EditWatchlistDialog({
     },
     onError: () => notify({ tone: 'error', title: t('common.failedToSave') }),
   })
-  const privacyMutation = useMutation({
-    mutationFn: (makePublic: boolean) => db.setWatchlistPrivacy(watchlist.id, makePublic),
-    onMutate: async (makePublic) => {
+  const visibilityMutation = useMutation({
+    mutationFn: (nextVisibility: WatchlistVisibility) =>
+      db.setWatchlistVisibility(watchlist.id, nextVisibility),
+    onMutate: async (nextVisibility) => {
       const detailKey = ['watchlist-detail', watchlist.id]
       await Promise.all([
         queryClient.cancelQueries({ queryKey: detailKey }),
@@ -491,15 +523,19 @@ function EditWatchlistDialog({
       ])
       const previousDetail = queryClient.getQueryData<WatchlistDetailData>(detailKey)
       const previousLists = queryClient.getQueriesData<Watchlist[]>({ queryKey: ['watchlists'] })
-      setIsShared(makePublic)
-      if (!makePublic) setShareCode('')
-      const applyOptimistic = (item: Watchlist) => item.id === watchlist.id
-        ? { ...item, isShared: makePublic, shareCode: makePublic ? item.shareCode : undefined }
-        : item
+      setVisibility(nextVisibility)
+      if (nextVisibility !== 'shared') setShareCode('')
+      const applyOptimistic = (item: Watchlist) =>
+        item.id === watchlist.id
+          ? {
+              ...item,
+              visibility: nextVisibility,
+              isShared: nextVisibility === 'shared',
+              shareCode: nextVisibility === 'shared' ? item.shareCode : undefined,
+            }
+          : item
       queryClient.setQueryData<WatchlistDetailData>(detailKey, (current) =>
-        current?.watchlist
-          ? { ...current, watchlist: applyOptimistic(current.watchlist) }
-          : current
+        current?.watchlist ? { ...current, watchlist: applyOptimistic(current.watchlist) } : current
       )
       queryClient.setQueriesData<Watchlist[]>({ queryKey: ['watchlists'] }, (current) =>
         current?.map(applyOptimistic)
@@ -508,27 +544,32 @@ function EditWatchlistDialog({
     },
     onSuccess: (updated) => {
       setShareCode(updated.shareCode || '')
-      setIsShared(updated.isShared)
-      queryClient.setQueryData<WatchlistDetailData>(['watchlist-detail', watchlist.id], (current) =>
-        current ? { ...current, watchlist: updated } : current
+      setVisibility(updated.visibility)
+      queryClient.setQueryData<WatchlistDetailData>(
+        ['watchlist-detail', watchlist.id],
+        (current) => (current ? { ...current, watchlist: updated } : current)
       )
       queryClient.setQueriesData<Watchlist[]>({ queryKey: ['watchlists'] }, (current) =>
-        current?.map((item) => item.id === updated.id ? updated : item)
+        current?.map((item) => (item.id === updated.id ? updated : item))
       )
-      queryClient.invalidateQueries({ queryKey: ['watchlist-picker'] })
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['watchlist-picker'] }),
+        queryClient.invalidateQueries({ queryKey: ['profile'] }),
+        queryClient.invalidateQueries({ queryKey: ['public-watchlists'] }),
+      ])
       notify({
         tone: 'success',
-        title: updated.isShared ? t('watchlists.nowPublic') : t('watchlists.nowPrivate'),
+        title: t('watchlists.visibilityUpdated'),
       })
     },
-    onError: (_error, _makePublic, context) => {
-      setIsShared(watchlist.isShared)
+    onError: (_error, _nextVisibility, context) => {
+      setVisibility(watchlist.visibility)
       setShareCode(watchlist.shareCode || '')
       if (context?.previousDetail) {
         queryClient.setQueryData(['watchlist-detail', watchlist.id], context.previousDetail)
       }
       for (const [key, data] of context?.previousLists || []) queryClient.setQueryData(key, data)
-      notify({ tone: 'error', title: t('watchlists.privacyFailed') })
+      notify({ tone: 'error', title: t('watchlists.visibilityFailed') })
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['watchlists'] })
@@ -540,7 +581,7 @@ function EditWatchlistDialog({
     if (open) {
       setName(watchlist.name)
       setDescription(watchlist.description || '')
-      setIsShared(watchlist.isShared)
+      setVisibility(watchlist.visibility)
       setShareCode(watchlist.shareCode || '')
     }
   }, [open, watchlist])
@@ -558,54 +599,28 @@ function EditWatchlistDialog({
           onChange={(event) => setDescription(event.target.value)}
           value={description}
         />
-        <section
-          aria-labelledby="watchlist-sharing-title"
-          className="grid gap-5 rounded-md border border-border bg-muted/20 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(220px,0.9fr)] sm:items-start"
-        >
-          <div className="grid min-w-0 content-start gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-sm font-semibold text-kino-text" id="watchlist-sharing-title">
-                {t('watchlists.sharing')}
-              </h3>
-            </div>
-            <p className="text-sm leading-6 text-kino-muted">
-              {isShared ? t('watchlists.sharingPublicDescription') : t('watchlists.sharingPrivateDescription')}
-            </p>
-          </div>
-
-          <div className="grid min-w-0 content-start gap-2 ">
-            {isShared && shareCode ? (
-              <ShareCodeDisplay code={shareCode} />
-            ) : null}
-            <Button
-              aria-live="polite"
-              className="min-h-10 w-full min-w-0 whitespace-normal text-center leading-tight"
-              disabled={privacyMutation.isPending}
-              onClick={() => privacyMutation.mutate(!isShared)}
-              type="button"
-              variant="secondary"
-            >
-              {privacyMutation.isPending ? (
-                <LoaderCircle className="animate-spin" data-icon="inline-start" />
-              ) : isShared ? (
-                <Lock data-icon="inline-start" />
-              ) : (
-                <LockOpen data-icon="inline-start" />
-              )}
-              {privacyMutation.isPending
-                ? t('watchlists.updatingPrivacy')
-                : isShared
-                  ? t('watchlists.makePrivate')
-                  : t('watchlists.makePublic')}
-            </Button>
-          </div>
+        <section className="grid gap-3 rounded-md border border-border bg-muted/20 p-4">
+          <WatchlistVisibilitySelector
+            disabled={visibilityMutation.isPending}
+            onChange={(nextVisibility) => visibilityMutation.mutate(nextVisibility)}
+            value={visibility}
+          />
+          {visibility === 'shared' && shareCode ? <ShareCodeDisplay code={shareCode} /> : null}
         </section>
         <div className="flex justify-end gap-3">
           <Button onClick={onClose} variant="secondary">
             {t('common.cancel')}
           </Button>
-          <Button className="min-w-36" disabled={mutation.isPending || !name.trim()} onClick={() => mutation.mutate()}>
-            {mutation.isPending ? <LoaderCircle className="animate-spin" data-icon="inline-start" /> : <Save data-icon="inline-start" />}
+          <Button
+            className="min-w-36"
+            disabled={mutation.isPending || !name.trim()}
+            onClick={() => mutation.mutate()}
+          >
+            {mutation.isPending ? (
+              <LoaderCircle className="animate-spin" data-icon="inline-start" />
+            ) : (
+              <Save data-icon="inline-start" />
+            )}
             {mutation.isPending ? t('common.loading') : t('modals.saveChanges')}
           </Button>
         </div>

@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Alert,
-  Share,
   Linking,
 } from 'react-native'
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router'
@@ -28,6 +27,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { useOscarData, getOscarNominationsLegacy } from '~/services/awards'
 import { useTheaterStatus } from '~/hooks/data/useTheaterStatus'
+import { KinoShareModal } from '~/components/modals/KinoShareModal'
 
 export default function TitleDetailScreen() {
   const { id, type } = useLocalSearchParams<{ id: string; type: MediaType }>()
@@ -39,6 +39,7 @@ export default function TitleDetailScreen() {
   const [showWatchlistModal, setShowWatchlistModal] = useState(false)
   const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [shareOpen, setShareOpen] = useState(false)
 
   const tmdbId = parseInt(id)
 
@@ -98,15 +99,6 @@ export default function TitleDetailScreen() {
     }
   }
 
-  const handleShare = async () => {
-    if (!title) return
-    try {
-      await Share.share({
-        message: t('title.checkOut', { title: title.title }),
-      })
-    } catch (_error) { }
-  }
-
   const handleAddToWatchlist = async () => {
     if (!isAuthenticated) {
       promptForAuth(t('title.loginToWatchlist'))
@@ -126,29 +118,28 @@ export default function TitleDetailScreen() {
     try {
       if (isWatched) {
         // Toggle behavior: remove entirely if already watched
-        Alert.alert(
-          t('title.removeHistory'),
-          t('title.removeHistoryConfirm'),
-          [
-            { text: t('common.cancel'), style: 'cancel' },
-            {
-              text: t('common.delete'),
-              style: 'destructive',
-              onPress: async () => {
-                try {
-                  await dbService.removeMediaHistory(title.id, title.type)
-                  queryClient.invalidateQueries({
-                    queryKey: TITLE_DATA_KEYS.userData(title.id),
-                  })
-                  // Also invalidate community stats as they might change
-                  setRefreshKey((prev) => prev + 1)
-                } catch (error) {
-                  Alert.alert('Error', error instanceof Error ? error.message : 'Failed to remove from diary')
-                }
+        Alert.alert(t('title.removeHistory'), t('title.removeHistoryConfirm'), [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('common.delete'),
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await dbService.removeMediaHistory(title.id, title.type)
+                queryClient.invalidateQueries({
+                  queryKey: TITLE_DATA_KEYS.userData(title.id),
+                })
+                // Also invalidate community stats as they might change
+                setRefreshKey((prev) => prev + 1)
+              } catch (error) {
+                Alert.alert(
+                  'Error',
+                  error instanceof Error ? error.message : 'Failed to remove from diary'
+                )
               }
-            }
-          ]
-        )
+            },
+          },
+        ])
       } else {
         await dbService.addWatchDiaryEntry(title.id, new Date(), 'first-time')
         queryClient.invalidateQueries({
@@ -156,7 +147,10 @@ export default function TitleDetailScreen() {
         })
       }
     } catch (error) {
-      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to process diary action')
+      Alert.alert(
+        'Error',
+        error instanceof Error ? error.message : 'Failed to process diary action'
+      )
     }
   }
 
@@ -236,8 +230,9 @@ export default function TitleDetailScreen() {
           {/* Action Buttons */}
           <View className="mb-6 flex-row gap-3">
             <TouchableOpacity
-              className={`flex-1 flex-row items-center justify-center rounded-lg py-3 ${isWatchlisted ? 'bg-accent/20 border border-accent/30' : 'bg-accent'
-                }`}
+              className={`flex-1 flex-row items-center justify-center rounded-lg py-3 ${
+                isWatchlisted ? 'bg-accent/20 border border-accent/30' : 'bg-accent'
+              }`}
               onPress={handleAddToWatchlist}
             >
               <Ionicons
@@ -245,7 +240,9 @@ export default function TitleDetailScreen() {
                 size={20}
                 color={isWatchlisted ? '#1DB954' : 'white'}
               />
-              <Text className={`ml-2 font-semibold ${isWatchlisted ? 'text-[#1DB954]' : 'text-white'}`}>
+              <Text
+                className={`ml-2 font-semibold ${isWatchlisted ? 'text-[#1DB954]' : 'text-white'}`}
+              >
                 {isWatchlisted ? t('title.watchlisted') : t('title.watchlist')}
               </Text>
             </TouchableOpacity>
@@ -264,7 +261,7 @@ export default function TitleDetailScreen() {
 
             <TouchableOpacity
               className="flex-row items-center justify-center rounded-lg border border-accent bg-surface px-4 py-3"
-              onPress={handleShare}
+              onPress={() => setShareOpen(true)}
             >
               <Ionicons name="share-outline" size={20} color="#1DB954" />
             </TouchableOpacity>
@@ -314,12 +311,21 @@ export default function TitleDetailScreen() {
                       key={idx}
                       className="rounded-full bg-accent/5 px-3 py-1.5 border border-accent/10 flex-row items-center"
                     >
-                      <Text className={`text-xs font-bold ${nom.isWinner ? 'text-[#FCC419]' : 'text-text-primary'}`}>
+                      <Text
+                        className={`text-xs font-bold ${nom.isWinner ? 'text-[#FCC419]' : 'text-text-primary'}`}
+                      >
                         {nom.isWinner ? '🏆 ' : ''}
-                        {nom.isWinner ? t('awards.oscarWinner', { defaultValue: 'Oscar Winner' }) + ' - ' : ''}
+                        {nom.isWinner
+                          ? t('awards.oscarWinner', { defaultValue: 'Oscar Winner' }) + ' - '
+                          : ''}
                         {t(`awards.categories.${nom.category}`)}
                         {nom.details && (
-                          <Text className={`font-normal ${nom.isWinner ? 'text-[#FCC419]/80' : 'text-text-secondary'}`}> • {nom.details}</Text>
+                          <Text
+                            className={`font-normal ${nom.isWinner ? 'text-[#FCC419]/80' : 'text-text-secondary'}`}
+                          >
+                            {' '}
+                            • {nom.details}
+                          </Text>
                         )}
                       </Text>
                     </View>
@@ -414,7 +420,9 @@ export default function TitleDetailScreen() {
             <View className="flex-row gap-x-12 items-center">
               {title.externalIds?.imdb_id && (
                 <TouchableOpacity
-                  onPress={() => Linking.openURL(`https://www.imdb.com/title/${title.externalIds?.imdb_id}`)}
+                  onPress={() =>
+                    Linking.openURL(`https://www.imdb.com/title/${title.externalIds?.imdb_id}`)
+                  }
                   activeOpacity={0.7}
                   className="items-center"
                 >
@@ -428,23 +436,15 @@ export default function TitleDetailScreen() {
                   activeOpacity={0.7}
                   className="items-center"
                 >
-                  <Image source={require('~/assets/icons/letterboxd.png')} className="w-8 h-8 rounded-full" />
-                  <Text className="mt-1 text-[10px] font-medium text-text-secondary">Letterboxd</Text>
+                  <Image
+                    source={require('~/assets/icons/letterboxd.png')}
+                    className="w-8 h-8 rounded-full"
+                  />
+                  <Text className="mt-1 text-[10px] font-medium text-text-secondary">
+                    Letterboxd
+                  </Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity
-                onPress={() => {
-                  const url = title.type === 'tv' && title.externalIds?.tvdb_id
-                    ? `https://www.tvtime.com/en/show/${title.externalIds.tvdb_id}`
-                    : `https://www.tvtime.com/en/search?q=${encodeURIComponent(title.title ?? '')}`
-                  Linking.openURL(url)
-                }}
-                activeOpacity={0.7}
-                className="items-center"
-              >
-                <Image source={require('~/assets/icons/tvtime.png')} className="w-8 h-8 rounded" />
-                <Text className="mt-1 text-[10px] font-medium text-text-secondary">TV Time</Text>
-              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -461,6 +461,17 @@ export default function TitleDetailScreen() {
         onClose={() => setSelectedPersonId(null)}
         personId={selectedPersonId}
       />
+      {title ? (
+        <KinoShareModal
+          onClose={() => setShareOpen(false)}
+          resource={{
+            canonicalUrl: `https://kino.app/title/${tmdbId}?type=${type}`,
+            shareText: t('title.checkOut', { title: title.title }),
+            title: title.title,
+          }}
+          visible={shareOpen}
+        />
+      ) : null}
     </>
   )
 }

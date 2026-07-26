@@ -1,6 +1,6 @@
 import type { MediaType, WatchType } from './common'
 
-export type ImportSource = 'tvtime' | 'letterboxd'
+export type ImportSource = 'letterboxd'
 
 export type ImportConfidence = 'high' | 'medium' | 'low'
 

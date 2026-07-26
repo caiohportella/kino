@@ -76,10 +76,7 @@ export default function ImportHistoryScreen() {
       const result = await DocumentPicker.getDocumentAsync({
         copyToCacheDirectory: true,
         multiple: false,
-        type:
-          source === 'tvtime'
-            ? ['application/zip', 'application/x-zip-compressed', 'application/octet-stream']
-            : ['text/csv', 'application/csv', 'text/plain'],
+        type: ['text/csv', 'application/csv', 'text/plain'],
       })
 
       if (result.canceled || !result.assets?.[0]) {
@@ -92,9 +89,10 @@ export default function ImportHistoryScreen() {
         fileName,
         asset.uri,
         async (uri) => FileSystem.readAsStringAsync(uri),
-        async (uri) => FileSystem.readAsStringAsync(uri, {
-          encoding: 'base64',
-        })
+        async (uri) =>
+          FileSystem.readAsStringAsync(uri, {
+            encoding: 'base64',
+          })
       )
 
       applyParseResult(parsed)
@@ -165,9 +163,7 @@ export default function ImportHistoryScreen() {
     setState((current) => ({
       ...current,
       items: current.items.map((item) =>
-        item.include
-          ? { ...item, importStatus: 'idle', importError: undefined }
-          : item
+        item.include ? { ...item, importStatus: 'idle', importError: undefined } : item
       ),
     }))
 
@@ -338,8 +334,8 @@ export default function ImportHistoryScreen() {
                       Import your history
                     </Text>
                     <Text className="text-white/85 mt-2 text-sm leading-5">
-                      Upload a TV Time export ZIP or a Letterboxd CSV. Kino parses the file locally,
-                      lets you review the preview, and then writes the mapped data to your account.
+                      Upload a Letterboxd CSV. Kino parses the file locally, lets you review the
+                      preview, and then writes the mapped data to your account.
                     </Text>
                   </View>
                   <Ionicons name="cloud-upload-outline" size={36} color="#fff" />
@@ -351,9 +347,8 @@ export default function ImportHistoryScreen() {
                   Privacy
                 </Text>
                 <Text className="mt-2 text-sm leading-5 text-text-secondary">
-                  Your export is processed on this device before anything is saved to Kino. We do not
-                  connect to TV Time or Letterboxd directly, so you keep control of the file you
-                  upload.
+                  Your export is processed on this device before anything is saved to Kino. We do
+                  not connect to Letterboxd directly, so you keep control of the file you upload.
                 </Text>
               </View>
 
@@ -362,13 +357,6 @@ export default function ImportHistoryScreen() {
                   Choose a source
                 </Text>
                 <View className="space-y-3">
-                  <SourceCard
-                    title="TV Time export"
-                    body="Upload the GDPR ZIP export from TV Time. Kino maps watched episodes, movie watches, and ratings."
-                    icon="tv-outline"
-                    onPress={() => handlePickFile('tvtime')}
-                    buttonLabel={state.source === 'tvtime' ? 'Replace file' : 'Upload file'}
-                  />
                   <SourceCard
                     title="Letterboxd export"
                     body="Upload the CSV export from Letterboxd. Kino imports watch dates, ratings, and rewatch flags."
@@ -423,7 +411,7 @@ export default function ImportHistoryScreen() {
                       No file selected yet
                     </Text>
                     <Text className="mt-1 px-6 text-center text-sm text-text-secondary">
-                      Upload a TV Time ZIP or Letterboxd CSV to preview the import.
+                      Upload a Letterboxd CSV to preview the import.
                     </Text>
                   </View>
                 ) : (
@@ -459,30 +447,30 @@ export default function ImportHistoryScreen() {
           )}
           ListFooterComponent={
             <View className="px-4 pt-4">
-              {datePickerId ? (
-                (() => {
-                  const current = state.items.find((entry) => entry.id === datePickerId)
-                  if (!current) return null
-                  return (
-                    <View className="mb-4 rounded-2xl border border-white/5 bg-surface p-3">
-                      <Text className="mb-2 text-sm font-semibold text-text-primary">
-                        Adjust watched date
-                      </Text>
-                      <DateTimePicker
-                        value={new Date(current.watchedAt)}
-                        mode="date"
-                        display="default"
-                        onChange={(_, date) => {
-                          if (date) {
-                            updateItem(current.id, { watchedAt: date.toISOString() })
-                          }
-                          setDatePickerId(null)
-                        }}
-                      />
-                    </View>
-                  )
-                })()
-              ) : null}
+              {datePickerId
+                ? (() => {
+                    const current = state.items.find((entry) => entry.id === datePickerId)
+                    if (!current) return null
+                    return (
+                      <View className="mb-4 rounded-2xl border border-white/5 bg-surface p-3">
+                        <Text className="mb-2 text-sm font-semibold text-text-primary">
+                          Adjust watched date
+                        </Text>
+                        <DateTimePicker
+                          value={new Date(current.watchedAt)}
+                          mode="date"
+                          display="default"
+                          onChange={(_, date) => {
+                            if (date) {
+                              updateItem(current.id, { watchedAt: date.toISOString() })
+                            }
+                            setDatePickerId(null)
+                          }}
+                        />
+                      </View>
+                    )
+                  })()
+                : null}
 
               {importing ? (
                 <View className="rounded-2xl border border-white/5 bg-surface p-4">
@@ -624,9 +612,7 @@ function ImportRowCard({
   }
 
   return (
-    <View
-      className={`mx-4 mb-3 rounded-2xl border p-4 ${cardBorderColor} ${cardBgColor}`}
-    >
+    <View className={`mx-4 mb-3 rounded-2xl border p-4 ${cardBorderColor} ${cardBgColor}`}>
       <View className="flex-row items-start justify-between">
         <View className="flex-1 pr-3">
           <View className="flex-row items-center gap-2">
@@ -702,9 +688,7 @@ function ImportRowCard({
         <View className="mt-3 flex-row items-center gap-2 rounded-xl border border-orange-500/40 bg-orange-500/10 px-3 py-2">
           <Ionicons name="play-skip-forward-outline" size={16} color="#fb923c" />
           <View className="flex-1">
-            <Text className="text-sm font-semibold text-orange-200">
-              Skipped (Already exists)
-            </Text>
+            <Text className="text-sm font-semibold text-orange-200">Skipped (Already exists)</Text>
             <Text className="mt-0.5 text-xs text-orange-300">
               {item.importError || 'Already exists in your diary.'}
             </Text>
@@ -901,9 +885,7 @@ function cleanSearchTitle(title: string): string {
 }
 
 function stripLeadingArticles(title: string): string {
-  return title
-    .replace(/^(the|a|an|la|le|el|os|as|o|a)\s+/i, '')
-    .trim()
+  return title.replace(/^(the|a|an|la|le|el|os|as|o|a)\s+/i, '').trim()
 }
 
 async function resolveTitleId(
@@ -913,19 +895,26 @@ async function resolveTitleId(
   const tmdb = getTMDbService()
 
   // Helper to search and choose candidate
-  const searchAndMatch = async (query: string, mediaType: 'movie' | 'tv'): Promise<{ id: number; mediaType: 'movie' | 'tv' } | null> => {
+  const searchAndMatch = async (
+    query: string,
+    mediaType: 'movie' | 'tv'
+  ): Promise<{ id: number; mediaType: 'movie' | 'tv' } | null> => {
     try {
       const searchResult = await tmdb.search(query)
       if (!searchResult || !searchResult.results) return null
 
       // 1. Try primary media type
-      const primaryCandidates = searchResult.results.filter((result) => result.media_type === mediaType)
+      const primaryCandidates = searchResult.results.filter(
+        (result) => result.media_type === mediaType
+      )
       let chosen = chooseBestCandidate(item, primaryCandidates)
       if (chosen) return { id: chosen.id, mediaType }
 
       // 2. Try opposite media type
       const oppositeMediaType = mediaType === 'movie' ? 'tv' : 'movie'
-      const oppositeCandidates = searchResult.results.filter((result) => result.media_type === oppositeMediaType)
+      const oppositeCandidates = searchResult.results.filter(
+        (result) => result.media_type === oppositeMediaType
+      )
       chosen = chooseBestCandidate(item, oppositeCandidates)
       if (chosen) return { id: chosen.id, mediaType: oppositeMediaType }
     } catch (err) {
@@ -998,7 +987,9 @@ function chooseBestCandidate(
   const scored = candidates
     .map((candidate) => {
       const candidateTitle = normalizeText(candidate.title || candidate.name || '')
-      const candidateOriginal = normalizeText(candidate.original_title || candidate.original_name || '')
+      const candidateOriginal = normalizeText(
+        candidate.original_title || candidate.original_name || ''
+      )
       const candidateYear = parseYear(candidate.release_date || candidate.first_air_date || '')
       let score = 0
 
