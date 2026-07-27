@@ -671,6 +671,43 @@
       }
     }
   },
+  "reviews": {
+    "title": "Critiques",
+    "reviewedBy": "Critique de",
+    "user": "Utilisateur Kino",
+    "writeReview": "Écrire une critique",
+    "publish": "Publier la critique",
+    "save": "Enregistrer",
+    "edit": "Modifier la critique",
+    "delete": "Supprimer la critique",
+    "actions": "Actions de la critique",
+    "like": "Aimer la critique",
+    "unlike": "Ne plus aimer",
+    "likeCount_one": "{{count}} J’aime",
+    "likeCount_other": "{{count}} J’aime",
+    "charactersRemaining": "{{count}} caractères restants",
+    "ratingLabel": "Note de la critique",
+    "edited": "Modifiée",
+    "showAll": "Voir toutes les critiques",
+    "showAllDescription": "Vos critiques, celles des personnes suivies et de la communauté Kino.",
+    "fromPeopleYouFollow": "Des personnes que vous suivez",
+    "deleteConfirm": "Supprimer cette critique ? Cette action est irréversible.",
+    "publishSuccess": "Critique publiée",
+    "publishFailure": "Échec de la publication",
+    "editSuccess": "Critique mise à jour",
+    "editFailure": "Échec de la mise à jour",
+    "deleteSuccess": "Critique supprimée",
+    "deleteFailure": "Échec de la suppression",
+    "likeFailure": "Échec de la mise à jour du J’aime",
+    "loadFailure": "Impossible de charger les critiques.",
+    "composer": {
+      "placeholder": "Écrivez votre critique..."
+    },
+    "empty": {
+      "authenticated": "Soyez la première personne à critiquer ce titre.",
+      "anonymous": "Connectez-vous pour écrire une critique."
+    }
+  },
   "awards": {
     "nominee": "Nommé(e)",
     "oscarNominee": "Nommé aux Oscars",

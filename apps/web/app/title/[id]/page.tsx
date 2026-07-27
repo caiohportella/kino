@@ -46,6 +46,11 @@ import {
 } from '@/components/external-links-section'
 import { EmptyState, Poster, ProgressBar, Stat } from '@/components/kino'
 import { RatingStars } from '@/components/rating-stars'
+import {
+  FollowedEpisodeRatingRows,
+  FollowedTitleRatings,
+} from '@/components/followed-ratings'
+import { ReviewsSection } from '@/components/reviews/reviews-section'
 import { SeasonSelector } from '@/components/season-selector'
 import { ShareButton } from '@/components/share-button'
 import { SingleDatePicker } from '@/components/single-date-picker'
@@ -86,6 +91,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { WatchlistDialog } from '@/components/watchlist-dialog'
 import { storeAuthRedirect } from '@/lib/auth-redirect'
 import { useTranslation } from '@/lib/i18n'
+import { useFollowedEpisodeRatings } from '@/hooks/use-followed-ratings'
 import { parseResourceSegment, personPath } from '@/lib/routes'
 import { db, getTmdb } from '@/lib/services'
 import { publishWatchlistChange } from '@/lib/watchlist-cache-sync'
@@ -534,10 +540,35 @@ export default function TitlePage() {
 
           {title.type === 'movie' ? (
             <>
-              <CommunityRatingsPanel stats={statsQuery.data} type={title.type} />
+              <CommunityRatingsPanel
+                showFollowed={Boolean(user)}
+                stats={statsQuery.data}
+                titleId={title.id}
+                type={title.type}
+              />
               <FranchiseTitles
                 items={contextQuery.data?.franchiseTitles}
                 loading={contextQuery.isLoading}
+              />
+              <ReviewsSection
+                author={
+                  user
+                    ? {
+                        id: user.id,
+                        username: (user.user_metadata.username as string | undefined) ?? null,
+                        displayName:
+                          (user.user_metadata.display_name as string | undefined) ??
+                          (user.user_metadata.full_name as string | undefined) ??
+                          null,
+                        avatarUrl:
+                          (user.user_metadata.avatar_url as string | undefined) ?? null,
+                      }
+                    : null
+                }
+                currentRating={currentUserRating || null}
+                mediaType={title.type}
+                onAuthRequired={requestAuthForCurrentTitle}
+                titleId={title.id}
               />
               <MoreLikeThis
                 error={contextQuery.data?.errors.recommendations || contextQuery.isError}
@@ -575,7 +606,12 @@ export default function TitlePage() {
           </div>
           {title.type === 'tv' ? (
             <div className="order-4">
-              <CommunityRatingsPanel stats={statsQuery.data} type={title.type} />
+              <CommunityRatingsPanel
+                showFollowed={false}
+                stats={statsQuery.data}
+                titleId={title.id}
+                type={title.type}
+              />
             </div>
           ) : null}
           <div className="order-5">
@@ -589,6 +625,25 @@ export default function TitlePage() {
           <FranchiseTitles
             items={contextQuery.data?.franchiseTitles}
             loading={contextQuery.isLoading}
+          />
+          <ReviewsSection
+            author={
+              user
+                ? {
+                    id: user.id,
+                    username: (user.user_metadata.username as string | undefined) ?? null,
+                    displayName:
+                      (user.user_metadata.display_name as string | undefined) ??
+                      (user.user_metadata.full_name as string | undefined) ??
+                      null,
+                    avatarUrl: (user.user_metadata.avatar_url as string | undefined) ?? null,
+                  }
+                : null
+            }
+            currentRating={currentUserRating || null}
+            mediaType={title.type}
+            onAuthRequired={requestAuthForCurrentTitle}
+            titleId={title.id}
           />
           <MoreLikeThis
             error={contextQuery.data?.errors.recommendations || contextQuery.isError}
@@ -830,10 +885,14 @@ function WatchlistPicker({
 
 function CommunityRatingsPanel({
   stats,
+  titleId,
   type,
+  showFollowed,
 }: {
   stats: TitleRatingStats | undefined
+  titleId: string
   type: MediaType
+  showFollowed: boolean
 }) {
   const { t } = useTranslation()
 
@@ -852,6 +911,9 @@ function CommunityRatingsPanel({
           value={stats?.totalRatings || 0}
         />
       </div>
+      {type === 'movie' ? (
+        <FollowedTitleRatings enabled={showFollowed} titleId={titleId} />
+      ) : null}
     </Card>
   )
 }
@@ -1225,6 +1287,11 @@ function SeasonEpisodes({
     queryFn: () => db.getUserSeasonRatings(title.id, seasonNumber),
     enabled: userCanRate,
   })
+  const followedRatingsQuery = useFollowedEpisodeRatings(
+    title.id,
+    seasonNumber,
+    Boolean(userId)
+  )
 
   const ratings = useMemo(
     () => new Map((ratingsQuery.data || []).map((rating) => [rating.episodeNumber, rating])),
@@ -1451,6 +1518,18 @@ function SeasonEpisodes({
                       </span>
                     </p>
                   ) : null}
+                  <FollowedEpisodeRatingRows
+                    items={
+                      followedRatingsQuery.data?.episodes[
+                        `${seasonNumber}:${episode.episode_number}`
+                      ] ?? []
+                    }
+                    totalCount={
+                      followedRatingsQuery.data?.totals[
+                        `${seasonNumber}:${episode.episode_number}`
+                      ] ?? 0
+                    }
+                  />
                 </div>
                 <div className="flex items-center gap-2 md:justify-end">
                   {isWatched ? (
