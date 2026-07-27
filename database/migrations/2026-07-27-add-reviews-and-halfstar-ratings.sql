@@ -8,6 +8,14 @@ ALTER TABLE public.title_ratings
   DROP CONSTRAINT IF EXISTS title_ratings_rating_check;
 ALTER TABLE public.title_ratings
   DROP CONSTRAINT IF EXISTS title_ratings_rating_range_step_check;
+
+-- The previous NUMERIC(2,1) domain accepted every tenth between 1 and 5.
+-- Preserve legacy ratings by rounding non-half values to the nearest half-star
+-- before PostgreSQL validates the stricter constraint.
+UPDATE public.title_ratings
+SET rating = round(rating * 2) / 2.0
+WHERE rating * 2 <> round(rating * 2);
+
 ALTER TABLE public.title_ratings
   ADD CONSTRAINT title_ratings_rating_range_step_check
   CHECK (
@@ -19,6 +27,11 @@ ALTER TABLE public.episode_ratings
   DROP CONSTRAINT IF EXISTS episode_ratings_rating_check;
 ALTER TABLE public.episode_ratings
   DROP CONSTRAINT IF EXISTS episode_ratings_rating_range_step_check;
+
+UPDATE public.episode_ratings
+SET rating = round(rating * 2) / 2.0
+WHERE rating * 2 <> round(rating * 2);
+
 ALTER TABLE public.episode_ratings
   ADD CONSTRAINT episode_ratings_rating_range_step_check
   CHECK (

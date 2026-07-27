@@ -18,7 +18,7 @@ psql $env:KINO_TEST_DATABASE_URL -v ON_ERROR_STOP=1 -f database/migrations/2026-
 psql $env:KINO_TEST_DATABASE_URL -v ON_ERROR_STOP=1 -f database/tests/reviews_and_halfstar_ratings.sql
 ```
 
-The migration changes `title_ratings` and `episode_ratings` to accept `0.5` through `5.0` in half-star increments. Existing ratings remain valid. Apply it to staging first and keep a database backup because client deployments expect the new RPCs.
+The migration changes `title_ratings` and `episode_ratings` to accept `0.5` through `5.0` in half-star increments. Legacy tenth-star values are rounded to the nearest half before the new constraints are validated—for example, `4.2` becomes `4.0` and `4.3` becomes `4.5`. Apply it to staging first and keep a database backup because this normalization updates existing rating rows and client deployments expect the new RPCs.
 
 ## Data model
 
