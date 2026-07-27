@@ -10,7 +10,8 @@ The implementation extends Kino's existing Supabase data model, shared `@kino/co
 
 - A user may publish one review per title and media type.
 - A review may be published without a rating.
-- The review stores a nullable snapshot of the user's current title rating when the review is created or edited.
+- The review stores a nullable snapshot of the user's latest canonical title rating when the review is created or edited.
+- Ratings across titles, episodes, and review snapshots accept 0.5 through 5.0 in half-star increments.
 - Review content is plain text, trimmed on the server, and limited to 2,000 characters.
 - Users cannot like their own reviews. This is enforced in the interface and on the server.
 - The title page shows a bounded review preview. The viewer's review is always first, followed-user reviews come next, and popular/recent community reviews come last.
@@ -32,14 +33,17 @@ reviews (
   content text not null check (
     char_length(btrim(content)) between 1 and 2000
   ),
-  rating numeric(2, 1) null check (rating between 0.5 and 5),
+  rating numeric(2, 1) null check (
+    rating between 0.5 and 5
+    and rating * 2 = round(rating * 2)
+  ),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (user_id, title_id, media_type)
+  unique (user_id, title_id)
 )
 ```
 
-Indexes cover `(title_id, media_type, created_at desc)`, `user_id`, and the unique ownership lookup. A trigger updates `updated_at` without touching diary or watch-history records. The title's stored type must match `media_type`.
+Indexes cover `(title_id, created_at desc, id)`, `user_id`, and the unique ownership lookup. A trigger updates `updated_at` without touching diary or watch-history records. The title's stored type must match `media_type`.
 
 RLS allows public reads of review data that is already public in Kino. Authenticated users can insert only their own review, and only the author can update or delete it. Server functions re-check ownership and media type. Deleted accounts cascade their reviews so no orphaned author cards remain.
 
@@ -60,7 +64,7 @@ The primary key enforces one like per user per review and indexes both review lo
 
 ### Existing Ratings
 
-`title_ratings` remains the source for movie title ratings. `episode_ratings` remains the source for series episode ratings. Because these tables permit rewatches, followed-rating queries choose the most recent rating per user and entity using `watched_at desc, updated_at desc`.
+`title_ratings` remains the source for movie title ratings. `episode_ratings` remains the source for series episode ratings. Both use the 0.5–5.0 half-step domain. Because these tables preserve rewatches, the canonical current rating and followed-rating queries choose the most recent row per user and entity using `watched_at desc, updated_at desc, id desc`.
 
 No new episode rating table is needed: Kino already stores `title_id`, `season_number`, `episode_number`, and `rating` distinctly.
 
@@ -92,7 +96,7 @@ Anonymous viewers receive community reviews without viewer-specific like/follow 
 
 ### Review Mutations
 
-- `createReview(titleId, mediaType, content)` validates the authenticated user, uniqueness, title type, content, and reads the user's latest relevant title rating for the snapshot.
+- `createReview(titleId, mediaType, content)` validates the authenticated user, uniqueness, title type, content, and reads the user's latest relevant title rating for the snapshot. It never trusts a client-supplied review rating.
 - `updateReview(reviewId, content)` validates ownership and refreshes the nullable rating snapshot.
 - `deleteReview(reviewId)` validates ownership and cascades likes.
 - `likeReview(reviewId)` validates authentication, rejects self-likes, and relies on the unique key for duplicate safety.
@@ -104,7 +108,7 @@ All permission rules exist server-side even when the interface hides unavailable
 
 `getFollowedTitleRatings('movie', titleId, { limit })` performs one grouped query:
 
-- starts from follow relations where `follower_id = auth.uid()`;
+- starts from Kino's `follows` relation where `follower_id = auth.uid()` and the followed account is in `following_id`;
 - excludes the viewer;
 - joins public user profile fields only;
 - selects the latest public title rating per followed user;
