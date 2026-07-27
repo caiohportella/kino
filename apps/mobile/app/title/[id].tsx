@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons'
-import { isCompletedSeriesStatus, toReviewAuthor } from '@kino/core'
+import { isCompletedSeriesStatus } from '@kino/core'
 import { useQueryClient } from '@tanstack/react-query'
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
 import { useState } from 'react'
@@ -24,7 +24,6 @@ import { CommunityStats } from '~/components/title/CommunityStats'
 import { FriendRatings } from '~/components/title/FriendRatings'
 import { SeasonSection } from '~/components/title/SeasonSection'
 import { useFollowedTitleRatings } from '~/hooks/data/useFollowedRatings'
-import { useUserProfile } from '~/hooks/data/useDatabase'
 import { useTheaterStatus } from '~/hooks/data/useTheaterStatus'
 import { getOscarNominationsLegacy, useOscarData } from '~/services/awards'
 import { dbService } from '~/services/database'
@@ -50,8 +49,6 @@ export default function TitleDetailScreen() {
 
   // 2. Fetch User Data (Live-ish)
   const userQuery = useTitleUserData(title?.id, user?.id)
-  const currentProfileQuery = useUserProfile(user?.id)
-  const reviewAuthor = currentProfileQuery.data ? toReviewAuthor(currentProfileQuery.data) : null
   const { userRating, isWatched, isWatchlisted } = userQuery.data || {
     userRating: null,
     isWatched: false,
@@ -429,13 +426,23 @@ export default function TitleDetailScreen() {
           <CommunityStats titleId={title.id} type={type} refreshKey={refreshKey} />
 
           <ReviewsSection
-            author={reviewAuthor}
-            authorLoading={Boolean(user && currentProfileQuery.isLoading)}
+            author={
+              user
+                ? {
+                    id: user.id,
+                    username: (user.user_metadata.username as string | undefined) ?? null,
+                    displayName:
+                      (user.user_metadata.display_name as string | undefined) ??
+                      (user.user_metadata.full_name as string | undefined) ??
+                      null,
+                    avatarUrl: (user.user_metadata.avatar_url as string | undefined) ?? null,
+                  }
+                : null
+            }
             currentRating={userRating?.rating ?? null}
             mediaType={title.type}
             onAuthRequired={() => promptForAuth(t('reviews.empty.anonymous'))}
             titleId={title.id}
-            viewerAuthenticated={isAuthenticated}
           />
 
           {/* External Links Section */}
