@@ -14,16 +14,20 @@ import { ReviewSkeleton } from './ReviewSkeleton'
 
 export function ReviewsSection({
   author,
+  authorLoading = false,
   currentRating,
   mediaType,
   onAuthRequired,
   titleId,
+  viewerAuthenticated = false,
 }: {
   author: PublicUserSummary | null
+  authorLoading?: boolean
   currentRating: number | null
   mediaType: MediaType
   onAuthRequired: () => void
   titleId: string
+  viewerAuthenticated?: boolean
 }) {
   const { t } = useTranslation()
   const query = useTitleReviews(titleId)
@@ -69,8 +73,8 @@ export function ReviewsSection({
   return (
     <View className="mb-6 rounded-xl border border-black/50 bg-surface p-4">
       <Text className="mb-4 text-lg font-bold text-text-primary">{t('reviews.title')}</Text>
-      {query.isLoading ? <ReviewSkeleton /> : null}
-      {!query.isLoading && author && !viewerReview ? (
+      {query.isLoading || authorLoading ? <ReviewSkeleton /> : null}
+      {!query.isLoading && !authorLoading && author && !viewerReview ? (
         <ReviewComposer
           author={author}
           onPublish={async (content) => {
@@ -86,10 +90,17 @@ export function ReviewsSection({
           rating={currentRating}
         />
       ) : null}
-      {!query.isLoading && !author && !query.data?.totalCount ? (
+      {!query.isLoading &&
+      !authorLoading &&
+      !author &&
+      !viewerAuthenticated &&
+      !query.data?.totalCount ? (
         <TouchableOpacity onPress={onAuthRequired}>
           <Text className="text-sm text-text-secondary">{t('reviews.empty.anonymous')}</Text>
         </TouchableOpacity>
+      ) : null}
+      {!query.isLoading && !authorLoading && viewerAuthenticated && !author ? (
+        <Text className="text-sm text-red-400">{t('reviews.loadFailure')}</Text>
       ) : null}
       {query.data?.items.map(renderReview)}
     </View>

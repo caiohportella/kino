@@ -1,8 +1,8 @@
 import {
   insertViewerReview,
+  type KinoReviewAuthor,
   KinoDatabaseService,
   type MediaType,
-  type PublicUserSummary,
   removeReview,
   replaceReview,
   reviewKeys,
@@ -45,7 +45,7 @@ export function useCreateReviewMutation(titleId: string) {
     }: {
       mediaType: MediaType
       content: string
-      author: PublicUserSummary
+      author: KinoReviewAuthor
     }) => reviewsDb.createReview(titleId, mediaType, content),
     onMutate: async (variables) => {
       await cache.queryClient.cancelQueries({ queryKey: cache.key })
@@ -72,7 +72,17 @@ export function useCreateReviewMutation(titleId: string) {
     },
     onError: (_error, _variables, context) =>
       cache.queryClient.setQueryData(cache.key, context?.previous),
-    onSuccess: (review) => cache.update((page) => insertViewerReview(page, review)),
+    onSuccess: (review) =>
+      cache.update((page) => {
+        const withoutOptimistic = page
+          ? {
+              ...page,
+              items: page.items.filter((item) => !item.id.startsWith('optimistic:')),
+              totalCount: Math.max(0, page.totalCount - 1),
+            }
+          : page
+        return insertViewerReview(withoutOptimistic, review)
+      }),
     onSettled: () => cache.queryClient.invalidateQueries({ queryKey: cache.key }),
   })
 }

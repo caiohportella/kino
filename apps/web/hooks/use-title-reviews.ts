@@ -2,8 +2,8 @@
 
 import {
   insertViewerReview,
+  type KinoReviewAuthor,
   type MediaType,
-  type PublicUserSummary,
   removeReview,
   replaceReview,
   type Review,
@@ -55,7 +55,7 @@ export function useCreateReviewMutation() {
       titleId: string
       mediaType: MediaType
       content: string
-      author: PublicUserSummary
+      author: KinoReviewAuthor
     }) => db.createReview(titleId, mediaType, content),
     onMutate: async (variables) => {
       await queryClient.cancelQueries({ queryKey: reviewKeys.title(variables.titleId) })

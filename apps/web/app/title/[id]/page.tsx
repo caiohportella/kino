@@ -19,6 +19,7 @@ import {
   isFutureDateOnly,
   transformMovieToTitleDetails,
   transformTVToTitleDetails,
+  toReviewAuthor,
 } from '@kino/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { enUS, fr, it, nb, ptBR } from 'date-fns/locale'
@@ -204,6 +205,13 @@ export default function TitlePage() {
   })
 
   const title = titleQuery.data
+  const currentProfileQuery = useQuery({
+    queryKey: ['current-kino-profile', user?.id],
+    queryFn: () => db.getUserProfile(user!.id),
+    enabled: Boolean(user?.id),
+    staleTime: 60_000,
+  })
+  const reviewAuthor = currentProfileQuery.data ? toReviewAuthor(currentProfileQuery.data) : null
 
   const userDataQuery = useQuery({
     queryKey: ['title-user-data', title?.id, user?.id],
@@ -551,24 +559,13 @@ export default function TitlePage() {
                 loading={contextQuery.isLoading}
               />
               <ReviewsSection
-                author={
-                  user
-                    ? {
-                        id: user.id,
-                        username: (user.user_metadata.username as string | undefined) ?? null,
-                        displayName:
-                          (user.user_metadata.display_name as string | undefined) ??
-                          (user.user_metadata.full_name as string | undefined) ??
-                          null,
-                        avatarUrl:
-                          (user.user_metadata.avatar_url as string | undefined) ?? null,
-                      }
-                    : null
-                }
+                author={reviewAuthor}
+                authorLoading={Boolean(user && currentProfileQuery.isLoading)}
                 currentRating={currentUserRating || null}
                 mediaType={title.type}
                 onAuthRequired={requestAuthForCurrentTitle}
                 titleId={title.id}
+                viewerAuthenticated={Boolean(user)}
               />
               <MoreLikeThis
                 error={contextQuery.data?.errors.recommendations || contextQuery.isError}
@@ -627,23 +624,13 @@ export default function TitlePage() {
             loading={contextQuery.isLoading}
           />
           <ReviewsSection
-            author={
-              user
-                ? {
-                    id: user.id,
-                    username: (user.user_metadata.username as string | undefined) ?? null,
-                    displayName:
-                      (user.user_metadata.display_name as string | undefined) ??
-                      (user.user_metadata.full_name as string | undefined) ??
-                      null,
-                    avatarUrl: (user.user_metadata.avatar_url as string | undefined) ?? null,
-                  }
-                : null
-            }
+            author={reviewAuthor}
+            authorLoading={Boolean(user && currentProfileQuery.isLoading)}
             currentRating={currentUserRating || null}
             mediaType={title.type}
             onAuthRequired={requestAuthForCurrentTitle}
             titleId={title.id}
+            viewerAuthenticated={Boolean(user)}
           />
           <MoreLikeThis
             error={contextQuery.data?.errors.recommendations || contextQuery.isError}

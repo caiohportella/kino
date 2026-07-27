@@ -18,16 +18,20 @@ import { ReviewsDialog } from './reviews-dialog'
 
 export function ReviewsSection({
   author,
+  authorLoading = false,
   currentRating,
   mediaType,
   onAuthRequired,
   titleId,
+  viewerAuthenticated = false,
 }: {
   author: PublicUserSummary | null
+  authorLoading?: boolean
   currentRating: number | null
   mediaType: MediaType
   onAuthRequired: () => void
   titleId: string
+  viewerAuthenticated?: boolean
 }) {
   const { t } = useTranslation()
   const toast = useToast()
@@ -85,12 +89,12 @@ export function ReviewsSection({
         />
       </div>
 
-      {query.isLoading ? <ReviewSkeleton /> : null}
+      {query.isLoading || authorLoading ? <ReviewSkeleton /> : null}
       {query.isError ? (
         <p className="text-sm text-red-300">{t('reviews.loadFailure')}</p>
       ) : null}
 
-      {!query.isLoading && !viewerReview && author ? (
+      {!query.isLoading && !authorLoading && !viewerReview && author ? (
         <div className="grid gap-3">
           {!query.data?.totalCount ? (
             <p className="text-sm text-kino-muted">{t('reviews.empty.authenticated')}</p>
@@ -113,7 +117,11 @@ export function ReviewsSection({
         </div>
       ) : null}
 
-      {!query.isLoading && !author && !query.data?.totalCount ? (
+      {!query.isLoading &&
+      !authorLoading &&
+      !author &&
+      !viewerAuthenticated &&
+      !query.data?.totalCount ? (
         <button
           className="focus-ring rounded-md text-left text-sm text-kino-muted hover:text-kino-text"
           onClick={onAuthRequired}
@@ -121,6 +129,9 @@ export function ReviewsSection({
         >
           {t('reviews.empty.anonymous')}
         </button>
+      ) : null}
+      {!query.isLoading && !authorLoading && viewerAuthenticated && !author ? (
+        <p className="text-sm text-red-300">{t('reviews.loadFailure')}</p>
       ) : null}
 
       {query.data?.items.map(renderReview)}
