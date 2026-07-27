@@ -1,7 +1,7 @@
 'use client'
 
 import type { Review } from '@kino/core'
-import { Heart, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { Heart } from 'lucide-react'
 import { useState } from 'react'
 import { RatingStars } from '@/components/rating-stars'
 import {
@@ -15,16 +15,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { useTranslation } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { ReviewAuthor } from './review-author'
 import { ReviewEditor } from './review-editor'
+import { ReviewOwnerActions } from './review-owner-actions'
 
 export function ReviewCard({
   review,
@@ -48,7 +43,6 @@ export function ReviewCard({
   const { t } = useTranslation()
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const name = review.author.displayName || review.author.username || t('reviews.user')
   const edited = review.updatedAt !== review.createdAt
 
   return (
@@ -59,42 +53,23 @@ export function ReviewCard({
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-kino-muted">
             <span>
               {t('reviews.reviewedBy')}{' '}
-              <strong className="font-semibold text-kino-text">{name}</strong>
+              <ReviewAuthor author={review.author} variant="name" />
             </span>
             {review.rating ? (
               <RatingStars
                 label={t('reviews.ratingLabel')}
                 readonly
-                size="sm"
+                size="xs"
                 value={review.rating}
               />
             ) : null}
           </div>
           {review.isViewerReview ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    aria-label={t('reviews.actions')}
-                    disabled={pendingOwnerAction}
-                    size="icon"
-                    variant="ghost"
-                  >
-                    <MoreHorizontal aria-hidden="true" size={17} />
-                  </Button>
-                }
-              />
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setEditing(true)}>
-                  <Pencil aria-hidden="true" />
-                  {t('reviews.edit')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setConfirmDelete(true)} variant="destructive">
-                  <Trash2 aria-hidden="true" />
-                  {t('reviews.delete')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <ReviewOwnerActions
+              disabled={pendingOwnerAction}
+              onDelete={() => setConfirmDelete(true)}
+              onEdit={() => setEditing(true)}
+            />
           ) : null}
         </div>
 

@@ -21,8 +21,6 @@ export function ReviewComposer({
   const { t } = useTranslation()
   const [content, setContent] = useState('')
   const remaining = REVIEW_MAX_LENGTH - content.length
-  const name = author.displayName || author.username || t('reviews.user')
-
   return (
     <div className="flex items-start gap-3">
       <ReviewAuthor author={author} size="lg" />
@@ -30,13 +28,13 @@ export function ReviewComposer({
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-kino-muted">
           <span>
             {t('reviews.reviewedBy')}{' '}
-            <strong className="font-semibold text-kino-text">{name}</strong>
+            <ReviewAuthor author={author} variant="name" />
           </span>
           {rating ? (
             <RatingStars
               label={t('reviews.ratingLabel')}
               readonly
-              size="sm"
+              size="xs"
               value={rating}
             />
           ) : null}
