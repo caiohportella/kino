@@ -9,7 +9,7 @@ import { SeasonRatingModal } from "../modals/SeasonRatingModal";
 import { useLanguage } from "@/hooks/useLanguage";
 import type { TMDbSeason, TMDbEpisode, EpisodeRating } from "~/types";
 import { useTranslation } from "react-i18next";
-import { useFriendEpisodeRatings } from "~/hooks/data/useFriendRatings";
+import { useFollowedEpisodeRatings } from "~/hooks/data/useFollowedRatings";
 import { FriendEpisodeRatings } from "./FriendRatings";
 import { formatDate, isFutureDateOnly } from "@kino/core";
 
@@ -47,8 +47,11 @@ export function SeasonSection({
   const { t } = useTranslation();
   const language = useLanguage();
 
-  const friendEpisodeQuery = useFriendEpisodeRatings(titleId, isAuthenticated);
-  const allFriendEpisodeRatings = friendEpisodeQuery.data || [];
+  const friendEpisodeQuery = useFollowedEpisodeRatings(
+    titleId,
+    selectedSeason ?? 0,
+    isAuthenticated && selectedSeason !== null,
+  );
 
   const handleRateSeason = async (rating: number) => {
     if (selectedSeason === null) return;
@@ -465,11 +468,17 @@ export function SeasonSection({
                     {selectedSeason !== null && (
                       <View className="mt-2">
                         <FriendEpisodeRatings
-                          ratings={allFriendEpisodeRatings.filter(
-                            (r) =>
-                              r.seasonNumber === selectedSeason &&
-                              r.episodeNumber === ep.episode_number
-                          )}
+                          ratings={(
+                            friendEpisodeQuery.data?.episodes[
+                              `${selectedSeason}:${ep.episode_number}`
+                            ] ?? []
+                          ).map((item) => ({
+                            userId: item.user.id,
+                            displayName: item.user.displayName,
+                            username: item.user.username,
+                            avatarUrl: item.user.avatarUrl,
+                            rating: item.rating,
+                          }))}
                         />
                       </View>
                     )}

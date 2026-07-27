@@ -28,7 +28,11 @@ export function RatingStars({
   }
 
   return (
-    <View className="flex-row items-center gap-1">
+    <View
+      accessibilityLabel={`${rating ? rating : 'Not rated'} out of 5`}
+      accessibilityRole="image"
+      className="flex-row items-center gap-1"
+    >
       {Array.from({ length: maxRating }, (_, i) => {
         const starValue = i + 1
 

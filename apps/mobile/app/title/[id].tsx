@@ -17,12 +17,13 @@ import {
 import { useAuth } from '@/hooks/useAuth'
 import { TITLE_DATA_KEYS, useTitleMetadata, useTitleUserData } from '@/hooks/useTitleData'
 import { RatingStars } from '~/components/common/RatingStars'
+import { ReviewsSection } from '~/components/reviews/ReviewsSection'
 import { PersonalityModal } from '~/components/modals/PersonalityModal'
 import { WatchlistSelectorModal } from '~/components/modals/WatchlistSelectorModal'
 import { CommunityStats } from '~/components/title/CommunityStats'
 import { FriendRatings } from '~/components/title/FriendRatings'
 import { SeasonSection } from '~/components/title/SeasonSection'
-import { useFriendTitleRatings } from '~/hooks/data/useFriendRatings'
+import { useFollowedTitleRatings } from '~/hooks/data/useFollowedRatings'
 import { useTheaterStatus } from '~/hooks/data/useTheaterStatus'
 import { getOscarNominationsLegacy, useOscarData } from '~/services/awards'
 import { dbService } from '~/services/database'
@@ -54,8 +55,14 @@ export default function TitleDetailScreen() {
     isWatchlisted: false,
   }
 
-  const friendRatingsQuery = useFriendTitleRatings(title?.id, isAuthenticated)
-  const friendRatings = friendRatingsQuery.data || []
+  const friendRatingsQuery = useFollowedTitleRatings(title?.id || '', isAuthenticated)
+  const friendRatings = (friendRatingsQuery.data?.items || []).map((item) => ({
+    userId: item.user.id,
+    displayName: item.user.displayName,
+    username: item.user.username,
+    avatarUrl: item.user.avatarUrl,
+    rating: item.rating,
+  }))
 
   const { data: awards } = useOscarData(2026)
   const nominations = awards ? awards[tmdbId] : getOscarNominationsLegacy(tmdbId)
@@ -417,6 +424,26 @@ export default function TitleDetailScreen() {
 
           {/* Community Stats */}
           <CommunityStats titleId={title.id} type={type} refreshKey={refreshKey} />
+
+          <ReviewsSection
+            author={
+              user
+                ? {
+                    id: user.id,
+                    username: (user.user_metadata.username as string | undefined) ?? null,
+                    displayName:
+                      (user.user_metadata.display_name as string | undefined) ??
+                      (user.user_metadata.full_name as string | undefined) ??
+                      null,
+                    avatarUrl: (user.user_metadata.avatar_url as string | undefined) ?? null,
+                  }
+                : null
+            }
+            currentRating={userRating?.rating ?? null}
+            mediaType={title.type}
+            onAuthRequired={() => promptForAuth(t('reviews.empty.anonymous'))}
+            titleId={title.id}
+          />
 
           {/* External Links Section */}
           <View className="mt-8 mb-12">
