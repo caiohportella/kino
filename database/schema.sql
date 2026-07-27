@@ -46,7 +46,12 @@ CREATE TABLE IF NOT EXISTS title_ratings (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   title_id UUID NOT NULL REFERENCES titles(id) ON DELETE CASCADE,
-  rating NUMERIC(2, 1) NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  rating NUMERIC(2, 1) NOT NULL
+    CONSTRAINT title_ratings_rating_range_step_check
+    CHECK (
+      rating BETWEEN 0.5 AND 5
+      AND rating * 2 = round(rating * 2)
+    ),
   watch_type TEXT NOT NULL CHECK (watch_type IN ('first-time', 'rewatch')),
   watched_at TIMESTAMPTZ NOT NULL,
   notes TEXT,
@@ -65,7 +70,12 @@ CREATE TABLE IF NOT EXISTS episode_ratings (
   title_id UUID NOT NULL REFERENCES titles(id) ON DELETE CASCADE,
   season_number INTEGER NOT NULL,
   episode_number INTEGER NOT NULL,
-  rating NUMERIC(2, 1) NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  rating NUMERIC(2, 1) NOT NULL
+    CONSTRAINT episode_ratings_rating_range_step_check
+    CHECK (
+      rating BETWEEN 0.5 AND 5
+      AND rating * 2 = round(rating * 2)
+    ),
   watch_type TEXT NOT NULL CHECK (watch_type IN ('first-time', 'rewatch')),
   watched_at TIMESTAMPTZ NOT NULL,
   notes TEXT,
@@ -76,6 +86,41 @@ CREATE TABLE IF NOT EXISTS episode_ratings (
 
 CREATE INDEX IF NOT EXISTS idx_episode_ratings_user_id ON episode_ratings(user_id);
 CREATE INDEX IF NOT EXISTS idx_episode_ratings_title_id ON episode_ratings(title_id);
+
+-- Title reviews and likes.
+-- The complete RPC and trigger definitions live in
+-- migrations/2026-07-27-add-reviews-and-halfstar-ratings.sql.
+CREATE TABLE IF NOT EXISTS reviews (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title_id UUID NOT NULL REFERENCES titles(id) ON DELETE CASCADE,
+  media_type TEXT NOT NULL CHECK (media_type IN ('movie', 'tv')),
+  content TEXT NOT NULL CHECK (char_length(btrim(content)) BETWEEN 1 AND 2000),
+  rating NUMERIC(2, 1),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT reviews_user_title_key UNIQUE (user_id, title_id),
+  CONSTRAINT reviews_rating_range_step_check CHECK (
+    rating IS NULL
+    OR (
+      rating BETWEEN 0.5 AND 5
+      AND rating * 2 = round(rating * 2)
+    )
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_title_created_id
+  ON reviews(title_id, created_at DESC, id);
+CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews(user_id);
+
+CREATE TABLE IF NOT EXISTS review_likes (
+  review_id UUID NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (review_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_review_likes_user_id ON review_likes(user_id);
 
 -- Watch diary entries
 CREATE TABLE IF NOT EXISTS watch_diary (
@@ -157,6 +202,8 @@ ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE titles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE title_ratings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE episode_ratings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE review_likes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE watch_diary ENABLE ROW LEVEL SECURITY;
 ALTER TABLE watchlists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE watchlist_items ENABLE ROW LEVEL SECURITY;
@@ -183,6 +230,30 @@ CREATE POLICY "Users can view all episode ratings" ON episode_ratings FOR SELECT
 CREATE POLICY "Users can insert own episode ratings" ON episode_ratings FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update own episode ratings" ON episode_ratings FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own episode ratings" ON episode_ratings FOR DELETE USING (auth.uid() = user_id);
+
+-- Reviews: public reads, authenticated owners manage their review.
+CREATE POLICY "Users can view reviews" ON reviews FOR SELECT USING (true);
+CREATE POLICY "Users can insert own reviews" ON reviews FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own reviews" ON reviews FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete own reviews" ON reviews FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- Review likes: public counts, authenticated viewers manage their own non-self likes.
+CREATE POLICY "Users can view review likes" ON review_likes FOR SELECT USING (true);
+CREATE POLICY "Users can insert own review likes" ON review_likes FOR INSERT
+  WITH CHECK (
+    auth.uid() = user_id
+    AND NOT EXISTS (
+      SELECT 1 FROM reviews
+      WHERE reviews.id = review_id
+        AND reviews.user_id = auth.uid()
+    )
+  );
+CREATE POLICY "Users can delete own review likes" ON review_likes FOR DELETE
+  USING (auth.uid() = user_id);
 
 -- Watch diary: Users can read all, manage their own
 CREATE POLICY "Users can view all diary entries" ON watch_diary FOR SELECT USING (true);

@@ -36,3 +36,6 @@ android
 
 # Local Codex skills are development tooling, not application source.
 .agents/skills/motion-framer/
+
+# Isolated local feature worktrees.
+.worktrees/

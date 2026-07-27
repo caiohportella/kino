@@ -671,6 +671,50 @@
       }
     }
   },
+  "reviews": {
+    "title": "Resenhas",
+    "reviewedBy": "Resenha de",
+    "user": "Usuário do Kino",
+    "writeReview": "Escrever uma resenha",
+    "publish": "Publicar resenha",
+    "save": "Salvar resenha",
+    "edit": "Editar resenha",
+    "delete": "Excluir resenha",
+    "actions": "Ações da resenha",
+    "like": "Curtir resenha",
+    "unlike": "Descurtir resenha",
+    "likeCount_one": "{{count}} curtida",
+    "likeCount_other": "{{count}} curtidas",
+    "charactersRemaining": "{{count}} caracteres restantes",
+    "ratingLabel": "Nota da resenha",
+    "edited": "Editada",
+    "latest": "Resenhas mais recentes",
+    "readFull": "Ler resenha completa",
+    "noReviews": "Nenhuma resenha ainda",
+    "reviewCount_one": "{{count}} resenha",
+    "reviewCount_other": "{{count}} resenhas",
+    "openForTitle": "Abrir resenha de {{title}}",
+    "showMore": "Mostrar mais",
+    "showAll": "Ver todas as resenhas",
+    "showAllDescription": "Resenhas suas, de quem você segue e da comunidade Kino.",
+    "fromPeopleYouFollow": "De pessoas que você segue",
+    "deleteConfirm": "Excluir esta resenha? Esta ação não pode ser desfeita.",
+    "publishSuccess": "Resenha publicada",
+    "publishFailure": "Não foi possível publicar a resenha",
+    "editSuccess": "Resenha atualizada",
+    "editFailure": "Não foi possível atualizar a resenha",
+    "deleteSuccess": "Resenha excluída",
+    "deleteFailure": "Não foi possível excluir a resenha",
+    "likeFailure": "Não foi possível atualizar a curtida",
+    "loadFailure": "Não foi possível carregar as resenhas.",
+    "composer": {
+      "placeholder": "Escreva sua resenha..."
+    },
+    "empty": {
+      "authenticated": "Seja a primeira pessoa a avaliar este título.",
+      "anonymous": "Entre para escrever uma resenha."
+    }
+  },
   "awards": {
     "nominee": "Indicado(a)",
     "oscarNominee": "Indicado ao Oscar",

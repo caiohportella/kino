@@ -25,12 +25,36 @@ import type {
 } from './types'
 import { createWatchlistCoverVersion } from './watchlist-cover'
 import { findFirstUnwatchedEpisode, getEpisodeKey } from './use-cases'
+import {
+  type FollowedEpisodeRatingsResponse,
+  type FollowedRatingRow,
+  type FollowedRatingsPage,
+  mapFollowedRatings,
+  mapProfileReviewsPage,
+  mapReviewRow,
+  mapTitleReviewsPage,
+  type ProfileReviewOptions,
+  type ProfileReviewRow,
+  type ProfileReviewsPage,
+  REVIEW_PREVIEW_LIMIT,
+  type Review,
+  type ReviewCursor,
+  type ReviewRow,
+  type TitleReviewsPage,
+  validateReviewContent,
+} from './reviews'
 
 type SupabaseErrorLike = { code?: string }
 
 function toSafeCount(value: unknown) {
   const count = Number(value)
   return Number.isFinite(count) && count >= 0 ? count : 0
+}
+
+function unwrapRpcRow<Row>(data: unknown): Row {
+  const row = Array.isArray(data) ? data[0] : data
+  if (!row || typeof row !== 'object') throw new Error('Review RPC returned no row')
+  return row as Row
 }
 
 interface TitleRow {
@@ -124,7 +148,11 @@ interface RatingStatsRow {
 }
 
 export class KinoDatabaseService {
-  constructor(private readonly supabase: SupabaseClient) {}
+  private readonly supabase: SupabaseClient
+
+  constructor(supabase: SupabaseClient) {
+    this.supabase = supabase
+  }
 
   async getUserProfile(userId: string) {
     const { data, error } = await this.supabase
@@ -175,6 +203,107 @@ export class KinoDatabaseService {
 
     if (error) throw error
     return data as UserProfile
+  }
+
+  async createReview(titleId: string, mediaType: MediaType, content: string): Promise<Review> {
+    const userId = await this.getRequiredUserId()
+    const { data, error } = await this.supabase.rpc('create_review', {
+      p_user_id: userId,
+      p_title_id: titleId,
+      p_media_type: mediaType,
+      p_content: validateReviewContent(content),
+      p_rating: null,
+    })
+    if (error) throw error
+    return mapReviewRow(unwrapRpcRow<ReviewRow>(data))
+  }
+
+  async updateReview(reviewId: string, content: string): Promise<Review> {
+    const userId = await this.getRequiredUserId()
+    const { data, error } = await this.supabase.rpc('update_review', {
+      p_review_id: reviewId,
+      p_user_id: userId,
+      p_content: validateReviewContent(content),
+      p_rating: null,
+    })
+    if (error) throw error
+    return mapReviewRow(unwrapRpcRow<ReviewRow>(data))
+  }
+
+  async deleteReview(reviewId: string) {
+    const userId = await this.getRequiredUserId()
+    const { error } = await this.supabase.rpc('delete_review', {
+      p_review_id: reviewId,
+      p_user_id: userId,
+    })
+    if (error) throw error
+  }
+
+  async likeReview(reviewId: string) {
+    const { error } = await this.supabase.rpc('like_review', { p_review_id: reviewId })
+    if (error) throw error
+  }
+
+  async unlikeReview(reviewId: string) {
+    const { error } = await this.supabase.rpc('unlike_review', { p_review_id: reviewId })
+    if (error) throw error
+  }
+
+  async getTitleReviews(
+    titleId: string,
+    limit = REVIEW_PREVIEW_LIMIT,
+    cursor: ReviewCursor | null = null
+  ): Promise<TitleReviewsPage> {
+    const viewerId = await this.getUserId()
+    const { data, error } = await this.supabase.rpc('get_title_reviews', {
+      p_title_id: titleId,
+      p_viewer_id: viewerId,
+      p_limit: limit,
+      p_cursor: cursor,
+    })
+    if (error) throw error
+    return mapTitleReviewsPage((data ?? []) as ReviewRow[], limit)
+  }
+
+  async getProfileReviews(
+    username: string,
+    { limit = REVIEW_PREVIEW_LIMIT, cursor = null }: ProfileReviewOptions = {}
+  ): Promise<ProfileReviewsPage> {
+    const { data, error } = await this.supabase.rpc('get_profile_reviews', {
+      profile_username: username.trim(),
+      page_limit: limit,
+      cursor_created_at: cursor?.created_at ?? null,
+      cursor_id: cursor?.id ?? null,
+    })
+    if (error) throw error
+    return mapProfileReviewsPage((data ?? []) as ProfileReviewRow[], limit)
+  }
+
+  async getFollowedTitleRatings(titleId: string, limit = 6): Promise<FollowedRatingsPage> {
+    const { data, error } = await this.supabase.rpc('get_followed_title_ratings', {
+      p_title_id: titleId,
+      p_limit: limit,
+    })
+    if (error) throw error
+    return mapFollowedRatings((data ?? []) as FollowedRatingRow[])
+  }
+
+  async getFollowedEpisodeRatings(
+    titleId: string,
+    seasonNumber: number,
+    perEpisodeLimit = 3
+  ): Promise<FollowedEpisodeRatingsResponse> {
+    const { data, error } = await this.supabase.rpc('get_followed_episode_ratings', {
+      p_title_id: titleId,
+      p_season_number: seasonNumber,
+      p_per_episode_limit: perEpisodeLimit,
+    })
+    if (error) throw error
+    const response = (data ?? {}) as Partial<FollowedEpisodeRatingsResponse>
+    return {
+      episodes: response.episodes ?? {},
+      totals: response.totals ?? {},
+    }
   }
 
   async uploadAvatar(file: File, userId: string) {
@@ -311,6 +440,7 @@ export class KinoDatabaseService {
     return {
       diaryEntries: toSafeCount(row.diary_entries),
       moviesWatched: toSafeCount(row.movies_watched),
+      reviews: toSafeCount(row.review_count),
       seriesWatched: toSafeCount(row.series_watched),
     }
   }

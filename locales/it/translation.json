@@ -671,6 +671,50 @@
       }
     }
   },
+  "reviews": {
+    "title": "Recensioni",
+    "reviewedBy": "Recensione di",
+    "user": "Utente Kino",
+    "writeReview": "Scrivi una recensione",
+    "publish": "Pubblica recensione",
+    "save": "Salva recensione",
+    "edit": "Modifica recensione",
+    "delete": "Elimina recensione",
+    "actions": "Azioni recensione",
+    "like": "Mi piace",
+    "unlike": "Non mi piace più",
+    "likeCount_one": "{{count}} Mi piace",
+    "likeCount_other": "{{count}} Mi piace",
+    "charactersRemaining": "{{count}} caratteri rimanenti",
+    "ratingLabel": "Valutazione recensione",
+    "edited": "Modificata",
+    "latest": "Recensioni più recenti",
+    "readFull": "Leggi la recensione completa",
+    "noReviews": "Nessuna recensione",
+    "reviewCount_one": "{{count}} recensione",
+    "reviewCount_other": "{{count}} recensioni",
+    "openForTitle": "Apri la recensione di {{title}}",
+    "showMore": "Mostra altro",
+    "showAll": "Mostra tutte le recensioni",
+    "showAllDescription": "Recensioni tue, delle persone che segui e della community Kino.",
+    "fromPeopleYouFollow": "Dalle persone che segui",
+    "deleteConfirm": "Eliminare questa recensione? L’azione è irreversibile.",
+    "publishSuccess": "Recensione pubblicata",
+    "publishFailure": "Pubblicazione non riuscita",
+    "editSuccess": "Recensione aggiornata",
+    "editFailure": "Aggiornamento non riuscito",
+    "deleteSuccess": "Recensione eliminata",
+    "deleteFailure": "Eliminazione non riuscita",
+    "likeFailure": "Aggiornamento del Mi piace non riuscito",
+    "loadFailure": "Impossibile caricare le recensioni.",
+    "composer": {
+      "placeholder": "Scrivi la tua recensione..."
+    },
+    "empty": {
+      "authenticated": "Sii il primo a recensire questo titolo.",
+      "anonymous": "Accedi per scrivere una recensione."
+    }
+  },
   "awards": {
     "nominee": "Candidato/a",
     "oscarNominee": "Candidato agli Oscar",

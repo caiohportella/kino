@@ -671,6 +671,50 @@
       }
     }
   },
+  "reviews": {
+    "title": "Anmeldelser",
+    "reviewedBy": "Anmeldt av",
+    "user": "Kino-bruker",
+    "writeReview": "Skriv en anmeldelse",
+    "publish": "Publiser anmeldelse",
+    "save": "Lagre anmeldelse",
+    "edit": "Rediger anmeldelse",
+    "delete": "Slett anmeldelse",
+    "actions": "Anmeldelseshandlinger",
+    "like": "Lik anmeldelse",
+    "unlike": "Fjern liker",
+    "likeCount_one": "{{count}} liker",
+    "likeCount_other": "{{count}} liker",
+    "charactersRemaining": "{{count}} tegn igjen",
+    "ratingLabel": "Anmeldelsesvurdering",
+    "edited": "Redigert",
+    "latest": "Nyeste anmeldelser",
+    "readFull": "Les hele anmeldelsen",
+    "noReviews": "Ingen anmeldelser ennå",
+    "reviewCount_one": "{{count}} anmeldelse",
+    "reviewCount_other": "{{count}} anmeldelser",
+    "openForTitle": "Åpne anmeldelsen av {{title}}",
+    "showMore": "Vis mer",
+    "showAll": "Vis alle anmeldelser",
+    "showAllDescription": "Anmeldelser fra deg, personer du følger og Kino-fellesskapet.",
+    "fromPeopleYouFollow": "Fra personer du følger",
+    "deleteConfirm": "Slette denne anmeldelsen? Dette kan ikke angres.",
+    "publishSuccess": "Anmeldelse publisert",
+    "publishFailure": "Kunne ikke publisere anmeldelsen",
+    "editSuccess": "Anmeldelse oppdatert",
+    "editFailure": "Kunne ikke oppdatere anmeldelsen",
+    "deleteSuccess": "Anmeldelse slettet",
+    "deleteFailure": "Kunne ikke slette anmeldelsen",
+    "likeFailure": "Kunne ikke oppdatere liker",
+    "loadFailure": "Kunne ikke laste anmeldelser.",
+    "composer": {
+      "placeholder": "Skriv anmeldelsen din..."
+    },
+    "empty": {
+      "authenticated": "Bli den første som anmelder denne tittelen.",
+      "anonymous": "Logg inn for å skrive en anmeldelse."
+    }
+  },
   "awards": {
     "nominee": "Nominert",
     "oscarNominee": "Oscar-nominert",

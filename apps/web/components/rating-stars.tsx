@@ -5,9 +5,10 @@ import type { KeyboardEvent } from 'react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
-type RatingSize = 'sm' | 'md' | 'lg'
+type RatingSize = 'xs' | 'sm' | 'md' | 'lg'
 
 const sizeMap: Record<RatingSize, number> = {
+  xs: 15,
   sm: 18,
   md: 28,
   lg: 38,

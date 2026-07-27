@@ -711,6 +711,50 @@
       }
     }
   },
+  "reviews": {
+    "title": "Reviews",
+    "reviewedBy": "Reviewed by",
+    "user": "Kino user",
+    "writeReview": "Write a review",
+    "publish": "Publish review",
+    "save": "Save review",
+    "edit": "Edit review",
+    "delete": "Delete review",
+    "actions": "Review actions",
+    "like": "Like review",
+    "unlike": "Unlike review",
+    "likeCount_one": "{{count}} like",
+    "likeCount_other": "{{count}} likes",
+    "charactersRemaining": "{{count}} characters remaining",
+    "ratingLabel": "Review rating",
+    "edited": "Edited",
+    "latest": "Latest reviews",
+    "readFull": "Read full review",
+    "noReviews": "No reviews yet",
+    "reviewCount_one": "{{count}} review",
+    "reviewCount_other": "{{count}} reviews",
+    "openForTitle": "Open review for {{title}}",
+    "showMore": "Show more",
+    "showAll": "Show all reviews",
+    "showAllDescription": "Reviews from you, people you follow, and the Kino community.",
+    "fromPeopleYouFollow": "From People You Follow",
+    "deleteConfirm": "Delete this review? This cannot be undone.",
+    "publishSuccess": "Review published",
+    "publishFailure": "Failed to publish review",
+    "editSuccess": "Review updated",
+    "editFailure": "Failed to update review",
+    "deleteSuccess": "Review deleted",
+    "deleteFailure": "Failed to delete review",
+    "likeFailure": "Failed to update like",
+    "loadFailure": "Reviews could not be loaded.",
+    "composer": {
+      "placeholder": "Write your review..."
+    },
+    "empty": {
+      "authenticated": "Be the first to review this title.",
+      "anonymous": "Sign in to write a review."
+    }
+  },
   "awards": {
     "nominee": "Nominee",
     "oscarNominee": "Oscar Nominee",

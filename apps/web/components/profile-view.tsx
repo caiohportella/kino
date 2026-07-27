@@ -30,6 +30,7 @@ import { MediaRow } from '@/components/media-row'
 import { ProfileShareButton } from '@/components/profile-share-button'
 import { ProtectedEmpty } from '@/components/protected-empty'
 import { RatingStars } from '@/components/rating-stars'
+import { ProfileReviewsSection } from '@/components/reviews/profile-reviews-section'
 import { ProfileSkeleton } from '@/components/skeletons/page-skeletons'
 import { TitleCard } from '@/components/title-card'
 import { useToast } from '@/components/toast-provider'
@@ -44,6 +45,7 @@ import {
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useTranslation } from '@/lib/i18n'
+import { useProfileReviews } from '@/hooks/use-profile-reviews'
 import { normalizeProfileWatchlistCard } from '@/lib/profile-watchlist-card'
 import { titlePath, watchlistCoverPath, watchlistPath } from '@/lib/routes'
 import { db, getTmdb } from '@/lib/services'
@@ -163,6 +165,7 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
     },
     enabled: Boolean(targetUserId),
   })
+  const profileReviewsQuery = useProfileReviews(query.data?.profile?.username)
 
   const followMutation = useMutation({
     mutationFn: async () => {
@@ -407,7 +410,11 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
         />
       </div>
 
-      {movies.length === 0 && series.length === 0 && publicWatchlists.length === 0 ? (
+      {movies.length === 0 &&
+      series.length === 0 &&
+      publicWatchlists.length === 0 &&
+      !profileReviewsQuery.isLoading &&
+      !profileReviewsQuery.data?.totalCount ? (
         <EmptyState
           body={t('emptyStates.profileBody')}
           illustrationLabel={t('emptyStates.profileIllustration')}
@@ -418,6 +425,7 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
         <>
           <ProfileShelf items={movies} title={t('profile.watchedMovies')} type="movie" />
           <SeriesShelf items={series} />
+          {profile.username ? <ProfileReviewsSection username={profile.username} /> : null}
           <PublicWatchlistShelf items={publicWatchlists} />
         </>
       )}
