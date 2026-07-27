@@ -17,10 +17,11 @@ import {
   updateProfileReviewLike,
   updateReviewLike,
 } from '@kino/core'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { type InfiniteData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { db } from '@/lib/services'
 
 type Snapshot = Array<[readonly unknown[], unknown]>
+type ProfileReviewCache = ProfileReviewsPage | InfiniteData<ProfileReviewsPage>
 
 function restoreSnapshot(
   queryClient: ReturnType<typeof useQueryClient>,
@@ -34,10 +35,23 @@ function updateTitlePages(
   titleId: string,
   updater: (page: TitleReviewsPage | undefined) => TitleReviewsPage | undefined
 ) {
-  queryClient.setQueriesData<TitleReviewsPage>(
-    { queryKey: reviewKeys.title(titleId) },
-    updater
-  )
+  queryClient.setQueriesData<TitleReviewsPage>({ queryKey: reviewKeys.title(titleId) }, updater)
+}
+
+function updateProfileReviewCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  updater: (page: ProfileReviewsPage) => ProfileReviewsPage
+) {
+  queryClient.setQueriesData<ProfileReviewCache>({ queryKey: profileReviewKeys.all }, (cache) => {
+    if (!cache) return cache
+    if ('pages' in cache) {
+      return {
+        ...cache,
+        pages: cache.pages.map(updater),
+      }
+    }
+    return updater(cache)
+  })
 }
 
 export function useTitleReviews(titleId: string, enabled = true) {
@@ -126,32 +140,26 @@ export function useUpdateReviewMutation(titleId: string) {
       updateTitlePages(queryClient, titleId, (page) =>
         updateReviewContent(page, reviewId, content.trim())
       )
-      queryClient.setQueriesData<ProfileReviewsPage>(
-        { queryKey: profileReviewKeys.all },
-        (page) => {
-          const current = page?.items.find((item) => item.id === reviewId)
-          return current
-            ? replaceProfileReview(page, {
-                ...current,
-                content: content.trim(),
-                updatedAt: new Date().toISOString(),
-              })
-            : page
-        }
-      )
+      updateProfileReviewCaches(queryClient, (page) => {
+        const current = page.items.find((item) => item.id === reviewId)
+        return current
+          ? (replaceProfileReview(page, {
+              ...current,
+              content: content.trim(),
+              updatedAt: new Date().toISOString(),
+            }) ?? page)
+          : page
+      })
       return { previous }
     },
     onError: (_error, _variables, context) =>
       restoreSnapshot(queryClient, context?.previous as Snapshot | undefined),
     onSuccess: (review) => {
       updateTitlePages(queryClient, titleId, (page) => replaceReview(page, review))
-      queryClient.setQueriesData<ProfileReviewsPage>(
-        { queryKey: profileReviewKeys.all },
-        (page) => {
-          const current = page?.items.find((item) => item.id === review.id)
-          return current ? replaceProfileReview(page, { ...current, ...review }) : page
-        }
-      )
+      updateProfileReviewCaches(queryClient, (page) => {
+        const current = page.items.find((item) => item.id === review.id)
+        return current ? (replaceProfileReview(page, { ...current, ...review }) ?? page) : page
+      })
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: reviewKeys.title(titleId) })
@@ -174,10 +182,7 @@ export function useDeleteReviewMutation(titleId: string) {
         ...queryClient.getQueriesData({ queryKey: profileReviewKeys.all }),
       ]
       updateTitlePages(queryClient, titleId, (page) => removeReview(page, reviewId))
-      queryClient.setQueriesData<ProfileReviewsPage>(
-        { queryKey: profileReviewKeys.all },
-        (page) => removeProfileReview(page, reviewId)
-      )
+      updateProfileReviewCaches(queryClient, (page) => removeProfileReview(page, reviewId) ?? page)
       return { previous }
     },
     onError: (_error, _reviewId, context) =>
@@ -204,12 +209,10 @@ export function useReviewLikeMutation(titleId: string) {
         ...queryClient.getQueriesData({ queryKey: reviewKeys.title(titleId) }),
         ...queryClient.getQueriesData({ queryKey: profileReviewKeys.all }),
       ]
-      updateTitlePages(queryClient, titleId, (page) =>
-        updateReviewLike(page, reviewId, !liked)
-      )
-      queryClient.setQueriesData<ProfileReviewsPage>(
-        { queryKey: profileReviewKeys.all },
-        (page) => updateProfileReviewLike(page, reviewId, !liked)
+      updateTitlePages(queryClient, titleId, (page) => updateReviewLike(page, reviewId, !liked))
+      updateProfileReviewCaches(
+        queryClient,
+        (page) => updateProfileReviewLike(page, reviewId, !liked) ?? page
       )
       return { previous }
     },

@@ -14,15 +14,36 @@ import {
   updateProfileReviewLike,
   updateReviewLike,
 } from '@kino/core'
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  type InfiniteData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { db } from '@/lib/services'
 
 const PROFILE_REVIEW_PREVIEW_LIMIT = 6
 const PROFILE_REVIEW_PAGE_LIMIT = 20
 type Snapshot = Array<[readonly unknown[], unknown]>
+type ProfileReviewCache = ProfileReviewsPage | InfiniteData<ProfileReviewsPage>
 
 function restore(queryClient: ReturnType<typeof useQueryClient>, snapshot: Snapshot | undefined) {
   for (const [key, value] of snapshot ?? []) queryClient.setQueryData(key, value)
+}
+
+function updateProfileReviewCache(
+  cache: ProfileReviewCache | undefined,
+  updater: (page: ProfileReviewsPage) => ProfileReviewsPage
+) {
+  if (!cache) return cache
+  if ('pages' in cache) {
+    return {
+      ...cache,
+      pages: cache.pages.map(updater),
+    }
+  }
+  return updater(cache)
 }
 
 export function useProfileReviews(username: string | null | undefined) {
@@ -59,29 +80,31 @@ export function useProfileReviewMutations(username: string) {
       const previous = queryClient.getQueriesData({
         queryKey: profileReviewKeys.profile(username),
       })
-      queryClient.setQueriesData<ProfileReviewsPage>(
+      queryClient.setQueriesData<ProfileReviewCache>(
         { queryKey: profileReviewKeys.profile(username) },
-        (page) => {
-          const current = page?.items.find((item) => item.id === reviewId)
-          return current
-            ? replaceProfileReview(page, {
-                ...current,
-                content: content.trim(),
-                updatedAt: new Date().toISOString(),
-              })
-            : page
-        }
+        (cache) =>
+          updateProfileReviewCache(cache, (page) => {
+            const current = page.items.find((item) => item.id === reviewId)
+            return current
+              ? (replaceProfileReview(page, {
+                  ...current,
+                  content: content.trim(),
+                  updatedAt: new Date().toISOString(),
+                }) ?? page)
+              : page
+          })
       )
       return { previous }
     },
     onError: (_error, _variables, context) => restore(queryClient, context?.previous),
     onSuccess: (review) => {
-      queryClient.setQueriesData<ProfileReviewsPage>(
+      queryClient.setQueriesData<ProfileReviewCache>(
         { queryKey: profileReviewKeys.profile(username) },
-        (page) => {
-          const current = page?.items.find((item) => item.id === review.id)
-          return current ? replaceProfileReview(page, { ...current, ...review }) : page
-        }
+        (cache) =>
+          updateProfileReviewCache(cache, (page) => {
+            const current = page.items.find((item) => item.id === review.id)
+            return current ? (replaceProfileReview(page, { ...current, ...review }) ?? page) : page
+          })
       )
       queryClient.setQueriesData<TitleReviewsPage>(
         { queryKey: reviewKeys.title(review.titleId) },
@@ -103,9 +126,10 @@ export function useProfileReviewMutations(username: string) {
         ...queryClient.getQueriesData({ queryKey: profileReviewKeys.profile(username) }),
         ...queryClient.getQueriesData({ queryKey: reviewKeys.title(review.titleId) }),
       ] as Snapshot
-      queryClient.setQueriesData<ProfileReviewsPage>(
+      queryClient.setQueriesData<ProfileReviewCache>(
         { queryKey: profileReviewKeys.profile(username) },
-        (page) => removeProfileReview(page, review.id)
+        (cache) =>
+          updateProfileReviewCache(cache, (page) => removeProfileReview(page, review.id) ?? page)
       )
       queryClient.setQueriesData<TitleReviewsPage>(
         { queryKey: reviewKeys.title(review.titleId) },
@@ -135,9 +159,13 @@ export function useProfileReviewMutations(username: string) {
         ...queryClient.getQueriesData({ queryKey: profileReviewKeys.profile(username) }),
         ...queryClient.getQueriesData({ queryKey: reviewKeys.title(review.titleId) }),
       ] as Snapshot
-      queryClient.setQueriesData<ProfileReviewsPage>(
+      queryClient.setQueriesData<ProfileReviewCache>(
         { queryKey: profileReviewKeys.profile(username) },
-        (page) => updateProfileReviewLike(page, review.id, !liked)
+        (cache) =>
+          updateProfileReviewCache(
+            cache,
+            (page) => updateProfileReviewLike(page, review.id, !liked) ?? page
+          )
       )
       queryClient.setQueriesData<TitleReviewsPage>(
         { queryKey: reviewKeys.title(review.titleId) },
