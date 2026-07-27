@@ -1,4 +1,4 @@
-import type { Review, TitleReviewsPage } from './reviews'
+import type { ProfileReview, ProfileReviewsPage, Review, TitleReviewsPage } from './reviews'
 
 export function insertViewerReview(
   page: TitleReviewsPage | undefined,
@@ -58,6 +58,49 @@ export function updateReviewLike(
   reviewId: string,
   likedByViewer: boolean
 ): TitleReviewsPage | undefined {
+  if (!page) return page
+  return {
+    ...page,
+    items: page.items.map((item) => {
+      if (item.id !== reviewId || item.likedByViewer === likedByViewer) return item
+      return {
+        ...item,
+        likedByViewer,
+        likeCount: Math.max(0, item.likeCount + (likedByViewer ? 1 : -1)),
+      }
+    }),
+  }
+}
+
+export function replaceProfileReview(
+  page: ProfileReviewsPage | undefined,
+  review: ProfileReview
+): ProfileReviewsPage | undefined {
+  if (!page) return page
+  return {
+    ...page,
+    items: page.items.map((item) => (item.id === review.id ? review : item)),
+  }
+}
+
+export function removeProfileReview(
+  page: ProfileReviewsPage | undefined,
+  reviewId: string
+): ProfileReviewsPage | undefined {
+  if (!page) return page
+  const exists = page.items.some((item) => item.id === reviewId)
+  return {
+    ...page,
+    items: page.items.filter((item) => item.id !== reviewId),
+    totalCount: Math.max(0, page.totalCount - (exists ? 1 : 0)),
+  }
+}
+
+export function updateProfileReviewLike(
+  page: ProfileReviewsPage | undefined,
+  reviewId: string,
+  likedByViewer: boolean
+): ProfileReviewsPage | undefined {
   if (!page) return page
   return {
     ...page,

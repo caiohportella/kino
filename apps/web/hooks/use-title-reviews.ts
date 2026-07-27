@@ -4,12 +4,17 @@ import {
   insertViewerReview,
   type KinoReviewAuthor,
   type MediaType,
+  profileReviewKeys,
+  type ProfileReviewsPage,
+  removeProfileReview,
   removeReview,
+  replaceProfileReview,
   replaceReview,
   type Review,
   reviewKeys,
   type TitleReviewsPage,
   updateReviewContent,
+  updateProfileReviewLike,
   updateReviewLike,
 } from '@kino/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -98,6 +103,8 @@ export function useCreateReviewMutation() {
     },
     onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: reviewKeys.title(variables.titleId) })
+      queryClient.invalidateQueries({ queryKey: profileReviewKeys.all })
+      queryClient.invalidateQueries({ queryKey: ['profile'] })
     },
   })
 }
@@ -108,18 +115,48 @@ export function useUpdateReviewMutation(titleId: string) {
     mutationFn: ({ reviewId, content }: { reviewId: string; content: string }) =>
       db.updateReview(reviewId, content),
     onMutate: async ({ reviewId, content }) => {
-      await queryClient.cancelQueries({ queryKey: reviewKeys.title(titleId) })
-      const previous = queryClient.getQueriesData({ queryKey: reviewKeys.title(titleId) })
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: reviewKeys.title(titleId) }),
+        queryClient.cancelQueries({ queryKey: profileReviewKeys.all }),
+      ])
+      const previous = [
+        ...queryClient.getQueriesData({ queryKey: reviewKeys.title(titleId) }),
+        ...queryClient.getQueriesData({ queryKey: profileReviewKeys.all }),
+      ]
       updateTitlePages(queryClient, titleId, (page) =>
         updateReviewContent(page, reviewId, content.trim())
+      )
+      queryClient.setQueriesData<ProfileReviewsPage>(
+        { queryKey: profileReviewKeys.all },
+        (page) => {
+          const current = page?.items.find((item) => item.id === reviewId)
+          return current
+            ? replaceProfileReview(page, {
+                ...current,
+                content: content.trim(),
+                updatedAt: new Date().toISOString(),
+              })
+            : page
+        }
       )
       return { previous }
     },
     onError: (_error, _variables, context) =>
       restoreSnapshot(queryClient, context?.previous as Snapshot | undefined),
-    onSuccess: (review) =>
-      updateTitlePages(queryClient, titleId, (page) => replaceReview(page, review)),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: reviewKeys.title(titleId) }),
+    onSuccess: (review) => {
+      updateTitlePages(queryClient, titleId, (page) => replaceReview(page, review))
+      queryClient.setQueriesData<ProfileReviewsPage>(
+        { queryKey: profileReviewKeys.all },
+        (page) => {
+          const current = page?.items.find((item) => item.id === review.id)
+          return current ? replaceProfileReview(page, { ...current, ...review }) : page
+        }
+      )
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: reviewKeys.title(titleId) })
+      queryClient.invalidateQueries({ queryKey: profileReviewKeys.all })
+    },
   })
 }
 
@@ -128,14 +165,28 @@ export function useDeleteReviewMutation(titleId: string) {
   return useMutation({
     mutationFn: (reviewId: string) => db.deleteReview(reviewId),
     onMutate: async (reviewId) => {
-      await queryClient.cancelQueries({ queryKey: reviewKeys.title(titleId) })
-      const previous = queryClient.getQueriesData({ queryKey: reviewKeys.title(titleId) })
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: reviewKeys.title(titleId) }),
+        queryClient.cancelQueries({ queryKey: profileReviewKeys.all }),
+      ])
+      const previous = [
+        ...queryClient.getQueriesData({ queryKey: reviewKeys.title(titleId) }),
+        ...queryClient.getQueriesData({ queryKey: profileReviewKeys.all }),
+      ]
       updateTitlePages(queryClient, titleId, (page) => removeReview(page, reviewId))
+      queryClient.setQueriesData<ProfileReviewsPage>(
+        { queryKey: profileReviewKeys.all },
+        (page) => removeProfileReview(page, reviewId)
+      )
       return { previous }
     },
     onError: (_error, _reviewId, context) =>
       restoreSnapshot(queryClient, context?.previous as Snapshot | undefined),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: reviewKeys.title(titleId) }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: reviewKeys.title(titleId) })
+      queryClient.invalidateQueries({ queryKey: profileReviewKeys.all })
+      queryClient.invalidateQueries({ queryKey: ['profile'] })
+    },
   })
 }
 
@@ -145,15 +196,28 @@ export function useReviewLikeMutation(titleId: string) {
     mutationFn: ({ reviewId, liked }: { reviewId: string; liked: boolean }) =>
       liked ? db.unlikeReview(reviewId) : db.likeReview(reviewId),
     onMutate: async ({ reviewId, liked }) => {
-      await queryClient.cancelQueries({ queryKey: reviewKeys.title(titleId) })
-      const previous = queryClient.getQueriesData({ queryKey: reviewKeys.title(titleId) })
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: reviewKeys.title(titleId) }),
+        queryClient.cancelQueries({ queryKey: profileReviewKeys.all }),
+      ])
+      const previous = [
+        ...queryClient.getQueriesData({ queryKey: reviewKeys.title(titleId) }),
+        ...queryClient.getQueriesData({ queryKey: profileReviewKeys.all }),
+      ]
       updateTitlePages(queryClient, titleId, (page) =>
         updateReviewLike(page, reviewId, !liked)
+      )
+      queryClient.setQueriesData<ProfileReviewsPage>(
+        { queryKey: profileReviewKeys.all },
+        (page) => updateProfileReviewLike(page, reviewId, !liked)
       )
       return { previous }
     },
     onError: (_error, _variables, context) =>
       restoreSnapshot(queryClient, context?.previous as Snapshot | undefined),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: reviewKeys.title(titleId) }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: reviewKeys.title(titleId) })
+      queryClient.invalidateQueries({ queryKey: profileReviewKeys.all })
+    },
   })
 }

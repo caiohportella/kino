@@ -216,6 +216,13 @@ export function mapTitleReviewsPage(rows: ReviewRow[], limit: number): TitleRevi
   }
 }
 
+export const profileReviewKeys = {
+  all: ['profile-reviews'] as const,
+  profile: (username: string) => ['profile-reviews', username] as const,
+  page: (username: string, cursor: ProfileReviewCursor | null) =>
+    ['profile-reviews', username, cursor] as const,
+}
+
 export function mapProfileReviewsPage(
   rows: ProfileReviewRow[],
   limit: number
