@@ -61,6 +61,36 @@ export interface TitleReviewsPage {
   totalCount: number
 }
 
+export interface ProfileReviewTitle {
+  id: string
+  tmdbId: number
+  mediaType: MediaType
+  name: string
+  slug: string
+  year: number | null
+  posterUrl: string | null
+}
+
+export interface ProfileReview extends Review {
+  title: ProfileReviewTitle
+}
+
+export interface ProfileReviewCursor {
+  created_at: string
+  id: string
+}
+
+export interface ProfileReviewsPage {
+  items: ProfileReview[]
+  nextCursor: ProfileReviewCursor | null
+  totalCount: number
+}
+
+export interface ProfileReviewOptions {
+  limit?: number
+  cursor?: ProfileReviewCursor | null
+}
+
 export interface FollowedRating {
   user: PublicUserSummary
   rating: number
@@ -104,6 +134,13 @@ export interface FollowedRatingRow {
   rating: number | string
   watched_at: string
   total_count?: number | string | null
+}
+
+export interface ProfileReviewRow extends ReviewRow {
+  title_tmdb_id: number | string
+  title_name: string
+  title_year?: number | string | null
+  title_poster_url?: string | null
 }
 
 export const reviewKeys = {
@@ -179,6 +216,35 @@ export function mapTitleReviewsPage(rows: ReviewRow[], limit: number): TitleRevi
   }
 }
 
+export function mapProfileReviewsPage(
+  rows: ProfileReviewRow[],
+  limit: number
+): ProfileReviewsPage {
+  const safeLimit = Math.max(1, limit)
+  const pageRows = rows.slice(0, safeLimit)
+  const last = pageRows.at(-1)
+
+  return {
+    items: pageRows.map((row) => ({
+      ...mapReviewRow(row),
+      title: {
+        id: row.title_id,
+        tmdbId: Number(row.title_tmdb_id),
+        mediaType: row.media_type,
+        name: row.title_name,
+        slug: slugifyReviewTitle(row.title_name),
+        year: row.title_year == null ? null : Number(row.title_year),
+        posterUrl: row.title_poster_url ?? null,
+      },
+    })),
+    nextCursor:
+      rows.length > safeLimit && last
+        ? { created_at: last.created_at, id: last.id }
+        : null,
+    totalCount: toSafeCount(rows[0]?.total_count),
+  }
+}
+
 export function mapFollowedRatings(rows: FollowedRatingRow[]): FollowedRatingsPage {
   return {
     items: rows.map((row) => ({
@@ -203,4 +269,14 @@ function toSafeCount(value: unknown) {
 function toTier(value: unknown): 0 | 1 | 2 {
   const tier = Number(value)
   return tier === 0 || tier === 1 ? tier : 2
+}
+
+function slugifyReviewTitle(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
 }

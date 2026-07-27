@@ -30,8 +30,12 @@ import {
   type FollowedRatingRow,
   type FollowedRatingsPage,
   mapFollowedRatings,
+  mapProfileReviewsPage,
   mapReviewRow,
   mapTitleReviewsPage,
+  type ProfileReviewOptions,
+  type ProfileReviewRow,
+  type ProfileReviewsPage,
   REVIEW_PREVIEW_LIMIT,
   type Review,
   type ReviewCursor,
@@ -259,6 +263,20 @@ export class KinoDatabaseService {
     })
     if (error) throw error
     return mapTitleReviewsPage((data ?? []) as ReviewRow[], limit)
+  }
+
+  async getProfileReviews(
+    username: string,
+    { limit = REVIEW_PREVIEW_LIMIT, cursor = null }: ProfileReviewOptions = {}
+  ): Promise<ProfileReviewsPage> {
+    const { data, error } = await this.supabase.rpc('get_profile_reviews', {
+      profile_username: username.trim(),
+      page_limit: limit,
+      cursor_created_at: cursor?.created_at ?? null,
+      cursor_id: cursor?.id ?? null,
+    })
+    if (error) throw error
+    return mapProfileReviewsPage((data ?? []) as ProfileReviewRow[], limit)
   }
 
   async getFollowedTitleRatings(titleId: string, limit = 6): Promise<FollowedRatingsPage> {

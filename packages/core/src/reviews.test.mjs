@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   getReviewAuthorLabel,
   isValidHalfStepRating,
+  mapProfileReviewsPage,
   mapTitleReviewsPage,
   reviewKeys,
   toReviewAuthor,
@@ -76,4 +77,48 @@ test('builds stable keys and keyset cursors from the extra row', () => {
     created_at: '2026-07-27T10:00:00Z',
     id: 'review-1',
   })
+})
+
+test('maps grouped profile reviews with title context and a creation cursor', () => {
+  const row = {
+    id: 'review-1',
+    user_id: 'user-1',
+    title_id: 'title-1',
+    media_type: 'movie',
+    content: 'Review',
+    rating: '4.5',
+    created_at: '2026-07-27T10:00:00Z',
+    updated_at: '2026-07-27T11:00:00Z',
+    like_count: '12',
+    liked_by_viewer: true,
+    author_username: 'dex',
+    author_display_name: 'Dex Kino',
+    author_avatar_url: '/dex.png',
+    is_viewer_review: true,
+    total_count: '3',
+    title_tmdb_id: 238,
+    title_name: 'The Godfather',
+    title_year: 1972,
+    title_poster_url: '/poster.jpg',
+  }
+
+  const page = mapProfileReviewsPage(
+    [row, { ...row, id: 'review-2', created_at: '2026-07-26T10:00:00Z' }],
+    1
+  )
+
+  assert.deepEqual(page.items[0].title, {
+    id: 'title-1',
+    tmdbId: 238,
+    mediaType: 'movie',
+    name: 'The Godfather',
+    slug: 'the-godfather',
+    year: 1972,
+    posterUrl: '/poster.jpg',
+  })
+  assert.deepEqual(page.nextCursor, {
+    created_at: '2026-07-27T10:00:00Z',
+    id: 'review-1',
+  })
+  assert.equal(page.totalCount, 3)
 })
