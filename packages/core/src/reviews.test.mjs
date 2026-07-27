@@ -1,11 +1,36 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  getReviewAuthorLabel,
   isValidHalfStepRating,
   mapTitleReviewsPage,
   reviewKeys,
+  toReviewAuthor,
   validateReviewContent,
 } from './reviews.ts'
+
+test('maps review authors from the Kino profile identity', () => {
+  assert.deepEqual(
+    toReviewAuthor({
+      id: 'user-1',
+      username: 'dex',
+      display_name: 'Dex Kino',
+      avatar_url: 'https://kino.test/dex.png',
+    }),
+    {
+      id: 'user-1',
+      username: 'dex',
+      displayName: 'Dex Kino',
+      avatarUrl: 'https://kino.test/dex.png',
+    }
+  )
+})
+
+test('uses a trimmed Kino display name then the username for review labels', () => {
+  assert.equal(getReviewAuthorLabel({ displayName: '  Dex Kino  ', username: 'dex' }), 'Dex Kino')
+  assert.equal(getReviewAuthorLabel({ displayName: '   ', username: 'dex' }), 'dex')
+  assert.equal(getReviewAuthorLabel({ displayName: null, username: null }), null)
+})
 
 test('validates the shared half-star domain', () => {
   assert.equal(isValidHalfStepRating(null), true)

@@ -1,4 +1,4 @@
-import type { MediaType } from './types'
+import type { MediaType, UserProfile } from './types'
 
 export const REVIEW_MAX_LENGTH = 2000
 export const REVIEW_PREVIEW_LIMIT = 6
@@ -8,6 +8,25 @@ export interface PublicUserSummary {
   username: string | null
   displayName: string | null
   avatarUrl: string | null
+}
+
+export type KinoReviewAuthor = PublicUserSummary
+
+export function toReviewAuthor(
+  profile: Pick<UserProfile, 'id' | 'username' | 'display_name' | 'avatar_url'>
+): KinoReviewAuthor {
+  return {
+    id: profile.id,
+    username: profile.username,
+    displayName: profile.display_name,
+    avatarUrl: profile.avatar_url,
+  }
+}
+
+export function getReviewAuthorLabel(
+  author: Pick<KinoReviewAuthor, 'displayName' | 'username'>
+) {
+  return author.displayName?.trim() || author.username || null
 }
 
 export interface ReviewLikeSummary {
