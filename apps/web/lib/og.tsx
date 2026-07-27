@@ -917,6 +917,7 @@ export function ProfileOg({
     ['Movies', data.moviesWatched],
     ['Series', data.seriesWatched],
     ['Diary', data.diaryEntries],
+    ['Reviews', data.reviews],
   ] as const
   return (
     <KinoFrame
@@ -981,7 +982,7 @@ export function ProfileOg({
               margin: '6px 0',
             }}
           />
-          <div style={{ display: 'flex', gap: 38 }}>
+          <div style={{ display: 'flex', gap: 30 }}>
             {stats.map(([label, value]) => (
               <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <div style={{ display: 'flex', fontSize: 30, fontWeight: 800 }}>{value}</div>

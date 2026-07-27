@@ -70,6 +70,7 @@ export async function getPublicProfileOgDataByUsername(username: string) {
     diaryEntries: Number(data.diary_entries) || 0,
     displayName: (data.display_name || data.username || 'Kino member') as string,
     moviesWatched: toSafeCount(data.movies_watched ?? data.movie_ratings ?? 0),
+    reviews: toSafeCount(data.review_count ?? 0),
     seriesWatched: toSafeCount(data.series_watched ?? data.episodes_watched ?? 0),
     username: data.username as string | null,
   }
@@ -84,6 +85,11 @@ async function getPublicProfileOgDataFallback(username: string) {
     .maybeSingle()
   if (error) throw error
   if (!profile) return null
+  const { count: reviewCount, error: reviewCountError } = await client
+    .from('reviews')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', profile.id)
+  if (reviewCountError) throw reviewCountError
 
   return {
     avatarUrl: profile.avatar_url,
@@ -92,6 +98,7 @@ async function getPublicProfileOgDataFallback(username: string) {
     diaryEntries: 0,
     displayName: profile.display_name || profile.username || 'Kino member',
     moviesWatched: 0,
+    reviews: toSafeCount(reviewCount),
     seriesWatched: 0,
     username: profile.username,
   }

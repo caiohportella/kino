@@ -440,6 +440,7 @@ export class KinoDatabaseService {
     return {
       diaryEntries: toSafeCount(row.diary_entries),
       moviesWatched: toSafeCount(row.movies_watched),
+      reviews: toSafeCount(row.review_count),
       seriesWatched: toSafeCount(row.series_watched),
     }
   }

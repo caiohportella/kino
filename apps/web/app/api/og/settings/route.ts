@@ -15,6 +15,7 @@ export async function GET() {
         diaryEntries: 0,
         displayName: 'Kino member',
         moviesWatched: 0,
+        reviews: 0,
         seriesWatched: 0,
         username: null,
       },
