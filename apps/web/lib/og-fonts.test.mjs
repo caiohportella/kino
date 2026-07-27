@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { ImageResponse } from 'next/og'
+import { ImageResponse } from 'next/og.js'
 import { createElement } from 'react'
 
 test('OG rendering falls back cleanly when remote fonts are disabled', async () => {
