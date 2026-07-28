@@ -80,7 +80,31 @@ export interface PersonCandidate extends CandidateBase {
   readonly confidence: number
 }
 
-export type SearchProviderCandidate = SemanticCandidate | LexicalCandidate | PersonCandidate
+export type RelationshipCreditRole = SearchRelationshipRole
+export type RelationshipAppearance = 'standard' | 'self' | 'archive'
+
+export interface PersonCredit {
+  readonly entity: SearchEntity & { readonly entityType: SearchMediaType; readonly tmdbId: number }
+  readonly role: RelationshipCreditRole
+  readonly castOrder?: number
+  readonly appearance?: RelationshipAppearance
+}
+
+export interface RelationshipCandidate extends CandidateBase {
+  readonly source: 'relationship'
+  readonly entity: SearchEntity & { readonly entityType: SearchMediaType; readonly tmdbId: number }
+  readonly personId: string
+  readonly personConfidence: number
+  readonly role: RelationshipCreditRole
+  readonly relationshipScore: number
+  readonly castOrder?: number
+}
+
+export type SearchProviderCandidate =
+  | SemanticCandidate
+  | LexicalCandidate
+  | PersonCandidate
+  | RelationshipCandidate
 
 export interface SearchProviderResult {
   readonly sourceId: string
