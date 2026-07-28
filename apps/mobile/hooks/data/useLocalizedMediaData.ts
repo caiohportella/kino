@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useLanguage } from '~/hooks/useLanguage'
+import { useQueries } from '@tanstack/react-query'
+import { useMemo } from 'react'
+import { titleSummaryQueryOptions } from '~/hooks/data/titleQueries'
+import { useReadyLanguage } from '~/hooks/useLanguage'
 import { getTMDbService } from '~/services/tmdb'
 
 export interface LocalizedMedia {
@@ -12,67 +14,67 @@ export interface LocalizedMedia {
  * and poster path from TMDB in the current app language and returns a map.
  */
 export function useLocalizedMediaData(items: { tmdb_id: number; type: 'movie' | 'tv' }[]) {
-  const language = useLanguage()
-  const [mediaMap, setMediaMap] = useState<Record<number, LocalizedMedia>>({})
+  const language = useReadyLanguage()
+  const uniqueItems = useMemo(() => normalizeLocalizedItems(items), [items])
+  const queryResults = useQueries({
+    queries: language
+      ? uniqueItems.map((item) =>
+          titleSummaryQueryOptions({
+            fetchSummary: async (request) => {
+              const tmdb = getTMDbService()
+              tmdb.setLanguage(request.locale)
 
-  useEffect(() => {
-    if (items.length === 0) return
+              if (request.mediaType === 'tv') {
+                const details = await tmdb.getTVDetails(request.id)
+                return {
+                  backdropPath: details.backdrop_path,
+                  id: request.id,
+                  mediaType: request.mediaType,
+                  posterPath: details.poster_path,
+                  title: details.name,
+                  year: releaseYear(details.first_air_date),
+                }
+              }
 
-    const tmdb = getTMDbService()
-    tmdb.setLanguage(language)
-
-    let cancelled = false
-
-    const fetchMediaData = async () => {
-      const map: Record<number, LocalizedMedia> = {}
-
-      // Fetch in parallel, batching up to 10 at a time to be gentle
-      const batchSize = 10
-      for (let i = 0; i < items.length; i += batchSize) {
-        const batch = items.slice(i, i + batchSize)
-        const results = await Promise.allSettled(
-          batch.map(async (item) => {
-            if (item.type === 'movie' || !item.type) {
-              const details = await tmdb.getMovieDetails(item.tmdb_id)
+              const details = await tmdb.getMovieDetails(request.id)
               return {
-                tmdbId: item.tmdb_id,
+                backdropPath: details.backdrop_path,
+                id: request.id,
+                mediaType: request.mediaType,
+                posterPath: details.poster_path,
                 title: details.title,
-                poster_path: details.poster_path,
+                year: releaseYear(details.release_date),
               }
-            } else {
-              const details = await tmdb.getTVDetails(item.tmdb_id)
-              return {
-                tmdbId: item.tmdb_id,
-                title: details.name,
-                poster_path: details.poster_path,
-              }
-            }
+            },
+            id: item.tmdb_id,
+            locale: language,
+            mediaType: item.type,
+            region: localeRegion(language),
+            scope: { kind: 'public' },
           })
         )
+      : [],
+  })
 
-        for (const result of results) {
-          if (result.status === 'fulfilled') {
-            map[result.value.tmdbId] = {
-              title: result.value.title,
-              poster_path: result.value.poster_path,
-            }
-          }
-        }
-      }
-
-      if (!cancelled) {
-        setMediaMap(map)
-      }
-    }
-
-    fetchMediaData()
-
-    return () => {
-      cancelled = true
-    }
-  }, [items, language])
-
-  return mediaMap
+  return useMemo(
+    () =>
+      Object.fromEntries(
+        queryResults.flatMap((result, index) => {
+          const item = uniqueItems[index]
+          if (!item || !result.data) return []
+          return [
+            [
+              item.tmdb_id,
+              {
+                poster_path: result.data.posterPath,
+                title: result.data.title,
+              },
+            ],
+          ]
+        })
+      ) as Record<number, LocalizedMedia>,
+    [queryResults, uniqueItems]
+  )
 }
 
 /**
@@ -81,4 +83,33 @@ export function useLocalizedMediaData(items: { tmdb_id: number; type: 'movie' | 
 export function useLocalizedTitle(tmdbId: number, type: 'movie' | 'tv') {
   const mediaMap = useLocalizedMediaData(useMemo(() => [{ tmdb_id: tmdbId, type }], [tmdbId, type]))
   return mediaMap[tmdbId] || null
+}
+
+function normalizeLocalizedItems(items: { tmdb_id: number; type: 'movie' | 'tv' }[]) {
+  const uniqueItems = new Map<string, (typeof items)[number]>()
+  for (const item of items) {
+    if (!Number.isSafeInteger(item.tmdb_id) || item.tmdb_id <= 0) continue
+    uniqueItems.set(`${item.type}:${item.tmdb_id}`, item)
+  }
+  return Array.from(uniqueItems.values()).sort((left, right) => {
+    return `${left.type}:${left.tmdb_id}`.localeCompare(`${right.type}:${right.tmdb_id}`)
+  })
+}
+
+function localeRegion(language: string) {
+  return (
+    {
+      en: 'US',
+      fr: 'FR',
+      it: 'IT',
+      no: 'NO',
+      pt: 'BR',
+    }[language] ?? 'US'
+  )
+}
+
+function releaseYear(date: string | undefined) {
+  if (!date) return null
+  const year = Number.parseInt(date.slice(0, 4), 10)
+  return Number.isFinite(year) ? year : null
 }
