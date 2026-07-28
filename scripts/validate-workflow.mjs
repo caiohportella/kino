@@ -43,6 +43,21 @@ const mappingEntries = (lines, start, parentIndent) => {
   return entries
 }
 
+const mappingEntryCount = (lines, start, parentIndent) => {
+  const indent = childIndent(lines, start, parentIndent)
+  if (indent === undefined) return 0
+
+  let count = 0
+  for (let index = start; index < lines.length; index += 1) {
+    const line = lines[index]
+    if (!line.content || line.content.startsWith('#')) continue
+    if (line.indent <= parentIndent) break
+    if (line.indent === indent && /^([^:#][^:]*):(?:\s*(.*))?$/.test(line.content)) count += 1
+  }
+
+  return count
+}
+
 const sequenceItems = (lines, start, parentIndent) => {
   const indent = childIndent(lines, start, parentIndent)
   const items = []
@@ -87,6 +102,10 @@ export const validateWorkflow = async (path) => {
     lines,
     root.get('permissions') ?? { index: lines.length, indent: -1 }
   )
+  const permissionsEntry = root.get('permissions')
+  const permissionCount = permissionsEntry
+    ? mappingEntryCount(lines, permissionsEntry.index + 1, permissionsEntry.indent)
+    : 0
   const jobs = childMappings(lines, root.get('jobs') ?? { index: lines.length, indent: -1 })
   const quality = childMappings(lines, jobs.get('quality') ?? { index: lines.length, indent: -1 })
   const steps = sequenceItems(
@@ -114,7 +133,9 @@ export const validateWorkflow = async (path) => {
   if (concurrency.get('cancel-in-progress')?.value !== 'true') {
     errors.push({ rule: 'concurrency-cancellation' })
   }
-  if (permissions.get('contents')?.value !== 'read') errors.push({ rule: 'read-only-permissions' })
+  if (permissionCount !== 1 || permissions.get('contents')?.value !== 'read') {
+    errors.push({ rule: 'read-only-permissions' })
+  }
   if (!steps.some(({ key, value }) => key === 'uses' && value.startsWith('actions/checkout@'))) {
     errors.push({ rule: 'checkout' })
   }

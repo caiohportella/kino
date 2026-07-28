@@ -106,3 +106,23 @@ test('validator rejects required values nested outside their required mappings',
     'run-commands',
   ])
 })
+
+test('validator rejects additional top-level token permissions', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'kino-workflow-'))
+  const fixturePath = join(root, 'quality.yml')
+  t.after(() => rm(root, { recursive: true, force: true }))
+
+  const workflow = await readFile(workflowPath, 'utf8')
+  await writeFile(
+    fixturePath,
+    workflow.replace('  contents: read', '  contents: read\n  id-token: write')
+  )
+
+  const { validateWorkflow } = await import('./validate-workflow.mjs')
+  const result = await validateWorkflow(fixturePath)
+
+  assert.deepEqual(
+    result.errors.map(({ rule }) => rule),
+    ['read-only-permissions']
+  )
+})
