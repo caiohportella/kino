@@ -1,4 +1,8 @@
-import { LOCALIZED_TITLE_GC_TIME, LOCALIZED_TITLE_STALE_TIME, titleQueryKeys } from '@kino/core/cache'
+import {
+  LOCALIZED_TITLE_GC_TIME,
+  LOCALIZED_TITLE_STALE_TIME,
+  titleQueryKeys,
+} from '@kino/core/cache'
 import type { CacheScope } from '@kino/core/localization'
 import type { QueryClient } from '@tanstack/query-core'
 
