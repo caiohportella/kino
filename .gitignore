@@ -26,6 +26,13 @@ apps/**/.env.*.local
 !.env.example
 skills-lock.json
 docs/
+!docs/
+docs/*
+!docs/superpowers/
+docs/superpowers/*
+!docs/superpowers/specs/
+docs/superpowers/specs/*
+!docs/superpowers/specs/*.md
 apps/web/supabase/
 apps/web/PRODUCT.md
 
