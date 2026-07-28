@@ -1,10 +1,6 @@
+import { LOCALIZED_TITLE_GC_TIME, LOCALIZED_TITLE_STALE_TIME, titleQueryKeys } from '@kino/core/cache'
+import type { CacheScope } from '@kino/core/localization'
 import type { QueryClient } from '@tanstack/query-core'
-import {
-  LOCALIZED_TITLE_GC_TIME,
-  LOCALIZED_TITLE_STALE_TIME,
-} from '../../../packages/core/src/cache/policies.ts'
-import { titleQueryKeys } from '../../../packages/core/src/cache/query-keys.ts'
-import type { CacheScope } from '../../../packages/core/src/localization/types.ts'
 
 export type LocalizedTitleMediaType = 'movie' | 'tv'
 

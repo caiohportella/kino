@@ -1,4 +1,4 @@
-import { type AuthResolution, reduceAuthResolution } from '../../../packages/core/src/auth/index.ts'
+import { type AuthResolution, reduceAuthResolution } from '@kino/core/auth'
 
 type WebAuthUser = {
   id: string

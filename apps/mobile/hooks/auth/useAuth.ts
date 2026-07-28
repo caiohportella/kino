@@ -1,3 +1,4 @@
+import type { AuthResolution } from '@kino/core/auth'
 import type { Session, User } from '@supabase/supabase-js'
 import * as WebBrowser from 'expo-web-browser'
 import {
@@ -19,7 +20,6 @@ import { getEmailAuthRedirectUrl, getNativeAuthRedirectUrl } from '@/utils/authR
 import { createMobileAuthResolver } from '@/utils/authResolution'
 import { clearAuthReturnTo, consumeAuthReturnTo, storeAuthReturnTo } from '@/utils/authReturnTo'
 import { supabase } from '@/utils/supabase'
-import type { AuthResolution } from '../../../../packages/core/src/auth/index.ts'
 
 WebBrowser.maybeCompleteAuthSession()
 

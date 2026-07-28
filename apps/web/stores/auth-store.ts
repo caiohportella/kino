@@ -1,12 +1,12 @@
 'use client'
 
+import type { AuthResolution } from '@kino/core/auth'
 import type { Session, User } from '@supabase/supabase-js'
 import { create } from 'zustand'
 import { type AuthProfileStatus, ensureUserProfileFromAuthUser } from '@/lib/auth-profile'
 import { getWebAuthCallbackUrl } from '@/lib/auth-redirect'
 import { createWebAuthResolver } from '@/lib/auth-resolution'
 import { supabase } from '@/lib/supabase'
-import type { AuthResolution } from '../../../packages/core/src/auth/index.ts'
 
 interface AuthState {
   resolution: AuthResolution<User>

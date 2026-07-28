@@ -1,4 +1,4 @@
-import { normalizeLocale } from '../../../packages/core/src/localization/locale.ts'
+import { normalizeLocale } from '@kino/core/localization'
 
 export type MobileLocaleReadinessStatus = 'resolving' | 'ready' | 'error'
 

@@ -1,9 +1,9 @@
+import type { AuthResolution } from '@kino/core/auth'
 import type { ReactNode } from 'react'
 import {
   type ProtectedPageStatus,
   resolveProtectedContentState,
 } from '@/lib/protected-content-state'
-import type { AuthResolution } from '../../../packages/core/src/auth/index.ts'
 
 type ProtectedContentGateProps<AuthUser> = {
   resolution: AuthResolution<AuthUser>
