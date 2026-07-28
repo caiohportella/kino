@@ -8,6 +8,7 @@ import fr from '../../locales/fr/translation.json'
 import it from '../../locales/it/translation.json'
 import no from '../../locales/no/translation.json'
 import pt from '../../locales/pt/translation.json'
+import { createMobileLocaleReadiness } from './utils/localeReadiness'
 
 const LANGUAGE_KEY = 'user-language'
 
@@ -40,20 +41,23 @@ i18n.use(initReactI18next).init({
   },
 })
 
-// Load saved language from AsyncStorage
-export async function loadSavedLanguage() {
-  try {
-    const savedLanguage = await AsyncStorage.getItem(LANGUAGE_KEY)
-    if (savedLanguage && resources[savedLanguage as keyof typeof resources]) {
-      await i18n.changeLanguage(savedLanguage)
-      // Sync TMDb service language
-      const { getTMDbService } = await import('./services/tmdb')
-      getTMDbService().setLanguage(savedLanguage)
-    }
-  } catch (error) {
-    console.error('Failed to load saved language:', error)
-  }
+const mobileLocaleReadiness = createMobileLocaleReadiness({
+  applyLocale: async (language) => {
+    await i18n.changeLanguage(language)
+    const { getTMDbService } = await import('./services/tmdb')
+    getTMDbService().setLanguage(language)
+  },
+  fallbackLocale: 'en',
+  readPersistedLocale: () => AsyncStorage.getItem(LANGUAGE_KEY),
+  supportedLocales: Object.keys(resources),
+})
+
+export function loadSavedLanguage() {
+  return mobileLocaleReadiness.hydrate()
 }
+
+export const getLocaleReadinessState = mobileLocaleReadiness.getState
+export const subscribeLocaleReadiness = mobileLocaleReadiness.subscribe
 
 // Save language preference to AsyncStorage
 export async function saveLanguage(language: string) {
@@ -66,11 +70,15 @@ export async function saveLanguage(language: string) {
 
 // Change language and persist
 export async function changeLanguage(language: string) {
+  if (!resources[language as keyof typeof resources]) {
+    throw new TypeError(`Unsupported language: "${language}"`)
+  }
   await i18n.changeLanguage(language)
   await saveLanguage(language)
   // Sync TMDb service language
   const { getTMDbService } = await import('./services/tmdb')
   getTMDbService().setLanguage(language)
+  mobileLocaleReadiness.setLocale(language)
 }
 
 export default i18n
