@@ -15,6 +15,15 @@ const RELEASE_YEAR_MINIMUM = 1870
 const RELEASE_YEAR_MAXIMUM = 2100
 const MEDIA_TYPES = new Set<SearchMediaType>(['movie', 'series'])
 const ENTITY_TYPES = new Set(['movie', 'series', 'person', 'user'])
+const RELATIONSHIP_ROLES = new Set(['acting', 'directing', 'creating', 'writing'])
+const RESULT_GROUP_TYPES = new Set(['people', 'movies', 'series', 'users'])
+const FALLBACK_TYPES = new Set(['none', 'supplemented', 'provider_unavailable'])
+const GROUP_ENTITY_TYPES: Readonly<Record<string, string>> = {
+  people: 'person',
+  movies: 'movie',
+  series: 'series',
+  users: 'user',
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -184,10 +193,84 @@ export function normalizeProviderCandidate(input: unknown): SearchProviderCandid
 }
 
 export function isSearchResponseV1(value: unknown): boolean {
+  const isPositiveInteger = (input: unknown) =>
+    typeof input === 'number' && Number.isInteger(input) && input > 0
+  const isNonNegativeInteger = (input: unknown) =>
+    typeof input === 'number' && Number.isInteger(input) && input >= 0
+  const isOptionalString = (input: unknown) =>
+    input === undefined || (typeof input === 'string' && input.length > 0)
+  const isEntity = (input: unknown) =>
+    isRecord(input) &&
+    typeof input.id === 'string' &&
+    input.id.length > 0 &&
+    typeof input.title === 'string' &&
+    input.title.length > 0 &&
+    typeof input.entityType === 'string' &&
+    ENTITY_TYPES.has(input.entityType) &&
+    (input.tmdbId === undefined || isPositiveInteger(input.tmdbId)) &&
+    (input.year === undefined || isPositiveInteger(input.year)) &&
+    isOptionalString(input.locale) &&
+    isOptionalString(input.route) &&
+    isOptionalString(input.summary) &&
+    isOptionalString(input.imageUrl) &&
+    (input.popularity === undefined ||
+      (typeof input.popularity === 'number' && Number.isFinite(input.popularity))) &&
+    (input.voteCount === undefined ||
+      (typeof input.voteCount === 'number' && Number.isFinite(input.voteCount)))
+  const isResult = (input: unknown) =>
+    isRecord(input) &&
+    isEntity(input.entity) &&
+    typeof input.score === 'number' &&
+    Number.isFinite(input.score) &&
+    input.score >= 0 &&
+    Array.isArray(input.sources) &&
+    input.sources.length > 0 &&
+    input.sources.every((source) => typeof source === 'string' && source.length > 0) &&
+    (input.relationship === undefined ||
+      (isRecord(input.relationship) &&
+        typeof input.relationship.personId === 'string' &&
+        input.relationship.personId.length > 0 &&
+        typeof input.relationship.role === 'string' &&
+        RELATIONSHIP_ROLES.has(input.relationship.role)))
+  const isQuery =
+    isRecord(value) &&
+    isRecord(value.query) &&
+    typeof value.query.original === 'string' &&
+    typeof value.query.folded === 'string' &&
+    Array.isArray(value.query.tokens) &&
+    value.query.tokens.every((token) => typeof token === 'string') &&
+    (value.query.year === undefined || isPositiveInteger(value.query.year))
+  const hasValidGroups =
+    isRecord(value) &&
+    Array.isArray(value.groups) &&
+    value.groups.every(
+      (group) =>
+        isRecord(group) &&
+        typeof group.type === 'string' &&
+        RESULT_GROUP_TYPES.has(group.type) &&
+        Array.isArray(group.results) &&
+        group.results.every(
+          (result) =>
+            isResult(result) &&
+            isRecord(result) &&
+            isRecord(result.entity) &&
+            result.entity.entityType === GROUP_ENTITY_TYPES[group.type as string]
+        )
+    )
+
   return (
     isRecord(value) &&
     value.schemaVersion === SEARCH_SCHEMA_VERSION &&
+    isQuery &&
     Array.isArray(value.results) &&
-    Array.isArray(value.groups)
+    value.results.every(isResult) &&
+    hasValidGroups &&
+    isNonNegativeInteger(value.total) &&
+    Number(value.total) >= value.results.length &&
+    isPositiveInteger(value.page) &&
+    isPositiveInteger(value.limit) &&
+    (value.nextPage === undefined || isPositiveInteger(value.nextPage)) &&
+    (value.fallback === undefined ||
+      (typeof value.fallback === 'string' && FALLBACK_TYPES.has(value.fallback)))
   )
 }

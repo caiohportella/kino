@@ -88,6 +88,69 @@ test('accepts additive optional response fields without changing version compati
   assert.equal(isSearchResponseV1({ schemaVersion: 2, results: [], groups: [] }), false)
 })
 
+test('validates every required response field and nested element', () => {
+  const result = {
+    entity: {
+      id: 'movie:348',
+      entityType: 'movie',
+      title: 'Alien',
+      tmdbId: 348,
+      year: 1979,
+    },
+    score: 0.9,
+    sources: ['catalog'],
+    relationship: { personId: 'person:1', role: 'acting' },
+  }
+  const valid = {
+    schemaVersion: 1,
+    query: { original: 'Alien', folded: 'alien', tokens: ['alien'] },
+    results: [result],
+    groups: [{ type: 'movies', results: [result] }],
+    total: 1,
+    page: 1,
+    limit: 20,
+    nextPage: 2,
+    fallback: 'none',
+    additiveOptionalField: true,
+  }
+  assert.equal(isSearchResponseV1(valid), true)
+
+  const invalidResponses = [
+    { ...valid, query: undefined },
+    { ...valid, query: { ...valid.query, tokens: ['alien', 1979] } },
+    { ...valid, results: [{}] },
+    { ...valid, results: [{ ...result, score: Number.NaN }] },
+    { ...valid, results: [{ ...result, score: -0.1 }] },
+    { ...valid, results: [{ ...result, sources: [] }] },
+    { ...valid, results: [{ ...result, sources: [1] }] },
+    { ...valid, results: [{ ...result, entity: { ...result.entity, id: '' } }] },
+    {
+      ...valid,
+      results: [{ ...result, relationship: { personId: 'person:1', role: 'producing' } }],
+    },
+    { ...valid, groups: [{ type: 'unknown', results: [result] }] },
+    { ...valid, groups: [{ type: 'movies', results: [{}] }] },
+    {
+      ...valid,
+      groups: [
+        {
+          type: 'people',
+          results: [{ ...result, entity: { ...result.entity, entityType: 'movie' } }],
+        },
+      ],
+    },
+    { ...valid, total: -1 },
+    { ...valid, total: 1.5 },
+    { ...valid, total: 0 },
+    { ...valid, page: 0 },
+    { ...valid, limit: 0 },
+    { ...valid, nextPage: 0 },
+    { ...valid, fallback: 'unexpected' },
+  ]
+
+  for (const invalid of invalidResponses) assert.equal(isSearchResponseV1(invalid), false)
+})
+
 test('normalizes provider-neutral candidate data and discards unknown fields', () => {
   assert.deepEqual(
     normalizeProviderCandidate({

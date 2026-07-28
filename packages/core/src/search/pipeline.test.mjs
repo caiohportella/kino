@@ -93,6 +93,130 @@ test('returns identical ordering for identical mobile and web normalized inputs'
   )
 })
 
+test('enforces request media types before fusion and ranking', () => {
+  const response = runSearchPipelineV1({
+    request: {
+      schemaVersion: 1,
+      query: 'space',
+      mediaTypes: ['movie'],
+      page: 1,
+      limit: 10,
+    },
+    intentEvidence: {},
+    sources: [
+      {
+        sourceId: 'catalog',
+        candidates: [
+          {
+            source: 'semantic',
+            entity: { id: 'series:1', entityType: 'series', title: 'Space Show', tmdbId: 1 },
+            semanticScore: 1,
+          },
+          {
+            source: 'semantic',
+            entity: { id: 'movie:2', entityType: 'movie', title: 'Space Film', tmdbId: 2 },
+            semanticScore: 0.5,
+          },
+        ],
+      },
+    ],
+  })
+
+  assert.deepEqual(
+    response.results.map((result) => [result.entity.entityType, result.entity.tmdbId]),
+    [['movie', 2]]
+  )
+  assert.deepEqual(
+    response.groups.map((group) => group.type),
+    ['movies']
+  )
+})
+
+test('paginates each canonical group so a small limit preserves every result kind', () => {
+  const sources = [
+    {
+      sourceId: 'mixed',
+      candidates: [
+        {
+          source: 'person',
+          entity: { id: 'person:2', entityType: 'person', title: 'Person Two', tmdbId: 2 },
+          confidence: 0.8,
+        },
+        {
+          source: 'person',
+          entity: { id: 'person:1', entityType: 'person', title: 'Person One', tmdbId: 1 },
+          confidence: 0.9,
+        },
+        {
+          source: 'semantic',
+          entity: { id: 'movie:2', entityType: 'movie', title: 'Movie Two', tmdbId: 2 },
+          semanticScore: 0.8,
+        },
+        {
+          source: 'semantic',
+          entity: { id: 'movie:1', entityType: 'movie', title: 'Movie One', tmdbId: 1 },
+          semanticScore: 0.9,
+        },
+        {
+          source: 'semantic',
+          entity: { id: 'series:2', entityType: 'series', title: 'Series Two', tmdbId: 2 },
+          semanticScore: 0.8,
+        },
+        {
+          source: 'semantic',
+          entity: { id: 'series:1', entityType: 'series', title: 'Series One', tmdbId: 1 },
+          semanticScore: 0.9,
+        },
+      ],
+    },
+  ]
+  const input = {
+    request: { schemaVersion: 1, query: 'mixed', page: 1, limit: 1 },
+    intentEvidence: {},
+    sources,
+  }
+
+  const firstPage = runSearchPipelineV1(input)
+  assert.deepEqual(
+    firstPage.groups.map((group) => [group.type, group.results[0].entity.tmdbId]),
+    [
+      ['people', 1],
+      ['movies', 1],
+      ['series', 1],
+    ]
+  )
+  assert.deepEqual(
+    firstPage.results.map((result) => [result.entity.entityType, result.entity.tmdbId]),
+    [
+      ['person', 1],
+      ['movie', 1],
+      ['series', 1],
+    ]
+  )
+  assert.equal(firstPage.total, 6)
+  assert.equal(firstPage.nextPage, 2)
+
+  const reversedPage = runSearchPipelineV1({
+    ...input,
+    sources: [{ ...sources[0], candidates: [...sources[0].candidates].reverse() }],
+  })
+  assert.deepEqual(firstPage, reversedPage)
+
+  const secondPage = runSearchPipelineV1({
+    ...input,
+    request: { ...input.request, page: 2 },
+  })
+  assert.deepEqual(
+    secondPage.groups.map((group) => [group.type, group.results[0].entity.tmdbId]),
+    [
+      ['people', 2],
+      ['movies', 2],
+      ['series', 2],
+    ]
+  )
+  assert.equal('nextPage' in secondPage, false)
+})
+
 test('returns a versioned empty response for zero candidates', () => {
   assert.deepEqual(
     runSearchPipelineV1({

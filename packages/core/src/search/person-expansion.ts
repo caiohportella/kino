@@ -43,9 +43,21 @@ function scoreCredit(credit: PersonCredit, intent: SearchIntent): number {
 }
 
 function stableIdentity(candidate: RelationshipCandidate): string {
-  return `${candidate.entity.entityType}:${candidate.entity.tmdbId
-    .toString()
-    .padStart(12, '0')}:${candidate.entity.id}`
+  const entity = candidate.entity
+  return JSON.stringify([
+    entity.entityType,
+    entity.tmdbId.toString().padStart(12, '0'),
+    entity.id,
+    entity.title,
+    entity.year ?? null,
+    entity.locale ?? null,
+    entity.route ?? null,
+    entity.summary ?? null,
+    entity.imageUrl ?? null,
+    entity.popularity ?? null,
+    entity.voteCount ?? null,
+    candidate.castOrder ?? null,
+  ])
 }
 
 function strongerCredit(

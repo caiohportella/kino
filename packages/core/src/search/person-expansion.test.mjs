@@ -127,3 +127,39 @@ test('returns identical output for shuffled credits', () => {
     expandPersonCredits(person, [...credits].reverse(), intent)
   )
 })
+
+test('breaks equal duplicate credit ties with stable title and metadata', () => {
+  const credits = [
+    {
+      ...movie(238, 'Zulu Title', 'directing'),
+      entity: {
+        id: 'movie:238',
+        entityType: 'movie',
+        title: 'Zulu Title',
+        tmdbId: 238,
+        route: '/zulu',
+      },
+    },
+    {
+      ...movie(238, 'Alpha Title', 'directing'),
+      entity: {
+        id: 'movie:238',
+        entityType: 'movie',
+        title: 'Alpha Title',
+        tmdbId: 238,
+        route: '/alpha',
+      },
+    },
+  ]
+  const intent = {
+    kind: 'relationship',
+    personName: 'Director',
+    role: 'directing',
+  }
+
+  const forward = expandPersonCredits(person, credits, intent)
+  const reverse = expandPersonCredits(person, [...credits].reverse(), intent)
+  assert.deepEqual(forward, reverse)
+  assert.equal(forward[0].entity.title, 'Alpha Title')
+  assert.equal(forward[0].entity.route, '/alpha')
+})

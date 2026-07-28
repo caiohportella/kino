@@ -107,12 +107,14 @@ function mergeCandidate(
   sourceId: string
 ): FusedCandidate {
   const evidence = evidenceForCandidate(candidate)
+  const candidateRelationshipIdentity = `${evidence.role ?? ''}:${evidence.personId ?? ''}`
+  const existingRelationshipIdentity = `${existing.role ?? ''}:${existing.personId ?? ''}`
   const candidateRelationshipIsStronger =
     evidence.relationshipScore !== undefined &&
     (existing.relationshipScore === undefined ||
       evidence.relationshipScore > existing.relationshipScore ||
       (evidence.relationshipScore === existing.relationshipScore &&
-        (evidence.role ?? '') < (existing.role ?? '')))
+        candidateRelationshipIdentity < existingRelationshipIdentity))
 
   return {
     identity: existing.identity,

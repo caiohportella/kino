@@ -172,7 +172,7 @@ export interface SearchResultV1 {
   readonly sources: readonly string[]
   readonly relationship?: {
     readonly personId: string
-    readonly role: string
+    readonly role: SearchRelationshipRole
   }
 }
 
@@ -186,11 +186,15 @@ export interface SearchResultGroupV1 {
 export interface SearchResponseV1 {
   readonly schemaVersion: SearchSchemaVersion
   readonly query: NormalizedSearchQuery
+  /** The current per-group page flattened in people, movies, series, users order. */
   readonly results: readonly SearchResultV1[]
+  /** Each canonical group is independently sliced by page and limit after ranking. */
   readonly groups: readonly SearchResultGroupV1[]
+  /** Total deduplicated results across all groups before pagination. */
   readonly total: number
   readonly page: number
   readonly limit: number
+  /** Present while at least one canonical group has another page. */
   readonly nextPage?: number
   readonly fallback?: 'none' | 'supplemented' | 'provider_unavailable'
 }

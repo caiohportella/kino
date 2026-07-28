@@ -87,3 +87,31 @@ test('fusion output is identical when providers and candidates are reversed', ()
     .map((source) => ({ ...source, candidates: [...source.candidates].reverse() }))
   assert.deepEqual(fuseSearchCandidates(sources), fuseSearchCandidates(reversed))
 })
+
+test('breaks equal relationship evidence ties with stable person identity', () => {
+  const relationships = [
+    {
+      source: 'relationship',
+      entity: alien,
+      personId: 'person:z',
+      personConfidence: 0.9,
+      role: 'acting',
+      relationshipScore: 0.9,
+    },
+    {
+      source: 'relationship',
+      entity: alien,
+      personId: 'person:a',
+      personConfidence: 0.9,
+      role: 'acting',
+      relationshipScore: 0.9,
+    },
+  ]
+  const forward = fuseSearchCandidates([{ sourceId: 'credits', candidates: relationships }])
+  const reverse = fuseSearchCandidates([
+    { sourceId: 'credits', candidates: [...relationships].reverse() },
+  ])
+
+  assert.deepEqual(forward, reverse)
+  assert.equal(forward[0].personId, 'person:a')
+})

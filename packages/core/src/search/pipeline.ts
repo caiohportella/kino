@@ -7,6 +7,8 @@ import {
   type RankedSearchResult,
   type RunSearchPipelineV1Input,
   SEARCH_SCHEMA_VERSION,
+  type SearchMediaType,
+  type SearchProviderResult,
   type SearchResponseV1,
   type SearchResultGroupType,
   type SearchResultGroupV1,
@@ -40,11 +42,36 @@ function serializeRankedResult(result: RankedSearchResult): SearchResultV1 {
   }
 }
 
+function dedupeRankedResults(results: readonly RankedSearchResult[]): RankedSearchResult[] {
+  const seen = new Set<string>()
+  return results.filter((result) => {
+    if (seen.has(result.identity)) return false
+    seen.add(result.identity)
+    return true
+  })
+}
+
 function groupResults(results: readonly SearchResultV1[]): SearchResultGroupV1[] {
   return GROUP_ORDER.flatMap((type) => {
     const groupedResults = results.filter((result) => groupTypeForResult(result) === type)
     return groupedResults.length === 0 ? [] : [{ type, results: groupedResults }]
   })
+}
+
+function enforceMediaTypes(
+  sources: readonly SearchProviderResult[],
+  mediaTypes: readonly SearchMediaType[] | undefined
+): SearchProviderResult[] {
+  if (mediaTypes === undefined) return [...sources]
+  const allowed = new Set(mediaTypes)
+  return sources.map((source) => ({
+    ...source,
+    candidates: source.candidates.filter(
+      (candidate) =>
+        !['movie', 'series'].includes(candidate.entity.entityType) ||
+        allowed.has(candidate.entity.entityType as SearchMediaType)
+    ),
+  }))
 }
 
 export function runSearchPipelineV1(input: RunSearchPipelineV1Input): SearchResponseV1 {
@@ -65,23 +92,31 @@ export function runSearchPipelineV1(input: RunSearchPipelineV1Input): SearchResp
             candidates: relationshipCandidates,
           },
         ]
-  const fused = fuseSearchCandidates(sources)
-  const ranked = rankSearchCandidates({ query, candidates: fused }).map(serializeRankedResult)
+  const constrainedSources = enforceMediaTypes(sources, request.mediaTypes)
+  const fused = fuseSearchCandidates(constrainedSources)
+  const ranked = dedupeRankedResults(rankSearchCandidates({ query, candidates: fused })).map(
+    serializeRankedResult
+  )
   const page = request.page ?? DEFAULT_PAGE
   const limit = request.limit ?? DEFAULT_LIMIT
   const start = (page - 1) * limit
   const end = start + limit
-  const results = ranked.slice(start, end)
+  const untrimmedGroups = groupResults(ranked)
+  const groups = untrimmedGroups.flatMap((group) => {
+    const results = group.results.slice(start, end)
+    return results.length === 0 ? [] : [{ ...group, results }]
+  })
+  const results = groups.flatMap((group) => group.results)
 
   return {
     schemaVersion: SEARCH_SCHEMA_VERSION,
     query,
     results,
-    groups: groupResults(results),
+    groups,
     total: ranked.length,
     page,
     limit,
-    ...(end < ranked.length ? { nextPage: page + 1 } : {}),
+    ...(untrimmedGroups.some((group) => end < group.results.length) ? { nextPage: page + 1 } : {}),
     fallback: input.fallback ?? 'none',
   }
 }
