@@ -195,3 +195,40 @@ test('normalizes person cast and crew credits for shared person expansion', asyn
     },
   ])
 })
+
+test('resolves locale-sensitive media presentation without changing entity identity', async () => {
+  const provider = createTmdbSearchProvider({
+    apiKey: 'tmdb-server-key',
+    fetch: async (url) => {
+      const requestUrl = new URL(url)
+      assert.equal(requestUrl.pathname, '/3/movie/238')
+      assert.equal(requestUrl.searchParams.get('language'), 'pt-BR')
+      assert.equal(requestUrl.searchParams.get('region'), 'BR')
+      return Response.json({
+        ...movie,
+        title: 'O Poderoso Chefão',
+        overview: 'A família Corleone muda de mãos.',
+        poster_path: '/poster-pt.jpg',
+      })
+    },
+  })
+
+  const entity = {
+    id: 'movie:238',
+    entityType: 'movie',
+    tmdbId: 238,
+    title: 'The Godfather',
+  }
+  assert.deepEqual(await provider.resolvePresentation(entity, { locale: 'pt-BR', region: 'BR' }), {
+    id: 'movie:238',
+    entityType: 'movie',
+    tmdbId: 238,
+    title: 'O Poderoso Chefão',
+    summary: 'A família Corleone muda de mãos.',
+    imageUrl: 'https://image.tmdb.org/t/p/w500/poster-pt.jpg',
+    year: 1972,
+    locale: 'pt-BR',
+    popularity: 170.5,
+    voteCount: 20_798,
+  })
+})

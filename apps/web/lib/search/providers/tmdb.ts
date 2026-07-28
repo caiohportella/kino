@@ -174,6 +174,36 @@ function credit(value: unknown): PersonCredit | null {
   }
 }
 
+function localizedPresentation(
+  value: Record<string, unknown>,
+  entity: SearchEntity,
+  locale: string
+): SearchEntity | null {
+  const title = text(entity.entityType === 'person' ? value.name : (value.title ?? value.name))
+  if (!title) return null
+  const summary = text(entity.entityType === 'person' ? value.biography : value.overview)
+  const poster = imageUrl(entity.entityType === 'person' ? value.profile_path : value.poster_path)
+  const releaseYear = year(
+    entity.entityType === 'movie'
+      ? value.release_date
+      : entity.entityType === 'series'
+        ? value.first_air_date
+        : undefined
+  )
+  const popularity = finiteNumber(value.popularity)
+  const voteCount = finiteNumber(value.vote_count)
+  return {
+    ...entity,
+    title,
+    ...(summary === undefined ? {} : { summary }),
+    ...(poster === undefined ? {} : { imageUrl: poster }),
+    ...(releaseYear === undefined ? {} : { year: releaseYear }),
+    locale,
+    ...(popularity === undefined ? {} : { popularity }),
+    ...(voteCount === undefined ? {} : { voteCount }),
+  }
+}
+
 export function createTmdbSearchProvider(
   options: CreateTmdbSearchProviderOptions
 ): TmdbSearchProvider {
@@ -243,6 +273,29 @@ export function createTmdbSearchProvider(
       return [...payload.cast, ...payload.crew]
         .map(credit)
         .filter((item): item is PersonCredit => item !== null)
+    },
+
+    async resolvePresentation(entity, context, signal): Promise<SearchEntity> {
+      if (
+        (entity.entityType !== 'movie' &&
+          entity.entityType !== 'series' &&
+          entity.entityType !== 'person') ||
+        !entity.tmdbId
+      ) {
+        return entity
+      }
+      const type = entity.entityType === 'series' ? 'tv' : entity.entityType
+      const payload = await request(
+        `/${type}/${entity.tmdbId}`,
+        {
+          language: normalizeLocale(context.locale),
+          region: context.region,
+        },
+        signal
+      )
+      const localized = localizedPresentation(payload, entity, normalizeLocale(context.locale))
+      if (!localized) throw new SearchProviderBoundaryError('provider_response_invalid')
+      return localized
     },
   }
 }

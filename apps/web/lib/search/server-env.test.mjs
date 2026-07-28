@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { readVectorServerEnv } from './server-env.ts'
+import { readTmdbServerApiKey, readVectorServerEnv } from './server-env.ts'
 
 test('reads only server Upstash credentials and ignores public-prefixed values', () => {
   const reads = []
@@ -54,4 +54,15 @@ test('rejects partial or malformed vector configuration without including creden
         error.message === 'Vector search server configuration is invalid'
     )
   }
+})
+
+test('reads only the server TMDB key and never falls back to a public credential', () => {
+  assert.equal(
+    readTmdbServerApiKey({
+      TMDB_API_KEY: 'server-tmdb-key',
+      NEXT_PUBLIC_TMDB_API_KEY: 'public-tmdb-key',
+    }),
+    'server-tmdb-key'
+  )
+  assert.equal(readTmdbServerApiKey({ NEXT_PUBLIC_TMDB_API_KEY: 'public-tmdb-key' }), null)
 })

@@ -1,5 +1,7 @@
+import type { LocaleContext } from '@kino/core/localization'
 import type {
   PersonCredit,
+  SearchEntity,
   SearchMediaType,
   SearchProviderResult,
   SearchRequestV1,
@@ -22,6 +24,11 @@ export type TmdbSearchRequest = Omit<SearchRequestV1, 'schemaVersion' | 'limit'>
 export interface TmdbSearchProvider {
   search(request: TmdbSearchRequest, signal?: AbortSignal): Promise<SearchProviderResult>
   getPersonCredits(personId: number, signal?: AbortSignal): Promise<readonly PersonCredit[]>
+  resolvePresentation(
+    entity: SearchEntity,
+    context: LocaleContext,
+    signal?: AbortSignal
+  ): Promise<SearchEntity>
 }
 
 export type SearchProviderBoundaryErrorCode = 'provider_unavailable' | 'provider_response_invalid'

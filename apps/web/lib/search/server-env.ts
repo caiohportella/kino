@@ -14,6 +14,11 @@ export class SearchServerConfigurationError extends Error {
 
 type ServerEnvironment = Readonly<Record<string, string | undefined>>
 
+export function readTmdbServerApiKey(env: ServerEnvironment = process.env): string | null {
+  const apiKey = env.TMDB_API_KEY
+  return apiKey && apiKey.trim() === apiKey ? apiKey : null
+}
+
 export function readVectorServerEnv(
   env: ServerEnvironment = process.env
 ): VectorServerConfig | null {
