@@ -48,6 +48,11 @@ Next.js 15. There is no GitHub Actions workflow at the time of this design.
 - Keep credentials and provider clients in trusted server runtimes.
 - Maintain one coordinator-owned integration boundary for shared exports,
   manifests, lockfiles, app providers, and shared layouts.
+- Version shared contracts independently of transport URLs and cache schemas.
+- Describe semantic retrieval through vendor-neutral capabilities. Upstash names
+  appear only in the concrete server adapter and deployment configuration.
+- Keep search ranking algorithms exclusively in `packages/core`.
+- Keep search and indexing as separate pure domains.
 - Use independent commits and verification gates for every category and
   migration batch.
 - Keep the existing TMDB search path available as gateway fallback until both
@@ -77,6 +82,8 @@ The CI workflow will run:
 - every configured mobile, web, and core test script
 - focused authentication, cache-key, localized-image, and search tests as they
   are added
+- contract compatibility, provider abstraction, indexing, observability, and
+  rollback compatibility tests as their interfaces land
 - `pnpm build:web`, including the existing Open Graph bundle checks
 
 Pull-request and branch runs will use concurrency cancellation. Tests will use
@@ -101,8 +108,8 @@ these integration files.
 
 ### Category 5
 
-The server search gateway begins only after Category 4 contracts are stable and
-reviewed.
+The server search gateway begins only after Category 4 search contracts and
+Category 4B indexing/provider-boundary contracts are stable and reviewed.
 
 ### Category 6
 
@@ -315,26 +322,51 @@ packages/core/src/search/intent.ts
 packages/core/src/search/rank.ts
 packages/core/src/search/fusion.ts
 packages/core/src/search/person-expansion.ts
-packages/core/src/search/documents.ts
+packages/core/src/search/pipeline.ts
 packages/core/src/search/index.ts
 ```
 
 These modules accept and return plain data. They do not import provider clients,
 read environment variables, or perform network requests.
 
-### Search contracts
+### Versioned search contracts
 
 Shared contracts define:
 
-- versioned `SearchRequest`
+- `SEARCH_SCHEMA_VERSION`
+- `SearchRequestV1`
+- `SearchResponseV1`
+- `SearchResultV1`
 - locale and region
 - media constraints
 - pagination and limits
 - normalized movie, series, person, and user entities
-- grouped `SearchResponse`
+- grouped response sections
 - provider candidate inputs
 - typed fallback and temporary-unavailable errors
 - platform-neutral route data
+
+Clients send the schema version in `SearchRequestV1`; the gateway includes the
+schema version in every successful `SearchResponseV1`. Search React Query keys
+encode `SEARCH_SCHEMA_VERSION` in addition to the `/api/v1/search` transport
+version.
+
+Compatibility rules:
+
+- Non-breaking changes are additive optional fields with unchanged meaning.
+- Removing, renaming, changing the meaning of a field, changing ordering
+  semantics, or making an optional field required is breaking and requires a
+  new schema version.
+- The gateway accepts every explicitly supported request schema during mobile
+  deployment propagation and adapts it to the current internal pipeline.
+- Unsupported versions receive a typed `unsupported_version` response with the
+  supported version range and an upgrade-required indicator.
+- A gateway deployment cannot require an immediate mobile-store release.
+- Obsolete schemas are removed only after contract-version telemetry confirms
+  deployed clients no longer use them.
+
+The URL version and schema version are related but independent. `/api/v1/search`
+may support multiple compatible schema versions during rollout.
 
 ### Intent and ranking
 
@@ -363,6 +395,25 @@ Ranking combines bounded components:
 Popularity cannot override weak semantic or relationship relevance.
 Deterministic tie-breaking uses normalized entity identity and stable metadata.
 
+### Exclusive ranking ownership
+
+Search ranking algorithms are owned exclusively by `packages/core`. Ranking
+must not be reimplemented or independently adjusted inside Next.js route
+handlers, React Query hooks, mobile screens, web components, provider adapters,
+or platform API clients.
+
+The gateway may orchestrate providers and pass normalized candidates to shared
+ranking functions. Platform consumers may control presentation, grouping
+layout, and pagination display, but cannot modify ranking scores or ordering.
+
+Every future ranking change must:
+
+- occur in shared core
+- include regression tests
+- preserve deterministic behavior
+- update the ranking or search schema version when compatibility requires it
+- be consumed equally by mobile and web
+
 ### Person expansion
 
 One high-confidence top person may be expanded. Acting results prioritize
@@ -373,23 +424,117 @@ Credits are ranked, deduplicated, and divided into movie and series groups.
 For `Marlon Brando`, the response can place the person first, followed by ranked
 associated titles, then weaker semantic title matches.
 
-### Index document boundary
+### Canonical search lifecycle
+
+The canonical lifecycle is:
+
+1. Validate request.
+2. Normalize query.
+3. Detect intent and constraints.
+4. Fetch lexical, semantic, person, and TMDB candidates as required.
+5. Normalize provider candidates.
+6. Expand person relationships when confidence permits.
+7. Normalize provider scores.
+8. Fuse candidate sources.
+9. Rank using shared-core rules.
+10. Deduplicate.
+11. Group by result type.
+12. Resolve locale-sensitive presentation.
+13. Paginate or trim according to the request.
+14. Return the versioned response.
+
+The server gateway owns request validation, provider orchestration, timeouts,
+and presentation-data fetching. Shared core owns query normalization, intent
+detection, provider-score normalization, relationship expansion rules, fusion,
+ranking, deduplication, grouping rules, and deterministic tie-breaking.
+Locale-sensitive presentation uses the centralized localization contracts.
+Platform applications own rendering only.
+
+Ranking uses normalized language-independent entity metadata wherever possible.
+Locale relevance is an explicit shared ranking input; presentation code cannot
+reorder results. Final localized titles, summaries, images, years, routes, and
+provider-region data are resolved after ordering and before pagination or
+response serialization. If presentation availability affects eligibility, that
+fact is supplied as a normalized ranking constraint rather than applied as an
+implicit UI adjustment.
+
+## Category 4B: Shared Indexing Domain
+
+Search and indexing are separate domains. Search consumes provider candidates
+but does not construct documents, prepare embeddings, own index versions,
+synchronize indexes, or perform provider writes.
+
+### Module boundaries
+
+```text
+packages/core/src/indexing/types.ts
+packages/core/src/indexing/documents.ts
+packages/core/src/indexing/content-hash.ts
+packages/core/src/indexing/version.ts
+packages/core/src/indexing/index.ts
+```
+
+The indexing domain owns index document contracts, document construction,
+searchable-text composition, metadata normalization, content hashing, index
+schema versioning, embedding input preparation, and pure incremental-indexing
+decisions.
+
+It remains platform-neutral and cannot instantiate provider SDKs, read
+environment variables, write to a provider, fetch TMDB, schedule jobs, or
+depend on Next.js, Expo, React, Supabase, browser APIs, or storage APIs.
+
+### Versioned index contracts
 
 Pure document-building logic produces:
 
 ```ts
-type SearchIndexDocument = {
+type SearchIndexDocumentV1 = {
   id: string
   entityType: 'movie' | 'series' | 'person'
   searchableText: string
-  metadata: SearchIndexMetadata
+  metadata: SearchIndexMetadataV1
   contentHash: string
   indexVersion: number
 }
 ```
 
-This prepares a later background indexer without introducing a worker framework
-in this project.
+`SEARCH_INDEX_SCHEMA_VERSION` identifies document interpretation independently
+from `SEARCH_SCHEMA_VERSION`. Content hashes are stable for identical normalized
+inputs. An index-schema change intentionally changes the version and prevents
+documents with incompatible metadata interpretations from being mixed.
+
+Canonical indexing flow:
+
+```text
+TMDB or normalized media data
+→ shared indexing document builder
+→ server-side vector provider adapter
+→ vector index
+```
+
+Canonical search flow:
+
+```text
+search request
+→ provider candidates
+→ shared search pipeline
+→ normalized grouped response
+```
+
+The server adapter or a future worker supplies normalized TMDB data to the
+document builder, then sends documents to the provider. Search never knows how
+the candidates were indexed.
+
+Dependency direction is enforced in tests and review:
+
+- search modules cannot import indexing builders or depend on indexing side
+  effects
+- indexing modules cannot import search pipelines, provider SDKs, environment
+  helpers, or platform APIs
+- server adapters may import both domains and translate between their plain
+  contracts
+- clients import versioned search contracts but never indexing contracts,
+  provider adapters, or provider SDKs
 
 ## Category 5: Server Search Gateway
 
@@ -404,11 +549,41 @@ POST /api/v1/search
 The route returns the shared platform-neutral JSON contract. Neither mobile nor
 shared core depends on Next.js response internals.
 
-### Provider boundary
+### Vendor-neutral provider boundary
+
+Shared contracts describe capabilities rather than Upstash:
+
+```ts
+export interface VectorSearchProvider {
+  search(
+    request: VectorSearchRequest,
+    signal?: AbortSignal
+  ): Promise<VectorSearchResult>
+
+  upsert?(
+    documents: readonly SearchIndexDocumentV1[],
+    signal?: AbortSignal
+  ): Promise<void>
+
+  delete?(
+    documentIds: readonly string[],
+    signal?: AbortSignal
+  ): Promise<void>
+}
+```
+
+Exact provider request/result types will be fixed in implementation planning.
+They contain plain normalized data. Clients never know which provider is active,
+and replacing the provider cannot require mobile or web consumer changes.
+
+Provider-neutral shared names include `VectorSearchProvider`,
+`SemanticCandidate`, `SearchProviderResult`, and `SearchIndexDocumentV1`.
+Names such as `UpstashSearchClient`, `UpstashSearchResult`, or
+`UpstashDocument` are permitted only inside the concrete server adapter.
 
 The route composes server-only adapters:
 
-- Upstash Vector query adapter
+- `VectorSearchProvider`, initially implemented by an Upstash Vector adapter
 - optional Upstash Redis rate-limit/cache adapter when configured
 - TMDB search/person/credit/localization adapter
 - shared-core intent, fusion, expansion, and ranking
@@ -439,6 +614,30 @@ plain candidates.
 The existing TMDB fallback is retained until both mobile and web gateway clients
 are verified.
 
+### Observability
+
+The gateway uses existing logging and monitoring facilities and defines stable
+structured events without requiring a new observability vendor. Observable
+aggregate measures include:
+
+- request and provider latency
+- gateway timeout rate
+- vector-provider and TMDB failure rates
+- fallback and weak-result supplementation frequency
+- zero-result and person-expansion frequency
+- rate-limit rejection and request-cancellation frequency
+- result count by source
+- cache hit or reuse rate where observable
+- request contract-version usage
+
+Events include request or trace identifiers, distinguish client cancellation
+from provider/server failure, and identify the fallback path used. They exclude
+credentials, tokens, sensitive headers, and unnecessary raw user data. Search
+queries use redaction or normalized fingerprints where sufficient.
+
+Persistent raw-query retention and ranking-quality analytics require a separate
+privacy review. Logging or metrics failures never fail a search request.
+
 ### Mobile API origin
 
 Mobile uses `EXPO_PUBLIC_KINO_API_URL` only as the public Kino API origin.
@@ -451,6 +650,12 @@ Mobile uses `EXPO_PUBLIC_KINO_API_URL` only as the public Kino API origin.
 - Documentation warns that physical-device `localhost` refers to the device.
 
 No provider credential is exposed through this value.
+
+### Statelessness
+
+The gateway remains stateless and does not perform large indexing writes during
+user search requests. Provider writes are optional adapter capabilities reserved
+for future indexing commands or workers, not the request path.
 
 ## Category 6: Audited Consumer Migrations
 
@@ -558,6 +763,77 @@ review.
 - Each migration batch is an independent commit.
 - No database rollback is required.
 
+Old and new cache-key schemas may coexist during deployment and rollback.
+Cache-schema versioning prevents entries produced under one interpretation from
+being consumed under an incompatible interpretation. New factories never
+reinterpret old cache entries.
+
+Deployment compatibility rules:
+
+- Old mobile builds may continue calling every still-supported gateway schema.
+- The gateway tolerates supported older request versions during deployment
+  propagation.
+- Unsupported schemas receive a typed upgrade-required or
+  unsupported-version response.
+- Shared response changes remain additive unless the API or schema version
+  changes.
+- A server deployment never requires an immediate mobile-store release.
+- Consumer migrations can be reverted independently while shared factories
+  remain present.
+- TMDB fallback remains available during rollout and rollback.
+- Obsolete contract versions are removed only after telemetry confirms they are
+  no longer used.
+- Public Upstash environment-variable cleanup occurs as a separate verified
+  deployment step after client-bundle validation.
+
+Rollback checkpoints are independently verified after:
+
+1. shared contract integration
+2. server gateway deployment
+3. web gateway client migration
+4. mobile gateway client migration
+5. removal of direct client-side Upstash usage
+6. removal of public Upstash environment variables
+
+The first four checkpoints can be rolled back without removing the TMDB
+fallback. Checkpoints five and six occur only after both clients pass bundle,
+fallback, and behavior verification.
+
+## Future Recommendation Compatibility
+
+The semantic-search entities, indexing documents, normalized relationship
+metadata, localized media contracts, and deterministic scoring utilities are
+designed to become reusable inputs for future recommendation pipelines. No
+recommendation engine is introduced in this phase.
+
+Future recommendation work may reuse normalized title/person entities, genres,
+keywords, cast/director/creator relationships, popularity and freshness
+metadata, localized title/image selection, semantic index documents, content
+hashes, index versions, separately contracted followed-user signals, and
+explainable recommendation reasons.
+
+Recommendation indexing should reuse the shared indexing document builder where
+appropriate. Recommendation-specific scoring belongs to a separate
+`packages/core` recommendation domain. Search ranking must not gradually become
+a hidden recommendation engine. Personalization signals cannot enter public
+search results or cache keys without explicit authenticated-scope separation.
+
+## Future Background-Worker Compatibility
+
+Background workers are intentionally excluded from this implementation.
+Indexing contracts, pure document builders, content hashes, index versions, and
+provider adapters are designed so indexing can later execute asynchronously
+without changing search consumers.
+
+Future workers may perform TMDB and localized metadata refresh, search-document
+rebuilding, embedding generation, incremental index upserts, stale-document
+deletion, recommendation-profile rebuilding, watch-provider refresh, episode
+availability refresh, and cache-invalidation events.
+
+No worker framework is selected or installed in this phase. A future worker
+consumes shared indexing contracts; it does not move search normalization,
+intent, fusion, or ranking out of shared core.
+
 ## Verification Strategy
 
 Before any category completion claim, run fresh relevant commands and inspect
@@ -573,6 +849,20 @@ their output. Final verification includes:
 - localized-image resolver tests
 - prefetch deduplication tests
 - search intent, expansion, fusion, and ranking tests
+- supported and unsupported request schemas
+- additive response compatibility and schema-version cache keys
+- old-client/new-gateway compatibility
+- vector-provider success, replacement, timeout, and malformed candidates
+- verification that provider-specific fields cannot escape normalized contracts
+- deterministic index document construction and stable content hashes
+- index-version changes when interpretation changes
+- search modules remaining independent of indexing side effects
+- indexing modules remaining free of provider SDKs and environment access
+- verification that route handlers delegate ordering to shared core
+- identical mobile/web ordering for identical normalized inputs
+- structured fallback and cancellation observability
+- log redaction and observability-failure isolation
+- old/new cache-schema non-collision and TMDB-only gateway operation
 - gateway validation, timeout, fallback, and provider-failure tests
 - mobile gateway configuration tests
 - browser smoke tests where configured
@@ -612,6 +902,11 @@ The project is complete only when:
 - query keys isolate locale, region, scope, pagination, and schema
 - prefetching is deduplicated and bounded
 - mobile and web use the shared search contract and server gateway
+- clients and the gateway negotiate supported shared contract versions
+- search and indexing remain separate platform-neutral domains
+- ranking rules have one shared-core owner
+- provider-specific fields and SDKs remain inside server adapters
+- observability failures cannot affect gateway responses
 - person queries expand ranked credits
 - client bundles contain no Upstash credentials or provider clients
 - TMDB fallback remains usable
