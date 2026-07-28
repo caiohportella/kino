@@ -72,8 +72,7 @@ export function ProfileReviewCard({
             <ReviewAuthor author={review.author} size="sm" />
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-kino-muted">
               <span>
-                {t('reviews.reviewedBy')}{' '}
-                <ReviewAuthor author={review.author} variant="name" />
+                {t('reviews.reviewedBy')} <ReviewAuthor author={review.author} variant="name" />
               </span>
               {review.rating ? (
                 <RatingStars
@@ -125,9 +124,7 @@ export function ProfileReviewCard({
               aria-pressed={review.likedByViewer}
               className={cn(
                 'focus-ring inline-flex items-center gap-1.5 rounded-md px-1 py-1 font-medium transition-colors',
-                review.likedByViewer
-                  ? 'text-kino-accent'
-                  : 'text-kino-muted hover:text-kino-text'
+                review.likedByViewer ? 'text-kino-accent' : 'text-kino-muted hover:text-kino-text'
               )}
               disabled={pendingLike}
               onClick={(event) => {

@@ -5,10 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { useToast } from '@/components/toast-provider'
 import { Button } from '@/components/ui/button'
-import {
-  useProfileReviewMutations,
-  useProfileReviews,
-} from '@/hooks/use-profile-reviews'
+import { useProfileReviewMutations, useProfileReviews } from '@/hooks/use-profile-reviews'
 import { storeAuthRedirect } from '@/lib/auth-redirect'
 import { useTranslation } from '@/lib/i18n'
 import { useAuthStore } from '@/stores/auth-store'
