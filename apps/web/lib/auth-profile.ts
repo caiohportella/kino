@@ -3,6 +3,8 @@
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 
+export type AuthProfileStatus = 'idle' | 'loading' | 'ready' | 'error'
+
 type UserMetadata = {
   display_name?: unknown
   username?: unknown
@@ -12,9 +14,7 @@ function getStringMetadata(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : null
 }
 
-export async function ensureUserProfileFromAuthUser(user: User | null | undefined) {
-  if (!user) return
-
+async function ensureUserProfile(user: User) {
   const metadata = user.user_metadata as UserMetadata
   const username = getStringMetadata(metadata.username)
   const displayName =
@@ -41,4 +41,23 @@ export async function ensureUserProfileFromAuthUser(user: User | null | undefine
     display_name: displayName,
     username,
   })
+}
+
+export async function ensureUserProfileFromAuthUser(
+  user: User | null | undefined,
+  onStatus?: (status: AuthProfileStatus) => void
+) {
+  if (!user) {
+    onStatus?.('idle')
+    return
+  }
+
+  onStatus?.('loading')
+  try {
+    await ensureUserProfile(user)
+    onStatus?.('ready')
+  } catch (error) {
+    onStatus?.('error')
+    throw error
+  }
 }
