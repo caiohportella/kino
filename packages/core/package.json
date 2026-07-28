@@ -9,6 +9,7 @@
     ".": "./src/index.ts",
     "./auth": "./src/auth/index.ts",
     "./cache": "./src/cache/index.ts",
+    "./indexing": "./src/indexing/index.ts",
     "./localization": "./src/localization/index.ts",
     "./search": "./src/search/index.ts"
   },
