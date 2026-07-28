@@ -87,26 +87,42 @@ export interface SearchIndexPersonMetadataV1 {
 
 export type SearchIndexMetadataV1 = SearchIndexMediaMetadataV1 | SearchIndexPersonMetadataV1
 
-interface SearchIndexDocumentBaseV1 {
+interface SearchIndexDocumentPayloadBaseV1 {
   readonly id: string
   readonly searchableText: string
-  readonly contentHash: string
   readonly indexVersion: SearchIndexSchemaVersion
 }
 
-export interface SearchIndexMovieDocumentV1 extends SearchIndexDocumentBaseV1 {
+export interface SearchIndexMovieDocumentPayloadV1 extends SearchIndexDocumentPayloadBaseV1 {
   readonly entityType: 'movie'
   readonly metadata: SearchIndexMediaMetadataV1
 }
 
-export interface SearchIndexSeriesDocumentV1 extends SearchIndexDocumentBaseV1 {
+export interface SearchIndexSeriesDocumentPayloadV1 extends SearchIndexDocumentPayloadBaseV1 {
   readonly entityType: 'series'
   readonly metadata: SearchIndexMediaMetadataV1
 }
 
-export interface SearchIndexPersonDocumentV1 extends SearchIndexDocumentBaseV1 {
+export interface SearchIndexPersonDocumentPayloadV1 extends SearchIndexDocumentPayloadBaseV1 {
   readonly entityType: 'person'
   readonly metadata: SearchIndexPersonMetadataV1
+}
+
+export type SearchIndexDocumentPayloadV1 =
+  | SearchIndexMovieDocumentPayloadV1
+  | SearchIndexSeriesDocumentPayloadV1
+  | SearchIndexPersonDocumentPayloadV1
+
+export interface SearchIndexMovieDocumentV1 extends SearchIndexMovieDocumentPayloadV1 {
+  readonly contentHash: string
+}
+
+export interface SearchIndexSeriesDocumentV1 extends SearchIndexSeriesDocumentPayloadV1 {
+  readonly contentHash: string
+}
+
+export interface SearchIndexPersonDocumentV1 extends SearchIndexPersonDocumentPayloadV1 {
+  readonly contentHash: string
 }
 
 export type SearchIndexDocumentV1 =
@@ -114,7 +130,7 @@ export type SearchIndexDocumentV1 =
   | SearchIndexSeriesDocumentV1
   | SearchIndexPersonDocumentV1
 
-export type UnversionedSearchIndexDocumentV1 =
-  | Omit<SearchIndexMovieDocumentV1, 'indexVersion'>
-  | Omit<SearchIndexSeriesDocumentV1, 'indexVersion'>
-  | Omit<SearchIndexPersonDocumentV1, 'indexVersion'>
+export type UnversionedSearchIndexDocumentPayloadV1 =
+  | Omit<SearchIndexMovieDocumentPayloadV1, 'indexVersion'>
+  | Omit<SearchIndexSeriesDocumentPayloadV1, 'indexVersion'>
+  | Omit<SearchIndexPersonDocumentPayloadV1, 'indexVersion'>

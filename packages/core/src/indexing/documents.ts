@@ -1,17 +1,17 @@
+import { createIndexContentHash } from './content-hash.ts'
 import type {
   NormalizedIndexPersonReference,
   NormalizedIndexTitleReference,
   NormalizedSearchIndexInput,
+  SearchIndexDocumentPayloadV1,
   SearchIndexDocumentV1,
   SearchIndexMediaMetadataV1,
   SearchIndexPersonMetadataV1,
   SearchIndexRelationshipRole,
 } from './types.ts'
-import { versionSearchIndexDocumentV1 } from './version.ts'
+import { versionSearchIndexDocumentPayloadV1 } from './version.ts'
 
-export type BuildSearchIndexDocumentV1Input = NormalizedSearchIndexInput & {
-  readonly contentHash: string
-}
+export type BuildSearchIndexDocumentV1Input = NormalizedSearchIndexInput
 
 const RELATIONSHIP_ROLES = new Set<SearchIndexRelationshipRole>([
   'acting',
@@ -163,7 +163,7 @@ const relationshipText = (
 
 const buildMediaDocument = (
   input: Extract<BuildSearchIndexDocumentV1Input, { entityType: 'movie' | 'series' }>
-): SearchIndexDocumentV1 => {
+): SearchIndexDocumentPayloadV1 => {
   const title = requiredText(input.title, 'title')
   const originalTitle = cleanText(input.originalTitle)
   const alternativeTitles = uniqueSortedText(input.alternativeTitles).filter(
@@ -201,18 +201,17 @@ const buildMediaDocument = (
     ...(locale ? [`locale: ${locale}`] : []),
   ].join('\n')
 
-  return versionSearchIndexDocumentV1({
+  return versionSearchIndexDocumentPayloadV1({
     id: requiredText(input.id, 'id'),
     entityType: input.entityType,
     searchableText,
     metadata,
-    contentHash: requiredText(input.contentHash, 'contentHash'),
   })
 }
 
 const buildPersonDocument = (
   input: Extract<BuildSearchIndexDocumentV1Input, { entityType: 'person' }>
-): SearchIndexDocumentV1 => {
+): SearchIndexDocumentPayloadV1 => {
   const name = requiredText(input.name, 'name')
   const alternativeNames = uniqueSortedText(input.alternativeNames).filter(
     (alternative) => alternative !== name
@@ -239,16 +238,19 @@ const buildPersonDocument = (
     ...(locale ? [`locale: ${locale}`] : []),
   ].join('\n')
 
-  return versionSearchIndexDocumentV1({
+  return versionSearchIndexDocumentPayloadV1({
     id: requiredText(input.id, 'id'),
     entityType: 'person',
     searchableText,
     metadata,
-    contentHash: requiredText(input.contentHash, 'contentHash'),
   })
 }
 
-export const buildSearchIndexDocumentV1 = (
+export const buildSearchIndexDocumentV1 = async (
   input: BuildSearchIndexDocumentV1Input
-): SearchIndexDocumentV1 =>
-  input.entityType === 'person' ? buildPersonDocument(input) : buildMediaDocument(input)
+): Promise<SearchIndexDocumentV1> => {
+  const payload =
+    input.entityType === 'person' ? buildPersonDocument(input) : buildMediaDocument(input)
+  const contentHash = await createIndexContentHash(payload)
+  return { ...payload, contentHash } as SearchIndexDocumentV1
+}

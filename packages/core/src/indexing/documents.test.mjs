@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { buildSearchIndexDocumentV1 } from './documents.ts'
+import { decideIndexMutation } from './incremental.ts'
 
 const godfatherInput = {
   id: 'movie:238',
@@ -41,8 +42,11 @@ const godfatherInput = {
   providerToken: 'must-not-escape',
 }
 
-test('builds the complete canonical Godfather index document from literal input', () => {
-  assert.deepEqual(buildSearchIndexDocumentV1(godfatherInput), {
+test('builds the complete canonical Godfather index document from literal input', async () => {
+  const { contentHash, ...document } = await buildSearchIndexDocumentV1(godfatherInput)
+
+  assert.match(contentHash, /^[a-f0-9]{64}$/)
+  assert.deepEqual(document, {
     id: 'movie:238',
     entityType: 'movie',
     searchableText: [
@@ -95,80 +99,78 @@ test('builds the complete canonical Godfather index document from literal input'
         },
       ],
     },
-    contentHash: 'sha256:godfather-fixture',
     indexVersion: 1,
   })
 })
 
-test('filters malformed relationships and defaults absent optional metadata', () => {
-  assert.deepEqual(
-    buildSearchIndexDocumentV1({
-      id: 'person:42',
-      entityType: 'person',
+test('filters malformed relationships and defaults absent optional metadata', async () => {
+  const { contentHash, ...document } = await buildSearchIndexDocumentV1({
+    id: 'person:42',
+    entityType: 'person',
+    tmdbId: 42,
+    name: '  Ada   Actor ',
+    relationships: [
+      null,
+      {
+        id: '',
+        entityType: 'movie',
+        title: 'Missing identity',
+        role: 'acting',
+      },
+      {
+        id: 'movie:1',
+        entityType: 'game',
+        title: 'Wrong entity',
+        role: 'acting',
+      },
+      {
+        id: 'movie:2',
+        entityType: 'movie',
+        title: 'Wrong role',
+        role: 'producing',
+      },
+      {
+        id: 'movie:3',
+        entityType: 'movie',
+        title: 'Bad order',
+        role: 'acting',
+        castOrder: -1,
+      },
+      {
+        id: 'series:4',
+        entityType: 'series',
+        title: '  Valid   Credit ',
+        role: 'creating',
+      },
+    ],
+    contentHash: 'caller-controlled-hash-is-ignored',
+  })
+
+  assert.match(contentHash, /^[a-f0-9]{64}$/)
+  assert.deepEqual(document, {
+    id: 'person:42',
+    entityType: 'person',
+    searchableText: ['name: Ada Actor', 'creating: Valid Credit'].join('\n'),
+    metadata: {
       tmdbId: 42,
-      name: '  Ada   Actor ',
+      name: 'Ada Actor',
+      alternativeNames: [],
       relationships: [
-        null,
-        {
-          id: '',
-          entityType: 'movie',
-          title: 'Missing identity',
-          role: 'acting',
-        },
-        {
-          id: 'movie:1',
-          entityType: 'game',
-          title: 'Wrong entity',
-          role: 'acting',
-        },
-        {
-          id: 'movie:2',
-          entityType: 'movie',
-          title: 'Wrong role',
-          role: 'producing',
-        },
-        {
-          id: 'movie:3',
-          entityType: 'movie',
-          title: 'Bad order',
-          role: 'acting',
-          castOrder: -1,
-        },
         {
           id: 'series:4',
           entityType: 'series',
-          title: '  Valid   Credit ',
+          title: 'Valid Credit',
           role: 'creating',
         },
       ],
-      contentHash: 'sha256:minimal-person',
-    }),
-    {
-      id: 'person:42',
-      entityType: 'person',
-      searchableText: ['name: Ada Actor', 'creating: Valid Credit'].join('\n'),
-      metadata: {
-        tmdbId: 42,
-        name: 'Ada Actor',
-        alternativeNames: [],
-        relationships: [
-          {
-            id: 'series:4',
-            entityType: 'series',
-            title: 'Valid Credit',
-            role: 'creating',
-          },
-        ],
-      },
-      contentHash: 'sha256:minimal-person',
-      indexVersion: 1,
-    }
-  )
+    },
+    indexVersion: 1,
+  })
 })
 
-test('produces byte-identical text and metadata for shuffled equivalent input', () => {
-  const first = buildSearchIndexDocumentV1(godfatherInput)
-  const shuffled = buildSearchIndexDocumentV1({
+test('produces byte-identical text and metadata for shuffled equivalent input', async () => {
+  const first = await buildSearchIndexDocumentV1(godfatherInput)
+  const shuffled = await buildSearchIndexDocumentV1({
     ...godfatherInput,
     alternativeTitles: [...godfatherInput.alternativeTitles].reverse(),
     genres: [...godfatherInput.genres].reverse(),
@@ -178,4 +180,41 @@ test('produces byte-identical text and metadata for shuffled equivalent input', 
 
   assert.equal(shuffled.searchableText, first.searchableText)
   assert.equal(JSON.stringify(shuffled.metadata), JSON.stringify(first.metadata))
+  assert.equal(shuffled.contentHash, first.contentHash)
+})
+
+test('finalization replaces a caller-controlled stale hash when normalized content changes', async () => {
+  const originalInput = {
+    id: 'movie:238',
+    entityType: 'movie',
+    tmdbId: 238,
+    title: 'The Godfather',
+    people: [
+      {
+        id: 'person:3084',
+        name: 'Marlon Brando',
+        role: 'acting',
+        character: 'Don Vito Corleone',
+        castOrder: 0,
+      },
+    ],
+    contentHash: 'caller-controlled-stale-hash',
+  }
+  const original = await buildSearchIndexDocumentV1(originalInput)
+  const changedTitle = await buildSearchIndexDocumentV1({
+    ...originalInput,
+    title: 'The Godfather Part II',
+    contentHash: original.contentHash,
+  })
+  const changedRelationship = await buildSearchIndexDocumentV1({
+    ...originalInput,
+    people: [{ ...originalInput.people[0], name: 'Al Pacino', character: 'Michael Corleone' }],
+    contentHash: original.contentHash,
+  })
+
+  assert.match(original.contentHash, /^[a-f0-9]{64}$/)
+  assert.notEqual(changedTitle.contentHash, original.contentHash)
+  assert.notEqual(changedRelationship.contentHash, original.contentHash)
+  assert.equal(decideIndexMutation(original, changedTitle), 'upsert')
+  assert.equal(decideIndexMutation(original, changedRelationship), 'upsert')
 })
