@@ -82,3 +82,27 @@ test('validator rejects a workflow that keeps obsolete runs or exposes secrets',
     /concurrency-cancellation, no-production-credentials/
   )
 })
+
+test('validator rejects required values nested outside their required mappings', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'kino-workflow-'))
+  const fixturePath = join(root, 'quality.yml')
+  t.after(() => rm(root, { recursive: true, force: true }))
+
+  await writeFile(
+    fixturePath,
+    `name: Quality\non:\n  pull_request:\njobs:\n  quality:\n    runs-on: ubuntu-latest\n    concurrency:\n      group: \${{ github.workflow }}-\${{ github.ref }}\n      cancel-in-progress: true\n    permissions:\n      contents: read\n  other:\n    steps:\n      - uses: actions/checkout@v4\n      - uses: pnpm/action-setup@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: 22\n          cache: pnpm\n      - run: pnpm install --frozen-lockfile\n      - run: pnpm biome check .\n      - run: pnpm lint\n      - run: pnpm typecheck\n      - run: pnpm test\n      - run: pnpm build:web\n`
+  )
+
+  const { validateWorkflow } = await import('./validate-workflow.mjs')
+  const result = await validateWorkflow(fixturePath)
+
+  assert.deepEqual(result.errors.map(({ rule }) => rule).sort(), [
+    'checkout',
+    'concurrency-cancellation',
+    'concurrency-key',
+    'node-pnpm-cache',
+    'pnpm-setup',
+    'read-only-permissions',
+    'run-commands',
+  ])
+})
