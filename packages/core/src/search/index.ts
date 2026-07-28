@@ -1,4 +1,6 @@
+export * from './fusion.ts'
 export * from './intent.ts'
 export * from './normalize.ts'
 export * from './person-expansion.ts'
+export * from './rank.ts'
 export * from './types.ts'

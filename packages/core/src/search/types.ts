@@ -112,6 +112,49 @@ export interface SearchProviderResult {
   readonly degraded?: boolean
 }
 
+export interface ProviderScoreRange {
+  readonly minimum: number
+  readonly maximum: number
+  readonly direction?: 'higher_is_better' | 'lower_is_better'
+}
+
+export interface FusedCandidate {
+  readonly identity: string
+  readonly entity: SearchEntity
+  readonly sources: readonly string[]
+  readonly semanticScore?: number
+  readonly lexicalScore?: number
+  readonly exactMatch?: boolean
+  readonly prefixMatch?: boolean
+  readonly entityConfidence?: number
+  readonly relationshipScore?: number
+  readonly localeRelevance?: number
+  readonly personId?: string
+  readonly role?: RelationshipCreditRole
+}
+
+export interface SearchScoreComponents {
+  readonly exact: number
+  readonly prefix: number
+  readonly lexical: number
+  readonly semantic: number
+  readonly entityConfidence: number
+  readonly relationship: number
+  readonly locale: number
+  readonly popularity: number
+  readonly release: number
+}
+
+export interface RankedSearchResult extends SearchResultV1 {
+  readonly identity: string
+  readonly components: SearchScoreComponents
+}
+
+export interface RankSearchCandidatesInput {
+  readonly query: NormalizedSearchQuery
+  readonly candidates: readonly FusedCandidate[]
+}
+
 export interface SearchResultV1 {
   readonly entity: SearchEntity
   readonly score: number
