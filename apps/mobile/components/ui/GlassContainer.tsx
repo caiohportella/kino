@@ -1,7 +1,7 @@
-import React from 'react'
-import { View, StyleSheet, ViewProps } from 'react-native'
 import { BlurView } from 'expo-blur'
 import { LinearGradient } from 'expo-linear-gradient'
+import React from 'react'
+import { StyleSheet, View, ViewProps } from 'react-native'
 
 interface GlassContainerProps extends ViewProps {
   intensity?: number

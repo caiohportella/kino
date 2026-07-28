@@ -1,13 +1,13 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 
 // Import shared translation files
 import en from '../../locales/en/translation.json'
-import pt from '../../locales/pt/translation.json'
+import fr from '../../locales/fr/translation.json'
 import it from '../../locales/it/translation.json'
 import no from '../../locales/no/translation.json'
-import fr from '../../locales/fr/translation.json'
+import pt from '../../locales/pt/translation.json'
 
 const LANGUAGE_KEY = 'user-language'
 

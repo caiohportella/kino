@@ -1,5 +1,5 @@
-import { View, Text, Image, ImageSourcePropType, ViewProps } from 'react-native'
 import React from 'react'
+import { Image, ImageSourcePropType, Text, View, ViewProps } from 'react-native'
 
 interface EmptyStateProps extends ViewProps {
   title: string

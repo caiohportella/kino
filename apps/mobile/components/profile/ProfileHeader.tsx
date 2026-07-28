@@ -1,7 +1,8 @@
 // Profile header with banner, avatar, and user info
-import { View, Text, TouchableOpacity, Image } from 'react-native'
-import { useRouter } from 'expo-router'
+
 import { Ionicons } from '@expo/vector-icons'
+import { useRouter } from 'expo-router'
+import { Image, Text, TouchableOpacity, View } from 'react-native'
 import type { UserProfile } from '~/types'
 
 interface ProfileHeaderProps {
@@ -63,7 +64,10 @@ export function ProfileHeader({
               <Ionicons name="search" size={24} color="#FFF" />
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity onPress={() => router.back()} className="bg-black/30 p-2 rounded-full">
+            <TouchableOpacity
+              onPress={() => router.back()}
+              className="bg-black/30 p-2 rounded-full"
+            >
               <Ionicons name="arrow-back" size={24} color="#FFF" />
             </TouchableOpacity>
           )}

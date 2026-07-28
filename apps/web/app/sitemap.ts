@@ -1,7 +1,7 @@
-import type { MetadataRoute } from 'next'
 import { TMDbService } from '@kino/core'
-import { absoluteUrl } from '@/lib/seo'
+import type { MetadataRoute } from 'next'
 import { personPath, titlePath } from '@/lib/routes'
+import { absoluteUrl } from '@/lib/seo'
 
 export const revalidate = 86400
 

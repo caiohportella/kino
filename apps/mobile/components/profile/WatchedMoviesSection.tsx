@@ -1,6 +1,6 @@
-import { View, Text, ScrollView, Image, TouchableOpacity } from 'react-native'
-import { useTranslation } from 'react-i18next'
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native'
 import placeholderPoster from '@/assets/placeholder-poster.jpg'
 import { useLocalizedMediaData } from '~/hooks/data/useLocalizedMediaData'
 import { getTMDbService } from '~/services/tmdb'
@@ -23,7 +23,10 @@ type Props = {
 export function WatchedMoviesSection({ movies, onMoviePress, onLongPress, onViewAll }: Props) {
   const { t } = useTranslation()
   const tmdb = getTMDbService()
-  const items = useMemo(() => movies.map(m => ({ tmdb_id: m.tmdb_id, type: 'movie' as const })), [movies])
+  const items = useMemo(
+    () => movies.map((m) => ({ tmdb_id: m.tmdb_id, type: 'movie' as const })),
+    [movies]
+  )
   const localizedData = useLocalizedMediaData(items)
 
   return (
@@ -50,8 +53,14 @@ export function WatchedMoviesSection({ movies, onMoviePress, onLongPress, onView
                 <Image
                   source={
                     localizedData[movie.tmdb_id]?.poster_path
-                      ? { uri: tmdb.getImageUrl(localizedData[movie.tmdb_id].poster_path, 'w300') || '' }
-                      : movie.cover_image ? { uri: movie.cover_image } : placeholderPoster
+                      ? {
+                          uri:
+                            tmdb.getImageUrl(localizedData[movie.tmdb_id].poster_path, 'w300') ||
+                            '',
+                        }
+                      : movie.cover_image
+                        ? { uri: movie.cover_image }
+                        : placeholderPoster
                   }
                   className="w-24 h-36 rounded-lg bg-surface"
                   resizeMode="cover"

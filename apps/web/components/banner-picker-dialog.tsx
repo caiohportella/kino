@@ -1,12 +1,9 @@
-'use client'
-
 import type { TMDbImage, TMDbTitle } from '@kino/core'
 import { getDisplayTitle, getReleaseYear } from '@kino/core'
+import { useMutation } from '@tanstack/react-query'
 import { ArrowLeft, ChevronRight, ImageOff, Search, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
 import { MediaModalSkeleton } from '@/components/skeletons/page-skeletons'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -15,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Skeleton } from '@/components/ui/skeleton'
 import { getTmdb } from '@/lib/services'
 import { useSettingsStore } from '@/stores/settings-store'
 
@@ -130,7 +128,7 @@ export function BannerPickerDialog({
               </label>
               <input
                 autoFocus
-                className="min-h-10 flex-1 rounded-md border border-white/10 bg-white/[0.04] px-3 text-sm text-kino-text outline-none focus:border-kino-accent"
+                className="min-h-10 flex-1 rounded-md border border-white/10 bg-white/4 px-3 text-sm text-kino-text outline-none focus:border-kino-accent"
                 id="banner-search"
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search movies or series..."
@@ -151,7 +149,7 @@ export function BannerPickerDialog({
             <div className="max-h-[52vh] overflow-y-auto pr-1">
               {searchMutation.isPending ? <MediaModalSkeleton label="Searching TMDB..." /> : null}
               {!searchMutation.isPending && searchResults.length === 0 ? (
-                <div className="grid place-items-center rounded-md border border-white/10 bg-white/[0.03] px-5 py-10 text-center">
+                <div className="grid place-items-center rounded-md border border-white/10 bg-white/3 px-5 py-10 text-center">
                   <Search className="text-kino-subtle" size={36} />
                   <p className="mt-3 max-w-sm text-sm leading-6 text-kino-muted">
                     Search for a title to use one of its TMDB backdrops as your profile banner.
@@ -165,13 +163,13 @@ export function BannerPickerDialog({
                   const year = getReleaseYear(item)
                   return (
                     <button
-                      className="grid grid-cols-[56px_1fr_auto] items-center gap-3 rounded-md border border-white/10 bg-white/[0.04] p-2 text-left transition-colors hover:border-kino-accent/60 hover:bg-white/[0.07]"
+                      className="grid grid-cols-[56px_1fr_auto] items-center gap-3 rounded-md border border-white/10 bg-white/4 p-2 text-left transition-colors hover:border-kino-accent/60 hover:bg-white/[0.07]"
                       disabled={imagesMutation.isPending || saveMutation.isPending}
                       key={`${item.media_type}-${item.id}`}
                       onClick={() => imagesMutation.mutate(item)}
                       type="button"
                     >
-                      <div className="aspect-[2/3] overflow-hidden rounded bg-black/30">
+                      <div className="aspect-2/3 overflow-hidden rounded bg-black/30">
                         {poster ? (
                           <img alt="" className="h-full w-full object-cover" src={poster} />
                         ) : null}
@@ -194,7 +192,7 @@ export function BannerPickerDialog({
                 <MediaModalSkeleton label="Loading backdrops..." />
               ) : null}
               {!imagesMutation.isPending && mediaImages.length === 0 ? (
-                <div className="grid place-items-center rounded-md border border-white/10 bg-white/[0.03] px-5 py-10 text-center">
+                <div className="grid place-items-center rounded-md border border-white/10 bg-white/3 px-5 py-10 text-center">
                   <ImageOff className="text-kino-subtle" size={36} />
                   <p className="mt-3 max-w-sm text-sm leading-6 text-kino-muted">
                     No high-quality backdrops were found for this title.
@@ -209,7 +207,7 @@ export function BannerPickerDialog({
 
                   return (
                     <button
-                      className="group overflow-hidden rounded-md border border-white/10 bg-white/[0.04] text-left transition hover:border-kino-accent/70 disabled:opacity-60"
+                      className="group overflow-hidden rounded-md border border-white/10 bg-white/4 text-left transition hover:border-kino-accent/70 disabled:opacity-60"
                       disabled={saveMutation.isPending}
                       key={image.file_path}
                       onClick={() => saveMutation.mutate(savedUrl)}

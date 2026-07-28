@@ -1,6 +1,6 @@
 import Image from 'next/image'
-import { cn } from '@/lib/utils'
 import { KINO_LOGO_ASPECT_RATIO, KINO_LOGO_PATH } from '@/lib/brand'
+import { cn } from '@/lib/utils'
 
 interface KinoLogoProps {
   variant?: 'compact' | 'full'

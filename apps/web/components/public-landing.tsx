@@ -1,15 +1,15 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import {
-  CrossPlatformSection,
-  InternationalizationSection,
-} from '@/components/landing/platform-sections'
 import { FeatureHighlights } from '@/components/landing/feature-highlights'
 import { LandingCTA } from '@/components/landing/landing-cta'
 import { LandingFooter } from '@/components/landing/landing-footer'
 import { LandingHero } from '@/components/landing/landing-hero'
 import { LandingNav } from '@/components/landing/landing-nav'
+import {
+  CrossPlatformSection,
+  InternationalizationSection,
+} from '@/components/landing/platform-sections'
 import {
   CommunityRatingsSection,
   PersonalDiarySection,

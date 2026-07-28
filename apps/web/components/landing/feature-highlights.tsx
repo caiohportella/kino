@@ -75,7 +75,7 @@ export function FeatureHighlights() {
               and move through public pages without being interrupted.
             </p>
           </div>
-          <div className="flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-semibold text-kino-muted">
+          <div className="flex items-center gap-2 rounded-md border border-white/10 bg-white/4 px-3 py-2 text-sm font-semibold text-kino-muted">
             <Sparkles size={16} />
             Account prompts stay contextual
           </div>

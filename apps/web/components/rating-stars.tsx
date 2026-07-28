@@ -1,5 +1,3 @@
-'use client'
-
 import { Star } from 'lucide-react'
 import type { KeyboardEvent } from 'react'
 import { useState } from 'react'
@@ -104,7 +102,7 @@ export function RatingStars({
                 <button
                   aria-checked={value === star - 0.5}
                   aria-label={`${star - 0.5} stars`}
-                  className="absolute inset-y-0 left-0 z-10 w-1/2 rounded-l-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent disabled:cursor-not-allowed"
+                  className="absolute inset-y-0 left-0 z-10 w-1/2 rounded-l-md focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-kino-accent disabled:cursor-not-allowed"
                   disabled={disabled}
                   onClick={() => setRating(star - 0.5)}
                   onBlur={() => setHovered(null)}
@@ -118,7 +116,7 @@ export function RatingStars({
                 <button
                   aria-checked={value === star}
                   aria-label={`${star} stars`}
-                  className="absolute inset-y-0 right-0 z-10 w-1/2 rounded-r-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent disabled:cursor-not-allowed"
+                  className="absolute inset-y-0 right-0 z-10 w-1/2 rounded-r-md focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-kino-accent disabled:cursor-not-allowed"
                   disabled={disabled}
                   onClick={() => setRating(star)}
                   onBlur={() => setHovered(null)}

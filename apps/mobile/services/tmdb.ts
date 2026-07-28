@@ -63,7 +63,7 @@ export class TMDbService {
         } else if (errorData.errors && Array.isArray(errorData.errors)) {
           errorMessage += ` - ${errorData.errors.join(', ')}`
         }
-      } catch (e) {
+      } catch (_e) {
         // Could not parse JSON, append status text if available
         if (response.statusText) {
           errorMessage += ` ${response.statusText}`
@@ -163,10 +163,13 @@ export class TMDbService {
    * Get movies currently in theaters (Now Playing)
    */
   async getNowPlayingMovies(region?: string, page = 1): Promise<import('../types').TMDbTitle[]> {
-    const data = await this.fetch<{ results: import('../types').TMDbTitle[] }>('/movie/now_playing', {
-      region: region || this.language.split('-')[1] || 'US',
-      page: page.toString(),
-    })
+    const data = await this.fetch<{ results: import('../types').TMDbTitle[] }>(
+      '/movie/now_playing',
+      {
+        region: region || this.language.split('-')[1] || 'US',
+        page: page.toString(),
+      }
+    )
     return data.results.map((m) => ({ ...m, media_type: 'movie' as const }))
   }
 

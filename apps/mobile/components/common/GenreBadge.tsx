@@ -1,6 +1,6 @@
-import React from 'react'
-import { Text, TouchableOpacity, StyleSheet, View } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
+import React from 'react'
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 interface GenreBadgeProps {
   name: string

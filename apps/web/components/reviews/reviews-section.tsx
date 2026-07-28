@@ -1,5 +1,3 @@
-'use client'
-
 import type { MediaType, PublicUserSummary, Review } from '@kino/core'
 import { useToast } from '@/components/toast-provider'
 import { Card } from '@/components/ui/card'

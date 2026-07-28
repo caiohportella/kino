@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { getTMDbService } from '~/services/tmdb'
-import type { TMDbMovie, TMDbTVShow, TMDbGenre } from '~/types'
 import { useLanguage } from '~/hooks/useLanguage'
-import { useOscarData, getAllOscarNomineeIdsLegacy } from '~/services/awards'
+import { getAllOscarNomineeIdsLegacy, useOscarData } from '~/services/awards'
+import { getTMDbService } from '~/services/tmdb'
+import type { TMDbGenre, TMDbMovie, TMDbTVShow } from '~/types'
 
 const tmdbService = getTMDbService()
 

@@ -1,6 +1,7 @@
 // Reusable star rating component
-import { View, TouchableOpacity, Text } from 'react-native'
+
 import { Ionicons } from '@expo/vector-icons'
+import { Text, TouchableOpacity, View } from 'react-native'
 
 interface RatingStarsProps {
   rating: number // 0-5

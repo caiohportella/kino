@@ -10,7 +10,8 @@
     "web": "expo start --web",
     "native:prebuild": "expo prebuild",
     "typecheck": "tsc --noEmit",
-    "lint": "biome lint app components hooks services utils types"
+    "lint": "biome lint app components hooks services utils types",
+    "test": "node --test --experimental-strip-types utils/*.test.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

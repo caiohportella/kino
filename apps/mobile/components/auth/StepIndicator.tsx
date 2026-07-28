@@ -1,5 +1,5 @@
 import React from 'react'
-import { View, Animated, StyleSheet } from 'react-native'
+import { Animated, StyleSheet, View } from 'react-native'
 
 interface StepIndicatorProps {
   totalSteps: number

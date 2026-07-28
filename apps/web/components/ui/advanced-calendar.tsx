@@ -5,10 +5,10 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import * as React from 'react'
 import {
   DayPicker,
+  type DayPickerProps,
   labelNext,
   labelPrevious,
   useDayPicker,
-  type DayPickerProps,
 } from 'react-day-picker'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -38,7 +38,7 @@ function AdvancedCalendar({
 
   return (
     <DayPicker
-      className={cn('w-[280px] max-w-full p-3', className)}
+      className={cn('w-70 max-w-full p-3', className)}
       classNames={{
         months: 'relative flex',
         month: 'w-full',
@@ -47,11 +47,11 @@ function AdvancedCalendar({
         nav: 'flex items-start',
         button_previous: cn(
           buttonVariants({ variant: 'ghost', size: 'icon-sm' }),
-          'absolute start-0 top-0 opacity-80 hover:opacity-100'
+          'absolute inset-s-0 top-0 opacity-80 hover:opacity-100'
         ),
         button_next: cn(
           buttonVariants({ variant: 'ghost', size: 'icon-sm' }),
-          'absolute end-0 top-0 opacity-80 hover:opacity-100'
+          'absolute inset-e-0 top-0 opacity-80 hover:opacity-100'
         ),
         month_grid: 'mx-auto mt-3 w-full border-collapse',
         weekdays: 'flex',
@@ -70,8 +70,7 @@ function AdvancedCalendar({
         hidden: 'invisible',
       }}
       components={{
-        Chevron: ({ orientation }) =>
-          orientation === 'left' ? <ChevronLeft /> : <ChevronRight />,
+        Chevron: ({ orientation }) => (orientation === 'left' ? <ChevronLeft /> : <ChevronRight />),
         CaptionLabel: (captionProps) => (
           <Button
             className="h-8 w-full truncate px-2 text-sm"
@@ -80,9 +79,7 @@ function AdvancedCalendar({
             type="button"
             variant="ghost"
           >
-            {view === 'days'
-              ? captionProps.children
-              : `${displayYears.from} – ${displayYears.to}`}
+            {view === 'days' ? captionProps.children : `${displayYears.from} – ${displayYears.to}`}
           </Button>
         ),
         Nav: ({ className: navClassName }) => (
@@ -105,7 +102,9 @@ function AdvancedCalendar({
               startMonth={props.startMonth}
             />
           ) : (
-            <table className={gridClassName} {...gridProps}>{children}</table>
+            <table className={gridClassName} {...gridProps}>
+              {children}
+            </table>
           ),
         ...components,
       }}
@@ -133,41 +132,55 @@ function CalendarNav({
 }) {
   const { goToMonth, nextMonth, previousMonth } = useDayPicker()
   const span = displayYears.to - displayYears.from + 1
-  const previousDisabled = view === 'years'
-    ? Boolean(startMonth && new Date(displayYears.from - span, 11, 31) < startMonth)
-    : !previousMonth
-  const nextDisabled = view === 'years'
-    ? Boolean(endMonth && new Date(displayYears.to + 1, 0, 1) > endMonth)
-    : !nextMonth
+  const previousDisabled =
+    view === 'years'
+      ? Boolean(startMonth && new Date(displayYears.from - span, 11, 31) < startMonth)
+      : !previousMonth
+  const nextDisabled =
+    view === 'years'
+      ? Boolean(endMonth && new Date(displayYears.to + 1, 0, 1) > endMonth)
+      : !nextMonth
 
   return (
     <nav className={cn('flex items-center', className)}>
       <Button
-        aria-label={view === 'years' ? `Go to the previous ${span} years` : labelPrevious(previousMonth)}
-        className="absolute start-0 top-0"
+        aria-label={
+          view === 'years' ? `Go to the previous ${span} years` : labelPrevious(previousMonth)
+        }
+        className="absolute inset-s-0 top-0"
         disabled={previousDisabled}
         onClick={() => {
           if (view === 'years') {
-            onDisplayYearsChange((current) => ({ from: current.from - span, to: current.to - span }))
+            onDisplayYearsChange((current) => ({
+              from: current.from - span,
+              to: current.to - span,
+            }))
           } else if (previousMonth) goToMonth(previousMonth)
         }}
         size="icon-sm"
         type="button"
         variant="ghost"
-      ><ChevronLeft /></Button>
+      >
+        <ChevronLeft />
+      </Button>
       <Button
         aria-label={view === 'years' ? `Go to the next ${span} years` : labelNext(nextMonth)}
-        className="absolute end-0 top-0"
+        className="absolute inset-e-0 top-0"
         disabled={nextDisabled}
         onClick={() => {
           if (view === 'years') {
-            onDisplayYearsChange((current) => ({ from: current.from + span, to: current.to + span }))
+            onDisplayYearsChange((current) => ({
+              from: current.from + span,
+              to: current.to + span,
+            }))
           } else if (nextMonth) goToMonth(nextMonth)
         }}
         size="icon-sm"
         type="button"
         variant="ghost"
-      ><ChevronRight /></Button>
+      >
+        <ChevronRight />
+      </Button>
     </nav>
   )
 }
@@ -192,7 +205,7 @@ function YearGrid({
         const year = displayYears.from + index
         const disabled = Boolean(
           (startMonth && differenceInCalendarDays(new Date(year, 11, 31), startMonth) < 0) ||
-          (endMonth && differenceInCalendarDays(new Date(year, 0, 1), endMonth) > 0)
+            (endMonth && differenceInCalendarDays(new Date(year, 0, 1), endMonth) > 0)
         )
         return (
           <Button
@@ -206,7 +219,9 @@ function YearGrid({
             size="sm"
             type="button"
             variant="ghost"
-          >{year}</Button>
+          >
+            {year}
+          </Button>
         )
       })}
     </div>

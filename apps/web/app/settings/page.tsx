@@ -1,9 +1,6 @@
 'use client'
 
-import type { KinoLanguage } from '@/stores/settings-store'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Camera,
   Check,
@@ -18,15 +15,18 @@ import {
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { useTranslation } from '@/lib/i18n'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BannerPickerDialog } from '@/components/banner-picker-dialog'
-import { SettingsSkeleton } from '@/components/skeletons/page-skeletons'
 import { PageHeader } from '@/components/page-header'
 import { ProtectedEmpty } from '@/components/protected-empty'
+import { SettingsSkeleton } from '@/components/skeletons/page-skeletons'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { useTranslation } from '@/lib/i18n'
 import { db } from '@/lib/services'
 import { useAuthStore } from '@/stores/auth-store'
+import type { KinoLanguage } from '@/stores/settings-store'
 import { useSettingsStore } from '@/stores/settings-store'
 
 const languages: {
@@ -170,7 +170,7 @@ export default function SettingsPage() {
               />
               <label
                 aria-label="Edit profile picture"
-                className="absolute bottom-1 right-1 grid h-9 w-9 cursor-pointer place-items-center rounded-full border border-white/20 bg-black/75 text-white shadow-[0_8px_24px_rgb(0_0_0_/_0.35)] transition duration-200 hover:scale-105 hover:bg-black/90 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-kino-accent"
+                className="absolute bottom-1 right-1 grid h-9 w-9 cursor-pointer place-items-center rounded-full border border-white/20 bg-black/75 text-white shadow-[0_8px_24px_rgb(0_0_0/0.35)] transition duration-200 hover:scale-105 hover:bg-black/90 peer-focus-visible:outline peer-focus-visible:outline-offset-2 peer-focus-visible:outline-kino-accent"
                 htmlFor="avatar-upload"
                 title="Edit profile picture"
               >
@@ -202,11 +202,11 @@ export default function SettingsPage() {
               <h2 className="text-sm font-semibold text-kino-text">{t('modals.selectBanner')}</h2>
               <p className="mt-1 text-xs text-kino-muted">{t('settings.tapToSetBanner')}</p>
             </div>
-            <div className="aspect-[5/2] overflow-hidden rounded-md border border-white/10 bg-kino-panel">
+            <div className="aspect-5/2 overflow-hidden rounded-md border border-white/10 bg-kino-panel">
               {bannerUrl ? (
                 <img alt="" className="h-full w-full object-cover" src={bannerUrl} />
               ) : (
-                <div className="grid h-full place-items-center bg-[linear-gradient(135deg,rgb(29_185_84_/_0.16),rgb(255_255_255_/_0.05)_45%,rgb(0_0_0_/_0.18))] text-sm font-semibold text-kino-muted">
+                <div className="grid h-full place-items-center bg-[linear-gradient(135deg,rgb(29_185_84/0.16),rgb(255_255_255/0.05)_45%,rgb(0_0_0/0.18))] text-sm font-semibold text-kino-muted">
                   {t('settings.tapToSetBanner')}
                 </div>
               )}
@@ -266,10 +266,10 @@ export default function SettingsPage() {
                     return (
                       <button
                         aria-selected={active}
-                        className={`grid min-h-14 grid-cols-[28px_1fr_20px] items-center gap-3 rounded-md px-3 py-2 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent ${
+                        className={`grid min-h-14 grid-cols-[28px_1fr_20px] items-center gap-3 rounded-md px-3 py-2 text-left transition-colors focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-kino-accent ${
                           active
                             ? 'bg-kino-accent/15 text-kino-text'
-                            : 'text-kino-muted hover:bg-white/[0.06] hover:text-kino-text'
+                            : 'text-kino-muted hover:bg-white/6 hover:text-kino-text'
                         }`}
                         key={item.code}
                         onClick={() => setLanguage(item.code)}

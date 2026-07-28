@@ -2,9 +2,9 @@
 
 import type { TMDbTitle } from '@kino/core'
 import { getDisplayTitle, getReleaseYear, getTMDbImageUrl } from '@kino/core'
-import { Poster } from '@/components/kino'
 import Link from 'next/link'
 import type { Ref } from 'react'
+import { Poster } from '@/components/kino'
 import { titlePath } from '@/lib/routes'
 import { cn } from '@/lib/utils'
 

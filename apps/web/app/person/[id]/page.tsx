@@ -92,18 +92,18 @@ export default function PersonPage() {
         </Button>
       </div>
 
-      <section className="relative mb-8 min-h-[420px] overflow-hidden rounded-md border border-white/10 bg-kino-surface">
+      <section className="relative mb-8 min-h-105 overflow-hidden rounded-md border border-white/10 bg-kino-surface">
         <div className="absolute inset-0">
           {backdrop ? (
             <img alt="" className="h-full w-full object-cover" src={backdrop} />
           ) : (
-            <div className="h-full w-full bg-[linear-gradient(135deg,rgb(29_185_84_/_0.12),rgb(255_255_255_/_0.04)_44%,rgb(0_0_0_/_0.18))]" />
+            <div className="h-full w-full bg-[linear-gradient(135deg,rgb(29_185_84/0.12),rgb(255_255_255/0.04)_44%,rgb(0_0_0/0.18))]" />
           )}
         </div>
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-kino-surface via-kino-surface/75 to-black/20" />
+        <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-kino-surface via-kino-surface/75 to-black/20" />
 
-        <div className="relative z-10 grid min-h-[420px] content-end gap-5 p-5 md:grid-cols-[160px_1fr] md:items-end md:p-6">
-          <div className="aspect-[2/3] w-32 overflow-hidden rounded-md border border-white/10 bg-white/[0.06] shadow-[0_18px_42px_rgb(0_0_0_/_0.35)] md:w-full">
+        <div className="relative z-10 grid min-h-105 content-end gap-5 p-5 md:grid-cols-[160px_1fr] md:items-end md:p-6">
+          <div className="aspect-2/3 w-32 overflow-hidden rounded-md border border-white/10 bg-white/6 shadow-[0_18px_42px_rgb(0_0_0/0.35)] md:w-full">
             {profile ? (
               <img alt={person.name} className="h-full w-full object-cover" src={profile} />
             ) : (
@@ -298,7 +298,7 @@ function Biography({ biography }: { biography: string }) {
           {content}
         </p>
         {hasOverflow && !expanded ? (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-kino-surface to-transparent" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-linear-to-t from-kino-surface to-transparent" />
         ) : null}
       </div>
       {hasOverflow ? (

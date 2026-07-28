@@ -4,10 +4,7 @@
     "slug": "kino",
     "version": "1.0.0",
     "scheme": "kino",
-    "platforms": [
-      "ios",
-      "android"
-    ],
+    "platforms": ["ios", "android"],
     "web": {
       "bundler": "metro",
       "output": "static",
@@ -31,9 +28,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#09090B"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "infoPlist": {

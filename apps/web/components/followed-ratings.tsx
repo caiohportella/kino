@@ -5,9 +5,7 @@ import Link from 'next/link'
 import { RatingStars } from '@/components/rating-stars'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  useFollowedTitleRatings,
-} from '@/hooks/use-followed-ratings'
+import { useFollowedTitleRatings } from '@/hooks/use-followed-ratings'
 import { useTranslation } from '@/lib/i18n'
 
 function RatingRow({ item, compact = false }: { item: FollowedRating; compact?: boolean }) {
@@ -74,9 +72,7 @@ export function FollowedEpisodeRatingRows({
       {items.slice(0, 2).map((item) => (
         <RatingRow compact item={item} key={item.user.id} />
       ))}
-      {totalCount > 2 ? (
-        <span className="text-xs text-kino-muted">+{totalCount - 2}</span>
-      ) : null}
+      {totalCount > 2 ? <span className="text-xs text-kino-muted">+{totalCount - 2}</span> : null}
     </div>
   )
 }

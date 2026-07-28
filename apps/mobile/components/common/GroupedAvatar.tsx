@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
-import { View, Text, Image, TouchableOpacity } from 'react-native'
-import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
+import { useRouter } from 'expo-router'
+import React, { useState } from 'react'
+import { Image, Text, TouchableOpacity, View } from 'react-native'
 import type { UserProfile } from '~/types'
 
 interface GroupedAvatarProps {

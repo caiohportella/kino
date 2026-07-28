@@ -13,11 +13,7 @@ export function useFollowedTitleRatings(titleId: string, enabled = true) {
   })
 }
 
-export function useFollowedEpisodeRatings(
-  titleId: string,
-  seasonNumber: number,
-  enabled = true
-) {
+export function useFollowedEpisodeRatings(titleId: string, seasonNumber: number, enabled = true) {
   return useQuery({
     queryKey: ratingKeys.followedEpisodes(titleId, seasonNumber),
     queryFn: () => ratingsDb.getFollowedEpisodeRatings(titleId, seasonNumber),

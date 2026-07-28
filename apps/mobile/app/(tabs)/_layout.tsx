@@ -1,5 +1,5 @@
-import { NativeTabs, Icon, VectorIcon, Label } from 'expo-router/unstable-native-tabs'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
+import { Icon, Label, NativeTabs, VectorIcon } from 'expo-router/unstable-native-tabs'
 import { DynamicColorIOS, Platform } from 'react-native'
 
 export default function TabLayout() {
@@ -12,11 +12,9 @@ export default function TabLayout() {
       : 'green'
 
   return (
-    <NativeTabs
-      tintColor={tintColor}
-    >
+    <NativeTabs tintColor={tintColor}>
       <NativeTabs.Trigger name="index">
-        <Label>{""}</Label>
+        <Label>{''}</Label>
         {Platform.select({
           ios: <Icon sf="house.fill" />,
           android: <Icon src={<VectorIcon family={MaterialIcons} name="home" />} />,
@@ -24,7 +22,7 @@ export default function TabLayout() {
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="search">
-        <Label>{""}</Label>
+        <Label>{''}</Label>
         {Platform.select({
           ios: <Icon sf="magnifyingglass" />,
           android: <Icon src={<VectorIcon family={MaterialIcons} name="search" />} />,
@@ -32,7 +30,7 @@ export default function TabLayout() {
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="diary">
-        <Label>{""}</Label>
+        <Label>{''}</Label>
         {Platform.select({
           ios: <Icon sf="book.fill" />,
           android: <Icon src={<VectorIcon family={MaterialIcons} name="book" />} />,
@@ -40,7 +38,7 @@ export default function TabLayout() {
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="watchlists">
-        <Label>{""}</Label>
+        <Label>{''}</Label>
         {Platform.select({
           ios: <Icon sf="list.bullet" />,
           android: <Icon src={<VectorIcon family={MaterialIcons} name="list" />} />,
@@ -48,7 +46,7 @@ export default function TabLayout() {
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="profile">
-        <Label>{""}</Label>
+        <Label>{''}</Label>
         {Platform.select({
           ios: <Icon sf="person.fill" />,
           android: <Icon src={<VectorIcon family={MaterialIcons} name="person" />} />,

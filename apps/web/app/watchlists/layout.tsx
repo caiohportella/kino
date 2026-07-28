@@ -1,12 +1,9 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
-import { SITE_NAME, absoluteUrl, socialImage } from '@/lib/seo'
+import { absoluteUrl, SITE_NAME, socialImage } from '@/lib/seo'
 
 const description = 'Create, manage, and share movie and TV watchlists in Kino.'
-const image = socialImage(
-  '/watchlists/opengraph-image',
-  'Create and share watchlists on Kino',
-)
+const image = socialImage('/watchlists/opengraph-image', 'Create and share watchlists on Kino')
 
 export const metadata: Metadata = {
   title: 'Watchlists',

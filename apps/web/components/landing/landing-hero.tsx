@@ -55,7 +55,7 @@ export function LandingHero({ logoRef }: { logoRef?: RefObject<HTMLSpanElement |
   const reduceMotion = useReducedMotion()
 
   return (
-    <section className="relative border-b border-white/[0.06] bg-kino-bg pt-24">
+    <section className="relative border-b border-white/6 bg-kino-bg pt-24">
       <motion.div
         animate="visible"
         className="landing-section grid min-h-[calc(100svh-104px)] items-center gap-10 pb-16 lg:grid-cols-[minmax(0,1fr)_480px] lg:pb-20"
@@ -116,21 +116,21 @@ export function LandingHero({ logoRef }: { logoRef?: RefObject<HTMLSpanElement |
 function HeroProductPreview({ reduceMotion }: { reduceMotion: boolean | null }) {
   return (
     <div aria-label="Kino product preview" className="relative hidden lg:block">
-      <div className="rounded-md border border-white/[0.12] bg-kino-surface p-4 shadow-[0_24px_80px_rgb(0_0_0_/_0.34)]">
+      <div className="rounded-md border border-white/12 bg-kino-surface p-4 shadow-[0_24px_80px_rgb(0_0_0/0.34)]">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="size-2.5 rounded-full bg-red-400/80" />
             <span className="size-2.5 rounded-full bg-yellow-300/80" />
             <span className="size-2.5 rounded-full bg-kino-accent/90" />
           </div>
-          <span className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-semibold text-kino-muted">
+          <span className="rounded-full bg-white/6 px-3 py-1 text-xs font-semibold text-kino-muted">
             Tonight
           </span>
         </div>
 
         <div className="grid gap-4">
           <div className="overflow-hidden rounded-md border border-white/10 bg-black/25">
-            <div className="h-40 bg-[linear-gradient(135deg,rgb(29_185_84_/_0.22),rgb(255_255_255_/_0.08)_42%,rgb(0_0_0_/_0.24))]" />
+            <div className="h-40 bg-[linear-gradient(135deg,rgb(29_185_84/0.22),rgb(255_255_255/0.08)_42%,rgb(0_0_0/0.24))]" />
             <div className="grid gap-4 p-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -182,7 +182,7 @@ function HeroProductPreview({ reduceMotion }: { reduceMotion: boolean | null }) 
               <div className="grid gap-2">
                 <div className="h-2 rounded-full bg-white/20" />
                 <div className="h-2 w-4/5 rounded-full bg-white/12" />
-                <div className="mt-3 h-20 rounded-md border border-white/10 bg-white/[0.045]" />
+                <div className="mt-3 h-20 rounded-md border border-white/10 bg-white/4.5" />
               </div>
             </div>
           </div>
@@ -208,7 +208,7 @@ function PreviewAction({
       className={
         active
           ? 'inline-flex items-center gap-2 rounded-md bg-kino-accent px-3 py-2 text-xs font-bold text-black'
-          : 'inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-bold text-kino-muted'
+          : 'inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-kino-muted'
       }
       variants={reduceMotion ? undefined : previewActionVariants}
     >

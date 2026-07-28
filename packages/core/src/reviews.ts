@@ -157,12 +157,7 @@ export const ratingKeys = {
 
 export function isValidHalfStepRating(rating?: number | null) {
   if (rating == null) return true
-  return (
-    Number.isFinite(rating) &&
-    rating >= 0.5 &&
-    rating <= 5 &&
-    Number.isInteger(rating * 2)
-  )
+  return Number.isFinite(rating) && rating >= 0.5 && rating <= 5 && Number.isInteger(rating * 2)
 }
 
 export function validateReviewContent(content: string) {

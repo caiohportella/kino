@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { getTMDbService } from '~/services/tmdb'
-import { dbService } from '~/services/database'
-import { transformMovieToTitleDetails, transformTVToTitleDetails } from '~/utils/tmdb-transform'
-import type { MediaType } from '~/types'
 import { useLanguage } from '~/hooks/useLanguage'
+import { dbService } from '~/services/database'
+import { getTMDbService } from '~/services/tmdb'
+import type { MediaType } from '~/types'
+import { transformMovieToTitleDetails, transformTVToTitleDetails } from '~/utils/tmdb-transform'
 
 const tmdb = getTMDbService()
 

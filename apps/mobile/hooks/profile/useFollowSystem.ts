@@ -1,5 +1,5 @@
 // Hook for managing follow system operations
-import { useState, useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Alert } from 'react-native'
 import { dbService } from '~/services/database'
 import type { FollowerInfo } from '~/types'

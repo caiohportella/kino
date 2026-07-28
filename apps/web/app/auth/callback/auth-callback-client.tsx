@@ -1,31 +1,16 @@
 'use client'
 
-import { EmptyState } from '@/components/kino'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { EmptyState } from '@/components/kino'
 import { AuthSkeleton } from '@/components/skeletons/page-skeletons'
+import { ensureUserProfileFromAuthUser } from '@/lib/auth-profile'
 import {
   consumeStoredAuthRedirect,
   getNativeAuthCallbackUrl,
-  shouldAttemptNativeAuthHandoff,
+  isExplicitNativeAuthHandoff,
 } from '@/lib/auth-redirect'
-import { ensureUserProfileFromAuthUser } from '@/lib/auth-profile'
 import { supabase } from '@/lib/supabase'
-
-type AuthCallbackPayload =
-  | {
-      type: 'code'
-      code: string
-      nativeSearchParams: URLSearchParams
-      nativeHashParams?: URLSearchParams
-    }
-  | {
-      type: 'tokens'
-      accessToken: string
-      refreshToken: string
-      nativeSearchParams: URLSearchParams
-      nativeHashParams?: URLSearchParams
-    }
 
 function getHashParams() {
   if (typeof window === 'undefined') return new URLSearchParams()
@@ -36,24 +21,27 @@ export function AuthCallbackClient() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
+  const [nativeCallbackUrl, setNativeCallbackUrl] = useState<string | null>(null)
   const hasHandledCallback = useRef(false)
 
   const completeBrowserSignIn = useCallback(
-    async (payload: AuthCallbackPayload) => {
-      const { data, error: signInError } =
-        payload.type === 'code'
-          ? await supabase.auth.exchangeCodeForSession(payload.code)
-          : await supabase.auth.setSession({
-              access_token: payload.accessToken,
-              refresh_token: payload.refreshToken,
+    async (code: string | null, accessToken: string | null, refreshToken: string | null) => {
+      const { data, error: signInError } = code
+        ? await supabase.auth.exchangeCodeForSession(code)
+        : accessToken && refreshToken
+          ? await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
             })
+          : { data: { session: null }, error: new Error('Invalid authentication callback.') }
 
       if (signInError) {
-        setError(signInError.message)
-      } else {
-        await ensureUserProfileFromAuthUser(data.session?.user).catch(() => undefined)
-        router.replace(consumeStoredAuthRedirect('/discover'))
+        setError('Sign-in could not be completed. Please start again.')
+        return
       }
+
+      await ensureUserProfileFromAuthUser(data.session?.user).catch(() => undefined)
+      router.replace(consumeStoredAuthRedirect('/discover'))
     },
     [router]
   )
@@ -65,70 +53,55 @@ export function AuthCallbackClient() {
     const hashParams = getHashParams()
     const errorDescription =
       searchParams.get('error_description') || hashParams.get('error_description')
-
     if (errorDescription) {
-      setError(errorDescription)
+      setError('The authentication request was canceled or expired. Please try again.')
       return
     }
 
     const code = searchParams.get('code') || hashParams.get('code')
     const accessToken = searchParams.get('access_token') || hashParams.get('access_token')
     const refreshToken = searchParams.get('refresh_token') || hashParams.get('refresh_token')
-    const payload: AuthCallbackPayload | null = code
-      ? {
-          type: 'code',
-          code,
-          nativeSearchParams: new URLSearchParams({ code }),
-        }
-      : accessToken && refreshToken
-        ? {
-            type: 'tokens',
-            accessToken,
-            refreshToken,
-            nativeSearchParams: new URLSearchParams(),
-            nativeHashParams: new URLSearchParams({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            }),
-          }
-        : null
 
-    if (!payload) {
-      setError('The auth callback did not include a code or session tokens.')
-      return
-    }
-
-    const shouldHandoffToNative =
-      searchParams.get('handoff') !== '0' && shouldAttemptNativeAuthHandoff()
-
-    if (!shouldHandoffToNative) {
-      void completeBrowserSignIn(payload)
-      return
-    }
-
-    const fallbackTimer = window.setTimeout(() => {
-      void completeBrowserSignIn(payload)
-    }, 1600)
-
-    const cancelFallbackIfAppOpened = () => {
-      if (document.visibilityState === 'hidden') {
-        window.clearTimeout(fallbackTimer)
+    if (isExplicitNativeAuthHandoff(searchParams)) {
+      if (!code) {
+        setError(
+          'This mobile callback cannot be handed off safely. Please restart sign-in in Kino.'
+        )
+        return
       }
+      const nativeParams = new URLSearchParams({ code })
+      const returnTo = searchParams.get('returnTo')
+      if (returnTo?.startsWith('/') && !returnTo.startsWith('//')) {
+        nativeParams.set('returnTo', returnTo)
+      }
+      const callbackUrl = getNativeAuthCallbackUrl(nativeParams)
+      setNativeCallbackUrl(callbackUrl)
+      window.location.replace(callbackUrl)
+      return
     }
 
-    document.addEventListener('visibilitychange', cancelFallbackIfAppOpened)
-    window.location.assign(
-      getNativeAuthCallbackUrl(payload.nativeSearchParams, payload.nativeHashParams)
-    )
-
-    return () => {
-      window.clearTimeout(fallbackTimer)
-      document.removeEventListener('visibilitychange', cancelFallbackIfAppOpened)
-    }
+    void completeBrowserSignIn(code, accessToken, refreshToken)
   }, [completeBrowserSignIn, searchParams])
 
   if (error) {
     return <EmptyState body={error} title="Sign-in could not be completed" />
+  }
+
+  if (nativeCallbackUrl) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 text-white">
+        <section className="max-w-sm text-center">
+          <h1 className="text-2xl font-semibold">Authentication completed</h1>
+          <p className="mt-3 text-zinc-400">Kino should open automatically.</p>
+          <a
+            className="mt-6 inline-flex rounded-lg bg-emerald-500 px-5 py-3 font-semibold text-black"
+            href={nativeCallbackUrl}
+          >
+            Open Kino
+          </a>
+        </section>
+      </main>
+    )
   }
 
   return <AuthSkeleton label="Completing sign-in..." />

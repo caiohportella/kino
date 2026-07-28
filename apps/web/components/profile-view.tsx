@@ -51,9 +51,9 @@ import { titlePath, watchlistCoverPath, watchlistPath } from '@/lib/routes'
 import { db, getTmdb } from '@/lib/services'
 import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
 import { cn } from '@/lib/utils'
+import { subscribeToWatchlistChanges } from '@/lib/watchlist-cache-sync'
 import { useAuthStore } from '@/stores/auth-store'
 import { useSettingsStore } from '@/stores/settings-store'
-import { subscribeToWatchlistChanges } from '@/lib/watchlist-cache-sync'
 
 async function refreshSeriesAvailability(items: Awaited<ReturnType<typeof db.getWatchedSeries>>) {
   const tmdb = getTmdb()
@@ -332,19 +332,19 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
 
   return (
     <div className="content-frame">
-      <section className="relative mb-6 min-h-[540px] overflow-hidden rounded-md border border-white/10 bg-kino-surface md:min-h-[588px]">
+      <section className="relative mb-6 min-h-135 overflow-hidden rounded-md border border-white/10 bg-kino-surface md:min-h-147">
         <div className="absolute inset-0 bg-kino-panel">
           {profile.banner_url ? (
             <img alt="" className="h-full w-full object-cover" src={profile.banner_url} />
           ) : (
-            <div className="h-full w-full bg-[linear-gradient(135deg,rgb(29_185_84_/_0.18),rgb(255_255_255_/_0.06)_42%,rgb(0_0_0_/_0.16))]" />
+            <div className="h-full w-full bg-[linear-gradient(135deg,rgb(29_185_84/0.18),rgb(255_255_255/0.06)_42%,rgb(0_0_0/0.16))]" />
           )}
         </div>
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-kino-surface via-kino-surface/75 to-transparent" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/55 via-black/20 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-3/5 bg-linear-to-t from-kino-surface via-kino-surface/75 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-linear-to-t from-black/55 via-black/20 to-transparent" />
 
-        <div className="relative z-10 grid min-h-[540px] content-end gap-5 p-5 md:min-h-[588px] md:grid-cols-[128px_minmax(0,1fr)_auto] md:items-end md:p-6">
-          <Avatar className="h-24 w-24 rounded-md border-4 border-kino-surface bg-kino-panel shadow-[0_18px_42px_rgb(0_0_0_/_0.35)] md:h-32 md:w-32">
+        <div className="relative z-10 grid min-h-135 content-end gap-5 p-5 md:min-h-147 md:grid-cols-[128px_minmax(0,1fr)_auto] md:items-end md:p-6">
+          <Avatar className="h-24 w-24 rounded-md border-4 border-kino-surface bg-kino-panel shadow-[0_18px_42px_rgb(0_0_0/0.35)] md:h-32 md:w-32">
             <AvatarImage alt="" src={profile.avatar_url || undefined} className="rounded-md" />
             <AvatarFallback className="text-3xl">{initials}</AvatarFallback>
           </Avatar>
@@ -517,7 +517,7 @@ function SocialStatCard({
   return (
     <button
       aria-label={t('profile.openList', { label })}
-      className="group flex min-h-28 flex-col justify-center rounded-md border border-white/10 bg-kino-surface p-4 text-left transition-colors hover:border-kino-accent/50 hover:bg-white/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent"
+      className="group flex min-h-28 flex-col justify-center rounded-md border border-white/10 bg-kino-surface p-4 text-left transition-colors hover:border-kino-accent/50 hover:bg-white/4 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-kino-accent"
       onClick={onClick}
       type="button"
     >
@@ -554,7 +554,7 @@ function ProfileStatCard({
       className={cn(
         'flex min-h-28 flex-col justify-center rounded-md border border-white/10 bg-white/[0.035] p-4 text-left',
         onClick &&
-          'cursor-pointer transition-colors hover:border-kino-accent/50 hover:bg-white/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent'
+          'cursor-pointer transition-colors hover:border-kino-accent/50 hover:bg-white/4 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-kino-accent'
       )}
       onClick={onClick}
       type={onClick ? 'button' : undefined}
@@ -1202,7 +1202,7 @@ function ProfileTitleRow<T>({
         {hasMore ? (
           <Button
             aria-haspopup="dialog"
-            className="aspect-[2/3] w-full self-start whitespace-normal text-center"
+            className="aspect-2/3 w-full self-start whitespace-normal text-center"
             onClick={() => setShowAllOpen(true)}
             variant="secondary"
           >
@@ -1255,7 +1255,7 @@ function SeriesStatusPill({
           })}
         </span>
         {isUpcoming ? (
-          <span className="inline-flex min-h-7 w-fit items-center rounded-full border border-white/10 bg-white/[0.08] px-3 text-xs font-semibold text-kino-text">
+          <span className="inline-flex min-h-7 w-fit items-center rounded-full border border-white/10 bg-white/8 px-3 text-xs font-semibold text-kino-text">
             {series.next_episode.air_date
               ? t('profile.newEpisodesOn', { date: formatDate(series.next_episode.air_date) })
               : t('profile.newEpisodesSoon')}
@@ -1267,7 +1267,7 @@ function SeriesStatusPill({
 
   if (series.last_episode) {
     return (
-      <span className="mt-3 inline-flex min-h-7 items-center rounded-full border border-white/10 bg-white/[0.08] px-3 text-xs font-semibold text-kino-text">
+      <span className="mt-3 inline-flex min-h-7 items-center rounded-full border border-white/10 bg-white/8 px-3 text-xs font-semibold text-kino-text">
         {t('profile.last')}{' '}
         {t('profile.episodeCode', {
           episode: series.last_episode.episode,

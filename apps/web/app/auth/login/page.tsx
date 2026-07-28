@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 import { AuthPanel } from '@/components/auth-panel'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -15,7 +15,7 @@ export default function LoginPage() {
 
   return (
     <div className="content-frame grid min-h-[calc(100vh-68px)] place-items-center py-8">
-      <div className="w-full max-w-[440px]">
+      <div className="w-full max-w-110">
         <AuthPanel initialTab="sign-in" />
       </div>
     </div>

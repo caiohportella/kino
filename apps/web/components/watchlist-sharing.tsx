@@ -25,7 +25,7 @@ export function WatchlistVisibilityBadge({
     <span
       className={cn(
         'inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded-md border px-3 py-1 text-xs font-semibold',
-        'border-kino-accent/20 bg-kino-accent/[0.06] text-kino-muted',
+        'border-kino-accent/20 bg-kino-accent/6 text-kino-muted',
         className
       )}
     >

@@ -2,11 +2,11 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { EmptyState } from '@/components/kino'
-import { Button } from '@/components/ui/button'
-import { useTranslation } from '@/lib/i18n'
 import { MediaSection } from '@/components/media-section'
 import { PageHeader } from '@/components/page-header'
 import { HomeSkeleton } from '@/components/skeletons/page-skeletons'
+import { Button } from '@/components/ui/button'
+import { useTranslation } from '@/lib/i18n'
 import { getTmdb } from '@/lib/services'
 import { useSettingsStore } from '@/stores/settings-store'
 

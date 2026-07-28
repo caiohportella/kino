@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { getTMDbService } from '~/services/tmdb'
 import { useLanguage } from '~/hooks/useLanguage'
+import { getTMDbService } from '~/services/tmdb'
 
 const tmdb = getTMDbService()
 
@@ -22,7 +22,7 @@ export function useTheaterStatus(movieId: number | undefined, type: string | und
         // Method 2: Check release dates for theatrical release (type 3)
         const releaseData = await tmdb.getMovieReleaseDates(movieId)
         const countryData = releaseData.results.find((r) => r.iso_3166_1 === region)
-        
+
         if (countryData) {
           const now = new Date()
           const threeMonthsAgo = new Date()

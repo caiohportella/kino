@@ -1,5 +1,3 @@
-'use client'
-
 import type { ProfileReview } from '@kino/core'
 import { Heart } from 'lucide-react'
 import Link from 'next/link'
@@ -50,7 +48,7 @@ export function ProfileReviewCard({
   const posterUrl = getTmdb().getImageUrl(review.title.posterUrl, 'w300')
 
   return (
-    <article className="group relative grid min-h-56 grid-cols-[76px_minmax(0,1fr)] gap-4 overflow-hidden rounded-md border border-white/10 bg-white/[0.025] p-4 transition-colors hover:border-kino-accent/35 hover:bg-white/[0.04]">
+    <article className="group relative grid min-h-56 grid-cols-[76px_minmax(0,1fr)] gap-4 overflow-hidden rounded-md border border-white/10 bg-white/2.5 p-4 transition-colors hover:border-kino-accent/35 hover:bg-white/4">
       <Link
         aria-label={t('reviews.openForTitle', { title: review.title.name })}
         className="focus-ring absolute inset-0 rounded-md"
@@ -61,7 +59,7 @@ export function ProfileReviewCard({
       </div>
       <div className="relative min-w-0">
         <div className="pointer-events-none pr-16">
-          <h3 className="break-words font-semibold text-kino-text">
+          <h3 className="wrap-break-word font-semibold text-kino-text">
             {review.title.name}
             {review.title.year ? (
               <span className="font-normal text-kino-muted"> ({review.title.year})</span>
@@ -115,7 +113,7 @@ export function ProfileReviewCard({
               pending={pendingOwnerAction}
             />
           ) : (
-            <p className="line-clamp-5 break-words whitespace-pre-wrap text-sm leading-6 text-kino-text md:line-clamp-4">
+            <p className="line-clamp-5 wrap-break-word whitespace-pre-wrap text-sm leading-6 text-kino-text md:line-clamp-4">
               {review.content}
             </p>
           )}

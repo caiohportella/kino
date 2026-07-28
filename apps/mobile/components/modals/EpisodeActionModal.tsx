@@ -1,10 +1,10 @@
-import { Modal, View, Text, TouchableOpacity, Switch, TouchableWithoutFeedback } from 'react-native'
-import { WatchlistSelectorModal } from './WatchlistSelectorModal'
-import { BlurView } from 'expo-blur'
-import { RatingStars } from '../common/RatingStars'
-import { useEffect, useState } from 'react'
 import { Ionicons } from '@expo/vector-icons'
+import { BlurView } from 'expo-blur'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Modal, Switch, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native'
+import { RatingStars } from '../common/RatingStars'
+import { WatchlistSelectorModal } from './WatchlistSelectorModal'
 
 interface EpisodeActionModalProps {
   visible: boolean

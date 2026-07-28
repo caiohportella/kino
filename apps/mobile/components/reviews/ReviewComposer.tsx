@@ -1,7 +1,7 @@
 import type { PublicUserSummary } from '@kino/core'
 import { useState } from 'react'
-import { Image, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { Image, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { RatingStars } from '~/components/common/RatingStars'
 
 export function ReviewComposer({
@@ -36,8 +36,7 @@ export function ReviewComposer({
       <View className="flex-1">
         <View className="flex-row flex-wrap items-center gap-2">
           <Text className="text-sm text-text-secondary">
-            {t('reviews.reviewedBy')}{' '}
-            <Text className="font-bold text-text-primary">{name}</Text>
+            {t('reviews.reviewedBy')} <Text className="font-bold text-text-primary">{name}</Text>
           </Text>
           {rating ? <RatingStars rating={rating} readonly size={14} /> : null}
         </View>

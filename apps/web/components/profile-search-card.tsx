@@ -67,7 +67,7 @@ export function ProfileSearchCard({
         ) : (
           <div className="size-full bg-[radial-gradient(circle_at_50%_25%,color-mix(in_oklch,var(--primary),transparent_68%),transparent_52%),linear-gradient(145deg,var(--muted),var(--background))]" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-b from-background/15 via-background/35 to-background/95" />
+        <div className="absolute inset-0 bg-linear-to-b from-background/15 via-background/35 to-background/95" />
       </div>
 
       <div className="relative z-10 grid min-w-0 grid-rows-[1fr_auto] justify-items-center gap-4 text-center">
@@ -82,8 +82,12 @@ export function ProfileSearchCard({
           <span className="block truncate text-base font-semibold text-foreground group-hover:text-kino-accent">
             {name}
           </span>
-          {username ? <span className="mt-1 block truncate text-sm text-muted-foreground">@{username}</span> : null}
-          {subtitle ? <span className="mt-1 block truncate text-xs text-muted-foreground">{subtitle}</span> : null}
+          {username ? (
+            <span className="mt-1 block truncate text-sm text-muted-foreground">@{username}</span>
+          ) : null}
+          {subtitle ? (
+            <span className="mt-1 block truncate text-xs text-muted-foreground">{subtitle}</span>
+          ) : null}
         </span>
       </div>
     </Link>

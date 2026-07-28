@@ -48,7 +48,7 @@
         "noWith": "warn"
       }
     },
-    "includes": ["**", "!android/app/build", "!dist/*"]
+    "includes": ["**", "!.agents/**", "!android/app/build", "!dist/*"]
   },
   "javascript": {
     "formatter": {
@@ -235,7 +235,15 @@
         }
       }
     },
-    { "includes": ["*.web.*"] }
+    { "includes": ["*.web.*"] },
+    {
+      "includes": ["apps/mobile/**"],
+      "linter": {
+        "rules": {
+          "style": { "noCommonJs": "off" }
+        }
+      }
+    }
   ],
   "assist": {
     "enabled": true,

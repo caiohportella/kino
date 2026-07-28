@@ -1,5 +1,5 @@
-import { View, Text, TouchableOpacity } from 'react-native'
 import { Feather } from '@expo/vector-icons'
+import { Text, TouchableOpacity, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 interface ScreenHeaderProps {

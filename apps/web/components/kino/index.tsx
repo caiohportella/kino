@@ -36,7 +36,7 @@ export function EmptyState({
     <section
       className={cn(
         'empty-state-enter mx-auto flex w-full max-w-2xl flex-col items-center justify-center px-5 text-center',
-        size === 'compact' ? 'min-h-64 gap-3 py-8' : 'min-h-[420px] gap-4 py-12 sm:py-16',
+        size === 'compact' ? 'min-h-64 gap-3 py-8' : 'min-h-105 gap-4 py-12 sm:py-16',
         className
       )}
     >
@@ -141,10 +141,7 @@ export function Poster({
 }) {
   return (
     <div
-      className={cn(
-        'relative aspect-[2/3] w-full overflow-hidden rounded bg-white/[0.06]',
-        className
-      )}
+      className={cn('relative aspect-2/3 w-full overflow-hidden rounded bg-white/6', className)}
     >
       {src ? (
         <img alt={alt || title} className="h-full w-full object-cover" loading="lazy" src={src} />

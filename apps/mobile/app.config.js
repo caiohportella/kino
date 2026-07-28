@@ -15,7 +15,10 @@ function readEnvFile(envPath) {
       if (separator === -1) return env
 
       const key = trimmed.slice(0, separator).trim()
-      const value = trimmed.slice(separator + 1).trim().replace(/^["']|["']$/g, '')
+      const value = trimmed
+        .slice(separator + 1)
+        .trim()
+        .replace(/^["']|["']$/g, '')
       if (key) env[key] = value
       return env
     }, {})
@@ -26,7 +29,7 @@ const rootEnv = readEnvFile(resolve(workspaceRoot, '.env'))
 
 function firstDefined(...names) {
   for (const name of names) {
-    const value = rootEnv[name] ?? process.env[name]
+    const value = process.env[name] ?? rootEnv[name]
     if (value) return value
   }
   return undefined
@@ -46,7 +49,14 @@ setExpoPublicEnv('EXPO_PUBLIC_WEB_URL', 'NEXT_PUBLIC_SITE_URL', 'NEXT_PUBLIC_WEB
 setExpoPublicEnv('EXPO_PUBLIC_AUTH_REDIRECT_URL', 'NEXT_PUBLIC_AUTH_REDIRECT_URL')
 setExpoPublicEnv('EXPO_PUBLIC_APP_SCHEME', 'NEXT_PUBLIC_APP_SCHEME')
 
-module.exports = () => ({
-  ...appJson.expo,
-  scheme: process.env.EXPO_PUBLIC_APP_SCHEME || appJson.expo.scheme || 'kino',
-})
+module.exports = () => {
+  const scheme = process.env.EXPO_PUBLIC_APP_SCHEME || appJson.expo.scheme || 'kino'
+  if (!/^[a-z][a-z0-9+.-]*$/i.test(scheme)) {
+    throw new Error('EXPO_PUBLIC_APP_SCHEME must be a URL scheme such as "kino".')
+  }
+
+  return {
+    ...appJson.expo,
+    scheme,
+  }
+}

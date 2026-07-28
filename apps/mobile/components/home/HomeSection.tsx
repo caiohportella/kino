@@ -1,6 +1,6 @@
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native'
-import { TitleCard } from '~/components/common/TitleCard'
 import { useRouter } from 'expo-router'
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native'
+import { TitleCard } from '~/components/common/TitleCard'
 import type { TMDbTitle } from '~/types'
 
 interface HomeSectionProps {

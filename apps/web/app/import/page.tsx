@@ -7,17 +7,17 @@ import {
   transformMovieToTitleDetails,
   transformTVToTitleDetails,
 } from '@kino/core'
-import { EmptyState, ProgressBar } from '@/components/kino'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
-import { SegmentedControl } from '@/components/ui/segmented-control'
 import { AlertTriangle, CheckCircle2, CloudUpload, RotateCcw, Save, XCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { AppPagination } from '@/components/app-pagination'
+import { EmptyState, ProgressBar } from '@/components/kino'
 import { PageHeader } from '@/components/page-header'
 import { ProtectedEmpty } from '@/components/protected-empty'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
 import { db, getTmdb } from '@/lib/services'
 import { useAuthStore } from '@/stores/auth-store'
@@ -404,10 +404,10 @@ function ImportRow({
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-semibold text-kino-text">{item.title}</h2>
-            <span className="rounded-md bg-white/[0.06] px-2 py-1 text-xs font-semibold text-kino-muted">
+            <span className="rounded-md bg-white/6 px-2 py-1 text-xs font-semibold text-kino-muted">
               {item.mediaType === 'movie' ? 'Movie' : 'Series'}
             </span>
-            <span className="rounded-md bg-white/[0.06] px-2 py-1 text-xs font-semibold text-kino-muted">
+            <span className="rounded-md bg-white/6 px-2 py-1 text-xs font-semibold text-kino-muted">
               {item.sourceLabel}
             </span>
             {item.importStatus === 'success' && (

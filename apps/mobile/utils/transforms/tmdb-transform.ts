@@ -1,6 +1,7 @@
 // Utility functions to transform TMDb API responses to our app format
-import type { TMDbMovie, TMDbTVShow, TMDbCast, TMDbGenre, TitleDetails } from '~/types'
+
 import { getTMDbService } from '~/services/tmdb'
+import type { TitleDetails, TMDbCast, TMDbGenre, TMDbMovie, TMDbTVShow } from '~/types'
 
 /**
  * Transform TMDb movie data to TitleDetails

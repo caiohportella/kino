@@ -15,10 +15,10 @@ function HeadingSkeleton() {
 
 function PosterRowSkeleton({ count = 6 }: { count?: number }) {
   return (
-    <div className="grid grid-flow-col auto-cols-[140px] gap-4 overflow-hidden sm:auto-cols-[168px]">
+    <div className="grid grid-flow-col auto-cols-35 gap-4 overflow-hidden sm:auto-cols-42">
       {Array.from({ length: count }, (_, index) => (
         <div className="grid gap-3" key={index}>
-          <Skeleton className="aspect-[2/3] w-full" />
+          <Skeleton className="aspect-2/3 w-full" />
           <Skeleton className="h-4 w-4/5" />
           <Skeleton className="h-3 w-2/5" />
         </div>
@@ -40,7 +40,7 @@ export function HomeSkeleton({ label = 'Loading' }: { label?: string }) {
   return (
     <div aria-busy="true" className="content-frame grid gap-10" role="status">
       <ScreenReaderLoading label={label} />
-      <Skeleton className="min-h-[280px] w-full rounded-md sm:min-h-[360px]" />
+      <Skeleton className="min-h-70 w-full rounded-md sm:min-h-90" />
       <SectionSkeleton titleWidth="w-40" />
       <SectionSkeleton titleWidth="w-52" />
     </div>
@@ -51,10 +51,10 @@ export function TitleSkeleton({ label = 'Loading' }: { label?: string }) {
   return (
     <div aria-busy="true" className="content-frame grid gap-8" role="status">
       <ScreenReaderLoading label={label} />
-      <section className="relative min-h-[520px] overflow-hidden rounded-md border border-white/10">
+      <section className="relative min-h-130 overflow-hidden rounded-md border border-white/10">
         <Skeleton className="absolute inset-0" />
         <div className="absolute inset-x-0 bottom-0 grid items-end gap-6 p-5 md:grid-cols-[190px_1fr] md:p-8">
-          <Skeleton className="hidden aspect-[2/3] w-full md:block" />
+          <Skeleton className="hidden aspect-2/3 w-full md:block" />
           <div className="grid gap-4">
             <Skeleton className="h-12 w-3/5" />
             <Skeleton className="h-4 w-2/5" />
@@ -80,8 +80,8 @@ export function PersonSkeleton({ label = 'Loading' }: { label?: string }) {
   return (
     <div aria-busy="true" className="content-frame grid gap-8" role="status">
       <ScreenReaderLoading label={label} />
-      <section className="grid min-h-[420px] content-end gap-5 rounded-md border border-white/10 p-5 md:grid-cols-[160px_1fr] md:items-end md:p-6">
-        <Skeleton className="aspect-[2/3] w-32 md:w-full" />
+      <section className="grid min-h-105 content-end gap-5 rounded-md border border-white/10 p-5 md:grid-cols-[160px_1fr] md:items-end md:p-6">
+        <Skeleton className="aspect-2/3 w-32 md:w-full" />
         <div className="grid gap-3">
           <Skeleton className="h-12 w-64 max-w-full" />
           <Skeleton className="h-4 w-36" />
@@ -170,7 +170,7 @@ export function ProfileSkeleton({ label = 'Loading' }: { label?: string }) {
   return (
     <div aria-busy="true" className="content-frame grid gap-8" role="status">
       <ScreenReaderLoading label={label} />
-      <Skeleton className="min-h-[540px] w-full" />
+      <Skeleton className="min-h-135 w-full" />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         {Array.from({ length: 6 }, (_, index) => (
           <Skeleton className="h-28" key={index} />

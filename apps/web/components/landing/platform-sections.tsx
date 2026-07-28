@@ -31,10 +31,10 @@ export function CrossPlatformSection() {
               <div className="h-3 w-44 rounded-full bg-white/20" />
               <div className="mt-5 grid grid-cols-5 gap-2">
                 {[0, 1, 2, 3, 4].map((item) => (
-                  <span className="aspect-[2/3] rounded-md bg-white/[0.07]" key={item} />
+                  <span className="aspect-2/3 rounded-md bg-white/[0.07]" key={item} />
                 ))}
               </div>
-              <div className="mt-5 h-20 rounded-md bg-white/[0.04]" />
+              <div className="mt-5 h-20 rounded-md bg-white/4" />
             </div>
           </div>
           <div className="rounded-md border border-white/10 bg-kino-panel p-4">
@@ -42,9 +42,9 @@ export function CrossPlatformSection() {
               <Smartphone size={16} />
               {t('landing.platforms.mobileLabel')}
             </div>
-            <div className="mx-auto max-w-[190px] rounded-md border border-white/10 bg-black/30 p-3">
+            <div className="mx-auto max-w-47.5 rounded-md border border-white/10 bg-black/30 p-3">
               <div className="h-2 w-16 rounded-full bg-white/20" />
-              <div className="mt-4 aspect-[2/3] rounded-md bg-[linear-gradient(145deg,rgb(29_185_84_/_0.2),rgb(255_255_255_/_0.08))]" />
+              <div className="mt-4 aspect-2/3 rounded-md bg-[linear-gradient(145deg,rgb(29_185_84/0.2),rgb(255_255_255/0.08))]" />
               <div className="mt-4 grid gap-2">
                 <span className="h-2 rounded-full bg-white/20" />
                 <span className="h-2 w-3/4 rounded-full bg-white/12" />
@@ -84,8 +84,8 @@ export function InternationalizationSection() {
                   aria-pressed={language === i18n.language}
                   className={
                     language === i18n.language
-                      ? 'rounded-md bg-kino-accent px-3 py-2 text-sm font-bold text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent'
-                      : 'rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-bold text-kino-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent'
+                      ? 'rounded-md bg-kino-accent px-3 py-2 text-sm font-bold text-black focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-kino-accent'
+                      : 'rounded-md border border-white/10 bg-white/4 px-3 py-2 text-sm font-bold text-kino-muted focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-kino-accent'
                   }
                   key={language}
                   onClick={() => {

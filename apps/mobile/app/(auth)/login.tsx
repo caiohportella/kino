@@ -1,22 +1,23 @@
 // Login screen
+
+import { AntDesign, Feather } from '@expo/vector-icons'
+import { AuthError } from '@supabase/supabase-js'
+import { LinearGradient } from 'expo-linear-gradient'
+import { Stack, useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-  Image,
-  StyleSheet,
+  View,
 } from 'react-native'
-import { useRouter, Stack } from 'expo-router'
-import { useAuth } from '@/hooks/useAuth'
-import { AuthError } from '@supabase/supabase-js'
-import { Feather, AntDesign } from '@expo/vector-icons'
+import { AuthFlowCancelledError, useAuth } from '@/hooks/useAuth'
 import { GlassContainer } from '~/components/ui/GlassContainer'
-import { LinearGradient } from 'expo-linear-gradient'
-import { useTranslation } from 'react-i18next'
 
 export default function LoginScreen() {
   const router = useRouter()
@@ -28,7 +29,7 @@ export default function LoginScreen() {
     if (user) {
       router.replace('/(tabs)')
     }
-  }, [user])
+  }, [router, user])
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -71,8 +72,10 @@ export default function LoginScreen() {
   const handleGoogleLogin = async () => {
     try {
       setLoading(true)
-      await signInWithGoogle()
+      const destination = await signInWithGoogle()
+      if (destination) router.replace(destination as never)
     } catch (error) {
+      if (error instanceof AuthFlowCancelledError) return
       if (error instanceof AuthError) {
         Alert.alert(t('auth.googleLoginFailed'), error.message)
       } else {

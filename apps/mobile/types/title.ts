@@ -1,5 +1,5 @@
 import type { MediaType } from './common'
-import type { TMDbGenre, TMDbCast, TMDbSeason, TMDbExternalIds } from './tmdb'
+import type { TMDbCast, TMDbExternalIds, TMDbGenre, TMDbSeason } from './tmdb'
 
 export interface TitleDetails {
   id: string

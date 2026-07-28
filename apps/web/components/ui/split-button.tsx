@@ -31,10 +31,7 @@ function SplitButtonMain({ className, ...props }: ComponentProps<typeof Button>)
 function SplitButtonSecondary({ className, ...props }: ComponentProps<typeof Button>) {
   return (
     <Button
-      className={cn(
-        'min-h-11 min-w-11 rounded-none rounded-r-md px-3 shadow-none',
-        className
-      )}
+      className={cn('min-h-11 min-w-11 rounded-none rounded-r-md px-3 shadow-none', className)}
       variant="secondary"
       {...props}
     />

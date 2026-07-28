@@ -4,7 +4,8 @@ import { useLanguage } from '~/hooks/useLanguage'
 
 export const PERSON_DATA_KEYS = {
   all: ['person'] as const,
-  details: (personId: number, lang: string) => [...PERSON_DATA_KEYS.all, personId, 'details', lang] as const,
+  details: (personId: number, lang: string) =>
+    [...PERSON_DATA_KEYS.all, personId, 'details', lang] as const,
 }
 
 export function usePersonData(personId: number | null) {

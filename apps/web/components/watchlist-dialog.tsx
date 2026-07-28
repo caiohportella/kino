@@ -1,14 +1,12 @@
-'use client'
-
 import type { WatchlistVisibility } from '@kino/core'
 import { useState } from 'react'
-import { useTranslation } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
 import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
 import { ModalDialog as Dialog } from '@/components/ui/modal-dialog'
+import { WatchlistVisibilitySelector } from '@/components/watchlist-visibility-selector'
+import { useTranslation } from '@/lib/i18n'
 import { db } from '@/lib/services'
 import { publishWatchlistChange } from '@/lib/watchlist-cache-sync'
-import { WatchlistVisibilitySelector } from '@/components/watchlist-visibility-selector'
 
 export function WatchlistDialog({
   open,

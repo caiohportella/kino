@@ -1,13 +1,22 @@
-import { Modal, View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Image, Linking } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { useTranslation } from 'react-i18next'
-import { usePersonData } from '~/hooks/usePersonData'
-import { useRouter } from 'expo-router'
-import { FlatList } from 'react-native-gesture-handler'
-import type { TMDbPersonCredit } from '~/types'
-import { getTMDbService } from '~/services/tmdb'
-import { TitleCard } from '~/components/common/TitleCard'
 import { formatDate } from '@kino/core'
+import { useRouter } from 'expo-router'
+import { useTranslation } from 'react-i18next'
+import {
+  ActivityIndicator,
+  Image,
+  Linking,
+  Modal,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native'
+import { FlatList } from 'react-native-gesture-handler'
+import { TitleCard } from '~/components/common/TitleCard'
+import { usePersonData } from '~/hooks/usePersonData'
+import { getTMDbService } from '~/services/tmdb'
+import type { TMDbPersonCredit } from '~/types'
 
 interface PersonalityModalProps {
   visible: boolean
@@ -32,8 +41,10 @@ export function PersonalityModal({ visible, onClose, personId }: PersonalityModa
       .sort((a, b) => b.vote_count - a.vote_count) || []
 
   // Get a backdrop from the most popular movie/show they've been in
-  const backdropCredit = knownFor.find(c => c.backdrop_path)
-  const backdropUrl = backdropCredit ? tmdb.getBackdropUrl(backdropCredit.backdrop_path, 'w780') : null
+  const backdropCredit = knownFor.find((c) => c.backdrop_path)
+  const backdropUrl = backdropCredit
+    ? tmdb.getBackdropUrl(backdropCredit.backdrop_path, 'w780')
+    : null
 
   const handleTitlePress = (credit: TMDbPersonCredit) => {
     onClose()
@@ -57,7 +68,7 @@ export function PersonalityModal({ visible, onClose, personId }: PersonalityModa
   }
 
   const openSocialLink = (url: string) => {
-    Linking.openURL(url).catch(err => console.error("Couldn't load page", err))
+    Linking.openURL(url).catch((err) => console.error("Couldn't load page", err))
   }
 
   return (
@@ -83,11 +94,7 @@ export function PersonalityModal({ visible, onClose, personId }: PersonalityModa
             {/* Hero Section */}
             <View className="relative">
               {backdropUrl ? (
-                <Image
-                  source={{ uri: backdropUrl }}
-                  className="h-48 w-full"
-                  resizeMode="cover"
-                />
+                <Image source={{ uri: backdropUrl }} className="h-48 w-full" resizeMode="cover" />
               ) : (
                 <View className="h-48 w-full items-center justify-center bg-surface">
                   <Ionicons name="image-outline" size={48} color="#B0B0B0" />
@@ -118,27 +125,49 @@ export function PersonalityModal({ visible, onClose, personId }: PersonalityModa
                 {person.external_ids && (
                   <View className="flex-row flex-wrap gap-3 mt-2">
                     {person.external_ids.instagram_id && (
-                      <TouchableOpacity onPress={() => openSocialLink(`https://instagram.com/${person.external_ids!.instagram_id}`)}>
+                      <TouchableOpacity
+                        onPress={() =>
+                          openSocialLink(
+                            `https://instagram.com/${person.external_ids!.instagram_id}`
+                          )
+                        }
+                      >
                         <Ionicons name="logo-instagram" size={20} color="#E1306C" />
                       </TouchableOpacity>
                     )}
                     {person.external_ids.twitter_id && (
-                      <TouchableOpacity onPress={() => openSocialLink(`https://x.com/${person.external_ids!.twitter_id}`)}>
+                      <TouchableOpacity
+                        onPress={() =>
+                          openSocialLink(`https://x.com/${person.external_ids!.twitter_id}`)
+                        }
+                      >
                         <Ionicons name="logo-x" size={20} color="#1DA1F2" />
                       </TouchableOpacity>
                     )}
                     {person.external_ids.facebook_id && (
-                      <TouchableOpacity onPress={() => openSocialLink(`https://facebook.com/${person.external_ids!.facebook_id}`)}>
+                      <TouchableOpacity
+                        onPress={() =>
+                          openSocialLink(`https://facebook.com/${person.external_ids!.facebook_id}`)
+                        }
+                      >
                         <Ionicons name="logo-facebook" size={20} color="#1877F2" />
                       </TouchableOpacity>
                     )}
                     {person.external_ids.tiktok_id && (
-                      <TouchableOpacity onPress={() => openSocialLink(`https://tiktok.com/@${person.external_ids!.tiktok_id}`)}>
+                      <TouchableOpacity
+                        onPress={() =>
+                          openSocialLink(`https://tiktok.com/@${person.external_ids!.tiktok_id}`)
+                        }
+                      >
                         <Ionicons name="logo-tiktok" size={20} color="#FFFFFF" />
                       </TouchableOpacity>
                     )}
                     {person.external_ids.imdb_id && (
-                      <TouchableOpacity onPress={() => openSocialLink(`https://imdb.com/name/${person.external_ids!.imdb_id}`)}>
+                      <TouchableOpacity
+                        onPress={() =>
+                          openSocialLink(`https://imdb.com/name/${person.external_ids!.imdb_id}`)
+                        }
+                      >
                         <Ionicons name="film-outline" size={20} color="#F5C518" />
                       </TouchableOpacity>
                     )}
@@ -150,7 +179,7 @@ export function PersonalityModal({ visible, onClose, personId }: PersonalityModa
             {/* Info Details Container */}
             <View className="px-6 mb-6">
               <View className="flex-row flex-wrap gap-x-6 gap-y-3 mb-4">
-                {(person.birthday) && (
+                {person.birthday && (
                   <View className="flex-row items-center">
                     <Ionicons name="star" size={14} color="#1DB954" className="mr-1" />
                     <Text className="text-sm text-text-primary font-medium ml-1">
@@ -158,7 +187,7 @@ export function PersonalityModal({ visible, onClose, personId }: PersonalityModa
                     </Text>
                   </View>
                 )}
-                {(person.deathday) && (
+                {person.deathday && (
                   <View className="flex-row items-center">
                     <Ionicons name="skull-outline" size={16} color="#FF4B4B" className="mr-1" />
                     <Text className="text-sm text-text-primary font-medium ml-1">
@@ -177,7 +206,9 @@ export function PersonalityModal({ visible, onClose, personId }: PersonalityModa
                 {person.known_for_department && (
                   <View className="flex-row items-center bg-surface px-2 py-1 rounded">
                     <Text className="text-xs text-text-secondary font-medium">
-                      {t(`person.department.${person.known_for_department}`, { defaultValue: person.known_for_department })}
+                      {t(`person.department.${person.known_for_department}`, {
+                        defaultValue: person.known_for_department,
+                      })}
                     </Text>
                   </View>
                 )}
@@ -188,9 +219,7 @@ export function PersonalityModal({ visible, onClose, personId }: PersonalityModa
                   <Text className="mb-2 text-lg font-bold text-text-primary">
                     {t('person.biography')}
                   </Text>
-                  <Text className="text-sm leading-6 text-text-secondary">
-                    {person.biography}
-                  </Text>
+                  <Text className="text-sm leading-6 text-text-secondary">{person.biography}</Text>
                 </View>
               ) : null}
             </View>

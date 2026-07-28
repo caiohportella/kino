@@ -1,5 +1,5 @@
 // Hook for managing user search functionality
-import { useState, useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { dbService } from '~/services/database'
 import type { UserProfile } from '~/types'
 

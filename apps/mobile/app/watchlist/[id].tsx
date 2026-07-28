@@ -1,41 +1,40 @@
-import { useLocalSearchParams, useRouter, Stack } from 'expo-router'
-import { useEffect, useState, useMemo, useCallback } from 'react'
-import {
-  View,
-  Text,
-  FlatList,
-  ActivityIndicator,
-  TouchableOpacity,
-  Image,
-  Alert,
-  Share,
-  RefreshControl,
-} from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
+import { formatDate } from '@kino/core'
+import { format } from 'date-fns'
 import * as Clipboard from 'expo-clipboard'
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  RefreshControl,
+  Share,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native'
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withSequence,
   Easing,
-  interpolate,
   Extrapolation,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
 } from 'react-native-reanimated'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useAuth } from '@/hooks/useAuth'
+import { supabase } from '@/utils/supabase'
+import { GroupedAvatar } from '~/components/common/GroupedAvatar'
+import { Skeleton } from '~/components/common/Skeleton'
+import { CreateWatchlistModal } from '~/components/modals/CreateWatchlistModal'
+import { ShareCodeBadge } from '~/components/watchlist/ShareCodeBadge'
 import { dbService } from '~/services/database'
 import { getTMDbService } from '~/services/tmdb'
-import { formatDate } from '@kino/core'
-
-import type { Watchlist, UserProfile } from '~/types'
-import { CreateWatchlistModal } from '~/components/modals/CreateWatchlistModal'
-import { GroupedAvatar } from '~/components/common/GroupedAvatar'
-import { ShareCodeBadge } from '~/components/watchlist/ShareCodeBadge'
-import { useAuth } from '@/hooks/useAuth'
-import { format } from 'date-fns'
-import { useTranslation } from 'react-i18next'
-import { Skeleton } from '~/components/common/Skeleton'
-import { supabase } from '@/utils/supabase'
+import type { UserProfile, Watchlist } from '~/types'
 import type { SupabaseTitle, SupabaseWatchlistItem } from '~/types/supabase'
 
 const AnimatedIonicons = Animated.createAnimatedComponent(Ionicons)
@@ -60,13 +59,7 @@ export default function WatchlistDetailScreen() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)
 
-  useEffect(() => {
-    if (id) {
-      loadWatchlistDetails()
-    }
-  }, [id])
-
-  const loadWatchlistDetails = async () => {
+  const loadWatchlistDetails = useCallback(async () => {
     try {
       const details = await dbService.getWatchlist(id as string)
       setWatchlist(details)
@@ -130,12 +123,18 @@ export default function WatchlistDetailScreen() {
       setLoading(false)
       setRefreshing(false)
     }
-  }
+  }, [id])
+
+  useEffect(() => {
+    if (id) {
+      loadWatchlistDetails()
+    }
+  }, [id, loadWatchlistDetails])
 
   const onRefresh = useCallback(() => {
     setRefreshing(true)
     loadWatchlistDetails()
-  }, [id])
+  }, [loadWatchlistDetails])
 
   const sortedItems = useMemo(() => {
     if (!items.length) return []
@@ -225,7 +224,7 @@ export default function WatchlistDetailScreen() {
           try {
             await dbService.deleteWatchlist(id as string)
             router.back()
-          } catch (error) {
+          } catch (_error) {
             Alert.alert(t('common.error'), t('watchlists.failedToDeleteWatchlist'))
           }
         },

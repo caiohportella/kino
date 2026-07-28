@@ -1,30 +1,48 @@
 // Watch diary screen
-import { useEffect, useState, useMemo, useCallback } from 'react'
+
+import { Ionicons } from '@expo/vector-icons'
+import { format } from 'date-fns'
+import { enUS, fr, it, nb, pt } from 'date-fns/locale'
+import { useFocusEffect, useRouter } from 'expo-router'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
-  View,
-  Text,
   ActivityIndicator,
-  TouchableOpacity,
-  SectionList,
   Image,
   RefreshControl,
+  SectionList,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '@/hooks/useAuth'
 import { useLanguage } from '@/hooks/useLanguage'
 import { supabase } from '@/utils/supabase'
-import { format } from 'date-fns'
-import { enUS, fr, it, nb, pt } from 'date-fns/locale'
-import { useRouter, useFocusEffect } from 'expo-router'
-import { ScreenHeader } from '~/components/layout/ScreenHeader'
-import { Ionicons } from '@expo/vector-icons'
-import { DiaryActionModal } from '~/components/modals/DiaryActionModal'
 import { RatingStars } from '~/components/common/RatingStars'
-import { useTranslation } from 'react-i18next'
-import { dbService } from '~/services/database'
+import { ScreenHeader } from '~/components/layout/ScreenHeader'
+import { DiaryActionModal } from '~/components/modals/DiaryActionModal'
 import { useTitleDetailsFromTmdb } from '~/hooks/api/useTMDB'
+import { dbService } from '~/services/database'
 
 import { UIDiaryEntry } from '~/types'
+
+function getLocale(language: string) {
+  switch (language) {
+    case 'en':
+      return enUS
+    case 'fr':
+      return fr
+    case 'it':
+      return it
+    case 'no':
+      return nb
+    case 'pt':
+      return pt
+    default:
+      return enUS
+  }
+}
 
 export default function DiaryScreen() {
   const router = useRouter()
@@ -38,23 +56,6 @@ export default function DiaryScreen() {
   // Modal State
   const [selectedEntry, setSelectedEntry] = useState<UIDiaryEntry | null>(null)
   const [showActionModal, setShowActionModal] = useState(false)
-
-  const getLocale = (language: string) => {
-    switch (language) {
-      case 'en':
-        return enUS
-      case 'fr':
-        return fr
-      case 'it':
-        return it
-      case 'no':
-        return nb
-      case 'pt':
-        return pt
-      default:
-        return enUS
-    }
-  }
 
   // Group entries by Month Year
   const sections = useMemo(() => {
@@ -77,16 +78,8 @@ export default function DiaryScreen() {
     }))
   }, [entries, language])
 
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      loadDiary()
-    } else {
-      setLoading(false)
-    }
-  }, [isAuthenticated, user])
-
   /* Check if user exists before attempting to load diary */
-  const loadDiary = async () => {
+  const loadDiary = useCallback(async () => {
     if (!user) return
 
     type DiaryData = {
@@ -143,29 +136,23 @@ export default function DiaryScreen() {
         }
       }
 
-      // 2. Separate entries by type and fetch ratings accordingly
-      const movieTitleIds = diaryData
-        .filter((e) => e.titles?.type === 'movie')
-        .map((e) => e.title_id)
+      // Extract unique title_ids
+      const titleIds = [...new Set(diaryData.map((item) => item.title_id))]
+      const tvTitleIds = diaryData
+        .filter((item) => item.titles?.type === 'tv')
+        .map((item) => item.title_id)
 
-      const tvTitleIds = diaryData.filter((e) => e.titles?.type === 'tv').map((e) => e.title_id)
-
+      // Fetch user's ratings for these titles
       let ratingsMap: Record<string, number> = {}
-
-      // Fetch movie ratings
-      if (movieTitleIds.length > 0) {
-        const { data: ratingsData, error: ratingsError } = await supabase
+      if (titleIds.length > 0) {
+        const { data: ratingsData } = await supabase
           .from('title_ratings')
           .select('title_id, rating')
           .eq('user_id', user.id)
-          .in('title_id', movieTitleIds)
-
-        if (ratingsError) {
-          console.error('[Diary] Movie ratings fetch error:', ratingsError)
-        } else if (ratingsData) {
-          ratingsData.forEach((r: { title_id: string; rating: number }) => {
-            ratingsMap[r.title_id] = r.rating
-          })
+        if (ratingsData) {
+          for (const row of ratingsData) {
+            ratingsMap[row.title_id] = row.rating
+          }
         }
       }
 
@@ -200,12 +187,20 @@ export default function DiaryScreen() {
       setLoading(false)
       setRefreshing(false)
     }
-  }
+  }, [user, t])
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      loadDiary()
+    } else {
+      setLoading(false)
+    }
+  }, [isAuthenticated, user, loadDiary])
 
   const onRefresh = useCallback(() => {
     setRefreshing(true)
     loadDiary()
-  }, [user])
+  }, [loadDiary])
 
   // Refresh diary when tab is focused
   useFocusEffect(
@@ -284,10 +279,7 @@ export default function DiaryScreen() {
               </View>
             )}
             renderItem={({ item }) => (
-              <DiaryEntryCard
-                item={item}
-                onOpenActionModal={openActionModal}
-              />
+              <DiaryEntryCard item={item} onOpenActionModal={openActionModal} />
             )}
           />
         )}

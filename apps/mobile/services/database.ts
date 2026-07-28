@@ -1,21 +1,21 @@
 // Database service for Supabase operations
 import { supabase } from '@/utils/supabase'
 import type {
-  TitleDetails,
-  UserRating,
   EpisodeRating,
+  FollowerInfo,
+  SeasonRating,
+  TitleDetails,
+  TitleRatingStats,
+  UserProfile,
+  UserRating,
   WatchDiaryEntry,
   Watchlist,
   WatchlistItem,
-  TitleRatingStats,
-  SeasonRating,
-  UserProfile,
-  FollowerInfo,
 } from '~/types'
 import type {
+  SupabaseEpisodeRating,
   SupabaseTitle,
   SupabaseTitleRating,
-  SupabaseEpisodeRating,
   SupabaseWatchDiaryEntry,
   SupabaseWatchlist,
   SupabaseWatchlistItem,
@@ -1481,10 +1481,14 @@ export class DatabaseService {
   /**
    * Get title ratings from users the current user follows
    */
-  async getFriendsRatingsForTitle(
-    titleId: string
-  ): Promise<
-    { userId: string; displayName: string | null; username: string | null; avatarUrl: string | null; rating: number }[]
+  async getFriendsRatingsForTitle(titleId: string): Promise<
+    {
+      userId: string
+      displayName: string | null
+      username: string | null
+      avatarUrl: string | null
+      rating: number
+    }[]
   > {
     const {
       data: { user },
@@ -1540,9 +1544,7 @@ export class DatabaseService {
   /**
    * Get episode ratings from users the current user follows
    */
-  async getFriendsEpisodeRatingsForTitle(
-    titleId: string
-  ): Promise<
+  async getFriendsEpisodeRatingsForTitle(titleId: string): Promise<
     {
       userId: string
       displayName: string | null

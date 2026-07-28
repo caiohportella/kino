@@ -2,7 +2,7 @@
 // These types use snake_case to match the database column names.
 
 import type { MediaType } from './common'
-import type { TMDbGenre, TMDbCast, TMDbSeason } from './tmdb'
+import type { TMDbCast, TMDbGenre, TMDbSeason } from './tmdb'
 
 export interface SupabaseTitle {
   id: string

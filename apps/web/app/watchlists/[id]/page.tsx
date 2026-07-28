@@ -32,9 +32,9 @@ import { WatchlistVisibilitySelector } from '@/components/watchlist-visibility-s
 import { useTranslation } from '@/lib/i18n'
 import { parseWatchlistSegment, titlePath, watchlistPath } from '@/lib/routes'
 import { db, getTmdb } from '@/lib/services'
-import { publishWatchlistChange } from '@/lib/watchlist-cache-sync'
 import type { LocalizedTitleMap } from '@/lib/use-localized-titles'
 import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
+import { publishWatchlistChange } from '@/lib/watchlist-cache-sync'
 import { useAuthStore } from '@/stores/auth-store'
 
 interface WatchlistDetailData {
@@ -394,7 +394,7 @@ function WatchlistTitleCard({
         {showRemove ? (
           <button
             aria-label={t('watchlists.removeTitle', { title: displayTitle })}
-            className="absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-md border border-white/10 bg-black/75 text-white opacity-0 shadow-soft transition hover:bg-red-500/80 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent group-hover:opacity-100"
+            className="absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-md border border-white/10 bg-black/75 text-white opacity-0 shadow-soft transition hover:bg-red-500/80 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-kino-accent group-hover:opacity-100"
             onClick={(event) => {
               event.preventDefault()
               event.stopPropagation()

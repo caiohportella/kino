@@ -1,19 +1,19 @@
+import { BlurView } from 'expo-blur'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
-  Modal,
-  View,
-  Text,
-  TouchableOpacity,
-  TextInput,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native'
-import { BlurView } from 'expo-blur'
-import { useState, useEffect } from 'react'
 import { dbService } from '~/services/database'
-import { useTranslation } from 'react-i18next'
 import type { Watchlist } from '~/types'
 
 interface CreateWatchlistModalProps {

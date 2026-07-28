@@ -1,6 +1,7 @@
 // Profile stats component for followers/following counts
-import { View, Text, TouchableOpacity } from 'react-native'
+
 import { useTranslation } from 'react-i18next'
+import { Text, TouchableOpacity, View } from 'react-native'
 
 interface ProfileStatsProps {
   followersCount: number

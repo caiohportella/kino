@@ -1,7 +1,14 @@
+import { Ionicons } from '@expo/vector-icons'
+import { formatDate } from '@kino/core'
+import DateTimePicker from '@react-native-community/datetimepicker'
+import * as DocumentPicker from 'expo-document-picker'
+import * as FileSystem from 'expo-file-system'
+import { LinearGradient } from 'expo-linear-gradient'
+import { Stack } from 'expo-router'
 import { useMemo, useState } from 'react'
 import {
-  Alert,
   ActivityIndicator,
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -10,21 +17,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import { Stack } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Ionicons } from '@expo/vector-icons'
-import * as DocumentPicker from 'expo-document-picker'
-import * as FileSystem from 'expo-file-system'
-import DateTimePicker from '@react-native-community/datetimepicker'
-import { LinearGradient } from 'expo-linear-gradient'
-import { formatDate } from '@kino/core'
 
 import { useAuth } from '@/hooks/useAuth'
 import { dbService } from '~/services/database'
 import { getTMDbService } from '~/services/tmdb'
-import { transformMovieToTitleDetails, transformTVToTitleDetails } from '~/utils/tmdb-transform'
-import { parseImportFileFromUri } from '~/utils/imports/history-import'
 import type { ImportSource, ImportTitleItem, ParsedImportResult } from '~/types/imports'
+import { parseImportFileFromUri } from '~/utils/imports/history-import'
+import { transformMovieToTitleDetails, transformTVToTitleDetails } from '~/utils/tmdb-transform'
 
 type ImportState = {
   fileName: string

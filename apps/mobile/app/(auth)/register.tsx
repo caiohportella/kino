@@ -1,17 +1,7 @@
-import {
-  View,
-  Image,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Dimensions,
-} from 'react-native'
-import { MultiStepForm } from '~/components/auth/MultiStepForm'
-import { Stack } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
-
-const { height } = Dimensions.get('window')
+import { Stack } from 'expo-router'
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native'
+import { MultiStepForm } from '~/components/auth/MultiStepForm'
 
 export default function RegisterScreen() {
   return (

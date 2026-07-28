@@ -1,15 +1,16 @@
 // Reusable title card component for displaying movies/TV shows
-import React from 'react'
-import { View, Text, TouchableWithoutFeedback, Image } from 'react-native'
+
+import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
+import React from 'react'
+import { useTranslation } from 'react-i18next'
+import { Image, Text, TouchableWithoutFeedback, View } from 'react-native'
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated'
+import { useLocalizedTitle } from '~/hooks/data/useLocalizedMediaData'
+import { isOscarNominee } from '~/services/awards'
 import { getTMDbService } from '~/services/tmdb'
 import type { TMDbTitle } from '~/types'
-import { Ionicons } from '@expo/vector-icons'
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated'
-import { isOscarNominee } from '~/services/awards'
-import { useTranslation } from 'react-i18next'
 import { OscarBadge } from './OscarBadge'
-import { useLocalizedTitle } from '~/hooks/data/useLocalizedMediaData'
 
 interface TitleCardProps {
   title: TMDbTitle
@@ -117,7 +118,9 @@ export function TitleCard({ title, onPress, showYear = true }: TitleCardProps) {
           <View className="flex-row items-center justify-between mt-auto">
             {showYear && year ? (
               <Text className="text-[11px] font-bold text-accent">{year}</Text>
-            ) : <View />}
+            ) : (
+              <View />
+            )}
 
             <View className="bg-white/10 rounded px-1.5 py-0.5">
               <Text className="text-[9px] font-bold text-text-secondary uppercase">

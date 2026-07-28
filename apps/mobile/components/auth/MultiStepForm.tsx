@@ -1,26 +1,26 @@
-import React, { useState, useEffect } from 'react'
+import { AntDesign, Feather } from '@expo/vector-icons'
+import { AuthError } from '@supabase/supabase-js'
+import { useRouter } from 'expo-router'
+import React, { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
+  View,
 } from 'react-native'
 import Animated, {
   FadeInRight,
   FadeOutLeft,
-  SlideInRight,
   LinearTransition,
+  SlideInRight,
 } from 'react-native-reanimated'
-import { AuthError } from '@supabase/supabase-js'
-import { GlassContainer } from '~/components/ui/GlassContainer'
+import { AuthFlowCancelledError, useAuth } from '@/hooks/useAuth'
 import { StepIndicator } from '~/components/auth/StepIndicator'
-import { useAuth } from '@/hooks/useAuth'
-import { useRouter } from 'expo-router'
-import { Feather, AntDesign } from '@expo/vector-icons'
-import { useTranslation } from 'react-i18next'
+import { GlassContainer } from '~/components/ui/GlassContainer'
 
 export function MultiStepForm() {
   const router = useRouter()
@@ -31,7 +31,7 @@ export function MultiStepForm() {
     if (user) {
       router.replace('/(tabs)')
     }
-  }, [user])
+  }, [router, user])
   const [step, setStep] = useState(1)
   const [email, setEmail] = useState('')
 
@@ -55,7 +55,7 @@ export function MultiStepForm() {
     }
   }, [isEmailValid, step])
 
-  const handleNext = () => {
+  const _handleNext = () => {
     if (step === 2) {
       if (!isEmailValid) {
         Alert.alert(t('auth.invalidEmail'), t('auth.invalidEmailMessage'))
@@ -91,8 +91,10 @@ export function MultiStepForm() {
   const handleGoogleLogin = async () => {
     try {
       setLoading(true)
-      await signInWithGoogle()
+      const destination = await signInWithGoogle()
+      if (destination) router.replace(destination as never)
     } catch (error) {
+      if (error instanceof AuthFlowCancelledError) return
       if (error instanceof AuthError) {
         Alert.alert(t('auth.googleLoginFailed'), error.message)
       } else {

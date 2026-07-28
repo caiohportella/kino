@@ -1,19 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {
-  canEditWatchlist,
-  canViewWatchlist,
-  watchlistRobots,
-} from './watchlist-permissions.ts'
+import { canEditWatchlist, canViewWatchlist, watchlistRobots } from './watchlist-permissions.ts'
 
 const anonymous = { isOwner: false, hasInvite: false, canEditInvite: false }
 
 test('private watchlists are owner-only', () => {
   assert.equal(canViewWatchlist('private', anonymous), false)
-  assert.equal(
-    canViewWatchlist('private', { ...anonymous, isOwner: true }),
-    true
-  )
+  assert.equal(canViewWatchlist('private', { ...anonymous, isOwner: true }), true)
 })
 
 test('shared watchlists require a valid invitation', () => {

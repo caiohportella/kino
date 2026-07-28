@@ -1,7 +1,7 @@
-import { View, Text, Image, TouchableOpacity } from 'react-native'
-import { BlurView } from 'expo-blur'
 import { Ionicons } from '@expo/vector-icons'
-import type { Watchlist, UserProfile } from '~/types'
+import { BlurView } from 'expo-blur'
+import { Image, Text, TouchableOpacity, View } from 'react-native'
+import type { UserProfile, Watchlist } from '~/types'
 
 interface WatchlistHeaderProps {
   watchlist: Watchlist

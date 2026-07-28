@@ -45,12 +45,9 @@ import {
   type ExternalLinkProvider,
   ExternalLinksSection,
 } from '@/components/external-links-section'
+import { FollowedEpisodeRatingRows, FollowedTitleRatings } from '@/components/followed-ratings'
 import { EmptyState, Poster, ProgressBar, Stat } from '@/components/kino'
 import { RatingStars } from '@/components/rating-stars'
-import {
-  FollowedEpisodeRatingRows,
-  FollowedTitleRatings,
-} from '@/components/followed-ratings'
 import { ReviewsSection } from '@/components/reviews/reviews-section'
 import { SeasonSelector } from '@/components/season-selector'
 import { ShareButton } from '@/components/share-button'
@@ -90,13 +87,13 @@ import { Separator } from '@/components/ui/separator'
 import { SplitButton, SplitButtonMain, SplitButtonSecondary } from '@/components/ui/split-button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { WatchlistDialog } from '@/components/watchlist-dialog'
+import { useFollowedEpisodeRatings } from '@/hooks/use-followed-ratings'
 import { storeAuthRedirect } from '@/lib/auth-redirect'
 import { useTranslation } from '@/lib/i18n'
-import { useFollowedEpisodeRatings } from '@/hooks/use-followed-ratings'
 import { parseResourceSegment, personPath } from '@/lib/routes'
 import { db, getTmdb } from '@/lib/services'
-import { publishWatchlistChange } from '@/lib/watchlist-cache-sync'
 import { cn } from '@/lib/utils'
+import { publishWatchlistChange } from '@/lib/watchlist-cache-sync'
 import { useAuthStore } from '@/stores/auth-store'
 import { useSettingsStore } from '@/stores/settings-store'
 
@@ -662,7 +659,7 @@ function TitleHeader({
   const { t } = useTranslation()
 
   return (
-    <section className="relative mb-6 min-h-[620px] overflow-hidden rounded-md border border-white/10 bg-kino-surface md:min-h-[588px]">
+    <section className="relative mb-6 min-h-155 overflow-hidden rounded-md border border-white/10 bg-kino-surface md:min-h-147">
       <div className="absolute inset-0">
         {title.backdropImage ? (
           <img
@@ -671,15 +668,15 @@ function TitleHeader({
             src={title.backdropImage}
           />
         ) : (
-          <div className="h-full w-full bg-[linear-gradient(135deg,rgb(29_185_84_/_0.16),rgb(255_255_255_/_0.05)_45%,rgb(0_0_0_/_0.18))]" />
+          <div className="h-full w-full bg-[linear-gradient(135deg,rgb(29_185_84/0.16),rgb(255_255_255/0.05)_45%,rgb(0_0_0/0.18))]" />
         )}
       </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-kino-surface via-kino-surface/70 to-transparent" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/55 via-black/20 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-3/5 bg-linear-to-t from-kino-surface via-kino-surface/70 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-linear-to-t from-black/55 via-black/20 to-transparent" />
 
-      <div className="relative z-10 grid min-h-[620px] content-end gap-5 p-5 md:min-h-[588px] md:grid-cols-[184px_1fr] md:items-end md:p-6">
+      <div className="relative z-10 grid min-h-155 content-end gap-5 p-5 md:min-h-147 md:grid-cols-[184px_1fr] md:items-end md:p-6">
         <Poster
-          className="w-36 border border-white/10 shadow-[0_18px_42px_rgb(0_0_0_/_0.35)] md:w-full"
+          className="w-36 border border-white/10 shadow-[0_18px_42px_rgb(0_0_0/0.35)] md:w-full"
           src={title.coverImage}
           title={title.title}
         />
@@ -702,7 +699,7 @@ function TitleHeader({
             <div className="mt-3 flex flex-wrap gap-2">
               {title.genres.slice(0, 5).map((genre) => (
                 <span
-                  className="rounded-md border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs font-semibold text-kino-muted"
+                  className="rounded-md border border-white/10 bg-white/4 px-2.5 py-1 text-xs font-semibold text-kino-muted"
                   key={genre.id}
                 >
                   {genre.name}
@@ -791,7 +788,7 @@ function WatchlistPicker({
             <DialogTitle>{t('modals.selectWatchlist')}</DialogTitle>
             <DialogDescription>{t('modals.watchlistSelectorHint')}</DialogDescription>
           </DialogHeader>
-          <div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-white/10 bg-white/[0.03] p-3">
+          <div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-white/10 bg-white/3 p-3">
             <span className="text-sm font-semibold text-kino-text">
               {t('watchlists.createWatchlist')}
             </span>
@@ -817,7 +814,7 @@ function WatchlistPicker({
                   className={`flex items-center justify-between rounded-md border px-4 py-3 text-left transition-colors ${
                     active
                       ? 'border-kino-accent bg-kino-accent/15 text-kino-text'
-                      : 'border-white/10 bg-white/[0.04] text-kino-muted hover:text-kino-text'
+                      : 'border-white/10 bg-white/4 text-kino-muted hover:text-kino-text'
                   }`}
                   disabled={mutation.isPending || (active && !canRemove)}
                   key={watchlist.id}
@@ -841,7 +838,7 @@ function WatchlistPicker({
             })}
           </div>
           {!query.isLoading && query.data?.watchlists.length === 0 ? (
-            <div className="rounded-md border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm text-kino-muted">
+            <div className="rounded-md border border-dashed border-white/10 bg-white/3 p-4 text-sm text-kino-muted">
               <p>{t('modals.noWatchlistsFound')}</p>
               <Button
                 className="mt-3"
@@ -898,9 +895,7 @@ function CommunityRatingsPanel({
           value={stats?.totalRatings || 0}
         />
       </div>
-      {type === 'movie' ? (
-        <FollowedTitleRatings enabled={showFollowed} titleId={titleId} />
-      ) : null}
+      {type === 'movie' ? <FollowedTitleRatings enabled={showFollowed} titleId={titleId} /> : null}
     </Card>
   )
 }
@@ -1037,10 +1032,10 @@ function CreditPersonLink({ person, roleLabel }: { person: TMDbCast; roleLabel?:
   return (
     <Link
       aria-label={t('title.viewPersonProfile', { name: person.name })}
-      className="focus-ring group flex min-w-0 items-center gap-3 rounded-md p-1.5 transition-colors hover:bg-white/[0.05]"
+      className="focus-ring group flex min-w-0 items-center gap-3 rounded-md p-1.5 transition-colors hover:bg-white/5"
       href={personPath(person.id, person.name)}
     >
-      <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-md bg-white/[0.06] text-xs font-bold text-kino-muted">
+      <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-md bg-white/6 text-xs font-bold text-kino-muted">
         {avatar ? (
           <img alt="" className="h-full w-full object-cover" loading="lazy" src={avatar} />
         ) : (
@@ -1274,11 +1269,7 @@ function SeasonEpisodes({
     queryFn: () => db.getUserSeasonRatings(title.id, seasonNumber),
     enabled: userCanRate,
   })
-  const followedRatingsQuery = useFollowedEpisodeRatings(
-    title.id,
-    seasonNumber,
-    Boolean(userId)
-  )
+  const followedRatingsQuery = useFollowedEpisodeRatings(title.id, seasonNumber, Boolean(userId))
 
   const ratings = useMemo(
     () => new Map((ratingsQuery.data || []).map((rating) => [rating.episodeNumber, rating])),
@@ -1346,7 +1337,7 @@ function SeasonEpisodes({
 
   return (
     <section className="mt-5 grid gap-4">
-      <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
+      <div className="rounded-md border border-white/10 bg-white/3 p-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="grid gap-3">
             <h3 className="text-lg font-semibold text-kino-text">
@@ -1468,7 +1459,7 @@ function SeasonEpisodes({
                 key={episode.id}
               >
                 {showStill ? (
-                  <div className="aspect-video overflow-hidden rounded-md bg-white/[0.04]">
+                  <div className="aspect-video overflow-hidden rounded-md bg-white/4">
                     <img
                       alt=""
                       className="h-full w-full object-cover"
@@ -1522,7 +1513,7 @@ function SeasonEpisodes({
                   {isWatched ? (
                     <button
                       aria-label={`Edit rating for episode ${episode.episode_number}`}
-                      className="rounded-md p-1 transition-colors hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kino-accent"
+                      className="rounded-md p-1 transition-colors hover:bg-white/6 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-kino-accent"
                       onClick={() => setSelectedEpisode(episode)}
                       type="button"
                     >
@@ -1776,7 +1767,7 @@ function EpisodeActionDialog({
             </Popover>
           </section>
 
-          <label className="flex items-center justify-between gap-4 rounded-md border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-kino-text">
+          <label className="flex items-center justify-between gap-4 rounded-md border border-white/10 bg-white/4 px-4 py-3 text-sm text-kino-text">
             <span className="font-semibold">{t('diary.rewatch')}</span>
             <input
               checked={watchType === 'rewatch'}

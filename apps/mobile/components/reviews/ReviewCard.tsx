@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons'
 import type { Review } from '@kino/core'
 import { useState } from 'react'
-import { Alert, Image, Text, TouchableOpacity, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { Alert, Image, Text, TouchableOpacity, View } from 'react-native'
 import { RatingStars } from '~/components/common/RatingStars'
 import { ReviewEditor } from './ReviewEditor'
 
@@ -43,8 +43,7 @@ export function ReviewCard({
       <View className="flex-1">
         <View className="flex-row flex-wrap items-center gap-2">
           <Text className="text-sm text-text-secondary">
-            {t('reviews.reviewedBy')}{' '}
-            <Text className="font-bold text-text-primary">{name}</Text>
+            {t('reviews.reviewedBy')} <Text className="font-bold text-text-primary">{name}</Text>
           </Text>
           {review.rating ? <RatingStars rating={review.rating} readonly size={14} /> : null}
         </View>
@@ -95,7 +94,11 @@ export function ReviewCard({
                 onPress={() =>
                   Alert.alert(t('reviews.delete'), t('reviews.deleteConfirm'), [
                     { text: t('common.cancel'), style: 'cancel' },
-                    { text: t('reviews.delete'), style: 'destructive', onPress: () => void onDelete() },
+                    {
+                      text: t('reviews.delete'),
+                      style: 'destructive',
+                      onPress: () => void onDelete(),
+                    },
                   ])
                 }
               >

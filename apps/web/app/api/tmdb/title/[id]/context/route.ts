@@ -1,7 +1,7 @@
 import type { MediaType } from '@kino/core'
 import {
-  normalizeWatchProviders,
   normalizeFranchiseTitles,
+  normalizeWatchProviders,
   resolveWatchProviderRegion,
   selectPreferredTrailer,
   TMDbService,

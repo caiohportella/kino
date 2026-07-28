@@ -1,8 +1,8 @@
-import { View, TouchableOpacity, StyleSheet, Platform, Image } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { BlurView } from 'expo-blur'
-import { TabBarIcon } from './TabBarIcon'
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
+import { BlurView } from 'expo-blur'
+import { Image, Platform, StyleSheet, TouchableOpacity, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { TabBarIcon } from './TabBarIcon'
 
 export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets()
@@ -56,7 +56,8 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
 
           const isProfile = route.name === 'profile'
           // Optional subtle red dots for 'search' and 'profile' to closely mimic the provided model
-          const showNotificationDot = (route.name === 'search' || route.name === 'profile') && !isFocused
+          const showNotificationDot =
+            (route.name === 'search' || route.name === 'profile') && !isFocused
 
           return (
             <TouchableOpacity
@@ -79,14 +80,9 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
                       />
                     </View>
                   ) : (
-                    <TabBarIcon
-                      name={getIconName(route.name, isFocused)}
-                      color={'#FFF'}
-                    />
+                    <TabBarIcon name={getIconName(route.name, isFocused)} color={'#FFF'} />
                   )}
-                  {showNotificationDot && (
-                    <View style={styles.notificationDot} />
-                  )}
+                  {showNotificationDot && <View style={styles.notificationDot} />}
                 </View>
               </View>
             </TouchableOpacity>
@@ -174,5 +170,5 @@ const styles = StyleSheet.create({
   profileImage: {
     width: '100%',
     height: '100%',
-  }
+  },
 })

@@ -11,8 +11,8 @@ if (!existsSync(manifestPath)) {
 }
 
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
-const functions = Object.entries(manifest.functions || {}).filter(([route]) =>
-  route.includes('/api/og/') || route.includes('opengraph-image')
+const functions = Object.entries(manifest.functions || {}).filter(
+  ([route]) => route.includes('/api/og/') || route.includes('opengraph-image')
 )
 
 if (functions.length === 0) throw new Error('No Edge OG functions found in the build manifest.')
@@ -37,6 +37,6 @@ for (const [route, entry] of functions.sort(([a], [b]) => a.localeCompare(b))) {
 
 if (failed) {
   throw new Error(
-    `One or more OG Edge functions exceed ${limitKb} KB or contain a bundled local font.`,
+    `One or more OG Edge functions exceed ${limitKb} KB or contain a bundled local font.`
   )
 }

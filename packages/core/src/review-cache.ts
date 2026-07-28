@@ -5,9 +5,7 @@ export function insertViewerReview(
   review: Review
 ): TitleReviewsPage {
   if (!page) return { items: [review], nextCursor: null, totalCount: 1 }
-  const withoutExisting = page.items.filter(
-    (item) => item.id !== review.id && !item.isViewerReview
-  )
+  const withoutExisting = page.items.filter((item) => item.id !== review.id && !item.isViewerReview)
   return {
     ...page,
     items: [review, ...withoutExisting],

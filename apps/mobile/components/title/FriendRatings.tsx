@@ -1,6 +1,6 @@
-import { View, Text, Image } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
+import { Image, Text, View } from 'react-native'
 import { RatingStars } from '~/components/common/RatingStars'
 import type { FriendRating } from '~/hooks/data/useFriendRatings'
 
@@ -10,13 +10,7 @@ interface FriendRatingsProps {
 
 function FriendAvatar({ avatarUrl, name }: { avatarUrl: string | null; name: string }) {
   if (avatarUrl) {
-    return (
-      <Image
-        source={{ uri: avatarUrl }}
-        className="h-7 w-7 rounded-full"
-        resizeMode="cover"
-      />
-    )
+    return <Image source={{ uri: avatarUrl }} className="h-7 w-7 rounded-full" resizeMode="cover" />
   }
 
   return (
@@ -36,9 +30,7 @@ export function FriendRatings({ ratings }: FriendRatingsProps) {
 
   return (
     <View className="mb-6">
-      <Text className="mb-3 text-lg font-bold text-text-primary">
-        {t('title.friendRatings')}
-      </Text>
+      <Text className="mb-3 text-lg font-bold text-text-primary">{t('title.friendRatings')}</Text>
       <View className="rounded-xl border border-black/50 bg-surface p-3">
         {ratings.map((friend) => (
           <View key={friend.userId} className="mb-2 last:mb-0 flex-row items-center gap-3">

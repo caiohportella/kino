@@ -1,5 +1,5 @@
 // Search hook for TMDb search
-import { useState, useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { getTMDbService } from '~/services/tmdb'
 import type { TMDbTitle } from '~/types'
 

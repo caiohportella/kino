@@ -1,10 +1,10 @@
 'use client'
 
-import { EmptyState } from '@/components/kino'
 import { Compass, LogIn, RotateCcw, Search, Undo2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { ReactNode } from 'react'
+import { EmptyState } from '@/components/kino'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/lib/i18n'
 
@@ -47,7 +47,13 @@ export function ErrorState({
   )
 }
 
-export function HttpErrorState({ status, onRetry }: { status: ErrorCode; onRetry?: () => void }) {
+export function HttpErrorState({
+  status,
+  onRetryAction,
+}: {
+  status: ErrorCode
+  onRetryAction?: () => void
+}) {
   const { t } = useTranslation()
   const router = useRouter()
   const translationKey = `errors.${status}`
@@ -76,9 +82,9 @@ export function HttpErrorState({ status, onRetry }: { status: ErrorCode; onRetry
         {t('errors.actions.back')}
       </Button>
     )
-  } else if (status === 500 && onRetry) {
+  } else if (status === 500 && onRetryAction) {
     primaryAction = (
-      <Button onClick={onRetry}>
+      <Button onClick={onRetryAction}>
         <RotateCcw data-icon="inline-start" />
         {t('errors.actions.retry')}
       </Button>

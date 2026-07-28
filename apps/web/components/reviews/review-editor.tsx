@@ -1,5 +1,3 @@
-'use client'
-
 import { REVIEW_MAX_LENGTH } from '@kino/core'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'

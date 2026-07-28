@@ -1,18 +1,18 @@
+import { Ionicons } from '@expo/vector-icons'
+import { BlurView } from 'expo-blur'
+import { useRef, useState } from 'react'
 import {
-  Modal,
-  View,
-  Text,
-  TouchableOpacity,
-  TextInput,
+  ActivityIndicator,
   FlatList,
   Image,
-  ActivityIndicator,
+  Modal,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native'
-import { BlurView } from 'expo-blur'
-import { Ionicons } from '@expo/vector-icons'
-import { useState, useRef } from 'react'
 import { getTMDbService } from '~/services/tmdb'
-import type { TMDbTitle, TMDbImage } from '~/types'
+import type { TMDbImage, TMDbTitle } from '~/types'
 
 interface MediaImageSelectorModalProps {
   visible: boolean
@@ -44,7 +44,7 @@ export function MediaImageSelectorModal({
       const tmdb = getTMDbService()
       const response = await tmdb.search(query)
       // Filter out items without posters or backdrops based on need
-      const filtered = response.results.filter((item) => 
+      const filtered = response.results.filter((item) =>
         imageType === 'banner' ? item.backdrop_path : item.poster_path
       )
       setSearchResults(filtered)
@@ -62,14 +62,14 @@ export function MediaImageSelectorModal({
       const tmdb = getTMDbService()
       const mediaTypeForApi = media.media_type || (media.title ? 'movie' : 'tv')
       const imagesData = await tmdb.getMediaImages(mediaTypeForApi as 'movie' | 'tv', media.id)
-      
+
       let targetImages: TMDbImage[] = []
       if (imageType === 'banner') {
         targetImages = imagesData.backdrops
       } else {
         targetImages = imagesData.posters
       }
-      
+
       // Sort by vote_average to show best first
       targetImages.sort((a, b) => b.vote_average - a.vote_average)
       setMediaImages(targetImages)
@@ -83,10 +83,11 @@ export function MediaImageSelectorModal({
   const handleImageSelect = (item: TMDbImage) => {
     const tmdb = getTMDbService()
     // For avatars use w500 to keep it sharp, for banners use original or w1280
-    const url = imageType === 'banner' 
-      ? tmdb.getBackdropUrl(item.file_path, 'w1280') 
-      : tmdb.getImageUrl(item.file_path, 'original')
-      
+    const url =
+      imageType === 'banner'
+        ? tmdb.getBackdropUrl(item.file_path, 'w1280')
+        : tmdb.getImageUrl(item.file_path, 'original')
+
     if (url) {
       onSelectImage(url)
       handleClose()
@@ -113,7 +114,6 @@ export function MediaImageSelectorModal({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
       <BlurView intensity={20} className="flex-1 pt-12">
         <View className="flex-1 bg-primary rounded-t-3xl overflow-hidden border-t border-white/10">
-          
           {/* Header */}
           <View className="flex-row items-center justify-between p-4 border-b border-white/10 bg-surface">
             {selectedMedia && (
@@ -164,7 +164,11 @@ export function MediaImageSelectorModal({
                     >
                       <View className="w-20 h-28 bg-black/50">
                         <Image
-                          source={item.poster_path ? { uri: `https://image.tmdb.org/t/p/w200${item.poster_path}` } : undefined}
+                          source={
+                            item.poster_path
+                              ? { uri: `https://image.tmdb.org/t/p/w200${item.poster_path}` }
+                              : undefined
+                          }
                           className="w-full h-full"
                           resizeMode="cover"
                         />
@@ -186,7 +190,9 @@ export function MediaImageSelectorModal({
                     <View className="items-center mt-12 px-6">
                       <Ionicons name="search-outline" size={48} color="#333" />
                       <Text className="text-text-secondary mt-4 text-center">
-                        Search for a title to use its {imageType === 'banner' ? 'backdrop' : 'poster'} as your profile {imageType}.
+                        Search for a title to use its{' '}
+                        {imageType === 'banner' ? 'backdrop' : 'poster'} as your profile {imageType}
+                        .
                       </Text>
                     </View>
                   }
@@ -206,7 +212,9 @@ export function MediaImageSelectorModal({
                   keyExtractor={(item, index) => `${item.file_path}-${index}`}
                   numColumns={numColumns}
                   contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
-                  columnWrapperStyle={numColumns > 1 ? { gap: 12, justifyContent: 'space-between' } : undefined}
+                  columnWrapperStyle={
+                    numColumns > 1 ? { gap: 12, justifyContent: 'space-between' } : undefined
+                  }
                   renderItem={({ item }) => {
                     const aspectClass = imageType === 'banner' ? 'aspect-video' : 'aspect-[2/3]'
                     const uri = `https://image.tmdb.org/t/p/w500${item.file_path}`
@@ -217,11 +225,7 @@ export function MediaImageSelectorModal({
                         onPress={() => handleImageSelect(item)}
                       >
                         <View className={`w-full ${aspectClass} bg-black/50`}>
-                          <Image
-                            source={{ uri }}
-                            className="w-full h-full"
-                            resizeMode="cover"
-                          />
+                          <Image source={{ uri }} className="w-full h-full" resizeMode="cover" />
                         </View>
                       </TouchableOpacity>
                     )
@@ -230,7 +234,8 @@ export function MediaImageSelectorModal({
                     <View className="items-center mt-12 px-6">
                       <Ionicons name="image-outline" size={48} color="#333" />
                       <Text className="text-text-secondary mt-4 text-center">
-                        No high-quality {imageType === 'banner' ? 'backdrops' : 'posters'} found for this title.
+                        No high-quality {imageType === 'banner' ? 'backdrops' : 'posters'} found for
+                        this title.
                       </Text>
                     </View>
                   }

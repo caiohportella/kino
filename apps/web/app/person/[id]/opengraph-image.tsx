@@ -17,29 +17,33 @@ const departmentLabels: Record<string, string> = {
   Production: 'Producer',
 }
 
-export default async function OpenGraphImage({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
+export default async function OpenGraphImage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const personId = parseResourceSegment(id).id
 
   if (!Number.isFinite(personId) || personId <= 0) {
-    return new ImageResponse(<FallbackOg label="Person" title="Person not found" />, await getOgImageOptions())
+    return new ImageResponse(
+      <FallbackOg label="Person" title="Person not found" />,
+      await getOgImageOptions()
+    )
   }
 
   try {
     const person = await getPersonSeoData(personId, 'en')
-    const portraitUrl = person.profile_path ? `https://image.tmdb.org/t/p/w780${person.profile_path}` : null
+    const portraitUrl = person.profile_path
+      ? `https://image.tmdb.org/t/p/w780${person.profile_path}`
+      : null
     const portrait = await safeImageData(portraitUrl)
-    const credits = [...(person.combined_credits?.cast ?? []), ...(person.combined_credits?.crew ?? [])]
+    const credits = [
+      ...(person.combined_credits?.cast ?? []),
+      ...(person.combined_credits?.crew ?? []),
+    ]
     const knownFor = credits
       .filter((credit) => credit.media_type === 'movie' || credit.media_type === 'tv')
       .sort(
         (left, right) =>
           (right.vote_average || 0) - (left.vote_average || 0) ||
-          ((getReleaseYear(right) ?? 0) - (getReleaseYear(left) ?? 0))
+          (getReleaseYear(right) ?? 0) - (getReleaseYear(left) ?? 0)
       )
       .map((credit) => getDisplayTitle(credit))
       .filter((title, index, titles) => Boolean(title) && titles.indexOf(title) === index)
@@ -54,6 +58,9 @@ export default async function OpenGraphImage({
       await getOgImageOptions()
     )
   } catch {
-    return new ImageResponse(<FallbackOg label="Person" title="Person not found" />, await getOgImageOptions())
+    return new ImageResponse(
+      <FallbackOg label="Person" title="Person not found" />,
+      await getOgImageOptions()
+    )
   }
 }

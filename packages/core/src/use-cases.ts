@@ -1,5 +1,11 @@
-import type { EpisodeRating, SeasonMetadata, TMDbPersonCredit, UIDiaryEntry, WatchedSeries } from './types'
-import { isFutureDateOnly, parseDateOnly } from './date'
+import { isFutureDateOnly, parseDateOnly } from './date.ts'
+import type {
+  EpisodeRating,
+  SeasonMetadata,
+  TMDbPersonCredit,
+  UIDiaryEntry,
+  WatchedSeries,
+} from './types'
 
 export interface NextEpisodeCandidate {
   season: number
@@ -20,7 +26,14 @@ export interface ReleasedSeriesProgress {
   isCaughtUp: boolean
 }
 
-const SERIES_COMPLETED_STATUSES = new Set(['ended', 'canceled', 'cancelled', 'complete', 'completed', 'finished'])
+const SERIES_COMPLETED_STATUSES = new Set([
+  'ended',
+  'canceled',
+  'cancelled',
+  'complete',
+  'completed',
+  'finished',
+])
 
 export function clampRating(value: number) {
   return Math.min(5, Math.max(0, Number(value.toFixed(1))))
@@ -37,7 +50,9 @@ export function getReleaseYear(item: { release_date?: string; first_air_date?: s
   return Number.isFinite(year) ? year : null
 }
 
-export function calculateSeriesProgress(series: Pick<WatchedSeries, 'total_episodes' | 'watched_episode_count'>) {
+export function calculateSeriesProgress(
+  series: Pick<WatchedSeries, 'total_episodes' | 'watched_episode_count'>
+) {
   if (!series.total_episodes || series.total_episodes <= 0) return 0
   return Math.min(100, Math.round((series.watched_episode_count / series.total_episodes) * 100))
 }
@@ -46,10 +61,7 @@ export function getEpisodeKey(seasonNumber: number, episodeNumber: number) {
   return `${seasonNumber}-${episodeNumber}`
 }
 
-export function isOfficiallyReleasedEpisode(
-  episode: EpisodeAvailability,
-  now = new Date()
-) {
+export function isOfficiallyReleasedEpisode(episode: EpisodeAvailability, now = new Date()) {
   if (episode.season_number <= 0 || episode.episode_number <= 0 || !episode.air_date) return false
   const parsed = parseDateOnly(episode.air_date)
   if (!parsed) return false
@@ -84,7 +96,8 @@ export function resolveReleasedSeriesProgress(
     watchedEpisodeKeys.has(getEpisodeKey(episode.season_number, episode.episode_number))
   ).length
   const next = releasedEpisodes.find(
-    (episode) => !watchedEpisodeKeys.has(getEpisodeKey(episode.season_number, episode.episode_number))
+    (episode) =>
+      !watchedEpisodeKeys.has(getEpisodeKey(episode.season_number, episode.episode_number))
   )
 
   return {
@@ -123,7 +136,10 @@ export function isCompletedSeriesStatus(status: string | null | undefined) {
   return SERIES_COMPLETED_STATUSES.has(status.trim().toLowerCase())
 }
 
-export function isUpcomingEpisode(value: { air_date?: string | null } | null | undefined, now = new Date()) {
+export function isUpcomingEpisode(
+  value: { air_date?: string | null } | null | undefined,
+  now = new Date()
+) {
   return Boolean(value?.air_date) && isFutureDateOnly(value?.air_date, now)
 }
 
@@ -159,7 +175,12 @@ export function findFirstUpcomingEpisode(
   if (!seasons || seasons.length === 0) return null
 
   const orderedSeasons = [...seasons]
-    .filter((season) => season.season_number > 0 && season.episode_count > 0 && isFutureDateOnly(season.air_date, now))
+    .filter(
+      (season) =>
+        season.season_number > 0 &&
+        season.episode_count > 0 &&
+        isFutureDateOnly(season.air_date, now)
+    )
     .sort((left, right) => {
       const leftDate = parseDateOnly(left.air_date)
       const rightDate = parseDateOnly(right.air_date)
@@ -179,10 +200,13 @@ export function findFirstUpcomingEpisode(
   }
 }
 
-export function calculateSeasonRatingSummary(ratings: Array<Pick<EpisodeRating, 'rating'>>) {
+export function calculateSeasonRatingSummary(ratings: Pick<EpisodeRating, 'rating'>[]) {
   const ratedValues = ratings
     .map((rating) => rating.rating)
-    .filter((rating): rating is number => typeof rating === 'number' && Number.isFinite(rating) && rating > 0)
+    .filter(
+      (rating): rating is number =>
+        typeof rating === 'number' && Number.isFinite(rating) && rating > 0
+    )
 
   if (ratedValues.length === 0) {
     return {
@@ -234,10 +258,14 @@ export function getSeasonProgressSummary(
 ) {
   const nextEpisode = series.next_episode
   const currentSeasonNumber = nextEpisode?.season ?? series.last_episode?.season ?? null
-  const currentSeason = series.seasons_metadata?.find((season) => season.season_number === currentSeasonNumber)
+  const currentSeason = series.seasons_metadata?.find(
+    (season) => season.season_number === currentSeasonNumber
+  )
   const watchedBeforeCurrentSeason =
     series.seasons_metadata
-      ?.filter((season) => currentSeasonNumber !== null && season.season_number < currentSeasonNumber)
+      ?.filter(
+        (season) => currentSeasonNumber !== null && season.season_number < currentSeasonNumber
+      )
       .reduce((total, season) => total + Math.max(0, season.episode_count), 0) ?? 0
   const watchedInSeason =
     currentSeasonNumber !== null
@@ -305,17 +333,15 @@ export function chooseBestSearchCandidate<
     original_name?: string
     release_date?: string
     first_air_date?: string
-  }
->(
-  title: string,
-  year: number | null,
-  candidates: T[]
-) {
+  },
+>(title: string, year: number | null, candidates: T[]) {
   const target = normalizeSearchText(title)
   const scored = candidates
     .map((candidate) => {
       const candidateTitle = normalizeSearchText(candidate.title || candidate.name || '')
-      const candidateOriginal = normalizeSearchText(candidate.original_title || candidate.original_name || '')
+      const candidateOriginal = normalizeSearchText(
+        candidate.original_title || candidate.original_name || ''
+      )
       const candidateYear = getReleaseYear(candidate)
       let score = 0
       if (candidateTitle === target || candidateOriginal === target) {

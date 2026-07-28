@@ -1,21 +1,14 @@
-import {
-  View,
-  Text,
-  Modal,
-  FlatList,
-  TouchableOpacity,
-  Image,
-} from 'react-native'
-import { useMemo } from 'react'
 import { Ionicons } from '@expo/vector-icons'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import type { WatchedSeries } from '~/types'
-import { useTranslation } from 'react-i18next'
 import { formatDate, isFutureDateOnly } from '@kino/core'
-import { EmptyState } from '../EmptyState'
-import { OscarBadge } from '../common/OscarBadge'
+import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+import { FlatList, Image, Modal, Text, TouchableOpacity, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalizedMediaData } from '~/hooks/data/useLocalizedMediaData'
 import { getTMDbService } from '~/services/tmdb'
+import type { WatchedSeries } from '~/types'
+import { OscarBadge } from '../common/OscarBadge'
+import { EmptyState } from '../EmptyState'
 
 interface WatchedSeriesModalProps {
   visible: boolean
@@ -53,7 +46,8 @@ export function WatchedSeriesModal({
         {/* Header */}
         <View className="flex-row items-center justify-between p-4 border-b border-white/10 bg-surface">
           <Text className="text-3xl font-black text-white italic tracking-tighter">
-            {t('profile.watchedSeries')}<Text className="text-accent">.</Text>
+            {t('profile.watchedSeries')}
+            <Text className="text-accent">.</Text>
           </Text>
           <TouchableOpacity onPress={onClose} className="p-2">
             <Ionicons name="close" size={24} color="white" />
@@ -104,7 +98,9 @@ export function WatchedSeriesModal({
                 <OscarBadge tmdbId={item.tmdb_id} />
               </View>
               {item.is_series_completed || item.is_caught_up ? (
-                <Text className="text-[#1DB954] text-[10px] font-medium">{t('profile.completed')}</Text>
+                <Text className="text-[#1DB954] text-[10px] font-medium">
+                  {t('profile.completed')}
+                </Text>
               ) : item.next_episode ? (
                 <View className="gap-1">
                   <Text className="text-text-secondary text-[10px]">
@@ -116,7 +112,9 @@ export function WatchedSeriesModal({
                   {isFutureDateOnly(item.next_episode.air_date) ? (
                     <Text className="text-text-secondary text-[10px]">
                       {item.next_episode.air_date
-                        ? t('profile.newEpisodesOn', { date: formatDate(item.next_episode.air_date) })
+                        ? t('profile.newEpisodesOn', {
+                            date: formatDate(item.next_episode.air_date),
+                          })
                         : t('profile.newEpisodesSoon')}
                     </Text>
                   ) : null}

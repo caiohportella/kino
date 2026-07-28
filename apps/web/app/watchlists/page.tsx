@@ -104,14 +104,14 @@ export default function WatchlistsPage() {
             href={watchlistPath(watchlist.id, watchlist.name)}
             key={watchlist.id}
           >
-            <Card className="h-full w-full min-w-0 max-w-full p-5 transition hover:border-kino-accent/60 hover:bg-white/[0.04]">
+            <Card className="h-full w-full min-w-0 max-w-full p-5 transition hover:border-kino-accent/60 hover:bg-white/4">
               <div className="flex min-w-0 items-start justify-between gap-4">
                 <div className="min-w-0">
                   <h2 className="truncate text-xl font-semibold text-kino-text">
                     {watchlist.name}
                   </h2>
                   {watchlist.description ? (
-                    <p className="mt-2 line-clamp-2 break-words text-sm leading-6 text-kino-muted">
+                    <p className="mt-2 line-clamp-2 wrap-break-word text-sm leading-6 text-kino-muted">
                       {watchlist.description}
                     </p>
                   ) : null}

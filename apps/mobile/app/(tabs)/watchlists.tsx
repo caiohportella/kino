@@ -1,25 +1,24 @@
-import { useState, useCallback } from 'react'
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  RefreshControl,
-} from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { formatDate } from '@kino/core'
+import { useQueryClient } from '@tanstack/react-query'
+import { useRouter } from 'expo-router'
+import { useCallback, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import {
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '@/hooks/useAuth'
-import { useRouter } from 'expo-router'
-import { CreateWatchlistModal } from '~/components/modals/CreateWatchlistModal'
-import { useTranslation } from 'react-i18next'
-
-import { ScreenHeader } from '~/components/layout/ScreenHeader'
-import { ShareCodeBadge } from '~/components/watchlist/ShareCodeBadge'
+import { USER_KEYS, useUserWatchlists } from '@/hooks/useDatabase'
 import { Skeleton } from '~/components/common/Skeleton'
-import { useUserWatchlists, USER_KEYS } from '@/hooks/useDatabase'
-import { useQueryClient } from '@tanstack/react-query'
-import { formatDate } from '@kino/core'
+import { ScreenHeader } from '~/components/layout/ScreenHeader'
+import { CreateWatchlistModal } from '~/components/modals/CreateWatchlistModal'
+import { ShareCodeBadge } from '~/components/watchlist/ShareCodeBadge'
 
 export default function WatchlistsScreen() {
   const router = useRouter()

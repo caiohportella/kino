@@ -9,7 +9,7 @@ export function LandingFooter() {
   const { t } = useTranslation()
 
   return (
-    <footer className="border-t border-white/[0.06] py-8">
+    <footer className="border-t border-white/6 py-8">
       <div className="landing-section flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Link className="block w-fit" href="/">

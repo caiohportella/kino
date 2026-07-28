@@ -1,30 +1,4 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type {
-  EpisodeRating,
-  FollowerInfo,
-  MediaType,
-  PersistedTitle,
-  SeasonMetadata,
-  TMDbCast,
-  TMDbGenre,
-  TMDbSeason,
-  TitleDetails,
-  TitleRatingStats,
-  UIDiaryEntry,
-  UserProfile,
-  UserRating,
-  WatchDiaryEntry,
-  WatchType,
-  WatchedMovie,
-  WatchedSeries,
-  Watchlist,
-  WatchlistVisibility,
-  PublicWatchlistSummary,
-  WatchlistItem,
-  WatchlistItemDetails,
-} from './types'
-import { createWatchlistCoverVersion } from './watchlist-cover'
-import { findFirstUnwatchedEpisode, getEpisodeKey } from './use-cases'
 import {
   type FollowedEpisodeRatingsResponse,
   type FollowedRatingRow,
@@ -43,6 +17,32 @@ import {
   type TitleReviewsPage,
   validateReviewContent,
 } from './reviews'
+import type {
+  EpisodeRating,
+  FollowerInfo,
+  MediaType,
+  PersistedTitle,
+  PublicWatchlistSummary,
+  SeasonMetadata,
+  TitleDetails,
+  TitleRatingStats,
+  TMDbCast,
+  TMDbGenre,
+  TMDbSeason,
+  UIDiaryEntry,
+  UserProfile,
+  UserRating,
+  WatchDiaryEntry,
+  WatchedMovie,
+  WatchedSeries,
+  Watchlist,
+  WatchlistItem,
+  WatchlistItemDetails,
+  WatchlistVisibility,
+  WatchType,
+} from './types'
+import { findFirstUnwatchedEpisode, getEpisodeKey } from './use-cases'
+import { createWatchlistCoverVersion } from './watchlist-cover'
 
 type SupabaseErrorLike = { code?: string }
 

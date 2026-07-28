@@ -54,7 +54,6 @@ export function getNativeAuthCallbackUrl(
   return `${appScheme}://auth/callback${query ? `?${query}` : ''}${hash ? `#${hash}` : ''}`
 }
 
-export function shouldAttemptNativeAuthHandoff() {
-  if (typeof navigator === 'undefined') return false
-  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+export function isExplicitNativeAuthHandoff(searchParams: URLSearchParams) {
+  return searchParams.get('platform') === 'native'
 }

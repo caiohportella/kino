@@ -18,9 +18,7 @@ export function isReservedProfileRoute(username: string) {
 
 export function normalizeProfileUsername(value: string) {
   try {
-    const decoded = /%[0-9a-f]{2}/i.test(value)
-      ? decodeURIComponent(value)
-      : value
+    const decoded = /%[0-9a-f]{2}/i.test(value) ? decodeURIComponent(value) : value
     const username = decoded.trim()
     return username && !username.includes('/') ? username : null
   } catch {

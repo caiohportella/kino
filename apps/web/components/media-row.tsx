@@ -3,8 +3,8 @@
 import type {
   ComponentPropsWithoutRef,
   MouseEvent as ReactMouseEvent,
-  PointerEvent as ReactPointerEvent,
   ReactNode,
+  PointerEvent as ReactPointerEvent,
 } from 'react'
 import { useRef, useState } from 'react'
 import { cn } from '@/lib/utils'

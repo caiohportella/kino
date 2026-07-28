@@ -1,12 +1,12 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { DatabaseService } from '~/services/database'
 import type {
-  UserProfile,
-  TitleDetails,
-  Watchlist,
-  WatchDiaryEntry,
-  UserRating,
   EpisodeRating,
+  TitleDetails,
+  UserProfile,
+  UserRating,
+  WatchDiaryEntry,
+  Watchlist,
 } from '~/types'
 
 const databaseService = new DatabaseService()

@@ -34,8 +34,12 @@ export function getEmailAuthRedirectUrl() {
 }
 
 export function getNativeAuthRedirectUrl() {
+  const scheme = process.env.EXPO_PUBLIC_APP_SCHEME || DEFAULT_APP_SCHEME
+  if (!/^[a-z][a-z0-9+.-]*$/i.test(scheme)) {
+    throw new Error('EXPO_PUBLIC_APP_SCHEME must be a URL scheme such as "kino".')
+  }
   return makeRedirectUri({
-    scheme: process.env.EXPO_PUBLIC_APP_SCHEME || DEFAULT_APP_SCHEME,
+    scheme,
     path: 'auth/callback',
   })
 }

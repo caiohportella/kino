@@ -1,30 +1,30 @@
+import { Ionicons } from '@expo/vector-icons'
+import { useRouter } from 'expo-router'
+import { useCallback, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
-  View,
-  ScrollView,
+  ActivityIndicator,
+  Image,
   RefreshControl,
+  ScrollView,
   Text,
   TouchableOpacity,
-  Image,
-  ActivityIndicator,
+  View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useState, useCallback } from 'react'
-import { useRouter } from 'expo-router'
-import { Ionicons } from '@expo/vector-icons'
-import { useTranslation } from 'react-i18next'
 
 import { useAuth } from '@/hooks/useAuth'
-import { HomeSection } from '~/components/home/HomeSection'
 import { useUserProfile } from '@/hooks/useDatabase'
 import {
-  useTrending,
+  useNowPlayingMovies,
+  useOscarNominees,
   usePopularMovies,
   usePopularTV,
   useTopRatedMovies,
-  useNowPlayingMovies,
+  useTrending,
   useUpcomingMovies,
-  useOscarNominees,
 } from '@/hooks/useTMDB'
+import { HomeSection } from '~/components/home/HomeSection'
 
 export default function HomeScreen() {
   const router = useRouter()

@@ -1,5 +1,3 @@
-'use client'
-
 import type { Review } from '@kino/core'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'

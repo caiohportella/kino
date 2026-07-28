@@ -45,9 +45,9 @@ test('Google-hosted OG fonts can be rendered by ImageResponse', async () => {
           width: '100%',
         },
       },
-      'Kino.',
+      'Kino.'
     ),
-    options,
+    options
   )
   const image = await response.arrayBuffer()
   assert.ok(image.byteLength > 1_000)

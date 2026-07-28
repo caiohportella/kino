@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { Text, TextInput, TouchableOpacity, View } from 'react-native'
 
 export function ReviewEditor({
   initialContent,

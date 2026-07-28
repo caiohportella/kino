@@ -14,5 +14,5 @@ export default function ErrorPage({
     console.error(error)
   }, [error])
 
-  return <HttpErrorState onRetry={reset} status={500} />
+  return <HttpErrorState onRetryAction={reset} status={500} />
 }

@@ -50,6 +50,7 @@
     "@types/react": "~19.1.17",
     "@types/react-dom": "^19.1.2",
     "postcss": "^8.5.16",
+    "supabase": "^2.109.1",
     "tailwindcss": "4.3.2",
     "typescript": "~5.9.2"
   }

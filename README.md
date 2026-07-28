@@ -320,7 +320,43 @@ Install dependencies
 pnpm install
 ```
 
-Run web
+### Environment Variables
+
+The repo is set up to use a single root `.env` file. The web app maps `EXPO_PUBLIC_*` variables into `NEXT_PUBLIC_*` variables at startup, and the Expo app reads the same root values through `apps/mobile/app.config.js`.
+
+Required variables:
+
+```bash
+EXPO_PUBLIC_SUPABASE_URL=
+EXPO_PUBLIC_SUPABASE_ANON_KEY=
+EXPO_PUBLIC_TMDB_API_KEY=
+EXPO_PUBLIC_UPSTASH_VECTOR_REST_URL=
+EXPO_PUBLIC_UPSTASH_VECTOR_REST_TOKEN=
+EXPO_PUBLIC_WEB_URL=https://kino.vercel.app
+EXPO_PUBLIC_AUTH_REDIRECT_URL=https://kino.vercel.app/auth/callback
+EXPO_PUBLIC_APP_SCHEME=kino
+```
+
+Notes:
+
+-  `EXPO_PUBLIC_WEB_URL` should point to your web origin.
+-  `EXPO_PUBLIC_AUTH_REDIRECT_URL` can override the default `/auth/callback` redirect.
+-  `EXPO_PUBLIC_APP_SCHEME` controls the native deep-link scheme.
+-  Google OAuth on mobile requires an Expo development/standalone build; Expo Go does not provide
+   a stable custom-scheme callback. See [docs/authentication.md](docs/authentication.md) for the
+   Supabase allowlist, Google client, callback, and rebuild requirements.
+-  The code defaults to `https://kino.vercel.app/auth/callback` and `kino://auth/callback` if you do not override them.
+
+### Supabase Auth Setup
+
+Allow the callback URL you use locally in Supabase Auth settings.
+
+-  local web callback: `http://localhost:3000/auth/callback`
+-  production callback: your deployed `/auth/callback` URL
+
+### Development
+
+Run the web app:
 
 ```bash
 pnpm dev:web

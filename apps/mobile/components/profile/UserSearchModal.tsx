@@ -1,16 +1,17 @@
 // User search modal component
+
+import { Ionicons } from '@expo/vector-icons'
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  Modal,
-  TextInput,
+  ActivityIndicator,
   FlatList,
   Image,
-  ActivityIndicator,
+  Modal,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Ionicons } from '@expo/vector-icons'
 import type { UserProfile } from '~/types'
 
 interface UserSearchModalProps {

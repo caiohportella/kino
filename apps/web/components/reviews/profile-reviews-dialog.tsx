@@ -1,5 +1,3 @@
-'use client'
-
 import type { ProfileReview } from '@kino/core'
 import { Button } from '@/components/ui/button'
 import {

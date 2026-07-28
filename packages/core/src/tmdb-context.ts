@@ -37,9 +37,7 @@ const LANGUAGE_DEFAULT_REGIONS: Record<string, string> = {
   pt: 'BR',
 }
 
-const CATEGORY_FIELDS: Array<
-  [WatchProviderCategory, 'flatrate' | 'free' | 'ads' | 'rent' | 'buy']
-> = [
+const CATEGORY_FIELDS: [WatchProviderCategory, 'flatrate' | 'free' | 'ads' | 'rent' | 'buy'][] = [
   ['stream', 'flatrate'],
   ['free', 'free'],
   ['ads', 'ads'],

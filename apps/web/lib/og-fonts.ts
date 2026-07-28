@@ -5,8 +5,7 @@ export const OG_SIZE = { width: 1200, height: 630 }
 const FONT_URLS = {
   regular:
     'https://fonts.gstatic.com/s/notosans/v42/o-0mIpQlx3QUlC5A4PNB6Ryti20_6n1iPHjcz6L1SoM-jCpoiyD9A99d.ttf',
-  bold:
-    'https://fonts.gstatic.com/s/notosans/v42/o-0mIpQlx3QUlC5A4PNB6Ryti20_6n1iPHjcz6L1SoM-jCpoiyAaBN9d.ttf',
+  bold: 'https://fonts.gstatic.com/s/notosans/v42/o-0mIpQlx3QUlC5A4PNB6Ryti20_6n1iPHjcz6L1SoM-jCpoiyAaBN9d.ttf',
   blackItalic:
     'https://fonts.gstatic.com/s/notosans/v42/o-0kIpQlx3QUlC5A4PNr4C5OaxRsfNNlKbCePevHtVtX57DGjDU1QJ4Z6Vc.ttf',
 } as const
@@ -44,11 +43,14 @@ export function loadOgFonts() {
     fetchFont(FONT_URLS.bold),
     fetchFont(FONT_URLS.blackItalic),
   ])
-    .then(([regular, bold, blackItalic]) => [
-      { name: 'Kino Body', data: regular, style: 'normal', weight: 400 },
-      { name: 'Kino Body', data: bold, style: 'normal', weight: 700 },
-      { name: 'Kino OG', data: blackItalic, style: 'italic', weight: 900 },
-    ] satisfies OgFont[])
+    .then(
+      ([regular, bold, blackItalic]) =>
+        [
+          { name: 'Kino Body', data: regular, style: 'normal', weight: 400 },
+          { name: 'Kino Body', data: bold, style: 'normal', weight: 700 },
+          { name: 'Kino OG', data: blackItalic, style: 'italic', weight: 900 },
+        ] satisfies OgFont[]
+    )
     .catch(() => [])
 
   return fontPromise

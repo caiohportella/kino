@@ -1,21 +1,14 @@
-import {
-  View,
-  Text,
-  Modal,
-  FlatList,
-  TouchableOpacity,
-  Image,
-} from 'react-native'
-import { useMemo } from 'react'
 import { Ionicons } from '@expo/vector-icons'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import type { WatchedMovie } from '~/types'
-import { EmptyState } from '../EmptyState'
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import { FlatList, Image, Modal, Text, TouchableOpacity, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import userNotFound from '~/assets/illustrations/user-not-found.png'
-import { OscarBadge } from '../common/OscarBadge'
 import { useLocalizedMediaData } from '~/hooks/data/useLocalizedMediaData'
 import { getTMDbService } from '~/services/tmdb'
+import type { WatchedMovie } from '~/types'
+import { OscarBadge } from '../common/OscarBadge'
+import { EmptyState } from '../EmptyState'
 
 interface WatchedMoviesModalProps {
   visible: boolean
@@ -53,7 +46,8 @@ export function WatchedMoviesModal({
         {/* Header */}
         <View className="flex-row items-center justify-between p-4 border-b border-white/10 bg-surface">
           <Text className="text-3xl font-black text-white italic tracking-tighter">
-            {t('profile.watchedMovies')}<Text className="text-accent">.</Text>
+            {t('profile.watchedMovies')}
+            <Text className="text-accent">.</Text>
           </Text>
           <TouchableOpacity onPress={onClose} className="p-2">
             <Ionicons name="close" size={24} color="white" />

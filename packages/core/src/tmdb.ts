@@ -1,5 +1,6 @@
 import type {
   MediaType,
+  TitleDetails,
   TMDbCast,
   TMDbCredits,
   TMDbEpisode,
@@ -11,7 +12,6 @@ import type {
   TMDbTVShow,
   TMDbVideoResponse,
   TMDbWatchProviderResponse,
-  TitleDetails,
 } from './types'
 
 const TMDB_API_BASE = 'https://api.themoviedb.org/3'

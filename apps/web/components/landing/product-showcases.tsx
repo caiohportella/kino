@@ -123,7 +123,7 @@ function DiaryMockup() {
             key={row.title}
           >
             <span className="text-center text-2xl font-light text-kino-muted">{row.day}</span>
-            <span className="aspect-[2/3] rounded-md bg-[linear-gradient(145deg,rgb(255_255_255_/_0.2),rgb(29_185_84_/_0.18))]" />
+            <span className="aspect-2/3 rounded-md bg-[linear-gradient(145deg,rgb(255_255_255/0.2),rgb(29_185_84/0.18))]" />
             <span className="min-w-0">
               <span className="block truncate text-sm font-bold text-kino-text">{row.title}</span>
               <span className="mt-1 block text-xs text-kino-muted">{row.note}</span>
@@ -207,13 +207,13 @@ function WatchlistMockup() {
       <div className="grid grid-cols-4 gap-3">
         {[0, 1, 2, 3].map((item) => (
           <div className="grid gap-2" key={item}>
-            <div className="aspect-[2/3] rounded-md bg-[linear-gradient(145deg,rgb(255_255_255_/_0.18),rgb(0_0_0_/_0.22))]" />
+            <div className="aspect-2/3 rounded-md bg-[linear-gradient(145deg,rgb(255_255_255/0.18),rgb(0_0_0/0.22))]" />
             <div className="h-2 rounded-full bg-white/14" />
           </div>
         ))}
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
-        <span className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-kino-muted">
+        <span className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/4 px-3 py-2 text-xs font-bold text-kino-muted">
           <UsersRound size={14} />4 collaborators
         </span>
         <span className="inline-flex items-center gap-2 rounded-md bg-kino-accent px-3 py-2 text-xs font-bold text-black">
@@ -241,7 +241,7 @@ function ProgressMockup() {
             Episodes and season completion stay in sync.
           </p>
         </div>
-        <span className="rounded-md bg-white/[0.06] px-3 py-1.5 text-xs font-bold text-kino-muted">
+        <span className="rounded-md bg-white/6 px-3 py-1.5 text-xs font-bold text-kino-muted">
           7 / 10
         </span>
       </div>

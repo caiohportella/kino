@@ -23,7 +23,7 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0 max-w-3xl">
-        <h1 className="break-words text-3xl font-black italic tracking-normal md:text-4xl">
+        <h1 className="wrap-break-word text-3xl font-black italic tracking-normal md:text-4xl">
           <DisplayTitle title={title} />
         </h1>
         {body ? <p className="mt-3 max-w-2xl text-sm leading-6 text-kino-muted">{body}</p> : null}

@@ -1,5 +1,3 @@
-'use client'
-
 import type { ReactElement } from 'react'
 import type { Locale } from 'react-day-picker'
 import { AdvancedCalendar } from '@/components/ui/advanced-calendar'
@@ -36,7 +34,9 @@ export function SingleDatePicker({
           endMonth={endMonth}
           locale={locale}
           mode="single"
-          onSelect={(date) => { if (date) onSelect(date) }}
+          onSelect={(date) => {
+            if (date) onSelect(date)
+          }}
           selected={selected}
           startMonth={startMonth}
         />

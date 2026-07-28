@@ -1,22 +1,63 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
-  View,
-  Text,
-  FlatList,
   ActivityIndicator,
+  FlatList,
   LayoutAnimation,
+  Text,
   useWindowDimensions,
+  View,
 } from 'react-native'
-import { SearchBar } from '~/components/search/SearchBar'
-import { TitleCard } from '~/components/common/TitleCard'
 import { useSearch } from '@/hooks/useSearch'
 import { useUpstashSearch } from '@/hooks/useUpstashSearch'
-import { getTMDbService } from '~/services/tmdb'
-import type { TMDbTitle, TMDbGenre } from '~/types'
-import { ScreenHeader } from '~/components/layout/ScreenHeader'
+import { TitleCard } from '~/components/common/TitleCard'
 import { EmptyState } from '~/components/EmptyState'
-import { useTranslation } from 'react-i18next'
-import { AdvancedFilterModal, FilterState, defaultFilterState } from '~/components/modals/AdvancedFilterModal'
+import { ScreenHeader } from '~/components/layout/ScreenHeader'
+import {
+  AdvancedFilterModal,
+  defaultFilterState,
+  FilterState,
+} from '~/components/modals/AdvancedFilterModal'
+import { SearchBar } from '~/components/search/SearchBar'
+import { getTMDbService } from '~/services/tmdb'
+import type { TMDbGenre, TMDbTitle } from '~/types'
+
+// Helper to get decade start year
+function getDecadeStart(decade: string) {
+  switch (decade) {
+    case '2020s':
+      return '2020-01-01'
+    case '2010s':
+      return '2010-01-01'
+    case '2000s':
+      return '2000-01-01'
+    case '1990s':
+      return '1990-01-01'
+    case '1980s':
+      return '1980-01-01'
+    default:
+      return null
+  }
+}
+
+function getDecadeEnd(decade: string) {
+  switch (decade) {
+    case '2020s':
+      return '2029-12-31'
+    case '2010s':
+      return '2019-12-31'
+    case '2000s':
+      return '2009-12-31'
+    case '1990s':
+      return '1999-12-31'
+    case '1980s':
+      return '1989-12-31'
+    case 'older':
+      return '1979-12-31'
+    default:
+      return null
+  }
+}
 
 export default function SearchScreen() {
   const { t } = useTranslation()
@@ -42,7 +83,7 @@ export default function SearchScreen() {
 
   // Advanced Filter state
   const [filters, setFilters] = useState<FilterState>(defaultFilterState)
-  const [selectedThemes, setSelectedThemes] = useState<string[]>([]) // Keep this for now
+  const [selectedThemes, _setSelectedThemes] = useState<string[]>([]) // Keep this for now
 
   const [discoveryResults, setDiscoveryResults] = useState<TMDbTitle[]>([])
   const [loading, setLoading] = useState(false)
@@ -56,7 +97,14 @@ export default function SearchScreen() {
   const isHybridSearchActive = searchQuery.length > 0 || selectedThemes.length > 0
   const isGlobalLoading = loading || tmdbLoading || semanticLoading
   // Check if any filter is active
-  const hasActiveFilters = filters.mediaType !== 'all' || filters.decade !== 'all' || filters.minRating !== 'all' || filters.duration !== 'all' || filters.seasons !== 'all' || filters.nationality !== 'all' || filters.genres.length > 0
+  const hasActiveFilters =
+    filters.mediaType !== 'all' ||
+    filters.decade !== 'all' ||
+    filters.minRating !== 'all' ||
+    filters.duration !== 'all' ||
+    filters.seasons !== 'all' ||
+    filters.nationality !== 'all' ||
+    filters.genres.length > 0
 
   // Load genres on mount
   useEffect(() => {
@@ -74,31 +122,7 @@ export default function SearchScreen() {
       }
     }
     loadGenres()
-  }, [])
-
-  // Helper to get decade start year
-  const getDecadeStart = (decade: string) => {
-    switch (decade) {
-      case '2020s': return '2020-01-01'
-      case '2010s': return '2010-01-01'
-      case '2000s': return '2000-01-01'
-      case '1990s': return '1990-01-01'
-      case '1980s': return '1980-01-01'
-      default: return null
-    }
-  }
-  
-  const getDecadeEnd = (decade: string) => {
-    switch (decade) {
-      case '2020s': return '2029-12-31'
-      case '2010s': return '2019-12-31'
-      case '2000s': return '2009-12-31'
-      case '1990s': return '1999-12-31'
-      case '1980s': return '1989-12-31'
-      case 'older': return '1979-12-31'
-      default: return null
-    }
-  }
+  }, [tmdb.getGenres])
 
   // Hybrid Search / Discovery Trigger
   useEffect(() => {
@@ -142,13 +166,13 @@ export default function SearchScreen() {
           if (filters.nationality !== 'all') {
             commonParams.with_original_language = filters.nationality
           }
-          
+
           let results: TMDbTitle[] = []
 
           // Handle Movies Search
           if (filters.mediaType === 'all' || filters.mediaType === 'movie') {
             const movieParams = { ...commonParams }
-            
+
             // Decade
             if (filters.decade !== 'all') {
               if (filters.decade === 'older') {
@@ -165,8 +189,7 @@ export default function SearchScreen() {
               else if (filters.duration === '90to120') {
                 movieParams['with_runtime.gte'] = '90'
                 movieParams['with_runtime.lte'] = '120'
-              }
-              else if (filters.duration === 'over120') movieParams['with_runtime.gte'] = '120'
+              } else if (filters.duration === 'over120') movieParams['with_runtime.gte'] = '120'
             }
 
             const movieData = await tmdb.discoverMedia('movie', movieParams)
@@ -177,7 +200,7 @@ export default function SearchScreen() {
           // Handle TV Search
           if (filters.mediaType === 'all' || filters.mediaType === 'tv') {
             const tvParams = { ...commonParams }
-            
+
             // Decade
             if (filters.decade !== 'all') {
               if (filters.decade === 'older') {
@@ -187,8 +210,8 @@ export default function SearchScreen() {
                 tvParams['first_air_date.lte'] = getDecadeEnd(filters.decade)!
               }
             }
-            
-            // Note: TMDb doesn't support number of seasons filter directly in discover, 
+
+            // Note: TMDb doesn't support number of seasons filter directly in discover,
             // so we'll have to filter TV seasons client-side unfortunately or just skip it for now.
             // Client-side filtering requires fetching details for each show which is too heavy.
 
@@ -226,7 +249,20 @@ export default function SearchScreen() {
     }, 500) // Debounce everything slightly to avoid flicker
 
     return () => clearTimeout(timeoutId)
-  }, [searchQuery, filters, selectedThemes, isHybridSearchActive, genres])
+  }, [
+    searchQuery,
+    filters,
+    selectedThemes,
+    isHybridSearchActive,
+    genres,
+    clearSemanticResults,
+    clearTmdbResults,
+    hasActiveFilters, // Fire both searches for robust results
+    semanticSearch,
+    tmdb.discoverMedia,
+    tmdb.getTrending,
+    tmdbSearch,
+  ])
 
   // Handlers
   const handleSearchInput = (text: string) => {
@@ -252,7 +288,7 @@ export default function SearchScreen() {
       const hasAllGenres = filters.genres.every((id) => item.genre_ids.includes(id))
       if (!hasAllGenres) return false
     }
-    
+
     // 2. Rating Filter
     if (filters.minRating !== 'all' && item.vote_average < parseInt(filters.minRating)) return false
 

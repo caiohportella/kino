@@ -2,8 +2,8 @@
 
 import type { MediaType } from '@kino/core'
 import { getReleaseYear } from '@kino/core'
-import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useMemo } from 'react'
 import { getTmdb } from '@/lib/services'
 import { useSettingsStore } from '@/stores/settings-store'
 

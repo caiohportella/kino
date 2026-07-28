@@ -1,7 +1,7 @@
-import { View, Text, ScrollView, Image, TouchableOpacity } from 'react-native'
-import { useTranslation } from 'react-i18next'
+import { formatDate, isFutureDateOnly } from '@kino/core'
 import { useMemo } from 'react'
-import { isFutureDateOnly, formatDate } from '@kino/core'
+import { useTranslation } from 'react-i18next'
+import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native'
 import placeholderPoster from '@/assets/placeholder-poster.jpg'
 import { useLocalizedMediaData } from '~/hooks/data/useLocalizedMediaData'
 import { getTMDbService } from '~/services/tmdb'
@@ -28,10 +28,16 @@ type Props = {
 export function WatchedSeriesSection({ series, onSeriesPress, onLongPress, onViewAll }: Props) {
   const { t } = useTranslation()
   const tmdb = getTMDbService()
-  const items = useMemo(() => series.map(s => ({ tmdb_id: s.tmdb_id, type: 'tv' as const })), [series])
+  const items = useMemo(
+    () => series.map((s) => ({ tmdb_id: s.tmdb_id, type: 'tv' as const })),
+    [series]
+  )
   const localizedData = useLocalizedMediaData(items)
   const watchedSeries = useMemo(() => series.filter((item) => !item.next_episode), [series])
-  const keepWatchingSeries = useMemo(() => series.filter((item) => Boolean(item.next_episode)), [series])
+  const keepWatchingSeries = useMemo(
+    () => series.filter((item) => Boolean(item.next_episode)),
+    [series]
+  )
 
   const getStatusBadge = (item: WatchedSeries) => {
     if (item.is_series_completed || item.is_caught_up) {
@@ -79,7 +85,9 @@ export function WatchedSeriesSection({ series, onSeriesPress, onLongPress, onVie
       {keepWatchingSeries.length > 0 ? (
         <View className="mb-6">
           <View className="flex-row items-center justify-between px-4 mb-3">
-            <Text className="text-text-primary font-bold text-lg">{t('profile.keepWatching', { defaultValue: 'Keep Watching' })}</Text>
+            <Text className="text-text-primary font-bold text-lg">
+              {t('profile.keepWatching', { defaultValue: 'Keep Watching' })}
+            </Text>
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4">
@@ -91,7 +99,9 @@ export function WatchedSeriesSection({ series, onSeriesPress, onLongPress, onVie
       {watchedSeries.length > 0 ? (
         <View className="mb-6">
           <View className="flex-row items-center justify-between px-4 mb-3">
-            <Text className="text-text-primary font-bold text-lg">{t('profile.watchedSeries')}</Text>
+            <Text className="text-text-primary font-bold text-lg">
+              {t('profile.watchedSeries')}
+            </Text>
             {series.length > 5 && onViewAll && (
               <TouchableOpacity onPress={onViewAll}>
                 <Text className="text-accent text-sm font-medium">{t('profile.viewAll')}</Text>
@@ -126,7 +136,9 @@ export function WatchedSeriesSection({ series, onSeriesPress, onLongPress, onVie
             source={
               localizedData[item.tmdb_id]?.poster_path
                 ? { uri: tmdb.getImageUrl(localizedData[item.tmdb_id].poster_path, 'w300') || '' }
-                : item.cover_image ? { uri: item.cover_image } : placeholderPoster
+                : item.cover_image
+                  ? { uri: item.cover_image }
+                  : placeholderPoster
             }
             className="w-24 h-36 rounded-lg bg-surface"
             resizeMode="cover"

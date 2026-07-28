@@ -24,6 +24,10 @@ apps/**/.env
 apps/**/.env.local
 apps/**/.env.*.local
 !.env.example
+skills-lock.json
+docs/
+apps/web/supabase/
+apps/web/PRODUCT.md
 
 ios
 android

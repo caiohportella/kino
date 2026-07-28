@@ -1,5 +1,3 @@
-'use client'
-
 import type { WatchlistVisibility } from '@kino/core'
 import { Globe2, Link2, Lock } from 'lucide-react'
 import { useTranslation } from '@/lib/i18n'

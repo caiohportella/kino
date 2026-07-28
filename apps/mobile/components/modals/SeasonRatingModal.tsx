@@ -1,18 +1,18 @@
+import { Ionicons } from '@expo/vector-icons'
+import { BlurView } from 'expo-blur'
+import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
+  ActivityIndicator,
   Modal,
-  View,
+  ScrollView,
   Text,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  ActivityIndicator,
-  ScrollView,
+  View,
 } from 'react-native'
-import { BlurView } from 'expo-blur'
+import type { EpisodeRating, TMDbEpisode } from '~/types'
 import { RatingStars } from '../common/RatingStars'
-import { useEffect, useState, useMemo } from 'react'
-import { Ionicons } from '@expo/vector-icons'
-import type { TMDbEpisode, EpisodeRating } from '~/types'
-import { useTranslation } from 'react-i18next'
 
 interface SeasonRatingModalProps {
   visible: boolean

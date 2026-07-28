@@ -1,24 +1,23 @@
+import { Ionicons } from '@expo/vector-icons'
+import { formatDate } from '@kino/core'
+import DateTimePicker from '@react-native-community/datetimepicker'
+import { BlurView } from 'expo-blur'
+import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
-  Modal,
-  View,
-  Text,
-  TouchableOpacity,
   Alert,
+  Modal,
   Platform,
   Switch,
+  Text,
+  TouchableOpacity,
   TouchableWithoutFeedback,
+  View,
 } from 'react-native'
-import { BlurView } from 'expo-blur'
-import { RatingStars } from '../common/RatingStars'
-import { useEffect, useState, useCallback } from 'react'
-import DateTimePicker from '@react-native-community/datetimepicker'
-import { dbService } from '~/services/database'
-import { Ionicons } from '@expo/vector-icons'
-import { useTranslation } from 'react-i18next'
 import { useLanguage } from '@/hooks/useLanguage'
-import { formatDate } from '@kino/core'
-
+import { dbService } from '~/services/database'
 import { UIDiaryEntry } from '~/types'
+import { RatingStars } from '../common/RatingStars'
 
 interface DiaryActionModalProps {
   visible: boolean
@@ -70,7 +69,7 @@ export function DiaryActionModal({ visible, onClose, entry, onUpdate }: DiaryAct
             await dbService.deleteWatchDiaryEntry(entry.id)
             onUpdate()
             onClose()
-          } catch (error) {
+          } catch (_error) {
             Alert.alert(t('common.error'), t('common.failedToDelete'))
           } finally {
             setLoading(false)
@@ -101,7 +100,7 @@ export function DiaryActionModal({ visible, onClose, entry, onUpdate }: DiaryAct
 
       onUpdate()
       onClose()
-    } catch (error) {
+    } catch (_error) {
       Alert.alert(t('common.error'), t('common.failedToUpdate'))
     } finally {
       setLoading(false)
@@ -136,9 +135,7 @@ export function DiaryActionModal({ visible, onClose, entry, onUpdate }: DiaryAct
                   onPress={() => setShowDatePicker(true)}
                   className="flex-row items-center justify-between rounded-lg border border-white/10 bg-black/20 p-3"
                 >
-                  <Text className="text-base text-text-primary">
-                    {formatDate(watchedAt)}
-                  </Text>
+                  <Text className="text-base text-text-primary">{formatDate(watchedAt)}</Text>
                   <Ionicons name="calendar-outline" size={18} color="#1DB954" />
                 </TouchableOpacity>
               </View>
@@ -225,8 +222,9 @@ export function DiaryActionModal({ visible, onClose, entry, onUpdate }: DiaryAct
                 <TouchableOpacity
                   onPress={handleSave}
                   disabled={loading}
-                  className={`items-center rounded-full bg-accent py-3 ${loading ? 'opacity-50' : ''
-                    }`}
+                  className={`items-center rounded-full bg-accent py-3 ${
+                    loading ? 'opacity-50' : ''
+                  }`}
                 >
                   <Text className="font-semibold text-primary">{t('modals.saveChanges')}</Text>
                 </TouchableOpacity>

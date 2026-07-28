@@ -12,12 +12,16 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   try {
     const data = await getPublicProfileOgData(id)
     if (!data) {
-      return image(createElement(FallbackOg, { title: 'Settings preview unavailable.', label: 'Settings' }))
+      return image(
+        createElement(FallbackOg, { title: 'Settings preview unavailable.', label: 'Settings' })
+      )
     }
     const avatar = await safeImageData(data.avatarUrl)
     return image(createElement(SettingsOg, { avatar, data }))
   } catch {
-    return image(createElement(FallbackOg, { title: 'Settings preview unavailable.', label: 'Settings' }))
+    return image(
+      createElement(FallbackOg, { title: 'Settings preview unavailable.', label: 'Settings' })
+    )
   }
 }
 

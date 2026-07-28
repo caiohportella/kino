@@ -1,7 +1,7 @@
-import type { NextConfig } from 'next'
-import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import type { NextConfig } from 'next'
+import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 
 function readEnvFile(envPath: string): Record<string, string> {
   if (!existsSync(envPath)) return {}

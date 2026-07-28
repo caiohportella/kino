@@ -1,6 +1,4 @@
-'use client'
-
-import { REVIEW_MAX_LENGTH, type PublicUserSummary } from '@kino/core'
+import { type PublicUserSummary, REVIEW_MAX_LENGTH } from '@kino/core'
 import { useState } from 'react'
 import { RatingStars } from '@/components/rating-stars'
 import { Button } from '@/components/ui/button'

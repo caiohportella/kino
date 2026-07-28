@@ -1,6 +1,6 @@
-import { useEffect, useState, useMemo } from 'react'
-import { getTMDbService } from '~/services/tmdb'
+import { useEffect, useMemo, useState } from 'react'
 import { useLanguage } from '~/hooks/useLanguage'
+import { getTMDbService } from '~/services/tmdb'
 
 export interface LocalizedMedia {
   title: string
@@ -11,9 +11,7 @@ export interface LocalizedMedia {
  * Given a list of items with tmdb_id and type, fetches the localized title
  * and poster path from TMDB in the current app language and returns a map.
  */
-export function useLocalizedMediaData(
-  items: { tmdb_id: number; type: 'movie' | 'tv' }[]
-) {
+export function useLocalizedMediaData(items: { tmdb_id: number; type: 'movie' | 'tv' }[]) {
   const language = useLanguage()
   const [mediaMap, setMediaMap] = useState<Record<number, LocalizedMedia>>({})
 
@@ -36,17 +34,17 @@ export function useLocalizedMediaData(
           batch.map(async (item) => {
             if (item.type === 'movie' || !item.type) {
               const details = await tmdb.getMovieDetails(item.tmdb_id)
-              return { 
-                tmdbId: item.tmdb_id, 
+              return {
+                tmdbId: item.tmdb_id,
                 title: details.title,
-                poster_path: details.poster_path 
+                poster_path: details.poster_path,
               }
             } else {
               const details = await tmdb.getTVDetails(item.tmdb_id)
-              return { 
-                tmdbId: item.tmdb_id, 
+              return {
+                tmdbId: item.tmdb_id,
                 title: details.name,
-                poster_path: details.poster_path
+                poster_path: details.poster_path,
               }
             }
           })
@@ -56,7 +54,7 @@ export function useLocalizedMediaData(
           if (result.status === 'fulfilled') {
             map[result.value.tmdbId] = {
               title: result.value.title,
-              poster_path: result.value.poster_path
+              poster_path: result.value.poster_path,
             }
           }
         }

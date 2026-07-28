@@ -12,7 +12,7 @@ test('profile review cards link titles while preserving independent controls', a
   assert.match(source, /reviews\.openForTitle/)
   assert.match(source, /line-clamp-5/)
   assert.match(source, /md:line-clamp-4/)
-  assert.match(source, /break-words/)
+  assert.match(source, /wrap-break-word/)
   assert.match(source, /ReviewAuthor/)
   assert.match(source, /ReviewOwnerActions/)
   assert.match(source, /aria-pressed=/)

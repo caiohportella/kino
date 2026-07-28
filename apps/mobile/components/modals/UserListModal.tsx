@@ -1,17 +1,17 @@
-import {
-  View,
-  Text,
-  Modal,
-  FlatList,
-  TouchableOpacity,
-  Image,
-  ActivityIndicator,
-} from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import type { FollowerInfo } from '~/types'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { EmptyState } from '../../components/EmptyState'
 import { formatDate } from '@kino/core'
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Modal,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import type { FollowerInfo } from '~/types'
+import { EmptyState } from '../../components/EmptyState'
 
 interface UserListModalProps {
   visible: boolean

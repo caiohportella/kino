@@ -1,5 +1,5 @@
-import { semanticSearch, SemanticSearchResult } from '@/services/upstash'
-import { useState, useCallback, useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
+import { SemanticSearchResult, semanticSearch } from '@/services/upstash'
 
 export function useUpstashSearch() {
   const [results, setResults] = useState<SemanticSearchResult[]>([])

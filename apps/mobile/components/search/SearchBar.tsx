@@ -1,15 +1,15 @@
-import React, { useState, useRef, useEffect } from 'react'
+import { Ionicons } from '@expo/vector-icons'
+import React, { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
-  View,
+  Keyboard,
+  LayoutAnimation,
+  StyleSheet,
+  Text,
   TextInput,
   TouchableOpacity,
-  Text,
-  StyleSheet,
-  LayoutAnimation,
-  Keyboard,
+  View,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
-import { useTranslation } from 'react-i18next'
 
 interface SearchBarProps {
   onSearch: (query: string) => void
@@ -34,7 +34,7 @@ export function SearchBar({
   // Use LayoutAnimation for smooth transitions
   useEffect(() => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-  }, [isFocused, query.length, isLoading])
+  }, [])
 
   const handleSearch = () => {
     if (query.trim()) onSearch(query.trim())

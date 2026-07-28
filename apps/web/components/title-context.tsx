@@ -1,8 +1,8 @@
 'use client'
 
 import type {
-  NormalizedWatchProviders,
   NormalizedWatchProvider,
+  NormalizedWatchProviders,
   TMDbTitle,
   TMDbVideo,
   WatchProviderCategory,
@@ -53,7 +53,7 @@ export function FranchiseTitles({ items, loading }: { items?: TMDbTitle[]; loadi
         {loading ? (
           <div className="flex gap-4 overflow-hidden">
             {[0, 1, 2, 3].map((item) => (
-              <Skeleton className="aspect-[2/3] w-36 shrink-0 rounded-md" key={item} />
+              <Skeleton className="aspect-2/3 w-36 shrink-0 rounded-md" key={item} />
             ))}
           </div>
         ) : (
@@ -325,7 +325,7 @@ export function MoreLikeThis({
         {loading ? (
           <div className="flex gap-4 overflow-hidden">
             {[0, 1, 2, 3].map((item) => (
-              <Skeleton className="aspect-[2/3] w-36 shrink-0 rounded-md" key={item} />
+              <Skeleton className="aspect-2/3 w-36 shrink-0 rounded-md" key={item} />
             ))}
           </div>
         ) : items?.length ? (

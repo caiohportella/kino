@@ -1,27 +1,27 @@
+import { Ionicons } from '@expo/vector-icons'
+import { Picker } from '@react-native-picker/picker'
+import * as ImagePicker from 'expo-image-picker'
+import { Stack, useRouter } from 'expo-router'
+import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Image,
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   RefreshControl,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native'
-import { Picker } from '@react-native-picker/picker'
-import { useRouter, Stack } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Ionicons } from '@expo/vector-icons'
-import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/hooks/useAuth'
-import { dbService } from '~/services/database'
-import * as ImagePicker from 'expo-image-picker'
 import { MediaImageSelectorModal } from '~/components/modals/MediaImageSelectorModal'
-import { useTranslation } from 'react-i18next'
 import { changeLanguage } from '~/i18n'
+import { dbService } from '~/services/database'
 
 export default function SettingsScreen() {
   const { user, signOut } = useAuth()
@@ -49,11 +49,7 @@ export default function SettingsScreen() {
     { code: 'fr', label: 'Français', flag: '🇫🇷' },
   ]
 
-  useEffect(() => {
-    loadProfile()
-  }, [user?.id])
-
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     if (!user) return
     try {
       const profile = await dbService.getUserProfile(user.id)
@@ -74,12 +70,16 @@ export default function SettingsScreen() {
       setLoading(false)
       setRefreshing(false)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    loadProfile()
+  }, [loadProfile])
 
   const onRefresh = useCallback(() => {
     setRefreshing(true)
     loadProfile()
-  }, [user])
+  }, [loadProfile])
 
   const handleAvatarPress = () => {
     if (avatarUrl) {

@@ -32,7 +32,7 @@ export function LandingNav({ showBrand }: { showBrand: boolean }) {
       )}
       transition={{ duration: reduceMotion ? 0 : 0.3, ease: [0.16, 1, 0.3, 1] }}
     >
-      <div className="landing-section flex min-h-[68px] items-center justify-between gap-6">
+      <div className="landing-section flex min-h-17 items-center justify-between gap-6">
         <motion.div
           animate={{ opacity: showBrand ? 1 : 0, y: showBrand ? 0 : -4 }}
           className={showBrand ? '' : 'pointer-events-none'}

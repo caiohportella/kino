@@ -1,12 +1,12 @@
 import { useEffect } from 'react'
-import { ViewStyle, DimensionValue, View } from 'react-native'
+import { DimensionValue, View, ViewStyle } from 'react-native'
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withTiming,
-  withSequence,
   Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
 } from 'react-native-reanimated'
 
 interface BaseSkeletonProps {
@@ -33,7 +33,7 @@ function BaseSkeleton({ width, height, borderRadius = 8, className, style }: Bas
       -1,
       true
     )
-  }, [])
+  }, [opacity])
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,

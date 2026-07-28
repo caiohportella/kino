@@ -19,7 +19,7 @@ export default function GlobalError({
     <html lang="en">
       <body className="bg-kino-bg text-kino-text">
         <Providers>
-          <HttpErrorState onRetry={reset} status={500} />
+          <HttpErrorState onRetryAction={reset} status={500} />
         </Providers>
       </body>
     </html>
