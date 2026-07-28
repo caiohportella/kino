@@ -23,8 +23,10 @@ function deferred() {
 function createFakeAuthSource(initialResult) {
   let listener
   let getSessionCalls = 0
+  let refreshSessionCalls = 0
   let subscriptionCalls = 0
   let unsubscribeCalls = 0
+  let refreshResult = Promise.resolve({ data: { session }, error: null })
 
   return {
     source: {
@@ -45,12 +47,24 @@ function createFakeAuthSource(initialResult) {
           },
         }
       },
+      refreshSession() {
+        refreshSessionCalls += 1
+        return refreshResult
+      },
     },
     emit(event, nextSession) {
       listener(event, nextSession)
     },
     calls() {
-      return { getSessionCalls, subscriptionCalls, unsubscribeCalls }
+      return {
+        getSessionCalls,
+        refreshSessionCalls,
+        subscriptionCalls,
+        unsubscribeCalls,
+      }
+    },
+    failRefresh(error) {
+      refreshResult = Promise.resolve({ data: { session: null }, error })
     },
   }
 }
@@ -115,6 +129,7 @@ test('initializes getSession and the auth subscription only once', async () => {
 
   assert.deepEqual(fake.calls(), {
     getSessionCalls: 1,
+    refreshSessionCalls: 0,
     subscriptionCalls: 1,
     unsubscribeCalls: 0,
   })
@@ -122,4 +137,47 @@ test('initializes getSession and the auth subscription only once', async () => {
   firstCleanup()
   secondCleanup()
   assert.equal(fake.calls().unsubscribeCalls, 1)
+})
+
+test('starts a fresh resolver lifecycle after provider cleanup and remount', async () => {
+  const fake = createFakeAuthSource(Promise.resolve({ data: { session }, error: null }))
+  const resolver = createWebAuthResolver(fake.source, () => undefined)
+
+  const firstCleanup = resolver.initialize()
+  await Promise.resolve()
+  firstCleanup()
+
+  resolver.initialize()
+  await Promise.resolve()
+
+  assert.deepEqual(fake.calls(), {
+    getSessionCalls: 2,
+    refreshSessionCalls: 0,
+    subscriptionCalls: 2,
+    unsubscribeCalls: 1,
+  })
+})
+
+test('records a typed refresh error while retaining the previous web session', async () => {
+  const fake = createFakeAuthSource(Promise.resolve({ data: { session }, error: null }))
+  fake.failRefresh({ message: 'Network request failed', status: 503 })
+  const snapshots = []
+  const resolver = createWebAuthResolver(fake.source, (snapshot) => snapshots.push(snapshot))
+
+  resolver.initialize()
+  await Promise.resolve()
+  await resolver.refresh()
+
+  assert.deepEqual(snapshots.at(-1), {
+    resolution: {
+      status: 'error',
+      error: {
+        code: 'temporary_refresh_failure',
+        message: 'Network request failed',
+        recoverable: true,
+      },
+      previousUser: user,
+    },
+    session,
+  })
 })

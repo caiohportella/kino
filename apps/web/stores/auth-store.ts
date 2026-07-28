@@ -16,12 +16,15 @@ interface AuthState {
   loading: boolean
   initialized: boolean
   initialize: () => () => void
+  refreshSession: () => Promise<void>
   signInWithEmail: (email: string, password: string) => Promise<void>
   signUpWithEmail: (email: string, password: string, username?: string) => Promise<void>
   signInWithOtp: (email: string) => Promise<void>
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
 }
+
+let activeResolver: { refresh(): Promise<void> } | null = null
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   resolution: { status: 'resolving' },
@@ -61,8 +64,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       }
     )
+    activeResolver = resolver
 
-    return resolver.initialize()
+    const cleanup = resolver.initialize()
+    return () => {
+      cleanup()
+      if (activeResolver === resolver) activeResolver = null
+      set({ initialized: false })
+    }
+  },
+  refreshSession: async () => {
+    await activeResolver?.refresh()
   },
   signInWithEmail: async (email, password) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
