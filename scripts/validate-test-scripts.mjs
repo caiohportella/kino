@@ -1,18 +1,55 @@
 import { readFile, readdir } from 'node:fs/promises'
-import { join, relative, sep } from 'node:path'
+import { dirname, join, relative, sep } from 'node:path'
 
 const readJson = async (path) => JSON.parse(await readFile(path, 'utf8'))
 
-const workspacePatterns = (manifest) => {
-  if (Array.isArray(manifest.workspaces)) return manifest.workspaces
-  return manifest.workspaces?.packages ?? []
+const workspacePatterns = async (root) => {
+  const workspaceFile = await readFile(join(root, 'pnpm-workspace.yaml'), 'utf8')
+  const lines = workspaceFile.split(/\r?\n/)
+  const packagesStart = lines.findIndex((line) => /^packages:\s*$/.test(line))
+
+  if (packagesStart === -1) return []
+
+  const patterns = []
+  for (const line of lines.slice(packagesStart + 1)) {
+    if (/^\S/.test(line)) break
+
+    const match = line.match(/^\s+-\s+(?:'([^']+)'|"([^"]+)"|([^\s#]+))/)
+    if (match) patterns.push(match[1] ?? match[2] ?? match[3])
+  }
+
+  return patterns
 }
 
 const patternMatches = (pattern, path) => {
-  const expression = pattern
-    .replace(/[|\\{}()[\]^$+?.]/g, '\\$&')
-    .replace(/\*\*/g, '.*')
-    .replace(/\*/g, '[^/]*')
+  let expression = ''
+
+  for (let index = 0; index < pattern.length; index += 1) {
+    const character = pattern[index]
+
+    if (character === '*' && pattern[index + 1] === '*') {
+      if (pattern[index + 2] === '/') {
+        expression += '(?:.*/)?'
+        index += 2
+      } else {
+        expression += '.*'
+        index += 1
+      }
+      continue
+    }
+
+    if (character === '*') {
+      expression += '[^/]*'
+      continue
+    }
+
+    if (character === '?') {
+      expression += '[^/]'
+      continue
+    }
+
+    expression += /[|\\{}()[\]^$+.]/.test(character) ? `\\${character}` : character
+  }
 
   return new RegExp(`^${expression}$`).test(path)
 }
@@ -41,13 +78,12 @@ const manifestPaths = async (root) => {
  * @returns {Promise<{ missing: string[] }>}
  */
 export const validateWorkspaceScripts = async (root) => {
-  const rootManifest = await readJson(join(root, 'package.json'))
-  const patterns = workspacePatterns(rootManifest)
+  const patterns = await workspacePatterns(root)
   const manifests = await manifestPaths(root)
   const missing = []
 
   for (const manifestPath of manifests) {
-    const packageDirectory = relative(root, manifestPath.slice(0, -'package.json'.length))
+    const packageDirectory = relative(root, dirname(manifestPath))
       .split(sep)
       .filter(Boolean)
       .join('/')
