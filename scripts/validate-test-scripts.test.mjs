@@ -1,25 +1,18 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 
 import { validateWorkspaceScripts } from './validate-test-scripts.mjs'
 
-const fixtureRoot = async ({
-  name,
-  patterns = ['apps/*', 'packages/*'],
-  scripts = {},
-}) => {
+const fixtureRoot = async ({ name, patterns = ['apps/*', 'packages/*'], scripts = {} }) => {
   const root = await mkdtemp(join(tmpdir(), `kino-${name}-`))
 
-  await writeFile(
-    join(root, 'package.json'),
-    JSON.stringify({ name: 'kino', private: true }),
-  )
+  await writeFile(join(root, 'package.json'), JSON.stringify({ name: 'kino', private: true }))
   await writeFile(
     join(root, 'pnpm-workspace.yaml'),
-    `packages:\n${patterns.map((pattern) => `  - ${pattern}`).join('\n')}\n`,
+    `packages:\n${patterns.map((pattern) => `  - ${pattern}`).join('\n')}\n`
   )
 
   await Promise.all([
@@ -37,7 +30,7 @@ const writeManifest = async (root, relativePath, scripts) => {
   await mkdir(directory, { recursive: true })
   await writeFile(
     join(directory, 'package.json'),
-    JSON.stringify({ name: `@kino/${relativePath.split('/').at(-1)}`, scripts }),
+    JSON.stringify({ name: `@kino/${relativePath.split('/').at(-1)}`, scripts })
   )
 }
 
