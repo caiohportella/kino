@@ -84,7 +84,7 @@ const matchesRequiredCommands = (commands) =>
 
 /**
  * Validates that a GitHub Actions workflow has the repository quality-gate
- * behavior required for pull requests.
+ * behavior required for pull requests and branch pushes.
  *
  * @param {string} path
  * @returns {Promise<{ commands: string[], errors: { rule: string }[] }>}
@@ -126,6 +126,9 @@ export const validateWorkflow = async (path) => {
   }
   if (!on.has('pull_request')) {
     errors.push({ rule: 'pull-request-trigger' })
+  }
+  if (!on.has('push')) {
+    errors.push({ rule: 'push-trigger' })
   }
   if (concurrency.get('group')?.value !== '${{ github.workflow }}-${{ github.ref }}') {
     errors.push({ rule: 'concurrency-key' })

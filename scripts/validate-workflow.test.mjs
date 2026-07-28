@@ -66,7 +66,7 @@ test('validator rejects a workflow that keeps obsolete runs or exposes secrets',
 
   await writeFile(
     fixturePath,
-    `name: Quality\non:\n  pull_request:\nconcurrency:\n  group: \${{ github.workflow }}-\${{ github.ref }}\n  cancel-in-progress: false\npermissions:\n  contents: read\njobs:\n  quality:\n    runs-on: ubuntu-latest\n    env:\n      TOKEN: \${{ secrets.DEPLOY_TOKEN }}\n    steps:\n      - uses: actions/checkout@v4\n      - uses: pnpm/action-setup@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: 22\n          cache: pnpm\n      - run: pnpm install --frozen-lockfile\n      - run: pnpm biome check .\n      - run: pnpm lint\n      - run: pnpm typecheck\n      - run: pnpm test\n      - run: pnpm build:web\n`
+    `name: Quality\non:\n  pull_request:\n  push:\nconcurrency:\n  group: \${{ github.workflow }}-\${{ github.ref }}\n  cancel-in-progress: false\npermissions:\n  contents: read\njobs:\n  quality:\n    runs-on: ubuntu-latest\n    env:\n      TOKEN: \${{ secrets.DEPLOY_TOKEN }}\n    steps:\n      - uses: actions/checkout@v4\n      - uses: pnpm/action-setup@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: 22\n          cache: pnpm\n      - run: pnpm install --frozen-lockfile\n      - run: pnpm biome check .\n      - run: pnpm lint\n      - run: pnpm typecheck\n      - run: pnpm test\n      - run: pnpm build:web\n`
   )
 
   const { validateWorkflow } = await import('./validate-workflow.mjs')
@@ -90,7 +90,7 @@ test('validator rejects required values nested outside their required mappings',
 
   await writeFile(
     fixturePath,
-    `name: Quality\non:\n  pull_request:\njobs:\n  quality:\n    runs-on: ubuntu-latest\n    concurrency:\n      group: \${{ github.workflow }}-\${{ github.ref }}\n      cancel-in-progress: true\n    permissions:\n      contents: read\n  other:\n    steps:\n      - uses: actions/checkout@v4\n      - uses: pnpm/action-setup@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: 22\n          cache: pnpm\n      - run: pnpm install --frozen-lockfile\n      - run: pnpm biome check .\n      - run: pnpm lint\n      - run: pnpm typecheck\n      - run: pnpm test\n      - run: pnpm build:web\n`
+    `name: Quality\non:\n  pull_request:\n  push:\njobs:\n  quality:\n    runs-on: ubuntu-latest\n    concurrency:\n      group: \${{ github.workflow }}-\${{ github.ref }}\n      cancel-in-progress: true\n    permissions:\n      contents: read\n  other:\n    steps:\n      - uses: actions/checkout@v4\n      - uses: pnpm/action-setup@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: 22\n          cache: pnpm\n      - run: pnpm install --frozen-lockfile\n      - run: pnpm biome check .\n      - run: pnpm lint\n      - run: pnpm typecheck\n      - run: pnpm test\n      - run: pnpm build:web\n`
   )
 
   const { validateWorkflow } = await import('./validate-workflow.mjs')
@@ -124,5 +124,25 @@ test('validator rejects additional top-level token permissions', async (t) => {
   assert.deepEqual(
     result.errors.map(({ rule }) => rule),
     ['read-only-permissions']
+  )
+})
+
+test('validator requires push under the top-level on mapping', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'kino-workflow-'))
+  const fixturePath = join(root, 'quality.yml')
+  t.after(() => rm(root, { recursive: true, force: true }))
+
+  const workflow = await readFile(workflowPath, 'utf8')
+  await writeFile(
+    fixturePath,
+    workflow.replace('  push:\n', '').replace('  quality:\n', '  quality:\n    push:\n')
+  )
+
+  const { validateWorkflow } = await import('./validate-workflow.mjs')
+  const result = await validateWorkflow(fixturePath)
+
+  assert.deepEqual(
+    result.errors.map(({ rule }) => rule),
+    ['push-trigger']
   )
 })
