@@ -39,11 +39,12 @@ export interface TitleDetailsQueryInput<Details extends LocalizedTitleSummary>
 }
 
 export function titleSummaryQueryOptions(input: TitleSummaryQueryInput) {
+  const descriptor = titleQueryKeys.canonical(input)
   return {
     gcTime: LOCALIZED_TITLE_GC_TIME,
     queryFn: ({ signal }: { signal: AbortSignal }) =>
-      input.fetchSummary({ ...queryContext(input), signal }),
-    queryKey: titleQueryKeys.summary(queryContext(input)),
+      input.fetchSummary({ ...descriptor.context, signal }),
+    queryKey: descriptor.summary,
     staleTime: LOCALIZED_TITLE_STALE_TIME,
   }
 }
@@ -52,13 +53,13 @@ export function titleDetailsQueryOptions<Details extends LocalizedTitleSummary>(
   queryClient: QueryClient,
   input: TitleDetailsQueryInput<Details>
 ) {
-  const context = queryContext(input)
+  const descriptor = titleQueryKeys.canonical(input)
   return {
     gcTime: LOCALIZED_TITLE_GC_TIME,
-    placeholderData: () =>
-      queryClient.getQueryData<LocalizedTitleSummary>(titleQueryKeys.summary(context)),
-    queryFn: ({ signal }: { signal: AbortSignal }) => input.fetchDetails({ ...context, signal }),
-    queryKey: titleQueryKeys.details(context),
+    placeholderData: () => queryClient.getQueryData<LocalizedTitleSummary>(descriptor.summary),
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      input.fetchDetails({ ...descriptor.context, signal }),
+    queryKey: descriptor.details,
     staleTime: LOCALIZED_TITLE_STALE_TIME,
   }
 }
@@ -68,15 +69,5 @@ export function seedTitleSummary(
   context: LocalizedTitleQueryContext,
   summary: LocalizedTitleSummary
 ) {
-  queryClient.setQueryData(titleQueryKeys.summary(queryContext(context)), summary)
-}
-
-function queryContext(input: LocalizedTitleQueryContext): LocalizedTitleQueryContext {
-  return {
-    id: input.id,
-    locale: input.locale,
-    mediaType: input.mediaType,
-    region: input.region,
-    scope: input.scope,
-  }
+  queryClient.setQueryData(titleQueryKeys.canonical(context).summary, summary)
 }

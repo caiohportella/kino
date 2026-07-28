@@ -25,6 +25,38 @@ export interface TitleQueryInput extends LocalizedScopedInput {
   readonly mediaType: MediaType
 }
 
+export interface CanonicalTitleQueryInput {
+  readonly id: number
+  readonly locale: string
+  readonly mediaType: MediaType
+  readonly region: string
+  readonly scope: CacheScope
+}
+
+export interface TitleQueryDescriptor {
+  readonly context: CanonicalTitleQueryInput
+  readonly details: readonly [
+    typeof CACHE_SCHEMA_VERSION,
+    'title',
+    'details',
+    MediaType,
+    number,
+    string,
+    string,
+    ...(readonly string[]),
+  ]
+  readonly summary: readonly [
+    typeof CACHE_SCHEMA_VERSION,
+    'title',
+    'summary',
+    MediaType,
+    number,
+    string,
+    string,
+    ...(readonly string[]),
+  ]
+}
+
 export interface TitleListQueryInput extends LocalizedScopedInput {
   readonly filters?: CacheFilters
   readonly list: string
@@ -69,12 +101,11 @@ const WATCHLIST_ROOT = [CACHE_SCHEMA_VERSION, 'watchlist'] as const
 
 export const titleQueryKeys = {
   all: TITLE_ROOT,
+  canonical: (input: TitleQueryInput) => createTitleQueryDescriptor(input),
   summaries: () => [...TITLE_ROOT, 'summary'] as const,
-  summary: (input: TitleQueryInput) =>
-    [...TITLE_ROOT, 'summary', ...localizedTitleSegments(input)] as const,
+  summary: (input: TitleQueryInput) => createTitleQueryDescriptor(input).summary,
   detailsRoot: () => [...TITLE_ROOT, 'details'] as const,
-  details: (input: TitleQueryInput) =>
-    [...TITLE_ROOT, 'details', ...localizedTitleSegments(input)] as const,
+  details: (input: TitleQueryInput) => createTitleQueryDescriptor(input).details,
   lists: () => [...TITLE_ROOT, 'list'] as const,
   list: (input: TitleListQueryInput) =>
     [
@@ -156,12 +187,44 @@ export const watchlistQueryKeys = {
     ] as const,
 }
 
-function localizedTitleSegments(input: TitleQueryInput) {
+function createTitleQueryDescriptor(input: TitleQueryInput): TitleQueryDescriptor {
   if (!Number.isSafeInteger(input.id) || input.id <= 0) {
     throw new TypeError('Title id must be a positive integer.')
   }
 
-  return [input.mediaType, input.id, ...localizedContextSegments(input)] as const
+  const context: CanonicalTitleQueryInput = {
+    id: input.id,
+    locale: normalizeLocale(input.locale),
+    mediaType: input.mediaType,
+    region: normalizeRegion(input.region),
+    scope: normalizeScope(input.scope),
+  }
+  const scope =
+    context.scope.kind === 'public'
+      ? (['public'] as const)
+      : (['authenticated', context.scope.userId] as const)
+
+  return {
+    context,
+    details: [
+      ...TITLE_ROOT,
+      'details',
+      context.mediaType,
+      context.id,
+      context.locale,
+      context.region,
+      ...scope,
+    ],
+    summary: [
+      ...TITLE_ROOT,
+      'summary',
+      context.mediaType,
+      context.id,
+      context.locale,
+      context.region,
+      ...scope,
+    ],
+  }
 }
 
 function localizedContextSegments(input: LocalizedScopedInput) {
@@ -175,6 +238,14 @@ function localizedContextSegments(input: LocalizedScopedInput) {
 function scopeSegments(scope: CacheScope) {
   if (scope.kind === 'public') return ['public'] as const
   return ['authenticated', requireIdentifier(scope.userId, 'authenticated user id')] as const
+}
+
+function normalizeScope(scope: CacheScope): CacheScope {
+  if (scope.kind === 'public') return { kind: 'public' }
+  return {
+    kind: 'authenticated',
+    userId: requireIdentifier(scope.userId, 'authenticated user id'),
+  }
 }
 
 function normalizeQuery(query: string) {

@@ -83,6 +83,57 @@ test('concurrent identical mobile summary prefetches invoke the fetcher once', a
   queryClient.clear()
 })
 
+test('mobile equivalent cache inputs deduplicate with the canonical fetch request', async () => {
+  const queryClient = new QueryClient()
+  let fetches = 0
+  let fetchedRequest
+  const fetchSummary = async (request) => {
+    fetches += 1
+    fetchedRequest = request
+    await Promise.resolve()
+    return summary
+  }
+
+  try {
+    await Promise.all([
+      prefetchTitleSummary(queryClient, {
+        ...context,
+        fetchSummary,
+        locale: 'PT_br',
+        region: 'br',
+        scope: { kind: 'authenticated', userId: ' viewer-a ' },
+      }),
+      prefetchTitleSummary(queryClient, {
+        ...context,
+        fetchSummary,
+        locale: 'pt-BR',
+        region: 'BR',
+        scope: { kind: 'authenticated', userId: 'viewer-a' },
+      }),
+    ])
+
+    assert.equal(fetches, 1)
+    assert.deepEqual(
+      {
+        id: fetchedRequest.id,
+        locale: fetchedRequest.locale,
+        mediaType: fetchedRequest.mediaType,
+        region: fetchedRequest.region,
+        scope: fetchedRequest.scope,
+      },
+      {
+        id: 1396,
+        locale: 'pt-BR',
+        mediaType: 'tv',
+        region: 'BR',
+        scope: { kind: 'authenticated', userId: 'viewer-a' },
+      }
+    )
+  } finally {
+    queryClient.clear()
+  }
+})
+
 test('mobile summary prefetch bounds concurrent distinct requests', async () => {
   const queryClient = new QueryClient()
   let active = 0

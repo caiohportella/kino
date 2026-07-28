@@ -162,26 +162,34 @@ function compareQuality(
   kind: LocalizedImageKind
 ) {
   const preferredAspectRatio = kind === 'backdrop' || kind === 'logo' ? 16 / 9 : 2 / 3
-  const aspectDifference =
-    aspectDistance(left, preferredAspectRatio) - aspectDistance(right, preferredAspectRatio)
-  if (aspectDifference !== 0) return aspectDifference
+  const aspectOrder = compareAscending(
+    aspectDistance(left, preferredAspectRatio),
+    aspectDistance(right, preferredAspectRatio)
+  )
+  if (aspectOrder !== 0) return aspectOrder
 
-  const qualityDifference = finiteOrZero(right.quality) - finiteOrZero(left.quality)
-  if (qualityDifference !== 0) return qualityDifference
+  const qualityOrder = compareDescending(finiteOrZero(left.quality), finiteOrZero(right.quality))
+  if (qualityOrder !== 0) return qualityOrder
 
-  const resolutionDifference = pixelArea(right) - pixelArea(left)
-  if (resolutionDifference !== 0) return resolutionDifference
+  const resolutionOrder = compareOptionalDescending(pixelArea(left), pixelArea(right))
+  if (resolutionOrder !== 0) return resolutionOrder
 
-  const voteAverageDifference = finiteOrZero(right.voteAverage) - finiteOrZero(left.voteAverage)
-  if (voteAverageDifference !== 0) return voteAverageDifference
+  const voteAverageOrder = compareDescending(
+    finiteOrZero(left.voteAverage),
+    finiteOrZero(right.voteAverage)
+  )
+  if (voteAverageOrder !== 0) return voteAverageOrder
 
-  const voteCountDifference = finiteOrZero(right.voteCount) - finiteOrZero(left.voteCount)
-  if (voteCountDifference !== 0) return voteCountDifference
+  const voteCountOrder = compareDescending(
+    finiteOrZero(left.voteCount),
+    finiteOrZero(right.voteCount)
+  )
+  if (voteCountOrder !== 0) return voteCountOrder
 
   const leftIdentity = left.id?.trim() || left.filePath
   const rightIdentity = right.id?.trim() || right.filePath
-  const identityOrder = leftIdentity.localeCompare(rightIdentity)
-  return identityOrder || left.filePath.localeCompare(right.filePath)
+  const identityOrder = compareLexically(leftIdentity, rightIdentity)
+  return identityOrder || compareLexically(left.filePath, right.filePath)
 }
 
 function aspectDistance(candidate: ImageQualityCandidate, preferredAspectRatio: number) {
@@ -196,7 +204,11 @@ function aspectDistance(candidate: ImageQualityCandidate, preferredAspectRatio: 
 }
 
 function pixelArea(candidate: ImageQualityCandidate) {
-  return (finitePositive(candidate.width) ?? 0) * (finitePositive(candidate.height) ?? 0)
+  const width = finitePositive(candidate.width)
+  const height = finitePositive(candidate.height)
+  if (width === null || height === null) return null
+  const area = width * height
+  return Number.isFinite(area) ? area : null
 }
 
 function finitePositive(value: number | null | undefined) {
@@ -205,4 +217,25 @@ function finitePositive(value: number | null | undefined) {
 
 function finiteOrZero(value: number | null | undefined) {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0
+}
+
+function compareAscending(left: number, right: number) {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
+}
+
+function compareDescending(left: number, right: number) {
+  return compareAscending(right, left)
+}
+
+function compareOptionalDescending(left: number | null, right: number | null) {
+  if (left === null || right === null) return 0
+  return compareDescending(left, right)
+}
+
+function compareLexically(left: string, right: string) {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
 }

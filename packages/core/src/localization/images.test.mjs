@@ -186,6 +186,26 @@ test('is deterministic across shuffled fixtures and never mutates provider array
   )
 })
 
+test('falls through overflowing image areas to runtime-independent stable ordering', () => {
+  const overflowing = [
+    candidate('/z-overflow.jpg', 'pt-BR', {
+      height: Number.MAX_VALUE,
+      width: Number.MAX_VALUE,
+    }),
+    candidate('/a-overflow.jpg', 'pt-BR', {
+      height: Number.MAX_VALUE,
+      width: Number.MAX_VALUE,
+    }),
+  ]
+  const selectedPaths = [
+    overflowing,
+    [...overflowing].reverse(),
+    [overflowing[1], overflowing[0]],
+  ].map((candidates) => selectLocalizedImage({ ...baseInput, candidates }).path)
+
+  assert.deepEqual(selectedPaths, ['/a-overflow.jpg', '/a-overflow.jpg', '/a-overflow.jpg'])
+})
+
 for (const kind of ['poster', 'backdrop', 'logo', 'profile']) {
   test(`supports ${kind} image selection`, () => {
     const result = selectLocalizedImage({
