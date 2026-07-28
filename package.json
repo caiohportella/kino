@@ -11,6 +11,7 @@
     "build:web": "pnpm --filter @kino/web build",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "pnpm -r --if-present lint",
+    "pretest": "node --test scripts/*.test.mjs && node scripts/validate-test-scripts.mjs .",
     "test": "pnpm -r --if-present test",
     "check": "pnpm biome check . && pnpm lint && pnpm typecheck && pnpm test && pnpm build:web",
     "format": "biome format --write .",
