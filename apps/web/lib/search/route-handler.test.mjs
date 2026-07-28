@@ -100,3 +100,114 @@ test('sanitizes unexpected gateway failures and propagates caller cancellation',
     (error) => error === reason
   )
 })
+
+test('rejects rate-limited requests before invoking the gateway', async () => {
+  let gatewayCalls = 0
+  const events = []
+  const handler = createSearchRouteHandler({
+    gateway: {
+      search: async () => {
+        gatewayCalls += 1
+        return success
+      },
+    },
+    rateLimiter: {
+      check: async () => ({ allowed: false, remaining: 0, retryAfterSeconds: 7 }),
+    },
+    clientKey: () => 'trusted-client-key',
+    traceId: () => 'trace-rate-limit',
+    eventSink: { emit: (event) => events.push(event) },
+    now: () => 100,
+  })
+
+  const response = await handler(
+    new Request('https://kino.example/api/v1/search', {
+      method: 'POST',
+      body: JSON.stringify({ schemaVersion: SEARCH_SCHEMA_VERSION, query: 'Alien' }),
+    })
+  )
+  assert.equal(response.status, 429)
+  assert.equal(response.headers.get('retry-after'), '7')
+  assert.equal(response.headers.get('x-request-id'), 'trace-rate-limit')
+  assert.equal(gatewayCalls, 0)
+  assert.equal(events.length, 1)
+  assert.equal(events[0].rateLimited, true)
+  assert.equal(events[0].providerFailure, false)
+})
+
+test('records sanitized fallback telemetry with a trace id and fingerprint', async () => {
+  const events = []
+  let now = 1_000
+  const handler = createSearchRouteHandler({
+    gateway: { search: async () => success },
+    traceId: () => 'trace-success',
+    eventSink: { emit: (event) => events.push(event) },
+    now: () => {
+      const value = now
+      now += 12
+      return value
+    },
+  })
+
+  const response = await handler(
+    new Request('https://kino.example/api/v1/search', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer secret',
+        cookie: 'session=secret',
+      },
+      body: JSON.stringify({ schemaVersion: SEARCH_SCHEMA_VERSION, query: 'Alien' }),
+    })
+  )
+  assert.equal(response.status, 200)
+  assert.equal(response.headers.get('x-request-id'), 'trace-success')
+  assert.equal(events.length, 1)
+  assert.equal(events[0].fallback, 'provider_unavailable')
+  assert.equal(events[0].outcome, 'success')
+  assert.equal(events[0].providerFailure, true)
+  assert.equal(events[0].queryFingerprint.length, 24)
+  assert.doesNotMatch(JSON.stringify(events[0]), /Alien|secret|authorization|cookie/u)
+})
+
+test('records cancellation without counting it as provider failure', async () => {
+  const events = []
+  const reason = new DOMException('caller cancelled', 'AbortError')
+  const handler = createSearchRouteHandler({
+    gateway: { search: async () => Promise.reject(reason) },
+    traceId: () => 'trace-cancelled',
+    eventSink: { emit: (event) => events.push(event) },
+  })
+
+  await assert.rejects(
+    handler(
+      new Request('https://kino.example/api/v1/search', {
+        method: 'POST',
+        body: JSON.stringify({ schemaVersion: SEARCH_SCHEMA_VERSION, query: 'Alien' }),
+      })
+    ),
+    (error) => error === reason
+  )
+  assert.equal(events.length, 1)
+  assert.equal(events[0].outcome, 'cancelled')
+  assert.equal(events[0].cancelled, true)
+  assert.equal(events[0].providerFailure, false)
+})
+
+test('returns the search response when the observability sink throws', async () => {
+  const handler = createSearchRouteHandler({
+    gateway: { search: async () => success },
+    eventSink: {
+      emit() {
+        throw new Error('metrics unavailable')
+      },
+    },
+  })
+  const response = await handler(
+    new Request('https://kino.example/api/v1/search', {
+      method: 'POST',
+      body: JSON.stringify({ schemaVersion: SEARCH_SCHEMA_VERSION, query: 'Alien' }),
+    })
+  )
+  assert.equal(response.status, 200)
+  assert.deepEqual(await response.json(), success)
+})
