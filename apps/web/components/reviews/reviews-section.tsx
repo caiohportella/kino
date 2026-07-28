@@ -88,9 +88,7 @@ export function ReviewsSection({
       </div>
 
       {query.isLoading || authorLoading ? <ReviewSkeleton /> : null}
-      {query.isError ? (
-        <p className="text-sm text-red-300">{t('reviews.loadFailure')}</p>
-      ) : null}
+      {query.isError ? <p className="text-sm text-red-300">{t('reviews.loadFailure')}</p> : null}
 
       {!query.isLoading && !authorLoading && !viewerReview && author ? (
         <div className="grid gap-3">

@@ -50,8 +50,7 @@ export function ReviewCard({
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-kino-muted">
             <span>
-              {t('reviews.reviewedBy')}{' '}
-              <ReviewAuthor author={review.author} variant="name" />
+              {t('reviews.reviewedBy')} <ReviewAuthor author={review.author} variant="name" />
             </span>
             {review.rating ? (
               <RatingStars

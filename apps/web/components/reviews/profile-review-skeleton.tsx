@@ -2,7 +2,10 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 export function ProfileReviewSkeleton() {
   return (
-    <div aria-hidden="true" className="grid grid-cols-[72px_minmax(0,1fr)] gap-4 rounded-md border border-white/10 bg-white/2.5 p-4">
+    <div
+      aria-hidden="true"
+      className="grid grid-cols-[72px_minmax(0,1fr)] gap-4 rounded-md border border-white/10 bg-white/2.5 p-4"
+    >
       <Skeleton className="aspect-2/3 w-18 rounded" />
       <div className="grid content-start gap-3">
         <Skeleton className="h-4 w-2/3" />
