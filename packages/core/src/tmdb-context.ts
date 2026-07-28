@@ -4,7 +4,7 @@ import type {
   TMDbVideo,
   TMDbWatchProviderResponse,
   WatchProviderCategory,
-} from './types'
+} from './types.ts'
 
 export function normalizeFranchiseTitles(parts: TMDbTitle[], currentId: number) {
   const unique = new Map(

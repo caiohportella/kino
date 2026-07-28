@@ -1,4 +1,4 @@
-import type { AuthenticatedResolution, AuthResolution, AuthResolutionEvent } from './types'
+import type { AuthenticatedResolution, AuthResolution, AuthResolutionEvent } from './types.ts'
 
 function previousUserFrom<AuthUser>(resolution: AuthResolution<AuthUser>) {
   if (resolution.status === 'authenticated') return resolution.user

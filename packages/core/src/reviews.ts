@@ -1,4 +1,4 @@
-import type { MediaType, UserProfile } from './types'
+import type { MediaType, UserProfile } from './types.ts'
 
 export const REVIEW_MAX_LENGTH = 2000
 export const REVIEW_PREVIEW_LIMIT = 6

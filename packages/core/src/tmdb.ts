@@ -12,7 +12,7 @@ import type {
   TMDbTVShow,
   TMDbVideoResponse,
   TMDbWatchProviderResponse,
-} from './types'
+} from './types.ts'
 
 const TMDB_API_BASE = 'https://api.themoviedb.org/3'
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p'
@@ -36,8 +36,11 @@ const LANGUAGE_MAP: Record<string, string> = {
 
 export class TMDbService {
   private language = 'en-US'
+  private readonly apiKey: string
 
-  constructor(private readonly apiKey: string) {}
+  constructor(apiKey: string) {
+    this.apiKey = apiKey
+  }
 
   setLanguage(appLanguage: string) {
     this.language = LANGUAGE_MAP[appLanguage] || 'en-US'

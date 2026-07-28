@@ -16,7 +16,7 @@ import {
   type ReviewRow,
   type TitleReviewsPage,
   validateReviewContent,
-} from './reviews'
+} from './reviews.ts'
 import type {
   EpisodeRating,
   FollowerInfo,
@@ -40,9 +40,9 @@ import type {
   WatchlistItemDetails,
   WatchlistVisibility,
   WatchType,
-} from './types'
-import { findFirstUnwatchedEpisode, getEpisodeKey } from './use-cases'
-import { createWatchlistCoverVersion } from './watchlist-cover'
+} from './types.ts'
+import { findFirstUnwatchedEpisode, getEpisodeKey } from './use-cases.ts'
+import { createWatchlistCoverVersion } from './watchlist-cover.ts'
 
 type SupabaseErrorLike = { code?: string }
 
