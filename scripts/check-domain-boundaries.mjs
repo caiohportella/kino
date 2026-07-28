@@ -1,7 +1,10 @@
 import { readdir, readFile } from 'node:fs/promises'
-import { builtinModules } from 'node:module'
+import { builtinModules, createRequire } from 'node:module'
 import { join, relative, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
+
+const requireFromCore = createRequire(new URL('../packages/core/package.json', import.meta.url))
+const ts = requireFromCore('typescript')
 
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts'])
 const NODE_MODULES = new Set(
@@ -31,133 +34,39 @@ const WORKER_OR_STORAGE_PREFIXES = [
   'node-cron',
 ]
 
-const isIdentifierStart = (character) => /[A-Za-z_$]/u.test(character)
-const isIdentifierPart = (character) => /[A-Za-z0-9_$]/u.test(character)
+const staticModuleText = (node) =>
+  node && (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node))
+    ? node.text
+    : undefined
 
-const readStringToken = (source, start) => {
-  const quote = source[start]
-  let value = ''
-  let index = start + 1
-
-  while (index < source.length) {
-    const character = source[index]
-    if (character === quote) return { end: index + 1, token: { type: 'string', value } }
-    if (character === '\\') {
-      const escaped = source[index + 1]
-      if (escaped === undefined) break
-      const escapes = { n: '\n', r: '\r', t: '\t' }
-      value += escapes[escaped] ?? escaped
-      index += 2
-      continue
-    }
-    value += character
-    index += 1
-  }
-
-  return { end: source.length, token: null }
-}
-
-const skipTemplate = (source, start) => {
-  let index = start + 1
-  while (index < source.length) {
-    if (source[index] === '\\') {
-      index += 2
-      continue
-    }
-    if (source[index] === '`') return index + 1
-    index += 1
-  }
-  return source.length
-}
-
-const tokenizeModule = (source) => {
-  const tokens = []
-  let index = 0
-
-  while (index < source.length) {
-    const character = source[index]
-    const next = source[index + 1]
-
-    if (/\s/u.test(character)) {
-      index += 1
-      continue
-    }
-    if (character === '/' && next === '/') {
-      index = source.indexOf('\n', index + 2)
-      if (index === -1) break
-      continue
-    }
-    if (character === '/' && next === '*') {
-      const end = source.indexOf('*/', index + 2)
-      index = end === -1 ? source.length : end + 2
-      continue
-    }
-    if (character === "'" || character === '"') {
-      const result = readStringToken(source, index)
-      if (result.token) tokens.push(result.token)
-      index = result.end
-      continue
-    }
-    if (character === '`') {
-      index = skipTemplate(source, index)
-      continue
-    }
-    if (isIdentifierStart(character)) {
-      let end = index + 1
-      while (end < source.length && isIdentifierPart(source[end])) end += 1
-      tokens.push({ type: 'identifier', value: source.slice(index, end) })
-      index = end
-      continue
-    }
-
-    tokens.push({ type: 'punctuation', value: character })
-    index += 1
-  }
-
-  return tokens
-}
-
-const findFromSpecifier = (tokens, start) => {
-  for (let index = start; index < tokens.length; index += 1) {
-    const token = tokens[index]
-    if (token.value === ';') return undefined
-    if (token.type === 'identifier' && token.value === 'from') {
-      return tokens[index + 1]?.type === 'string' ? tokens[index + 1].value : undefined
-    }
-  }
-  return undefined
-}
-
-export const parseModuleSpecifiers = (source) => {
-  const tokens = tokenizeModule(source)
+export const parseModuleSpecifiers = (source, fileName = 'module.ts') => {
+  const scriptKind = fileName.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+  const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, scriptKind)
   const specifiers = []
 
-  for (let index = 0; index < tokens.length; index += 1) {
-    const token = tokens[index]
-    const next = tokens[index + 1]
-    if (token.type !== 'identifier') continue
-
-    if (token.value === 'import') {
-      if (next?.value === '.') continue
-      if (next?.value === '(') {
-        if (tokens[index + 2]?.type === 'string') specifiers.push(tokens[index + 2].value)
-        continue
-      }
-      if (next?.type === 'string') {
-        specifiers.push(next.value)
-        continue
-      }
-      const specifier = findFromSpecifier(tokens, index + 1)
+  const visit = (node) => {
+    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+      const specifier = staticModuleText(node.moduleSpecifier)
       if (specifier) specifiers.push(specifier)
-      continue
+    } else if (
+      ts.isImportEqualsDeclaration(node) &&
+      ts.isExternalModuleReference(node.moduleReference)
+    ) {
+      const specifier = staticModuleText(node.moduleReference.expression)
+      if (specifier) specifiers.push(specifier)
+    } else if (ts.isCallExpression(node)) {
+      const isDynamicImport = node.expression.kind === ts.SyntaxKind.ImportKeyword
+      const isDirectRequire = ts.isIdentifier(node.expression) && node.expression.text === 'require'
+      if (isDynamicImport || isDirectRequire) {
+        const specifier = staticModuleText(node.arguments[0])
+        if (specifier) specifiers.push(specifier)
+      }
     }
 
-    if (token.value === 'export' && ['*', '{', 'type'].includes(next?.value)) {
-      const specifier = findFromSpecifier(tokens, index + 1)
-      if (specifier) specifiers.push(specifier)
-    }
+    ts.forEachChild(node, visit)
   }
 
+  visit(sourceFile)
   return specifiers
 }
 
@@ -213,7 +122,7 @@ export const checkDomainBoundaries = async (root) => {
 
   for (const domain of domains) {
     for (const path of await sourceFiles(domain.path)) {
-      const specifiers = parseModuleSpecifiers(await readFile(path, 'utf8'))
+      const specifiers = parseModuleSpecifiers(await readFile(path, 'utf8'), path)
       for (const specifier of specifiers) {
         const reason =
           domain.name === 'indexing'

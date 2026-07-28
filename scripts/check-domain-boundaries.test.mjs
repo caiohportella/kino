@@ -43,8 +43,19 @@ test('ignores prose while accepting internal platform-neutral indexing imports',
     `
       // import '@upstash/vector'
       const example = "import React from 'react'"
+      const importPattern = /import Vector from '@upstash\\/vector'/u
+      const requirePattern = /require\\('@upstash\\/vector'\\)/u
       import type { SearchIndexDocumentV1 } from './types.ts'
       export { SEARCH_INDEX_SCHEMA_VERSION } from './version.ts'
+    `
+  )
+  await writeSource(
+    root,
+    'packages/core/src/indexing/example.tsx',
+    `
+      export const Example = () => (
+        <div>import Vector from '@upstash/vector'; require('@upstash/vector')</div>
+      )
     `
   )
   await writeSource(
@@ -60,13 +71,28 @@ test('ignores prose while accepting internal platform-neutral indexing imports',
   })
 })
 
-test('CLI exits nonzero for parsed provider and search/indexing cross-imports', async (t) => {
+test('CLI enforces import declarations, import-equals, require, and dynamic import', async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'kino-boundaries-forbidden-'))
   t.after(() => rm(root, { recursive: true, force: true }))
   await writeSource(
     root,
     'packages/core/src/indexing/provider.ts',
     `import { Index } from '@upstash/vector'`
+  )
+  await writeSource(
+    root,
+    'packages/core/src/indexing/provider-import-equals.ts',
+    `import Vector = require('@upstash/vector')`
+  )
+  await writeSource(
+    root,
+    'packages/core/src/indexing/provider-require.cts',
+    `const Vector = require('@upstash/vector')`
+  )
+  await writeSource(
+    root,
+    'packages/core/src/indexing/provider-dynamic.ts',
+    `const Vector = await import('@upstash/vector')`
   )
   await writeSource(
     root,
@@ -84,6 +110,9 @@ test('CLI exits nonzero for parsed provider and search/indexing cross-imports', 
   assert.equal(result.code, 1)
   assert.equal(result.stdout, '')
   assert.match(result.stderr, /indexing\/provider\.ts.*@upstash\/vector/)
+  assert.match(result.stderr, /indexing\/provider-import-equals\.ts.*@upstash\/vector/)
+  assert.match(result.stderr, /indexing\/provider-require\.cts.*@upstash\/vector/)
+  assert.match(result.stderr, /indexing\/provider-dynamic\.ts.*@upstash\/vector/)
   assert.match(result.stderr, /indexing\/search-coupling\.ts.*\.\.\/search\/rank\.ts/)
   assert.match(result.stderr, /search\/indexing-coupling\.ts.*\.\.\/indexing\/documents\.ts/)
 })
