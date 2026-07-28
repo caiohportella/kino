@@ -73,3 +73,35 @@ test('exchanges and consumes a duplicate callback code only once', async () => {
   assert.equal(exchanges, 1)
   assert.equal(destinations, 1)
 })
+
+test('sets a legacy token session and consumes returnTo once across concurrent and repeated callbacks', async () => {
+  let sessions = 0
+  let destinations = 0
+  const completer = createAuthCallbackCompleter({
+    async exchangeCodeForSession() {
+      return { error: null }
+    },
+    async setSession(tokens) {
+      sessions += 1
+      assert.deepEqual(tokens, { access_token: 'access', refresh_token: 'refresh' })
+      return { error: null }
+    },
+    async consumeReturnTo() {
+      destinations += 1
+      return '/(tabs)/diary'
+    },
+  })
+  const callback = 'kino://auth/callback#access_token=access&refresh_token=refresh'
+
+  const [first, duplicate] = await Promise.all([
+    completer.complete(callback),
+    completer.complete(callback),
+  ])
+  const repeated = await completer.complete(callback)
+
+  assert.equal(first, '/(tabs)/diary')
+  assert.equal(duplicate, '/(tabs)/diary')
+  assert.equal(repeated, '/(tabs)/diary')
+  assert.equal(sessions, 1)
+  assert.equal(destinations, 1)
+})

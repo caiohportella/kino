@@ -50,29 +50,37 @@ export function sanitizeAuthError(error: string) {
 }
 
 export function createAuthCallbackCompleter(dependencies: AuthCallbackDependencies) {
-  const activeCodes = new Map<string, Promise<string>>()
-  const completedCodes = new Map<string, string>()
+  const activeCompletions = new Map<string, Promise<string>>()
+  const completedResults = new Map<string, string>()
+  const maximumCompletedResults = 32
 
-  const completeCode = (code: string) => {
-    const completed = completedCodes.get(code)
+  const completeOnce = (identity: string, operation: () => Promise<string>) => {
+    const completed = completedResults.get(identity)
     if (completed) return Promise.resolve(completed)
 
-    const active = activeCodes.get(code)
+    const active = activeCompletions.get(identity)
     if (active) return active
 
-    const completion = dependencies
-      .exchangeCodeForSession(code)
-      .then(async ({ error }) => {
-        if (error) {
-          throw new Error('The authentication request expired or could not be completed.')
+    const completion = operation()
+      .then((destination) => {
+        completedResults.set(identity, destination)
+        if (completedResults.size > maximumCompletedResults) {
+          completedResults.delete(completedResults.keys().next().value as string)
         }
-        const destination = await dependencies.consumeReturnTo()
-        completedCodes.set(code, destination)
         return destination
       })
-      .finally(() => activeCodes.delete(code))
-    activeCodes.set(code, completion)
+      .finally(() => activeCompletions.delete(identity))
+    activeCompletions.set(identity, completion)
     return completion
+  }
+
+  const fingerprint = (value: string) => {
+    let hash = 2166136261
+    for (let index = 0; index < value.length; index += 1) {
+      hash ^= value.charCodeAt(index)
+      hash = Math.imul(hash, 16777619)
+    }
+    return (hash >>> 0).toString(36)
   }
 
   return {
@@ -83,15 +91,28 @@ export function createAuthCallbackCompleter(dependencies: AuthCallbackDependenci
         throw new Error(sanitizeAuthError(payload.error))
       }
 
-      if (payload.code) return completeCode(payload.code)
+      if (payload.code) {
+        return completeOnce(`code:${payload.code}`, async () => {
+          const { error } = await dependencies.exchangeCodeForSession(payload.code as string)
+          if (error) {
+            throw new Error('The authentication request expired or could not be completed.')
+          }
+          return dependencies.consumeReturnTo()
+        })
+      }
 
       if (payload.accessToken && payload.refreshToken) {
-        const { error } = await dependencies.setSession({
-          access_token: payload.accessToken,
-          refresh_token: payload.refreshToken,
+        const accessToken = payload.accessToken
+        const refreshToken = payload.refreshToken
+        const identity = `tokens:${fingerprint(`${accessToken}\u0000${refreshToken}`)}`
+        return completeOnce(identity, async () => {
+          const { error } = await dependencies.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          })
+          if (error) throw new Error('The authentication session could not be saved.')
+          return dependencies.consumeReturnTo()
         })
-        if (error) throw new Error('The authentication session could not be saved.')
-        return dependencies.consumeReturnTo()
       }
 
       throw new Error(

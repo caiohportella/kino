@@ -8,22 +8,19 @@ async function getSecureStore() {
 export function isSafeNativeReturnTo(value: string | null | undefined): value is string {
   if (!value || /[\\\u0000-\u001f]/.test(value)) return false
 
-  let decoded = value
   try {
-    for (let pass = 0; pass < 2; pass += 1) {
-      const next = decodeURIComponent(decoded)
-      if (next === decoded) break
-      decoded = next
-    }
+    if (decodeURIComponent(value) !== value) return false
   } catch {
     return false
   }
 
+  const path = value.split(/[?#]/, 1)[0]
+  const segments = path.split('/')
   return (
-    decoded.startsWith('/') &&
-    !decoded.startsWith('//') &&
-    !decoded.startsWith('/auth') &&
-    !decoded.startsWith('/(auth)')
+    path.startsWith('/') &&
+    !path.startsWith('//') &&
+    !segments.some((segment) => segment === '.' || segment === '..') &&
+    !/^\/(?:auth|\(auth\))(?:\/|$)/i.test(path)
   )
 }
 

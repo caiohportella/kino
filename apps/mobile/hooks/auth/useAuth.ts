@@ -12,7 +12,9 @@ import {
   useState,
 } from 'react'
 import { AppState } from 'react-native'
+import { dbService } from '@/services/database'
 import { createAuthCallbackCompleter } from '@/utils/authCallback'
+import { createAuthProfileResolver } from '@/utils/authProfile'
 import { getEmailAuthRedirectUrl, getNativeAuthRedirectUrl } from '@/utils/authRedirect'
 import { createMobileAuthResolver } from '@/utils/authResolution'
 import { clearAuthReturnTo, consumeAuthReturnTo, storeAuthReturnTo } from '@/utils/authReturnTo'
@@ -59,7 +61,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [processingCallback, setProcessingCallback] = useState(false)
+  const [profileStatus, setProfileStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const mounted = useRef(true)
+  const profileResolver = useRef(
+    createAuthProfileResolver(
+      (userId) => dbService.getUserProfile(userId),
+      (status) => {
+        if (mounted.current) setProfileStatus(status)
+      }
+    )
+  )
 
   useEffect(() => {
     mounted.current = true
@@ -78,6 +89,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setSession(nextSession)
         setUser(nextUser)
         setLoading(nextResolution.status === 'resolving' && !nextUser)
+        void profileResolver.current.resolve(nextUser).catch(() => undefined)
       }
     )
     const cleanupResolver = resolver.initialize()
@@ -111,7 +123,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const value = useMemo<AuthContextValue>(
     () => ({
       resolution,
-      profileStatus: user ? 'ready' : 'idle',
+      profileStatus,
       user,
       session,
       loading,
@@ -174,7 +186,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         if (error) throw error
       },
     }),
-    [completeAuthCallback, loading, processingCallback, resolution, session, user]
+    [completeAuthCallback, loading, processingCallback, profileStatus, resolution, session, user]
   )
 
   return createElement(AuthContext.Provider, { value }, children)
