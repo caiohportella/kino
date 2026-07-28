@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict'
+import { spawn } from 'node:child_process'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
 
 import { validateWorkspaceScripts } from './validate-test-scripts.mjs'
+
+const validatorPath = fileURLToPath(new URL('./validate-test-scripts.mjs', import.meta.url))
 
 const fixtureRoot = async ({ name, patterns = ['apps/*', 'packages/*'], scripts = {} }) => {
   const root = await mkdtemp(join(tmpdir(), `kino-${name}-`))
@@ -33,6 +37,26 @@ const writeManifest = async (root, relativePath, scripts) => {
     JSON.stringify({ name: `@kino/${relativePath.split('/').at(-1)}`, scripts })
   )
 }
+
+const runValidator = (root) =>
+  new Promise((resolve) => {
+    const child = spawn(process.execPath, [validatorPath, root], {
+      cwd: tmpdir(),
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    let stdout = ''
+    let stderr = ''
+
+    child.stdout.setEncoding('utf8')
+    child.stderr.setEncoding('utf8')
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk
+    })
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk
+    })
+    child.on('close', (code) => resolve({ code, stderr, stdout }))
+  })
 
 test('rejects a workspace package missing a test script', async (t) => {
   const root = await fixtureRoot({ name: 'missing-test', scripts: { web: {} } })
@@ -66,4 +90,15 @@ test('matches a globstar with zero directory segments', async (t) => {
   const result = await validateWorkspaceScripts(root)
 
   assert.deepEqual(result.missing, ['apps/mobile'])
+})
+
+test('CLI exits nonzero and reports missing workspace package paths', async (t) => {
+  const root = await fixtureRoot({ name: 'cli', scripts: { web: {} } })
+  t.after(() => rm(root, { recursive: true, force: true }))
+
+  const result = await runValidator(root)
+
+  assert.equal(result.code, 1)
+  assert.equal(result.stdout, '')
+  assert.equal(result.stderr, 'Missing test scripts:\napps/web\npackages/config\n')
 })

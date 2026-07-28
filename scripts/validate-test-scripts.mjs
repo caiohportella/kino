@@ -1,5 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { dirname, join, relative, sep } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 const readJson = async (path) => JSON.parse(await readFile(path, 'utf8'))
 
@@ -95,4 +96,13 @@ export const validateWorkspaceScripts = async (root) => {
   }
 
   return { missing: missing.sort() }
+}
+
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
+  const result = await validateWorkspaceScripts(process.argv[2])
+
+  if (result.missing.length > 0) {
+    process.stderr.write(`Missing test scripts:\n${result.missing.join('\n')}\n`)
+    process.exitCode = 1
+  }
 }
