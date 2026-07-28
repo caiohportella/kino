@@ -11,6 +11,28 @@ export interface NormalizedSearchQuery {
   readonly year?: number
 }
 
+export type SearchRelationshipRole = 'acting' | 'directing' | 'creating' | 'writing'
+
+export type SearchIntent =
+  | { readonly kind: 'exact_title'; readonly title: string }
+  | { readonly kind: 'title_year'; readonly title: string; readonly year: number }
+  | { readonly kind: 'person'; readonly personName: string }
+  | {
+      readonly kind: 'relationship'
+      readonly personName: string
+      readonly role: SearchRelationshipRole
+      readonly mediaTypes?: readonly SearchMediaType[]
+    }
+  | { readonly kind: 'franchise'; readonly franchiseName: string }
+  | { readonly kind: 'semantic_discovery' }
+  | { readonly kind: 'ambiguous' }
+
+export interface SearchIntentEvidence {
+  readonly exactTitleConfidence?: number
+  readonly personConfidence?: number
+  readonly franchiseConfidence?: number
+}
+
 export interface SearchRequestV1 {
   readonly schemaVersion: SearchSchemaVersion
   readonly query: string
