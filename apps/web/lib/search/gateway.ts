@@ -1,4 +1,4 @@
-import type { LocaleContext } from '@kino/core/localization'
+import { type LocaleContext, localeRegion } from '@kino/core/localization'
 import {
   type PersonCandidate,
   runSearchPipelineV1,
@@ -227,8 +227,11 @@ export function createSearchGateway(dependencies: CreateSearchGatewayDependencie
       return resolvePresentation(
         response,
         dependencies.tmdb,
-        request.locale && request.region
-          ? { locale: request.locale, region: request.region }
+        request.locale
+          ? {
+              locale: request.locale,
+              region: request.region ?? localeRegion(request.locale) ?? 'US',
+            }
           : undefined,
         signal,
         providerTimeoutMs

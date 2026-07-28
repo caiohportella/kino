@@ -273,3 +273,28 @@ test('preserves shared-core order while resolving localized presentation concurr
   )
   assert.deepEqual(second, first)
 })
+
+test('infers presentation region from locale when the request omits region', async () => {
+  const contexts = []
+  const gateway = createSearchGateway({
+    vector: {
+      search: async () => vectorResult(semantic(348, 'Alien', 0.94)),
+    },
+    tmdb: {
+      ...tmdbProvider(),
+      resolvePresentation: async (entity, context) => {
+        contexts.push(context)
+        return entity
+      },
+    },
+    minimumVectorResults: 1,
+  })
+
+  await gateway.search({
+    schemaVersion: SEARCH_SCHEMA_VERSION,
+    query: 'Alien',
+    locale: 'pt-BR',
+    limit: 1,
+  })
+  assert.deepEqual(contexts, [{ locale: 'pt-BR', region: 'BR' }])
+})
