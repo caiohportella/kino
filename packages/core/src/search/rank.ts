@@ -17,9 +17,7 @@ export const SEARCH_POPULARITY_WEIGHT = 0.04
 export const SEARCH_RELEASE_WEIGHT = 0.07
 
 function bounded(value: number | undefined): number {
-  return typeof value === 'number' && Number.isFinite(value)
-    ? Math.max(0, Math.min(1, value))
-    : 0
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0
 }
 
 function popularityConfidence(entity: SearchEntity): number {

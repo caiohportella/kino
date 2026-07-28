@@ -40,7 +40,8 @@ function chooseEntity(left: SearchEntity, right: SearchEntity): SearchEntity {
 }
 
 function compareEntities(left: SearchEntity, right: SearchEntity): number {
-  if (left.entityType !== right.entityType) return left.entityType.localeCompare(right.entityType, 'en')
+  if (left.entityType !== right.entityType)
+    return left.entityType.localeCompare(right.entityType, 'en')
   if (left.tmdbId !== undefined && right.tmdbId !== undefined && left.tmdbId !== right.tmdbId) {
     return left.tmdbId - right.tmdbId
   }
@@ -126,7 +127,9 @@ function mergeCandidate(
       ? {}
       : { lexicalScore: maximum(existing.lexicalScore, evidence.lexicalScore) }),
     ...(existing.exactMatch === true || evidence.exactMatch === true ? { exactMatch: true } : {}),
-    ...(existing.prefixMatch === true || evidence.prefixMatch === true ? { prefixMatch: true } : {}),
+    ...(existing.prefixMatch === true || evidence.prefixMatch === true
+      ? { prefixMatch: true }
+      : {}),
     ...(maximum(existing.entityConfidence, evidence.entityConfidence) === undefined
       ? {}
       : { entityConfidence: maximum(existing.entityConfidence, evidence.entityConfidence) }),

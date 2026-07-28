@@ -17,8 +17,16 @@ interface RelationshipPattern {
 }
 
 const RELATIONSHIP_PATTERNS: readonly RelationshipPattern[] = [
-  { expression: /^(?:movies?|films?)\s+(?:with|starring)\s+(.+)$/iu, role: 'acting', mediaTypes: ['movie'] },
-  { expression: /^(?:shows?|series)\s+(?:with|starring)\s+(.+)$/iu, role: 'acting', mediaTypes: ['series'] },
+  {
+    expression: /^(?:movies?|films?)\s+(?:with|starring)\s+(.+)$/iu,
+    role: 'acting',
+    mediaTypes: ['movie'],
+  },
+  {
+    expression: /^(?:shows?|series)\s+(?:with|starring)\s+(.+)$/iu,
+    role: 'acting',
+    mediaTypes: ['series'],
+  },
   {
     expression: /^(?:movies?|films?)\s+(?:directed by|from director)\s+(.+)$/iu,
     role: 'directing',
@@ -40,9 +48,7 @@ const RELATIONSHIP_PATTERNS: readonly RelationshipPattern[] = [
 ]
 
 function boundedConfidence(value: number | undefined): number {
-  return typeof value === 'number' && Number.isFinite(value)
-    ? Math.max(0, Math.min(1, value))
-    : 0
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0
 }
 
 function withoutTerminalYear(query: NormalizedSearchQuery): string {

@@ -65,9 +65,7 @@ export function expandPersonCredits(
   intent: SearchIntent
 ): RelationshipCandidate[] {
   const allowedMediaTypes =
-    intent.kind === 'relationship' && intent.mediaTypes
-      ? new Set(intent.mediaTypes)
-      : undefined
+    intent.kind === 'relationship' && intent.mediaTypes ? new Set(intent.mediaTypes) : undefined
   const byEntity = new Map<string, RelationshipCandidate>()
 
   for (const credit of credits) {

@@ -155,6 +155,17 @@ export interface RankSearchCandidatesInput {
   readonly candidates: readonly FusedCandidate[]
 }
 
+export interface RunSearchPipelineV1Input {
+  readonly request: SearchRequestV1
+  readonly intentEvidence: SearchIntentEvidence
+  readonly sources: readonly SearchProviderResult[]
+  readonly personExpansion?: {
+    readonly person: PersonCandidate
+    readonly credits: readonly PersonCredit[]
+  }
+  readonly fallback?: SearchResponseV1['fallback']
+}
+
 export interface SearchResultV1 {
   readonly entity: SearchEntity
   readonly score: number

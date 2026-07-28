@@ -1,8 +1,8 @@
 import {
-  SEARCH_SCHEMA_VERSION,
   type LexicalCandidate,
   type NormalizedSearchQuery,
   type PersonCandidate,
+  SEARCH_SCHEMA_VERSION,
   type SearchEntity,
   type SearchMediaType,
   type SearchProviderCandidate,
@@ -92,7 +92,8 @@ export function normalizeSearchQuery(query: string): NormalizedSearchQuery {
     .replace(/\s+/gu, ' ')
   const tokens = folded.length === 0 ? [] : folded.split(' ')
   const terminalYear = tokens.at(-1)
-  const parsedYear = terminalYear && /^\d{4}$/u.test(terminalYear) ? Number(terminalYear) : undefined
+  const parsedYear =
+    terminalYear && /^\d{4}$/u.test(terminalYear) ? Number(terminalYear) : undefined
   const year =
     parsedYear !== undefined &&
     parsedYear >= RELEASE_YEAR_MINIMUM &&
@@ -120,7 +121,11 @@ export function normalizeSearchRequestV1(input: unknown): SearchRequestV1 {
   const page = positiveInteger(input.page)
   const limit = positiveInteger(input.limit)
   const mediaTypes = Array.isArray(input.mediaTypes)
-    ? [...new Set(input.mediaTypes.filter((value): value is SearchMediaType => MEDIA_TYPES.has(value)))]
+    ? [
+        ...new Set(
+          input.mediaTypes.filter((value): value is SearchMediaType => MEDIA_TYPES.has(value))
+        ),
+      ]
     : undefined
 
   return {
