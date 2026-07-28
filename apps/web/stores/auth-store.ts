@@ -2,16 +2,21 @@
 
 import type { Session, User } from '@supabase/supabase-js'
 import { create } from 'zustand'
-import { ensureUserProfileFromAuthUser } from '@/lib/auth-profile'
+import { type AuthProfileStatus, ensureUserProfileFromAuthUser } from '@/lib/auth-profile'
 import { getWebAuthCallbackUrl } from '@/lib/auth-redirect'
+import { createWebAuthResolver } from '@/lib/auth-resolution'
 import { supabase } from '@/lib/supabase'
+import type { AuthResolution } from '../../../packages/core/src/auth/index.ts'
 
 interface AuthState {
+  resolution: AuthResolution<User>
   user: User | null
   session: Session | null
+  profileStatus: AuthProfileStatus
   loading: boolean
   initialized: boolean
   initialize: () => () => void
+  refreshSession: () => Promise<void>
   signInWithEmail: (email: string, password: string) => Promise<void>
   signUpWithEmail: (email: string, password: string, username?: string) => Promise<void>
   signInWithOtp: (email: string) => Promise<void>
@@ -19,30 +24,57 @@ interface AuthState {
   signOut: () => Promise<void>
 }
 
+let activeResolver: { refresh(): Promise<void> } | null = null
+
 export const useAuthStore = create<AuthState>((set, get) => ({
+  resolution: { status: 'resolving' },
   user: null,
   session: null,
+  profileStatus: 'idle',
   loading: true,
   initialized: false,
   initialize: () => {
     if (get().initialized) return () => undefined
-    set({ initialized: true, loading: true })
+    set({ initialized: true })
 
-    supabase.auth.getSession().then(({ data }) => {
-      const nextUser = data.session?.user ?? null
-      set({ session: data.session, user: nextUser, loading: false })
-      void ensureUserProfileFromAuthUser(nextUser).catch(() => undefined)
-    })
+    const resolver = createWebAuthResolver<User, Session>(
+      supabase.auth,
+      ({ resolution, session }) => {
+        const previousUserId = get().user?.id
+        const nextUser =
+          resolution.status === 'authenticated'
+            ? resolution.user
+            : 'previousUser' in resolution
+              ? (resolution.previousUser ?? null)
+              : null
+        const nextProfileStatus =
+          nextUser && previousUserId === nextUser.id ? get().profileStatus : 'idle'
+        set({
+          resolution,
+          session,
+          user: nextUser,
+          loading: resolution.status === 'resolving' && !nextUser,
+          profileStatus: nextProfileStatus,
+        })
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      const nextUser = session?.user ?? null
-      set({ session, user: nextUser, loading: false })
-      void ensureUserProfileFromAuthUser(nextUser).catch(() => undefined)
-    })
+        if (nextUser && nextProfileStatus === 'idle') {
+          void ensureUserProfileFromAuthUser(nextUser, (profileStatus) => {
+            if (get().user?.id === nextUser.id) set({ profileStatus })
+          }).catch(() => undefined)
+        }
+      }
+    )
+    activeResolver = resolver
 
-    return () => subscription.unsubscribe()
+    const cleanup = resolver.initialize()
+    return () => {
+      cleanup()
+      if (activeResolver === resolver) activeResolver = null
+      set({ initialized: false })
+    }
+  },
+  refreshSession: async () => {
+    await activeResolver?.refresh()
   },
   signInWithEmail: async (email, password) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
@@ -79,6 +111,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signOut: async () => {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
-    set({ session: null, user: null, loading: false })
+    set({
+      resolution: { status: 'unauthenticated' },
+      session: null,
+      user: null,
+      loading: false,
+      profileStatus: 'idle',
+    })
   },
 }))

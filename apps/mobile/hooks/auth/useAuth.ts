@@ -12,10 +12,14 @@ import {
   useState,
 } from 'react'
 import { AppState } from 'react-native'
-import { getAuthCallbackPayload, sanitizeAuthError } from '@/utils/authCallback'
+import { dbService } from '@/services/database'
+import { createAuthCallbackCompleter } from '@/utils/authCallback'
+import { createAuthProfileResolver } from '@/utils/authProfile'
 import { getEmailAuthRedirectUrl, getNativeAuthRedirectUrl } from '@/utils/authRedirect'
+import { createMobileAuthResolver } from '@/utils/authResolution'
 import { clearAuthReturnTo, consumeAuthReturnTo, storeAuthReturnTo } from '@/utils/authReturnTo'
 import { supabase } from '@/utils/supabase'
+import type { AuthResolution } from '../../../../packages/core/src/auth/index.ts'
 
 WebBrowser.maybeCompleteAuthSession()
 
@@ -27,6 +31,8 @@ export class AuthFlowCancelledError extends Error {
 }
 
 type AuthContextValue = {
+  resolution: AuthResolution<User>
+  profileStatus: 'idle' | 'loading' | 'ready' | 'error'
   user: User | null
   session: Session | null
   loading: boolean
@@ -41,70 +47,58 @@ type AuthContextValue = {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
-let activeCallback: Promise<string> | null = null
-const consumedCodes = new Set<string>()
-
-async function exchangeCallback(url: string) {
-  const payload = getAuthCallbackPayload(url)
-
-  if (payload.error) {
-    throw new Error(sanitizeAuthError(payload.error))
-  }
-
-  if (payload.code) {
-    if (consumedCodes.has(payload.code)) {
-      return consumeAuthReturnTo()
-    }
-    consumedCodes.add(payload.code)
-    const { error } = await supabase.auth.exchangeCodeForSession(payload.code)
-    if (error) {
-      consumedCodes.delete(payload.code)
-      throw new Error('The authentication request expired or could not be completed.')
-    }
-    return consumeAuthReturnTo()
-  }
-
-  if (payload.accessToken && payload.refreshToken) {
-    const { error } = await supabase.auth.setSession({
-      access_token: payload.accessToken,
-      refresh_token: payload.refreshToken,
-    })
-    if (error) throw new Error('The authentication session could not be saved.')
-    return consumeAuthReturnTo()
-  }
-
-  throw new Error('The authentication callback is invalid or is missing its authorization code.')
-}
+const authCallbackCompleter = createAuthCallbackCompleter({
+  exchangeCodeForSession: (code) => supabase.auth.exchangeCodeForSession(code),
+  setSession: (tokens) => supabase.auth.setSession(tokens),
+  consumeReturnTo: () => consumeAuthReturnTo(),
+})
 
 export function AuthProvider({ children }: PropsWithChildren) {
+  const [resolution, setResolution] = useState<AuthResolution<User>>({
+    status: 'resolving',
+  })
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [processingCallback, setProcessingCallback] = useState(false)
+  const [profileStatus, setProfileStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const mounted = useRef(true)
+  const profileResolver = useRef(
+    createAuthProfileResolver(
+      (userId) => dbService.getUserProfile(userId),
+      (status) => {
+        if (mounted.current) setProfileStatus(status)
+      }
+    )
+  )
 
   useEffect(() => {
     mounted.current = true
 
-    void supabase.auth.getSession().then(({ data }) => {
-      if (!mounted.current) return
-      setSession(data.session)
-      setUser(data.session?.user ?? null)
-      setLoading(false)
-    })
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      if (!mounted.current) return
-      setSession(nextSession)
-      setUser(nextSession?.user ?? null)
-      setLoading(false)
-    })
+    const resolver = createMobileAuthResolver<User, Session>(
+      supabase.auth,
+      ({ resolution: nextResolution, session: nextSession }) => {
+        if (!mounted.current) return
+        const nextUser =
+          nextResolution.status === 'authenticated'
+            ? nextResolution.user
+            : 'previousUser' in nextResolution
+              ? (nextResolution.previousUser ?? null)
+              : null
+        setResolution(nextResolution)
+        setSession(nextSession)
+        setUser(nextUser)
+        setLoading(nextResolution.status === 'resolving' && !nextUser)
+        void profileResolver.current.resolve(nextUser).catch(() => undefined)
+      }
+    )
+    const cleanupResolver = resolver.initialize()
 
     const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (!mounted.current) return
       if (state === 'active') {
         supabase.auth.startAutoRefresh()
+        void resolver.refresh()
       } else {
         supabase.auth.stopAutoRefresh()
       }
@@ -113,25 +107,23 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     return () => {
       mounted.current = false
-      subscription.unsubscribe()
+      cleanupResolver()
       appStateSubscription.remove()
       supabase.auth.stopAutoRefresh()
     }
   }, [])
 
   const completeAuthCallback = useCallback(async (url: string) => {
-    if (activeCallback) return activeCallback
-
     setProcessingCallback(true)
-    activeCallback = exchangeCallback(url).finally(() => {
-      activeCallback = null
+    return authCallbackCompleter.complete(url).finally(() => {
       if (mounted.current) setProcessingCallback(false)
     })
-    return activeCallback
   }, [])
 
   const value = useMemo<AuthContextValue>(
     () => ({
+      resolution,
+      profileStatus,
       user,
       session,
       loading,
@@ -194,7 +186,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         if (error) throw error
       },
     }),
-    [completeAuthCallback, loading, processingCallback, session, user]
+    [completeAuthCallback, loading, processingCallback, profileStatus, resolution, session, user]
   )
 
   return createElement(AuthContext.Provider, { value }, children)
