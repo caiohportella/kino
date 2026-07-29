@@ -25,12 +25,14 @@ import { MediaImageSelectorModal } from '~/components/modals/MediaImageSelectorM
 import { UnauthenticatedView } from '~/components/profile/UnauthenticatedView'
 import { changeLanguage } from '~/i18n'
 import { dbService } from '~/services/database'
+import { selectSettingsPageStatus } from '~/utils/protectedConsumerState'
 
 export default function SettingsScreen() {
   const { user, signOut, resolution } = useAuth()
   const router = useRouter()
   const { t, i18n } = useTranslation()
   const [loading, setLoading] = useState(true)
+  const [profileError, setProfileError] = useState<Error | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -54,6 +56,7 @@ export default function SettingsScreen() {
 
   const loadProfile = useCallback(async () => {
     if (!user) return
+    setProfileError(null)
     try {
       const profile = await dbService.getUserProfile(user.id)
       if (profile) {
@@ -69,6 +72,7 @@ export default function SettingsScreen() {
       }
     } catch (error) {
       console.error(error)
+      setProfileError(error instanceof Error ? error : new Error('Failed to load profile'))
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -259,7 +263,10 @@ export default function SettingsScreen() {
         </View>
       }
       pageLoadingFallback={<Skeleton layout="profile" />}
-      pageStatus={loading && !refreshing ? 'loading' : 'content'}
+      pageStatus={selectSettingsPageStatus({
+        error: profileError,
+        loading: loading && !refreshing,
+      })}
       resolution={resolution}
       unauthenticatedFallback={<UnauthenticatedView onLoginPress={() => router.push('/login')} />}
     >

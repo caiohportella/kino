@@ -21,6 +21,7 @@ import { useProfileData } from '~/hooks/profile/useProfileData'
 import { useUserSearch } from '~/hooks/profile/useUserSearch'
 import { dbService } from '~/services/database'
 import { shareNativeResource } from '~/utils/native-share'
+import { selectProfilePageStatus } from '~/utils/protectedConsumerState'
 
 export default function ProfileScreen() {
   const { user, isAuthenticated, resolution } = useAuth()
@@ -36,7 +37,7 @@ export default function ProfileScreen() {
   const isOwnProfile = user?.id === targetUserId
 
   // Custom hooks
-  const { profile, watchedMovies, watchedSeries, loading, refreshing, onRefresh } =
+  const { profile, watchedMovies, watchedSeries, loading, error, refreshing, onRefresh } =
     useProfileData(targetUserId)
 
   const followSystem = useFollowSystem(targetUserId, isOwnProfile)
@@ -114,14 +115,22 @@ export default function ProfileScreen() {
   return (
     <ProtectedContentGate<unknown>
       authLoadingFallback={<Skeleton layout="profile" />}
-      emptyFallback={<Skeleton layout="profile" />}
+      emptyFallback={
+        <View className="flex-1 items-center justify-center bg-primary">
+          <Text className="text-text-primary">{t('profile.title')}</Text>
+        </View>
+      }
       errorFallback={
         <View className="flex-1 items-center justify-center bg-primary">
           <Text className="text-text-primary">{t('common.failed')}</Text>
         </View>
       }
       pageLoadingFallback={<Skeleton layout="profile" />}
-      pageStatus={loading ? 'loading' : 'content'}
+      pageStatus={selectProfilePageStatus({
+        error,
+        hasProfile: Boolean(profile),
+        loading,
+      })}
       resolution={publicProfileResolution}
       unauthenticatedFallback={<UnauthenticatedView onLoginPress={() => router.push('/login')} />}
     >

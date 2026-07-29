@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
+import { resolveProtectedContentState } from '@kino/core/auth'
+import { selectProfilePageStatus, selectSettingsPageStatus } from './protectedConsumerState.ts'
 
 const protectedConsumers = [
   'app/(tabs)/profile.tsx',
@@ -41,4 +43,59 @@ test('mobile public profile routes preserve unauthenticated viewing by gating on
 test('mobile settings starts profile data in a loading state', async () => {
   const source = await readFile(new URL('../app/profile/settings.tsx', import.meta.url), 'utf8')
   assert.match(source, /const \[loading, setLoading\] = useState\(true\)/)
+})
+
+test('profile page status distinguishes loading, rejection, empty, and content', () => {
+  assert.equal(
+    selectProfilePageStatus({ error: null, hasProfile: false, loading: true }),
+    'loading'
+  )
+  assert.equal(
+    selectProfilePageStatus({
+      error: new Error('profile rejected'),
+      hasProfile: false,
+      loading: false,
+    }),
+    'error'
+  )
+  assert.equal(selectProfilePageStatus({ error: null, hasProfile: false, loading: false }), 'empty')
+  assert.equal(
+    selectProfilePageStatus({ error: null, hasProfile: true, loading: false }),
+    'content'
+  )
+})
+
+test('settings page status distinguishes loading, rejection, and content', () => {
+  assert.equal(selectSettingsPageStatus({ error: null, loading: true }), 'loading')
+  assert.equal(
+    selectSettingsPageStatus({ error: new Error('settings rejected'), loading: false }),
+    'error'
+  )
+  assert.equal(selectSettingsPageStatus({ error: null, loading: false }), 'content')
+})
+
+test('profile status composes with auth restoration, refresh retention, and invalidation', () => {
+  const content = selectProfilePageStatus({ error: null, hasProfile: true, loading: false })
+  assert.equal(
+    resolveProtectedContentState({ resolution: { status: 'resolving' }, pageStatus: content }),
+    'auth-loading'
+  )
+  assert.equal(
+    resolveProtectedContentState({
+      resolution: {
+        status: 'error',
+        error: { code: 'temporary_refresh_failure', message: 'offline', recoverable: true },
+        previousUser: { id: 'user-1' },
+      },
+      pageStatus: content,
+    }),
+    'content'
+  )
+  assert.equal(
+    resolveProtectedContentState({
+      resolution: { status: 'unauthenticated' },
+      pageStatus: content,
+    }),
+    'unauthenticated'
+  )
 })
