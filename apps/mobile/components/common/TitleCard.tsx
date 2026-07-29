@@ -1,13 +1,14 @@
 // Reusable title card component for displaying movies/TV shows
 
 import { Ionicons } from '@expo/vector-icons'
+import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'expo-router'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Image, Text, TouchableWithoutFeedback, View } from 'react-native'
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated'
-import { useLocalizedTitle } from '~/hooks/data/useLocalizedMediaData'
-import { isOscarNominee } from '~/services/awards'
+import { seedTitleSummary } from '~/hooks/data/titleQueries'
+import { useReadyLanguage } from '~/hooks/useLanguage'
 import { getTMDbService } from '~/services/tmdb'
 import type { TMDbTitle } from '~/types'
 import { OscarBadge } from './OscarBadge'
@@ -20,15 +21,12 @@ interface TitleCardProps {
 
 export function TitleCard({ title, onPress, showYear = true }: TitleCardProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
+  const locale = useReadyLanguage()
   const tmdb = getTMDbService()
   const mediaType = title.media_type || (title.title ? 'movie' : 'tv')
-  const localizedData = useLocalizedTitle(title.id, mediaType)
-
-  const imageUrl = localizedData?.poster_path
-    ? tmdb.getImageUrl(localizedData.poster_path, 'w300')
-    : tmdb.getImageUrl(title.poster_path, 'w300')
-
-  const displayTitle = localizedData?.title || title.title || title.name || 'Unknown'
+  const imageUrl = tmdb.getImageUrl(title.poster_path, 'w300')
+  const displayTitle = title.title || title.name || 'Unknown'
   const year = title.release_date
     ? new Date(title.release_date).getFullYear()
     : title.first_air_date
@@ -45,6 +43,26 @@ export function TitleCard({ title, onPress, showYear = true }: TitleCardProps) {
 
   const handlePressIn = () => {
     scale.value = withSpring(0.96, { damping: 10, stiffness: 300 })
+    if (locale) {
+      seedTitleSummary(
+        queryClient,
+        {
+          id: title.id,
+          locale,
+          mediaType,
+          region: localeRegion(locale),
+          scope: { kind: 'public' },
+        },
+        {
+          backdropPath: title.backdrop_path,
+          id: title.id,
+          mediaType,
+          posterPath: title.poster_path,
+          title: displayTitle,
+          year,
+        }
+      )
+    }
   }
 
   const handlePressOut = () => {
@@ -136,4 +154,9 @@ export function TitleCard({ title, onPress, showYear = true }: TitleCardProps) {
   )
 
   return content
+}
+
+function localeRegion(locale: string) {
+  const regions: Record<string, string> = { en: 'US', fr: 'FR', it: 'IT', no: 'NO', pt: 'BR' }
+  return regions[locale] ?? 'US'
 }

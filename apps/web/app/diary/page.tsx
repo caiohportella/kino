@@ -179,7 +179,7 @@ export default function DiaryPage() {
       }
       pageLoadingFallback={<DiarySkeleton label={t('common.loading')} />}
       pageStatus={
-        query.isPending
+        query.isPending || localizedTitles.isPending
           ? 'loading'
           : query.isError
             ? 'error'

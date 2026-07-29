@@ -814,7 +814,9 @@ function MovieRatingDialog({
         summary={t('profile.movieRatingsModalSummary', { total: items.length })}
       />
       <div className="grid min-h-0 flex-1 gap-2 overflow-y-auto pr-1">
-        {rows.length === 0 ? (
+        {localizedTitles.isPending ? (
+          <LocalizedRowsSkeleton />
+        ) : rows.length === 0 ? (
           <DialogEmptyState
             body={t('profile.movieRatingsModalEmptyBody')}
             title={t('profile.movieRatingsModalEmptyTitle')}
@@ -957,7 +959,9 @@ function SeriesRatingDialog({
       />
 
       <div className="grid min-h-0 flex-1 gap-2 overflow-y-auto pr-1">
-        {rows.length === 0 ? (
+        {localizedTitles.isPending ? (
+          <LocalizedRowsSkeleton />
+        ) : rows.length === 0 ? (
           <DialogEmptyState
             body={t('profile.seriesRatingsModalEmptyBody')}
             title={t('profile.seriesRatingsModalEmptyTitle')}
@@ -1030,6 +1034,32 @@ function DialogEmptyState({ title, body }: { title: string; body: string }) {
   )
 }
 
+function LocalizedRowsSkeleton() {
+  return Array.from({ length: 4 }, (_, index) => (
+    <div
+      className="grid grid-cols-[32px_48px_minmax(0,1fr)] items-center gap-3 rounded-md border border-white/10 p-3"
+      key={`localized-row-skeleton-${index}`}
+    >
+      <Skeleton className="h-6 w-7" />
+      <Skeleton className="aspect-[2/3] w-12" />
+      <Skeleton className="h-5 w-2/3" />
+    </div>
+  ))
+}
+
+function LocalizedShelfSkeleton({ title }: { title: string }) {
+  return (
+    <section>
+      <h2 className="mb-3 text-xl font-semibold text-kino-text">{title}</h2>
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-7">
+        {Array.from({ length: 5 }, (_, index) => (
+          <Skeleton className="aspect-[2/3] w-full rounded-md" key={`shelf-skeleton-${index}`} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function ProfileShelf({
   title,
   items,
@@ -1049,6 +1079,7 @@ function ProfileShelf({
   const localizedTitles = useLocalizedTitles(items.map((item) => ({ tmdbId: item.tmdb_id, type })))
 
   if (items.length === 0) return null
+  if (localizedTitles.isPending) return <LocalizedShelfSkeleton title={title} />
 
   const renderTitleCard = (item: (typeof items)[number]) => {
     const localized = localizedTitles.data?.[localizedTitleKey({ tmdbId: item.tmdb_id, type })]
@@ -1150,6 +1181,7 @@ function SeriesShelfRow({
       </section>
     ) : null
   }
+  if (localizedTitles.isPending) return <LocalizedShelfSkeleton title={title} />
 
   const renderTitleCard = (series: (typeof items)[number]) => {
     const localized =

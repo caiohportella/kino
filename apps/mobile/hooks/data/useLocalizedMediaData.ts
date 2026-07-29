@@ -9,6 +9,11 @@ export interface LocalizedMedia {
   poster_path: string | null
 }
 
+export type LocalizedMediaMap = {
+  [tmdbId: number]: LocalizedMedia
+  readonly isPending: boolean
+}
+
 /**
  * Given a list of items with tmdb_id and type, fetches the localized title
  * and poster path from TMDB in the current app language and returns a map.
@@ -56,25 +61,26 @@ export function useLocalizedMediaData(items: { tmdb_id: number; type: 'movie' | 
       : [],
   })
 
-  return useMemo(
-    () =>
-      Object.fromEntries(
-        queryResults.flatMap((result, index) => {
-          const item = uniqueItems[index]
-          if (!item || !result.data) return []
-          return [
-            [
-              item.tmdb_id,
-              {
-                poster_path: result.data.posterPath,
-                title: result.data.title,
-              },
-            ],
-          ]
-        })
-      ) as Record<number, LocalizedMedia>,
-    [queryResults, uniqueItems]
-  )
+  return useMemo(() => {
+    const data = Object.fromEntries(
+      queryResults.flatMap((result, index) => {
+        const item = uniqueItems[index]
+        if (!item || !result.data) return []
+        return [
+          [
+            item.tmdb_id,
+            {
+              poster_path: result.data.posterPath,
+              title: result.data.title,
+            },
+          ],
+        ]
+      })
+    ) as Record<number, LocalizedMedia>
+    return Object.assign(data, {
+      isPending: queryResults.some((result) => result.isPending),
+    }) as LocalizedMediaMap
+  }, [queryResults, uniqueItems])
 }
 
 /**

@@ -91,7 +91,9 @@ export function WatchedSeriesSection({ series, onSeriesPress, onLongPress, onVie
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4">
-            {keepWatchingSeries.slice(0, 10).map((item) => renderSeriesItem(item))}
+            {localizedData.isPending
+              ? renderSkeletons(keepWatchingSeries.length)
+              : keepWatchingSeries.slice(0, 10).map((item) => renderSeriesItem(item))}
           </ScrollView>
         </View>
       ) : null}
@@ -110,7 +112,9 @@ export function WatchedSeriesSection({ series, onSeriesPress, onLongPress, onVie
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4">
-            {watchedSeries.slice(0, 10).map((item) => renderSeriesItem(item))}
+            {localizedData.isPending
+              ? renderSkeletons(watchedSeries.length)
+              : watchedSeries.slice(0, 10).map((item) => renderSeriesItem(item))}
           </ScrollView>
         </View>
       ) : null}
@@ -148,5 +152,11 @@ export function WatchedSeriesSection({ series, onSeriesPress, onLongPress, onVie
         </View>
       </TouchableOpacity>
     )
+  }
+
+  function renderSkeletons(count: number) {
+    return Array.from({ length: Math.min(count, 5) }, (_, index) => (
+      <View key={`series-skeleton-${index}`} className="mr-3 h-36 w-24 rounded-lg bg-surface" />
+    ))
   }
 }

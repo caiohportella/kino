@@ -30,6 +30,7 @@ const MIN_QUERY_LENGTH = 2
 
 export default function SearchPage() {
   const language = useSettingsStore((state) => state.language)
+  const localeStatus = useSettingsStore((state) => state.localeStatus)
   const { t } = useTranslation()
   const queryText = useLibraryStore((state) => state.query)
   const setQuery = useLibraryStore((state) => state.setQuery)
@@ -61,6 +62,7 @@ export default function SearchPage() {
       for (const genre of [...movie, ...tv]) merged.set(genre.id, genre)
       return Array.from(merged.values()).sort((a, b) => a.name.localeCompare(b.name))
     },
+    enabled: localeStatus !== 'resolving',
   })
 
   const discoveryQuery = useQuery({
@@ -79,7 +81,7 @@ export default function SearchPage() {
         .flat()
         .sort((a, b) => b.vote_average - a.vote_average)
     },
-    enabled: !searching,
+    enabled: localeStatus !== 'resolving' && !searching,
   })
 
   const searchQuery = useQuery({
@@ -143,7 +145,7 @@ export default function SearchPage() {
         },
       }
     },
-    enabled: searching,
+    enabled: localeStatus !== 'resolving' && searching,
     retry: 1,
   })
 

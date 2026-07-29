@@ -94,7 +94,10 @@ export function useLocalizedTitles(items: LocalizedTitleRequest[]) {
     [queryResults, uniqueItems]
   )
 
-  return { data }
+  return {
+    data,
+    isPending: queryResults.some((result) => result.isPending),
+  }
 }
 
 function normalizeLocalizedItems(items: LocalizedTitleRequest[]) {

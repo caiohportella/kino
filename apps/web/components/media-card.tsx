@@ -2,11 +2,14 @@
 
 import type { TMDbTitle } from '@kino/core'
 import { getDisplayTitle, getReleaseYear, getTMDbImageUrl } from '@kino/core'
+import { useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import type { Ref } from 'react'
 import { Poster } from '@/components/kino'
 import { titlePath } from '@/lib/routes'
+import { seedTitleSummary } from '@/lib/title-queries'
 import { cn } from '@/lib/utils'
+import { useSettingsStore } from '@/stores/settings-store'
 
 export function MediaCard({
   active,
@@ -21,10 +24,34 @@ export function MediaCard({
   linkRef?: Ref<HTMLAnchorElement>
   role?: string
 }) {
+  const queryClient = useQueryClient()
+  const language = useSettingsStore((state) => state.language)
+  const localeStatus = useSettingsStore((state) => state.localeStatus)
   const title = getDisplayTitle(item)
   const type = item.media_type === 'tv' ? 'tv' : 'movie'
   const year = getReleaseYear(item)
   const poster = getTMDbImageUrl(item.poster_path, 'w300')
+  const seedSummary = () => {
+    if (localeStatus !== 'ready') return
+    seedTitleSummary(
+      queryClient,
+      {
+        id: item.id,
+        locale: language,
+        mediaType: type,
+        region: localeRegion(language),
+        scope: { kind: 'public' },
+      },
+      {
+        backdropPath: item.backdrop_path,
+        id: item.id,
+        mediaType: type,
+        posterPath: item.poster_path,
+        title,
+        year: year || null,
+      }
+    )
+  }
 
   return (
     <Link
@@ -35,6 +62,9 @@ export function MediaCard({
       )}
       href={titlePath(item.id, title, type)}
       id={id}
+      onFocus={seedSummary}
+      onMouseEnter={seedSummary}
+      onTouchStart={seedSummary}
       ref={linkRef}
       role={role}
     >
@@ -52,4 +82,9 @@ export function MediaCard({
       </div>
     </Link>
   )
+}
+
+function localeRegion(locale: string) {
+  const regions: Record<string, string> = { en: 'US', fr: 'FR', it: 'IT', no: 'NO', pt: 'BR' }
+  return regions[locale] ?? 'US'
 }

@@ -24,6 +24,7 @@ import { ScreenHeader } from '~/components/layout/ScreenHeader'
 import { DiaryActionModal } from '~/components/modals/DiaryActionModal'
 import { useTitleDetailsFromTmdb } from '~/hooks/api/useTMDB'
 import { dbService } from '~/services/database'
+import { getTMDbService } from '~/services/tmdb'
 
 import { UIDiaryEntry } from '~/types'
 
@@ -308,9 +309,26 @@ function DiaryEntryCard({
   const day = format(date, 'd')
 
   // Fetch localized details dynamically based on current app language
-  const { data: tmdbTitle } = useTitleDetailsFromTmdb(item.tmdbId, item.type)
+  const { data: tmdbTitle, isPending: localizedTitlePending } = useTitleDetailsFromTmdb(
+    item.tmdbId,
+    item.type
+  )
   const displayTitle =
     (item.type === 'movie' ? tmdbTitle?.title : tmdbTitle?.name) || item.titleName
+  const localizedPoster = getTMDbService().getImageUrl(tmdbTitle?.poster_path ?? null, 'w200')
+
+  if (localizedTitlePending) {
+    return (
+      <View className="flex-row items-center px-4 py-3">
+        <View className="mr-2 h-8 w-12 rounded-md bg-surface" />
+        <View className="mr-3 h-14 w-10 rounded-md bg-surface" />
+        <View className="flex-1 gap-2">
+          <View className="h-4 w-2/3 rounded bg-surface" />
+          <View className="h-3 w-1/3 rounded bg-surface" />
+        </View>
+      </View>
+    )
+  }
 
   return (
     <TouchableOpacity
@@ -327,8 +345,8 @@ function DiaryEntryCard({
         {/* Poster */}
         <Image
           source={
-            item.coverImage
-              ? { uri: item.coverImage }
+            localizedPoster
+              ? { uri: localizedPoster }
               : { uri: 'https://via.placeholder.com/100x150' }
           }
           className="mr-3 h-14 w-10 rounded-md border border-surface bg-surface"

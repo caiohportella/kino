@@ -41,7 +41,14 @@ export function WatchedMoviesSection({ movies, onMoviePress, onLongPress, onView
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4">
-        {movies.length > 0 ? (
+        {localizedData.isPending && movies.length > 0 ? (
+          Array.from({ length: Math.min(movies.length, 5) }, (_, index) => (
+            <View
+              key={`movie-skeleton-${index}`}
+              className="mr-3 h-36 w-24 rounded-lg bg-surface"
+            />
+          ))
+        ) : movies.length > 0 ? (
           movies.map((movie) => (
             <TouchableOpacity
               key={movie.id}
