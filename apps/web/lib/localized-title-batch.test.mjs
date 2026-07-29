@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
-import { QueryClient } from '@tanstack/query-core'
+import { QueryClient } from '@tanstack/react-query'
 import { titleQueryKeys } from '../../../packages/core/src/cache/query-keys.ts'
 import { hydrateLocalizedTitleBatch } from './localized-title-batch.ts'
 

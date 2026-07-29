@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { QueryClient } from '@tanstack/query-core'
+import { QueryClient } from '@tanstack/react-query'
 import {
   LOCALIZED_TITLE_GC_TIME,
   LOCALIZED_TITLE_STALE_TIME,
