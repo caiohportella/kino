@@ -40,3 +40,22 @@ test('web gateway turns platform-neutral error bodies and invalid schemas into t
     (error) => error instanceof SearchGatewayClientError && error.code === 'temporary_unavailable'
   )
 })
+
+test('web gateway normalizes rejected fetches and non-json HTTP failures', async () => {
+  const request = { schemaVersion: SEARCH_SCHEMA_VERSION, query: 'x' }
+  await assert.rejects(
+    createSearchGatewayClient({
+      fetch: async () => Promise.reject(new TypeError('offline')),
+    }).search(request),
+    (error) => error instanceof SearchGatewayClientError && error.code === 'network_error'
+  )
+  await assert.rejects(
+    createSearchGatewayClient({
+      fetch: async () => new Response('bad gateway', { status: 502 }),
+    }).search(request),
+    (error) =>
+      error instanceof SearchGatewayClientError &&
+      error.code === 'http_error' &&
+      error.status === 502
+  )
+})

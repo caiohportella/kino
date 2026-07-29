@@ -37,7 +37,16 @@ export function createSearchGateway(options: {
           method: 'POST',
           signal: controller.signal,
         })
-        const body: unknown = await response.json()
+        let body: unknown
+        try {
+          body = await response.json()
+        } catch {
+          throw new SearchGatewayClientError(
+            response.ok ? 'invalid_response' : 'http_error',
+            'Search returned an unreadable response.',
+            response.status
+          )
+        }
         if (!response.ok) throw gatewayError(body, response.status)
         if (!isSearchResponseV1(body)) {
           throw new SearchGatewayClientError(
@@ -51,7 +60,8 @@ export function createSearchGateway(options: {
         if (controller.signal.aborted) {
           throw new SearchGatewayClientError('timeout', 'Search request timed out.')
         }
-        throw error
+        if (error instanceof SearchGatewayClientError) throw error
+        throw new SearchGatewayClientError('network_error', 'Search request failed.')
       } finally {
         clearTimeout(timeout)
         signal?.removeEventListener('abort', onAbort)

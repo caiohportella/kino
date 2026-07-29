@@ -30,6 +30,7 @@ import { useSettingsStore } from '@/stores/settings-store'
 
 const MIN_QUERY_LENGTH = 2
 const SEARCH_LIMIT = 12
+const AUTOCOMPLETE_LIMIT = 5
 const searchGateway = createSearchGatewayClient()
 
 export default function SearchPage() {
@@ -48,6 +49,7 @@ export default function SearchPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [debouncedQuery, setDebouncedQuery] = useState(queryText)
   const [searchPage, setSearchPage] = useState(1)
+  const [submittedQuery, setSubmittedQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(-1)
   const resultRefs = useRef<Array<HTMLAnchorElement | null>>([])
 
@@ -60,6 +62,8 @@ export default function SearchPage() {
   }, [queryText])
 
   const searching = debouncedQuery.length >= MIN_QUERY_LENGTH
+  const mode = submittedQuery === debouncedQuery ? 'full' : 'autocomplete'
+  const searchLimit = mode === 'full' ? SEARCH_LIMIT : AUTOCOMPLETE_LIMIT
   const genresQuery = useQuery({
     queryKey: ['genres', language],
     queryFn: async () => {
@@ -94,9 +98,9 @@ export default function SearchPage() {
 
   const searchQuery = useQuery({
     queryKey: searchQueryKeys.results({
-      filters: { limit: SEARCH_LIMIT, mediaType, schemaVersion: SEARCH_SCHEMA_VERSION },
+      filters: { limit: searchLimit, mediaType, mode, schemaVersion: SEARCH_SCHEMA_VERSION },
       locale: language,
-      page: searchPage,
+      page: mode === 'full' ? searchPage : 1,
       query: debouncedQuery,
       region: localeRegion(language),
       scope: { kind: 'public' },
@@ -110,8 +114,8 @@ export default function SearchPage() {
             locale: language,
             region: localeRegion(language),
             mediaTypes: mediaType === 'all' ? undefined : [mediaType === 'tv' ? 'series' : 'movie'],
-            page: searchPage,
-            limit: SEARCH_LIMIT,
+            page: mode === 'full' ? searchPage : 1,
+            limit: searchLimit,
           },
           signal
         )
@@ -125,7 +129,8 @@ export default function SearchPage() {
     () =>
       searchQuery.data
         ? [
-            ...searchQuery.data.groups.titles,
+            ...searchQuery.data.groups.movies,
+            ...searchQuery.data.groups.series,
             ...searchQuery.data.groups.people,
             ...searchQuery.data.groups.users,
           ]
@@ -147,8 +152,12 @@ export default function SearchPage() {
       const next = (activeIndex + offset + flatResults.length) % flatResults.length
       setActiveIndex(next)
       resultRefs.current[next]?.scrollIntoView({ block: 'nearest' })
-    } else if (event.key === 'Enter' && activeIndex >= 0) {
-      resultRefs.current[activeIndex]?.click()
+    } else if (event.key === 'Enter') {
+      if (activeIndex >= 0) resultRefs.current[activeIndex]?.click()
+      else {
+        setSubmittedQuery(debouncedQuery)
+        setSearchPage(1)
+      }
     } else if (event.key === 'Escape') {
       setQuery('')
       setActiveIndex(-1)
@@ -184,6 +193,7 @@ export default function SearchPage() {
             className="min-h-11 w-full rounded-md border border-white/10 bg-kino-surface px-3 text-base text-kino-text outline-none transition-colors placeholder:text-kino-muted focus:border-kino-accent"
             id="search"
             onChange={(event) => {
+              setSubmittedQuery('')
               setQuery(event.target.value)
               setActiveIndex(-1)
               resultRefs.current = []
@@ -239,9 +249,9 @@ export default function SearchPage() {
           <div className="grid gap-8">
             <SearchGroup
               entityType="title"
-              label={t('search.titles')}
-              results={searchQuery.data.groups.titles}
-              failed={searchQuery.data.failed.titles}
+              label={t('search.movies')}
+              results={searchQuery.data.groups.movies}
+              failed={searchQuery.data.failed.movies}
               startIndex={resultIndex}
               refs={resultRefs}
               activeIndex={activeIndex}
@@ -249,7 +259,22 @@ export default function SearchPage() {
               t={t}
             />
             {(() => {
-              resultIndex += searchQuery.data.groups.titles.length
+              resultIndex += searchQuery.data.groups.movies.length
+              return null
+            })()}
+            <SearchGroup
+              entityType="title"
+              label={t('search.tvShows')}
+              results={searchQuery.data.groups.series}
+              failed={searchQuery.data.failed.series}
+              startIndex={resultIndex}
+              refs={resultRefs}
+              activeIndex={activeIndex}
+              onRetry={() => searchQuery.refetch()}
+              t={t}
+            />
+            {(() => {
+              resultIndex += searchQuery.data.groups.series.length
               return null
             })()}
             <SearchGroup
@@ -286,7 +311,7 @@ export default function SearchPage() {
                 variant="search"
               />
             ) : null}
-            {searchPage > 1 || searchQuery.data.nextPage ? (
+            {mode === 'full' && (searchPage > 1 || searchQuery.data.nextPage) ? (
               <div className="flex justify-center gap-3">
                 <Button
                   disabled={searchPage <= 1 || searchQuery.isFetching}
@@ -421,7 +446,8 @@ function RetryState({
 
 function toSearchGroups(response: SearchResponseV1) {
   const groups = {
-    titles: [] as SearchResult[],
+    movies: [] as SearchResult[],
+    series: [] as SearchResult[],
     people: [] as SearchResult[],
     users: [] as SearchResult[],
   }
@@ -430,7 +456,7 @@ function toSearchGroups(response: SearchResponseV1) {
       const entity = result.entity
       if ((entity.entityType === 'movie' || entity.entityType === 'series') && entity.tmdbId) {
         const mediaType: MediaType = entity.entityType === 'series' ? 'tv' : 'movie'
-        groups.titles.push({
+        groups[entity.entityType === 'series' ? 'series' : 'movies'].push({
           kind: 'title',
           id: entity.tmdbId,
           imagePath: entity.imageUrl || null,
@@ -479,7 +505,7 @@ function toSearchGroups(response: SearchResponseV1) {
   }
   return {
     groups,
-    failed: { people: false, titles: false, users: false },
+    failed: { movies: false, people: false, series: false, users: false },
     nextPage: response.nextPage,
   }
 }

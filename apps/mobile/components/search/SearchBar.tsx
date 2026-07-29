@@ -17,6 +17,7 @@ interface SearchBarProps {
   isLoading?: boolean
   onFilterPress?: () => void
   filterActive?: boolean
+  onSubmitSearch?: (query: string) => void
 }
 
 export function SearchBar({
@@ -25,6 +26,7 @@ export function SearchBar({
   isLoading = false,
   onFilterPress,
   filterActive = false,
+  onSubmitSearch,
 }: SearchBarProps) {
   const { t } = useTranslation()
   const [query, setQuery] = useState('')
@@ -37,7 +39,7 @@ export function SearchBar({
   }, [])
 
   const handleSearch = () => {
-    if (query.trim()) onSearch(query.trim())
+    if (query.trim()) (onSubmitSearch || onSearch)(query.trim())
     inputRef.current?.blur()
   }
 

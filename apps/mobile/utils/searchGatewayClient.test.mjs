@@ -69,3 +69,24 @@ test('mobile gateway propagates cancellation and returns typed timeout/schema er
     (error) => error instanceof SearchGatewayClientError && error.code === 'timeout'
   )
 })
+
+test('mobile gateway normalizes rejected fetches and non-json HTTP failures', async () => {
+  const request = { schemaVersion: SEARCH_SCHEMA_VERSION, query: 'x' }
+  await assert.rejects(
+    createSearchGateway({
+      origin: 'https://kino.example.com',
+      fetch: async () => Promise.reject(new TypeError('offline')),
+    }).search(request),
+    (error) => error instanceof SearchGatewayClientError && error.code === 'network_error'
+  )
+  await assert.rejects(
+    createSearchGateway({
+      origin: 'https://kino.example.com',
+      fetch: async () => new Response('bad gateway', { status: 502 }),
+    }).search(request),
+    (error) =>
+      error instanceof SearchGatewayClientError &&
+      error.code === 'http_error' &&
+      error.status === 502
+  )
+})
