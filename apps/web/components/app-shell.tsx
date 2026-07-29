@@ -72,7 +72,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   // While auth resolves, show a loading state
-  if (resolution.status === 'resolving') {
+  if (resolution.status === 'resolving' && !hasAuthenticatedUser(resolution)) {
     return (
       <main className="grid min-h-screen place-items-center bg-kino-bg p-6">
         <HomeSkeleton label={t('common.loading')} />

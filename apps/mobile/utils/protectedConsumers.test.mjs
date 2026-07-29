@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
-import { resolveProtectedContentState } from '@kino/core/auth'
+import { hasAuthenticatedUser, resolveProtectedContentState } from '@kino/core/auth'
 import { selectProfilePageStatus, selectSettingsPageStatus } from './protectedConsumerState.ts'
 
 const protectedConsumers = [
@@ -105,5 +105,8 @@ test('the shared mobile tab boundary renders a skeleton during initial auth rest
 
   assert.match(source, /useAuth\(\)/)
   assert.match(source, /resolution\.status\s*===\s*['"]resolving['"]/)
+  assert.match(source, /!hasAuthenticatedUser\(resolution\)/)
   assert.match(source, /<Skeleton/)
+  assert.equal(hasAuthenticatedUser({ status: 'resolving' }), false)
+  assert.equal(hasAuthenticatedUser({ status: 'resolving', previousUser: { id: 'user-1' } }), true)
 })

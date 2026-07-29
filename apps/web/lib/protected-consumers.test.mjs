@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
+import { hasAuthenticatedUser } from '@kino/core/auth'
 
 const protectedConsumers = [
   '../app/diary/page.tsx',
@@ -36,5 +37,8 @@ test('the shared web shell gates initial restoration from typed auth resolution'
 
   assert.match(source, /state\.resolution/)
   assert.match(source, /resolution\.status\s*===\s*['"]resolving['"]/)
+  assert.match(source, /!hasAuthenticatedUser\(resolution\)/)
   assert.doesNotMatch(source, /state\.loading/)
+  assert.equal(hasAuthenticatedUser({ status: 'resolving' }), false)
+  assert.equal(hasAuthenticatedUser({ status: 'resolving', previousUser: { id: 'user-1' } }), true)
 })

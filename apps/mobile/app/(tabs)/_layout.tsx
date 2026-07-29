@@ -1,4 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
+import { hasAuthenticatedUser } from '@kino/core/auth'
 import { Icon, Label, NativeTabs, VectorIcon } from 'expo-router/unstable-native-tabs'
 import { DynamicColorIOS, Platform, View } from 'react-native'
 import { Skeleton } from '~/components/common/Skeleton'
@@ -14,7 +15,7 @@ export default function TabLayout() {
         })
       : 'green'
 
-  if (resolution.status === 'resolving') {
+  if (resolution.status === 'resolving' && !hasAuthenticatedUser(resolution)) {
     return (
       <View style={{ flex: 1, backgroundColor: '#121212' }}>
         <Skeleton layout="profile" />
