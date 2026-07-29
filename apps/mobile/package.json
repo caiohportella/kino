@@ -27,7 +27,6 @@
     "@supabase/supabase-js": "^2.38.4",
     "@tanstack/query-core": "^5.90.16",
     "@tanstack/react-query": "^5.90.19",
-    "@upstash/vector": "^1.2.2",
     "date-fns": "^4.1.0",
     "expo": "~54.0.35",
     "expo-auth-session": "~7.0.8",
