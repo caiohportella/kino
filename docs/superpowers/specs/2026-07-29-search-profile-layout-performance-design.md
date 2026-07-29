@@ -66,7 +66,7 @@ Role-specific rules prioritize acting cast, low cast order, directing, writing, 
 
 True duplicates use `mediaType + tmdbId`. Separate sequels, spin-offs, revivals, seasons represented as distinct TMDB entities, and franchise entries remain distinct. Movies and series keep their correct media types and are deduplicated independently.
 
-### Relationship cache and indexing
+### Relationship cache and schema versioning
 
 Relationship caching uses a versioned bounded person record or separate bounded relationship records. It does not store an unbounded filmography in vector metadata. Records contain enough data to evaluate identity, department, aliases, credit relationships, freshness, completeness, and schema compatibility. Old or incomplete records can be invalidated and rebuilt. Current cached relationships may be returned while stale refreshes run.
 
