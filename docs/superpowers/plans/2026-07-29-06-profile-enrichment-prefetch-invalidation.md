@@ -13,6 +13,8 @@
 - Limit the candidate window as well as concurrency.
 - Do not fetch full seasons merely because cards mount.
 - Persistence remains deferred.
+- Plan 5 must be integrated and passing before this plan begins.
+- Coordinator-owned profile composition files are integrated only after focused domain tests pass.
 
 ---
 
@@ -69,4 +71,3 @@
 - [ ] Run focused tests plus type-check; expect PASS and compile-time exhaustiveness.
 - [ ] Review gate and rollback: compare mutation cache effects before deleting broad invalidations. Reverting these commits restores prior behavior without data changes.
 - [ ] Commit: `perf(profile): prefetch and invalidate precise profile scopes`
-

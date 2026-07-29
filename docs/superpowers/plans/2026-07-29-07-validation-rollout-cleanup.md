@@ -13,6 +13,8 @@
 - Do not remove a legacy path until all consumers pass focused and repository-wide verification.
 - Required checks never require live TMDB or Upstash.
 - Cross-session persistence stays deferred and documented.
+- Plans 3, 4, and 6 must be complete before this plan begins.
+- V1 remains when supported older mobile releases require it.
 
 ---
 
@@ -41,7 +43,7 @@
 
 - [ ] Audit with `rg "vote_average:\\s*(result\\.score|score)|queryKey:\\s*\\['profile'|refreshSeriesAvailability|Promise\\.all\\(" apps packages` and record every remaining legacy consumer.
 - [ ] Run focused legacy-consumer assertions; expect FAIL while any unverified path remains.
-- [ ] Remove only migrated raw search adapters, monolithic profile aggregation, full-library season fan-out, and broad profile invalidations.
+- [ ] Remove only migrated raw search adapters, monolithic profile aggregation, full-library season fan-out, and broad profile invalidations. Remove V1 only when both consumers, rollback tests, and supported-mobile policy permit it.
 - [ ] Re-run the audit; expect no prohibited matches and preserve intentional unrelated `Promise.all` usage.
 - [ ] Commit: `refactor: remove verified search and profile legacy paths`
 
@@ -64,4 +66,3 @@
 - [ ] State that cross-session persistence is deferred with the safety requirements from the design.
 - [ ] Review gate: do not claim completion unless every required command has fresh successful output; disclose any failure or unavailable optional validation.
 - [ ] Commit final documentation only if repository conventions require a checked-in report: `docs: report search and profile migration verification`.
-

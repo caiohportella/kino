@@ -13,6 +13,8 @@
 - Stored activity is locale-independent; localized title summaries use separate locale/region keys.
 - Never substitute data from another profile, viewer, locale, or region.
 - A successful section remains visible during refresh and refresh failure.
+- Downstream keys always use canonical immutable profile ID; username appears only in username resolution.
+- Root profile composition files are coordinator-owned.
 
 ---
 
@@ -25,9 +27,9 @@
 - Test: `packages/core/src/cache/query-keys.test.mjs`
 - Create: `packages/core/src/cache/policies.test.mjs`
 
-- [ ] Add failing collision tests for identity, relationship-by-viewer, each content section, availability, locale, region, page, filters, and schema version.
+- [ ] Add failing tests for `usernameResolution(username)`, canonical `identity({ profileId, visibilityScope })`, `relationship({ profileId, viewerId })`, every ID-based content section, availability, locale, region, page, filters, username changes, and schema version.
 - [ ] Run `pnpm --filter @kino/core test -- src/cache/*.test.mjs`; expect FAIL.
-- [ ] Add factories for identity, relationship, watched movies/series, statistics, watchlists, reviews, ratings, and availability plus named policies.
+- [ ] Add username resolution plus canonical-ID factories for identity, relationship, watched movies/series, statistics, watchlists, reviews, ratings, and availability, together with named policies.
 - [ ] Run core cache tests; expect PASS.
 - [ ] Commit: `feat(profile): define scoped profile cache contracts`
 
@@ -64,10 +66,9 @@
 - Create: `apps/mobile/utils/profileProgressiveRendering.test.mjs`
 - Create: `apps/mobile/utils/profileQueryOptions.test.mjs`
 
-- [ ] Add failing tests for identity-first rendering, independent sections, locale-independent activity, and retained data.
+- [ ] Inventory every `useProfileData` consumer, including `apps/mobile/app/profile/[id].tsx` and `apps/mobile/app/(tabs)/profile.tsx`, then add failing tests for identity-first rendering, independent sections, canonical-ID reuse after username resolution, locale-independent activity, and retained data.
 - [ ] Run focused mobile tests; expect FAIL.
 - [ ] Replace monolithic state/`Promise.all` with scoped React Query options while keeping a compatibility facade until consumers migrate.
 - [ ] Run focused tests and both application type-checks; expect PASS.
 - [ ] Review gate and rollback: retain the old facade until all profile consumers use the split hooks; no database migration. Remove it only in Plan 7.
 - [ ] Commit: `refactor(profile): split mobile profile query boundaries`
-

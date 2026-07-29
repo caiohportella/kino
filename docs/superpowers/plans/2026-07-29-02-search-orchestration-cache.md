@@ -13,6 +13,7 @@
 - Do not place Upstash or TMDB access in shared core.
 - A stale complete record is usable immediately; a missing/incomplete record may require TMDB supplementation.
 - Required tests use injected fakes and never live services.
+- Plan 1 must be integrated and passing before this plan begins.
 
 ---
 
@@ -26,7 +27,7 @@
 - Test: `apps/web/lib/search/providers/person-relationship-cache.test.mjs`
 
 **Interfaces:**
-- Produces: `PersonRelationshipRecord`, `evaluateRelationshipRecord()`, and `PersonRelationshipCache` with `get`/`scheduleRefresh`.
+- Produces: `PersonRelationshipRecord`, `evaluateRelationshipRecord()`, `PersonRelationshipCache.get()`, and injected `PersonRelationshipRefreshScheduler.schedule(input): void | Promise<void>`.
 - Consumes: shared normalized person and credit contracts from Plan 1.
 
 - [ ] **Step 1: Write failing state-machine tests**
@@ -40,7 +41,7 @@ Expected: FAIL because the adapter is absent.
 
 - [ ] **Step 3: Implement bounded versioned records**
 
-Store bounded relationship summaries or IDs with `schemaVersion`, `personId`, aliases, department, separate movie/series relationships, `complete`, and `updatedAt`. Reject oversized or incompatible records without importing core indexing.
+Store bounded relationship summaries or IDs with `schemaVersion`, `personId`, aliases, department, separate movie/series relationships, `complete`, and `updatedAt`. Scheduling is best effort and never blocks the response; runtimes without safe detached work may record refresh intent. Reject incompatible records without importing indexing.
 
 - [ ] **Step 4: Run focused tests and commit**
 
@@ -63,7 +64,7 @@ Commit: `feat(search): add bounded person relationship cache`
 
 **Interfaces:**
 - Consumes: `qualifyPersonExpansion`, `PersonRelationshipCache`, TMDB combined-credit normalization.
-- Produces: shared `SearchResponseV1` only; it does not sort fused results.
+- Produces: requested supported `SearchResponseV1` or `SearchResponseV2`, defaults new clients to V2, and never sorts fused results.
 
 - [ ] **Step 1: Add failing orchestration tests**
 
@@ -76,7 +77,7 @@ Expected: FAIL on the new cache paths.
 
 - [ ] **Step 3: Implement orchestration**
 
-Resolve the top qualified person in shared core, read the relationship cache, fetch combined credits only when required by completeness/latency rules, schedule safe refreshes, and pass all evidence to `runSearchPipelineV1`.
+Resolve the top qualified person in shared core, read the cache, fetch credits only when required, schedule best-effort refresh intent, and pass evidence to the versioned shared pipeline while preserving V1 serialization.
 
 - [ ] **Step 4: Verify gateway and route**
 
@@ -90,4 +91,3 @@ Keep direct TMDB expansion coexistable behind the adapter until web and mobile c
 - [ ] **Step 6: Commit**
 
 Commit: `feat(search): orchestrate cached person credit expansion`
-

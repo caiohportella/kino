@@ -13,6 +13,8 @@
 - Preserve existing `TitleCard` components and home-page rating behavior.
 - Missing ratings stay absent; normalize rating once.
 - Search controls and results use separate layout containers.
+- Plans 1 and 2 must be integrated and passing before this plan begins.
+- Root search consumers are coordinator-owned.
 
 ---
 
@@ -26,12 +28,12 @@
 - Test: `packages/core/src/search/presentation.test.mjs`
 
 **Interfaces:**
-- Produces: `toSearchTitleCardModel(result, localePresentation)` and `getLocalizedPersonDepartment(department, labels)`.
+- Produces: `toSearchTitleCardModel(result, { localizedTitle, localizedPoster, displayRating })` and `getLocalizedPersonDepartment(department, labels)`.
 - Consumes: Plan 1 result contracts and application-supplied localized title/poster data.
 
 - [ ] Write failing tests for nullable ratings, one-time normalization, canonical movie/series routes, and Acting/Directing/Writing/Production/Sound/Creator/fallback labels.
 - [ ] Run `pnpm --filter @kino/core test -- src/search/presentation.test.mjs`; expect FAIL.
-- [ ] Implement pure adapters without importing i18n runtimes.
+- [ ] Implement pure adapters without importing i18n runtimes. The application calls the existing authoritative home-card rating resolver exactly once and supplies nullable `displayRating`; the adapter only transports it.
 - [ ] Run the focused test; expect PASS.
 - [ ] Commit: `feat(search): normalize search card presentation`
 
@@ -51,7 +53,7 @@
 - Consumes: shared presentation model and existing `MediaCard`/profile-person card props.
 - Produces: full-width groups with profession labels and correct rating values.
 
-- [ ] Add failing source/component tests proving `result.score` is never assigned to `vote_average`, Clear is confined to the form row, and skeleton/result sections share full width.
+- [ ] Add failing tests proving `result.score` is never assigned to `vote_average`, Clear is confined to the form row, and skeleton/result sections share full width. Use source scans only for the prohibited mapping; use component behavior and computed DOM geometry plus screenshots/measurements when infrastructure exists.
 - [ ] Run `pnpm --filter @kino/web test -- lib/search/consumer.test.mjs lib/search/presentation.test.mjs lib/search/layout.test.mjs`; expect FAIL.
 - [ ] Replace `toSearchGroups` raw adaptation with the platform presentation adapter; separate form and results containers; compute sufficient skeleton capacity from shared grid geometry.
 - [ ] Run focused web tests and accessibility assertions; expect PASS.
@@ -68,10 +70,9 @@
 - Test: `apps/mobile/utils/searchGatewayConsumers.test.mjs`
 - Create: `apps/mobile/utils/searchPresentation.test.mjs`
 
-- [ ] Add failing tests proving `gatewayTitle` no longer maps `score` to `vote_average` and person departments are localized.
+- [ ] Add failing tests proving `gatewayTitle` no longer maps `score` to `vote_average`, V2 is requested while V1 remains parseable for rollback, and person departments are localized.
 - [ ] Run `pnpm --filter @kino/mobile test -- utils/searchGatewayConsumers.test.mjs utils/searchPresentation.test.mjs`; expect FAIL.
 - [ ] Use the shared presentation contract and preserve existing navigation/accessibility behavior.
 - [ ] Run focused tests plus web/mobile type-check; expect PASS.
 - [ ] Review gate and rollback: compare home cards before/after, exact-title/user/autocomplete tests, and schema compatibility. Old adapters remain revertible until both clients pass.
 - [ ] Commit: `fix(search): migrate mobile search presentation`
-

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make shared core the single source of truth for person qualification, credit evidence, bounded scoring, fusion, ranking, deduplication, and normalized search presentation contracts.
+**Goal:** Make shared core the single source of truth for person qualification, credit evidence, bounded scoring, fusion, ranking, deduplication, and normalized V2 search presentation contracts while retaining V1 compatibility.
 
 **Architecture:** Extend the existing `packages/core/src/search` pipeline without importing providers or indexing. Relationship evidence is consolidated before fusion; applications provide evidence and consume normalized results.
 
@@ -12,7 +12,8 @@
 
 - Do not import React, Next.js, Expo, Supabase, Upstash, environment modules, or `src/indexing` from shared search.
 - Do not expose relevance as a display rating; missing ratings remain absent.
-- Preserve schema compatibility through an explicit search schema-version change and deterministic normalization.
+- Add V2 without deleting or renaming V1; V1 remains supported until both consumers migrate and rollback is verified.
+- Coordinator integration follows `2026-07-29-00-execution-order-and-ownership.md`.
 
 ---
 
@@ -25,12 +26,12 @@
 - Test: `packages/core/src/search/normalize.test.mjs`
 
 **Interfaces:**
-- Produces: `CreditSearchScore`, enriched `SearchEntity`, `SearchTitleCardModel`, `SearchPersonModel`, and a bumped `SEARCH_SCHEMA_VERSION`.
-- Consumes: existing `SearchRequestV1`, provider candidates, and `SearchResponseV1`.
+- Produces: `CreditSearchScore`, V2 search entities/presentation fields, `SearchRequestV2`, `SearchResponseV2`, and V1/V2 compatibility unions.
+- Consumes: unchanged `SearchRequestV1`, `SearchResponseV1`, and provider candidates.
 
 - [ ] **Step 1: Write failing contract tests**
 
-Assert that provider score inputs are bounded, `tmdbVoteAverage: null` remains null, relevance cannot populate `displayRating`, and the new schema rejects the previous response shape.
+Assert explicit below/above-range behavior, rejection of `NaN` and infinity, neutral vote confidence without vote counts, nullable TMDB ratings, and no relevance-to-rating mapping. V2 rejects malformed V2 while the compatibility parser recognizes supported V1.
 
 - [ ] **Step 2: Run the focused test**
 
@@ -39,7 +40,7 @@ Expected: FAIL because the new fields and schema semantics do not exist.
 
 - [ ] **Step 3: Add explicit contracts and normalization**
 
-Add bounded score components and nullable rating fields. Normalize provider-native scores once and keep presentation rating independent:
+Add V2 bounded score components and nullable rating fields without changing V1. Normalize provider-native scores once and keep presentation rating independent:
 
 ```ts
 export interface CreditSearchScore {
@@ -80,7 +81,7 @@ Commit: `feat(search): version explicit search score contracts`
 
 - [ ] **Step 1: Add failing fixtures**
 
-Cover Ryan Gosling, Michael C. Hall, Marlon Brando, Pedro Pascal, Sofia Coppola, and Christopher Nolan in exact and relationship wording. Assert strong relationships survive low semantic scores, distinct Dexter entities remain, and weak duplicate evidence cannot suppress a strong credit.
+Cover Ryan Gosling, Michael C. Hall, Marlon Brando, Pedro Pascal, Sofia Coppola, and Christopher Nolan in exact and relationship wording. Assert strong relationships survive low semantic scores, popularity cannot rescue unrelated candidates, missing vote counts remain neutral, distinct Dexter entities remain, weak evidence cannot suppress a strong credit, and reversed/shuffled evidence ranks identically.
 
 - [ ] **Step 2: Run search tests**
 
@@ -107,9 +108,8 @@ Expected: PASS.
 
 - [ ] **Step 7: Review gate and rollback**
 
-Confirm existing exact-title and user grouping fixtures are unchanged apart from the schema version. Rollback is the two commits in this plan; no data migration occurs and applications remain on the prior schema until Plan 2.
+Confirm existing V1 exact-title and user grouping fixtures remain compatible. Rollback is the two commits in this plan; applications remain on V1 until Plans 2 and 3 opt into V2.
 
 - [ ] **Step 8: Commit**
 
 Commit: `feat(search): rank person relationships in shared core`
-

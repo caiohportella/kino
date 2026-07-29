@@ -13,6 +13,7 @@
 - Preserve review actions, links, sorting, and full title-page text.
 - Native focus order wins over row-level arrow scrolling.
 - Full-width mobile behavior belongs to the outer interactive wrapper.
+- This plan may run independently after baseline tests pass, subject to coordinator ownership and overlap rules.
 
 ---
 
@@ -58,10 +59,9 @@
 - Create: `apps/web/lib/title-responsive-layout.test.mjs`
 - Create: `apps/mobile/utils/titleResponsiveLayout.test.mjs`
 
-- [ ] Add failing responsive assertions for centered identity only, desktop left alignment, left-aligned long content, missing metadata, wrapped genres, and full-width Buy Tickets/link wrappers.
+- [ ] Add failing responsive assertions for centered identity only, desktop left alignment, left-aligned long content, missing metadata, wrapped genres, and full-width Buy Tickets/link wrappers. Use component behavior and computed geometry; capture screenshots or DOM measurements when infrastructure exists.
 - [ ] Run focused tests; expect FAIL.
 - [ ] Apply responsive classes/styles to existing markup without duplicating the hero.
 - [ ] Run focused tests and verify provider URL behavior; expect PASS.
 - [ ] Review gate and rollback: compare desktop title contracts and review mutations before removing no legacy markup. Each task is independently revertible.
 - [ ] Commit: `fix(title): align mobile identity and actions`
-
