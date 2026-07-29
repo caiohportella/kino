@@ -97,14 +97,16 @@ export default function SearchPage() {
   })
 
   const searchQuery = useQuery({
-    queryKey: searchQueryKeys.results({
-      filters: { limit: searchLimit, mediaType, mode, schemaVersion: SEARCH_SCHEMA_VERSION },
-      locale: language,
-      page: mode === 'full' ? searchPage : 1,
-      query: debouncedQuery,
-      region: localeRegion(language),
-      scope: { kind: 'public' },
-    }),
+    queryKey: searching
+      ? searchQueryKeys.results({
+          filters: { limit: searchLimit, mediaType, mode, schemaVersion: SEARCH_SCHEMA_VERSION },
+          locale: language,
+          page: mode === 'full' ? searchPage : 1,
+          query: debouncedQuery,
+          region: localeRegion(language),
+          scope: { kind: 'public' },
+        })
+      : searchQueryKeys.resultsRoot(),
     queryFn: ({ signal }) =>
       searchGateway
         .search(

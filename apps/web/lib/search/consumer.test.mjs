@@ -16,3 +16,11 @@ test('web search uses the v1 gateway, canonical locale cache key, cancellation, 
   assert.match(source, /resetDiscoveryOnlyFilters/)
   assert.doesNotMatch(source, /tmdb\.search\(|tmdb\.searchPeople\(|db\.searchUsers\(/)
 })
+
+test('web search uses a non-executable root cache key while the query is empty', async () => {
+  const source = await readFile(new URL('../../app/search/page.tsx', import.meta.url), 'utf8')
+  assert.match(
+    source,
+    /queryKey:\s*searching\s*\?\s*searchQueryKeys\.results\([\s\S]*?\)\s*:\s*searchQueryKeys\.resultsRoot\(\)/
+  )
+})
