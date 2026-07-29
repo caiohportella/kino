@@ -1,8 +1,12 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
+import { hasAuthenticatedUser } from '@kino/core/auth'
 import { Icon, Label, NativeTabs, VectorIcon } from 'expo-router/unstable-native-tabs'
-import { DynamicColorIOS, Platform } from 'react-native'
+import { DynamicColorIOS, Platform, View } from 'react-native'
+import { Skeleton } from '~/components/common/Skeleton'
+import { useAuth } from '~/hooks/useAuth'
 
 export default function TabLayout() {
+  const { resolution } = useAuth()
   const tintColor =
     Platform.OS === 'ios'
       ? DynamicColorIOS({
@@ -10,6 +14,14 @@ export default function TabLayout() {
           light: 'green',
         })
       : 'green'
+
+  if (resolution.status === 'resolving' && !hasAuthenticatedUser(resolution)) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#121212' }}>
+        <Skeleton layout="profile" />
+      </View>
+    )
+  }
 
   return (
     <NativeTabs tintColor={tintColor}>

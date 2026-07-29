@@ -11,6 +11,7 @@ import { AppPagination } from '@/components/app-pagination'
 import { type DiaryFilterState, DiaryFilters } from '@/components/diary-filters'
 import { EmptyState } from '@/components/kino'
 import { PageHeader } from '@/components/page-header'
+import { ProtectedContentGate } from '@/components/protected-content-gate'
 import { ProtectedEmpty } from '@/components/protected-empty'
 import { RatingStars } from '@/components/rating-stars'
 import { DiarySkeleton } from '@/components/skeletons/page-skeletons'
@@ -52,6 +53,7 @@ const DIARY_ITEMS_PER_PAGE = 30
 
 export default function DiaryPage() {
   const user = useAuthStore((state) => state.user)
+  const resolution = useAuthStore((state) => state.resolution)
   const language = useSettingsStore((state) => state.language)
   const { t } = useTranslation()
   const pathname = usePathname()
@@ -150,88 +152,105 @@ export default function DiaryPage() {
     })
   }
 
-  if (!user) {
-    return <ProtectedEmpty />
-  }
-
-  if (query.isLoading) return <DiarySkeleton label={t('common.loading')} />
-
   const sections = groupDiaryByMonth(paginatedEntries, language)
   const localizedTitleMap = localizedTitles.data || {}
 
   return (
-    <div className="content-frame">
-      <PageHeader eyebrow={t('diary.title')} title={t('diary.watchDiary')} />
-
-      {entries.length > 0 ? (
-        <DiaryFilters
-          activeCount={activeFilterCount}
-          genres={genres}
-          onChange={updateFilter}
-          onReset={resetFilters}
-          state={filterState}
-          years={years}
-        />
-      ) : null}
-
-      {entries.length === 0 ? (
-        <EmptyState
-          action={
-            <Link href="/search">
-              <Button>{t('search.title')}</Button>
-            </Link>
-          }
-          body={t('emptyStates.diaryBody')}
-          illustrationLabel={t('emptyStates.diaryIllustration')}
-          title={t('emptyStates.diaryTitle')}
-          variant="diary"
-        />
-      ) : sections.length === 0 ? (
-        <EmptyState
-          action={<Button onClick={resetFilters}>{t('diaryFilters.reset')}</Button>}
-          body={t('diaryFilters.noMatchesBody')}
-          illustrationLabel={t('emptyStates.searchIllustration')}
-          title={t('diaryFilters.noMatches')}
-          variant="search"
-        />
-      ) : (
-        <div className="grid gap-8">
-          {sections.map((section) => (
-            <section key={section.title}>
-              <h2 className="mb-3 text-base font-semibold text-kino-muted">{section.title}</h2>
-              <div className="grid gap-2">
-                {section.data.map((entry) => (
-                  <DiaryRow
-                    entry={entry}
-                    key={entry.id}
-                    localizedTitles={localizedTitleMap}
-                    onDelete={diaryActions.deleteEntry}
-                    onEdit={setSelectedEntry}
-                    onUpdate={diaryActions.updateEntry}
-                    pendingEntryId={diaryActions.pendingEntryId}
-                  />
-                ))}
-              </div>
-            </section>
-          ))}
-          <AppPagination
-            label="Diary pages"
-            onPageChange={setPage}
-            page={page}
-            totalPages={totalPages}
+    <ProtectedContentGate
+      authLoadingFallback={<DiarySkeleton label={t('common.loading')} />}
+      emptyFallback={
+        <div className="content-frame">
+          <PageHeader eyebrow={t('diary.title')} title={t('diary.watchDiary')} />
+          <EmptyState
+            action={
+              <Link href="/search">
+                <Button>{t('search.title')}</Button>
+              </Link>
+            }
+            body={t('emptyStates.diaryBody')}
+            illustrationLabel={t('emptyStates.diaryIllustration')}
+            title={t('emptyStates.diaryTitle')}
+            variant="diary"
           />
         </div>
-      )}
+      }
+      errorFallback={
+        <EmptyState body={t('common.tryAgain')} title={t('common.failed')} variant="diary" />
+      }
+      pageLoadingFallback={<DiarySkeleton label={t('common.loading')} />}
+      pageStatus={
+        query.isPending
+          ? 'loading'
+          : query.isError
+            ? 'error'
+            : entries.length === 0
+              ? 'empty'
+              : 'content'
+      }
+      resolution={resolution}
+      unauthenticatedFallback={<ProtectedEmpty />}
+    >
+      <div className="content-frame">
+        <PageHeader eyebrow={t('diary.title')} title={t('diary.watchDiary')} />
 
-      <DiaryDialog
-        entry={selectedEntry}
-        localizedTitles={localizedTitleMap}
-        onDelete={diaryActions.deleteEntry}
-        onClose={() => setSelectedEntry(null)}
-        onUpdate={diaryActions.updateEntry}
-        pendingEntryId={diaryActions.pendingEntryId}
-      />
-    </div>
+        {entries.length > 0 ? (
+          <DiaryFilters
+            activeCount={activeFilterCount}
+            genres={genres}
+            onChange={updateFilter}
+            onReset={resetFilters}
+            state={filterState}
+            years={years}
+          />
+        ) : null}
+
+        {sections.length === 0 ? (
+          <EmptyState
+            action={<Button onClick={resetFilters}>{t('diaryFilters.reset')}</Button>}
+            body={t('diaryFilters.noMatchesBody')}
+            illustrationLabel={t('emptyStates.searchIllustration')}
+            title={t('diaryFilters.noMatches')}
+            variant="search"
+          />
+        ) : (
+          <div className="grid gap-8">
+            {sections.map((section) => (
+              <section key={section.title}>
+                <h2 className="mb-3 text-base font-semibold text-kino-muted">{section.title}</h2>
+                <div className="grid gap-2">
+                  {section.data.map((entry) => (
+                    <DiaryRow
+                      entry={entry}
+                      key={entry.id}
+                      localizedTitles={localizedTitleMap}
+                      onDelete={diaryActions.deleteEntry}
+                      onEdit={setSelectedEntry}
+                      onUpdate={diaryActions.updateEntry}
+                      pendingEntryId={diaryActions.pendingEntryId}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+            <AppPagination
+              label="Diary pages"
+              onPageChange={setPage}
+              page={page}
+              totalPages={totalPages}
+            />
+          </div>
+        )}
+
+        <DiaryDialog
+          entry={selectedEntry}
+          localizedTitles={localizedTitleMap}
+          onDelete={diaryActions.deleteEntry}
+          onClose={() => setSelectedEntry(null)}
+          onUpdate={diaryActions.updateEntry}
+          pendingEntryId={diaryActions.pendingEntryId}
+        />
+      </div>
+    </ProtectedContentGate>
   )
 }
 

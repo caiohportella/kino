@@ -7,11 +7,11 @@ import { useAuthStore } from '@/stores/auth-store'
 
 export default function RegisterPage() {
   const router = useRouter()
-  const user = useAuthStore((state) => state.user)
+  const resolution = useAuthStore((state) => state.resolution)
 
   useEffect(() => {
-    if (user) router.replace('/discover')
-  }, [router, user])
+    if (resolution.status === 'authenticated') router.replace('/discover')
+  }, [resolution.status, router])
 
   return (
     <div className="content-frame grid min-h-[calc(100vh-68px)] place-items-center py-8">

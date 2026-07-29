@@ -40,6 +40,7 @@ export interface UseProfileDataReturn {
   watchedMovies: WatchedMovie[]
   watchedSeries: WatchedSeries[]
   loading: boolean
+  error: Error | null
   refreshing: boolean
   onRefresh: () => Promise<void>
 }
@@ -49,11 +50,13 @@ export function useProfileData(targetUserId: string | undefined): UseProfileData
   const [watchedMovies, setWatchedMovies] = useState<WatchedMovie[]>([])
   const [watchedSeries, setWatchedSeries] = useState<WatchedSeries[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
   const [refreshing, setRefreshing] = useState(false)
 
   const loadData = useCallback(async () => {
     if (!targetUserId) return
 
+    setError(null)
     try {
       const [userProfile, movies, series] = await Promise.all([
         dbService.getUserProfile(targetUserId),
@@ -66,6 +69,7 @@ export function useProfileData(targetUserId: string | undefined): UseProfileData
       setWatchedSeries(await refreshSeriesAvailability(series as WatchedSeries[]))
     } catch (error) {
       console.error('Failed to load profile data', error)
+      setError(error instanceof Error ? error : new Error('Failed to load profile data'))
     } finally {
       setLoading(false)
     }
@@ -88,6 +92,7 @@ export function useProfileData(targetUserId: string | undefined): UseProfileData
     watchedMovies,
     watchedSeries,
     loading,
+    error,
     refreshing,
     onRefresh,
   }

@@ -1,8 +1,9 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Alert, RefreshControl, ScrollView, View } from 'react-native'
+import { ActivityIndicator, Alert, RefreshControl, ScrollView, Text, View } from 'react-native'
 import { useAuth } from '@/hooks/useAuth'
+import { ProtectedContentGate } from '~/components/auth/ProtectedContentGate'
 import { Skeleton } from '~/components/common/Skeleton'
 import UserListModal from '~/components/modals/UserListModal'
 import { WatchedMoviesModal } from '~/components/modals/WatchedMoviesModal'
@@ -20,18 +21,23 @@ import { useProfileData } from '~/hooks/profile/useProfileData'
 import { useUserSearch } from '~/hooks/profile/useUserSearch'
 import { dbService } from '~/services/database'
 import { shareNativeResource } from '~/utils/native-share'
+import { selectProfilePageStatus } from '~/utils/protectedConsumerState'
 
 export default function ProfileScreen() {
-  const { user, isAuthenticated } = useAuth()
+  const { user, isAuthenticated, resolution } = useAuth()
   const params = useLocalSearchParams()
   const router = useRouter()
   const { t } = useTranslation()
 
-  const targetUserId = (params.userId as string) || user?.id
+  const publicTargetId = params.userId as string | undefined
+  const targetUserId = publicTargetId || user?.id
+  const publicProfileResolution = publicTargetId
+    ? ({ status: 'authenticated', user: { id: publicTargetId } } as const)
+    : resolution
   const isOwnProfile = user?.id === targetUserId
 
   // Custom hooks
-  const { profile, watchedMovies, watchedSeries, loading, refreshing, onRefresh } =
+  const { profile, watchedMovies, watchedSeries, loading, error, refreshing, onRefresh } =
     useProfileData(targetUserId)
 
   const followSystem = useFollowSystem(targetUserId, isOwnProfile)
@@ -106,109 +112,121 @@ export default function ProfileScreen() {
     ])
   }
 
-  // Unauthenticated state
-  if (!isAuthenticated && !targetUserId) {
-    return <UnauthenticatedView onLoginPress={() => router.push('/login')} />
-  }
-
-  // Loading state
-  if (loading) {
-    return <Skeleton layout="profile" />
-  }
-
   return (
-    <View className="flex-1 bg-primary pb-16">
-      <ScrollView
-        className="flex-1"
-        alwaysBounceVertical={true}
-        showsVerticalScrollIndicator={false}
-        nestedScrollEnabled={true}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#1DB954"
-            colors={['#1DB954']}
+    <ProtectedContentGate<unknown>
+      authLoadingFallback={<Skeleton layout="profile" />}
+      emptyFallback={
+        <View className="flex-1 items-center justify-center bg-primary">
+          <Text className="text-text-primary">{t('profile.title')}</Text>
+        </View>
+      }
+      errorFallback={
+        <View className="flex-1 items-center justify-center bg-primary">
+          <Text className="text-text-primary">{t('common.failed')}</Text>
+        </View>
+      }
+      pageLoadingFallback={<Skeleton layout="profile" />}
+      pageStatus={selectProfilePageStatus({
+        error,
+        hasProfile: Boolean(profile),
+        loading,
+      })}
+      resolution={publicProfileResolution}
+      unauthenticatedFallback={<UnauthenticatedView onLoginPress={() => router.push('/login')} />}
+    >
+      <View className="flex-1 bg-primary pb-16">
+        <ScrollView
+          className="flex-1"
+          alwaysBounceVertical={true}
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled={true}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#1DB954"
+              colors={['#1DB954']}
+            />
+          }
+        >
+          {refreshing && (
+            <View className="items-center py-4">
+              <ActivityIndicator size="small" color="#1DB954" />
+            </View>
+          )}
+
+          <ProfileHeader
+            profile={profile}
+            isOwnProfile={isOwnProfile}
+            isFollowing={followSystem.isFollowing}
+            onSearchPress={() => searchSystem.setSearchModalVisible(true)}
+            onSharePress={handleShare}
+            onFollowToggle={followSystem.handleFollowToggle}
           />
-        }
-      >
-        {refreshing && (
-          <View className="items-center py-4">
-            <ActivityIndicator size="small" color="#1DB954" />
+
+          <ProfileStats
+            followersCount={followSystem.followersCount}
+            followingCount={followSystem.followingCount}
+            onFollowersPress={() => followSystem.handleOpenUserList('followers')}
+            onFollowingPress={() => followSystem.handleOpenUserList('following')}
+          />
+
+          <WatchedMoviesSection
+            movies={watchedMovies}
+            onMoviePress={handleMoviePress}
+            onLongPress={(movie) => handleDeleteMedia(movie.tmdb_id, movie.title, 'movie')}
+            onViewAll={handleViewAllMovies}
+          />
+
+          <View className="mb-20">
+            <WatchedSeriesSection
+              series={watchedSeries}
+              onSeriesPress={handleSeriesPress}
+              onLongPress={(series) => handleDeleteMedia(series.tmdb_id, series.title, 'tv')}
+              onViewAll={handleViewAllSeries}
+            />
           </View>
-        )}
+        </ScrollView>
 
-        <ProfileHeader
-          profile={profile}
-          isOwnProfile={isOwnProfile}
-          isFollowing={followSystem.isFollowing}
-          onSearchPress={() => searchSystem.setSearchModalVisible(true)}
-          onSharePress={handleShare}
-          onFollowToggle={followSystem.handleFollowToggle}
+        <UserSearchModal
+          visible={searchSystem.searchModalVisible}
+          onClose={() => searchSystem.setSearchModalVisible(false)}
+          searchQuery={searchSystem.searchQuery}
+          onSearchChange={searchSystem.handleSearch}
+          searchResults={searchSystem.searchResults}
+          isSearching={searchSystem.isSearching}
+          onUserPress={handleUserPress}
         />
 
-        <ProfileStats
-          followersCount={followSystem.followersCount}
-          followingCount={followSystem.followingCount}
-          onFollowersPress={() => followSystem.handleOpenUserList('followers')}
-          onFollowingPress={() => followSystem.handleOpenUserList('following')}
+        <UserListModal
+          visible={followSystem.userListModalVisible}
+          onClose={() => followSystem.setUserListModalVisible(false)}
+          title={followSystem.userListTitle}
+          users={followSystem.userListUsers}
+          loading={followSystem.userListLoading}
+          onUserPress={handleUserPress}
+          onAction={isOwnProfile ? followSystem.handleUserListAction : undefined}
+          actionLabel={
+            followSystem.userListType === 'followers' ? t('profile.remove') : t('profile.unfollow')
+          }
         />
 
-        <WatchedMoviesSection
+        <WatchedSeriesModal
+          visible={watchedSeriesModalVisible}
+          onClose={() => setWatchedSeriesModalVisible(false)}
+          series={watchedSeries}
+          onSeriesPress={handleSeriesPress}
+          onLongPress={(series) => handleDeleteMedia(series.tmdb_id, series.title, 'tv')}
+        />
+
+        <WatchedMoviesModal
+          visible={watchedMoviesModalVisible}
+          onClose={() => setWatchedMoviesModalVisible(false)}
           movies={watchedMovies}
           onMoviePress={handleMoviePress}
           onLongPress={(movie) => handleDeleteMedia(movie.tmdb_id, movie.title, 'movie')}
-          onViewAll={handleViewAllMovies}
         />
-
-        <View className="mb-20">
-          <WatchedSeriesSection
-            series={watchedSeries}
-            onSeriesPress={handleSeriesPress}
-            onLongPress={(series) => handleDeleteMedia(series.tmdb_id, series.title, 'tv')}
-            onViewAll={handleViewAllSeries}
-          />
-        </View>
-      </ScrollView>
-
-      <UserSearchModal
-        visible={searchSystem.searchModalVisible}
-        onClose={() => searchSystem.setSearchModalVisible(false)}
-        searchQuery={searchSystem.searchQuery}
-        onSearchChange={searchSystem.handleSearch}
-        searchResults={searchSystem.searchResults}
-        isSearching={searchSystem.isSearching}
-        onUserPress={handleUserPress}
-      />
-
-      <UserListModal
-        visible={followSystem.userListModalVisible}
-        onClose={() => followSystem.setUserListModalVisible(false)}
-        title={followSystem.userListTitle}
-        users={followSystem.userListUsers}
-        loading={followSystem.userListLoading}
-        onUserPress={handleUserPress}
-        onAction={isOwnProfile ? followSystem.handleUserListAction : undefined}
-        actionLabel={
-          followSystem.userListType === 'followers' ? t('profile.remove') : t('profile.unfollow')
-        }
-      />
-
-      <WatchedSeriesModal
-        visible={watchedSeriesModalVisible}
-        onClose={() => setWatchedSeriesModalVisible(false)}
-        series={watchedSeries}
-        onSeriesPress={handleSeriesPress}
-        onLongPress={(series) => handleDeleteMedia(series.tmdb_id, series.title, 'tv')}
-      />
-
-      <WatchedMoviesModal
-        visible={watchedMoviesModalVisible}
-        onClose={() => setWatchedMoviesModalVisible(false)}
-        movies={watchedMovies}
-        onMoviePress={handleMoviePress}
-        onLongPress={(movie) => handleDeleteMedia(movie.tmdb_id, movie.title, 'movie')}
-      />
-    </View>
+      </View>
+    </ProtectedContentGate>
   )
 }
