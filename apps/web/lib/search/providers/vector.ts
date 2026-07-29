@@ -19,7 +19,7 @@ export interface VectorSearchProvider {
   search(request: VectorSearchRequest, signal?: AbortSignal): Promise<SearchProviderResult>
 }
 
-export type TmdbSearchRequest = Omit<SearchRequestV1, 'schemaVersion' | 'limit'>
+export type TmdbSearchRequest = Omit<SearchRequestV1, 'schemaVersion'>
 
 export interface TmdbSearchProvider {
   search(request: TmdbSearchRequest, signal?: AbortSignal): Promise<SearchProviderResult>

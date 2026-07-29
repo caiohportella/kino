@@ -241,20 +241,29 @@ export function createTmdbSearchProvider(
           ? {}
           : { locale: normalizeLocale(requestInput.locale) }),
       }
-      const payload = await request(
-        '/search/multi',
-        {
-          query: normalizedRequest.query,
-          page: String(normalizedRequest.page ?? 1),
-          ...(normalizedRequest.locale === undefined ? {} : { language: normalizedRequest.locale }),
-          ...(normalizedRequest.region === undefined ? {} : { region: normalizedRequest.region }),
-        },
-        signal
-      )
-      if (!Array.isArray(payload.results)) {
-        throw new SearchProviderBoundaryError('provider_response_invalid')
+      const searchParams = {
+        query: normalizedRequest.query,
+        ...(normalizedRequest.locale === undefined ? {} : { language: normalizedRequest.locale }),
+        ...(normalizedRequest.region === undefined ? {} : { region: normalizedRequest.region }),
       }
-      const candidates = payload.results
+      const desiredCount = normalizedRequest.limit ?? 20
+      const requestedPages = Math.max(1, Math.ceil(desiredCount / 20))
+      const rawResults: unknown[] = []
+      for (let page = 1; page <= requestedPages; page += 1) {
+        const payload = await request(
+          '/search/multi',
+          { ...searchParams, page: String(page) },
+          signal
+        )
+        if (!Array.isArray(payload.results)) {
+          throw new SearchProviderBoundaryError('provider_response_invalid')
+        }
+        rawResults.push(...payload.results)
+        const totalPages = positiveInteger(payload.total_pages)
+        if ((totalPages !== undefined && page >= totalPages) || payload.results.length === 0) break
+      }
+      const candidates = rawResults
+        .slice(0, desiredCount)
         .map((result): SearchProviderCandidate | null => {
           if (!isRecord(result)) return null
           return (

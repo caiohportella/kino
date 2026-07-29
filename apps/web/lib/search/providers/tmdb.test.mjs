@@ -99,6 +99,32 @@ test('normalizes complete TMDB multi-search results into core candidates', async
   assert.equal(requests[0].url.searchParams.get('language'), 'pt-BR')
   assert.equal(requests[0].url.searchParams.get('region'), 'BR')
   assert.equal(requests[0].url.searchParams.get('api_key'), 'tmdb-server-key')
+  assert.equal(requests[0].url.searchParams.get('page'), '1')
+})
+
+test('retrieves the full TMDB window from page one so shared core owns page two pagination', async () => {
+  const pages = []
+  const provider = createTmdbSearchProvider({
+    apiKey: 'tmdb-server-key',
+    fetch: async (url) => {
+      const page = Number(new URL(url).searchParams.get('page'))
+      pages.push(String(page))
+      return Response.json({
+        page,
+        results: Array.from({ length: 20 }, (_, index) => ({
+          ...movie,
+          id: (page - 1) * 20 + index + 1,
+          title: `Movie ${(page - 1) * 20 + index + 1}`,
+        })),
+        total_pages: 3,
+        total_results: 60,
+      })
+    },
+  })
+
+  const result = await provider.search({ query: 'Godfather', page: 1, limit: 40 })
+  assert.deepEqual(pages, ['1', '2'])
+  assert.equal(result.candidates.length, 40)
 })
 
 test('passes caller cancellation to TMDB without wrapping AbortError', async () => {

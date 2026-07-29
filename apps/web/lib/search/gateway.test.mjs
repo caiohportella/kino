@@ -124,6 +124,7 @@ test('returns a successful zero-result TMDB fallback response', async () => {
 
 test('enforces a bounded provider timeout before using TMDB fallback', async () => {
   let sawTimeout = false
+  const events = []
   const gateway = createSearchGateway({
     vector: {
       search: async (_request, signal) =>
@@ -142,11 +143,13 @@ test('enforces a bounded provider timeout before using TMDB fallback', async () 
     },
     tmdb: tmdbProvider(tmdbResult(lexical(348, 'Alien', 1))),
     providerTimeoutMs: 5,
+    telemetry: { emit: (event) => events.push(event) },
   })
 
   const response = await gateway.search(request)
   assert.equal(sawTimeout, true)
   assert.equal(response.fallback, 'provider_unavailable')
+  assert.equal(events.find((event) => event.stage === 'vector')?.outcome, 'timeout')
 })
 
 test('returns typed temporary unavailability when vector and TMDB both fail', async () => {
@@ -172,6 +175,7 @@ test('returns typed temporary unavailability when vector and TMDB both fail', as
 
 test('expands only the highest-confidence person through the shared pipeline', async () => {
   const expandedPeople = []
+  const events = []
   const brando = {
     source: 'person',
     confidence: 0.99,
@@ -212,6 +216,7 @@ test('expands only the highest-confidence person through the shared pipeline', a
         ]
       },
     },
+    telemetry: { emit: (event) => events.push(event) },
   })
 
   const response = await gateway.search({
@@ -220,9 +225,80 @@ test('expands only the highest-confidence person through the shared pipeline', a
     limit: 10,
   })
   assert.deepEqual(expandedPeople, [3084])
+  assert.equal(events.find((event) => event.stage === 'person_expansion')?.expansionOccurred, true)
   assert.deepEqual(
     response.results.map((result) => result.entity.id),
     ['person:3084', 'person:2', 'movie:238']
+  )
+})
+
+test('expands a sufficient vector person result without requiring TMDB supplementation', async () => {
+  const expandedPeople = []
+  const person = {
+    source: 'person',
+    confidence: 0.97,
+    entity: {
+      id: 'person:3084',
+      entityType: 'person',
+      tmdbId: 3084,
+      title: 'Marlon Brando',
+    },
+  }
+  const gateway = createSearchGateway({
+    vector: { search: async () => vectorResult(person) },
+    tmdb: {
+      ...tmdbProvider(),
+      getPersonCredits: async (personId) => {
+        expandedPeople.push(personId)
+        return []
+      },
+    },
+    minimumVectorResults: 1,
+  })
+
+  await gateway.search({ ...request, query: 'Marlon Brando' })
+  assert.deepEqual(expandedPeople, [3084])
+})
+
+test('retrieves the complete page window while shared core solely paginates page two', async () => {
+  const vectorRequests = []
+  const tmdbRequests = []
+  const candidates = [
+    semantic(1, 'Alien One', 0.4),
+    semantic(2, 'Alien Two', 0.39),
+    semantic(3, 'Alien Three', 0.38),
+    semantic(4, 'Alien Four', 0.37),
+  ]
+  const gateway = createSearchGateway({
+    vector: {
+      search: async (providerRequest) => {
+        vectorRequests.push(providerRequest)
+        return vectorResult(...candidates)
+      },
+    },
+    tmdb: {
+      ...tmdbProvider(),
+      search: async (providerRequest) => {
+        tmdbRequests.push(providerRequest)
+        return tmdbResult(
+          ...candidates.map((candidate) => ({
+            ...candidate,
+            source: 'lexical',
+            lexicalScore: 0.8,
+          }))
+        )
+      },
+    },
+    minimumVectorResults: 1,
+  })
+
+  const response = await gateway.search({ ...request, page: 2, limit: 2 })
+  assert.equal(vectorRequests[0].topK, 8)
+  assert.equal(tmdbRequests[0].page, 1)
+  assert.equal(tmdbRequests[0].limit, 4)
+  assert.deepEqual(
+    response.results.map((result) => result.entity.tmdbId),
+    [3, 4]
   )
 })
 
@@ -272,6 +348,60 @@ test('preserves shared-core order while resolving localized presentation concurr
     ]
   )
   assert.deepEqual(second, first)
+})
+
+test('returns a typed failure instead of an unverified prelocalized candidate', async () => {
+  const gateway = createSearchGateway({
+    vector: {
+      search: async () => vectorResult(semantic(348, 'Alien', 0.94)),
+    },
+    tmdb: {
+      ...tmdbProvider(),
+      resolvePresentation: async () => Promise.reject(new Error('presentation failed')),
+    },
+    minimumVectorResults: 1,
+  })
+
+  await assert.rejects(
+    gateway.search(request),
+    (error) => error instanceof SearchGatewayError && error.status === 503
+  )
+})
+
+test('records sanitized provider-stage metrics without query or provider errors', async () => {
+  const events = []
+  let now = 0
+  const gateway = createSearchGateway({
+    vector: { search: async () => vectorResult(semantic(348, 'Alien', 0.2)) },
+    tmdb: tmdbProvider(tmdbResult(lexical(348, 'Alien', 1))),
+    minimumVectorResults: 2,
+    telemetry: { emit: (event) => events.push(event) },
+    now: () => (now += 5),
+  })
+
+  await gateway.search(request)
+  assert.deepEqual(
+    events.map((event) => event.type),
+    [
+      'search_gateway_provider_stage',
+      'search_gateway_provider_stage',
+      'search_gateway_provider_stage',
+      'search_gateway_provider_stage',
+    ]
+  )
+  assert.deepEqual(
+    events.map(({ stage, outcome }) => [stage, outcome]),
+    [
+      ['vector', 'success'],
+      ['tmdb_search', 'success'],
+      ['person_expansion', 'skipped'],
+      ['tmdb_presentation', 'success'],
+    ]
+  )
+  assert.equal(events[1].supplementationCount, 1)
+  assert.equal(events[2].expansionOccurred, false)
+  assert.equal(events[3].resultCount, 1)
+  assert.doesNotMatch(JSON.stringify(events), /Alien|presentation failed|server-secret/u)
 })
 
 test('infers presentation region from locale when the request omits region', async () => {

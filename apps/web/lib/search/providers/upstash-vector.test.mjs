@@ -73,7 +73,87 @@ test('normalizes a full Upstash query response without leaking provider fields',
     data: 'crime family',
     topK: 12,
     includeMetadata: true,
+    filter: "locale = 'en-US'",
   })
+})
+
+test('uses indexed locale metadata to partition region-only retrieval', async () => {
+  let body
+  const provider = createUpstashVectorProvider({
+    url: 'https://vector.example.test',
+    token: 'server-secret',
+    fetch: async (_url, init) => {
+      body = JSON.parse(init.body)
+      return Response.json({ result: [] })
+    },
+  })
+
+  await provider.search({ query: 'crime', topK: 10, region: 'BR' })
+  assert.equal(body.filter, "locale GLOB '*-BR'")
+})
+
+test('normalizes vector people as person candidates that can drive person intent', async () => {
+  const provider = createUpstashVectorProvider({
+    url: 'https://vector.example.test',
+    token: 'server-secret',
+    fetch: async () =>
+      Response.json({
+        result: [
+          {
+            ...fullUpstashResult,
+            id: 'person:3084',
+            score: 0.97,
+            metadata: {
+              ...fullUpstashResult.metadata,
+              entityType: 'person',
+              tmdbId: 3084,
+              title: undefined,
+              name: 'Marlon Brando',
+            },
+          },
+        ],
+      }),
+  })
+
+  const result = await provider.search({ query: 'Marlon Brando', topK: 10 })
+  assert.deepEqual(result.candidates[0], {
+    source: 'person',
+    confidence: 0.97,
+    entity: {
+      id: 'person:3084',
+      entityType: 'person',
+      tmdbId: 3084,
+      title: 'Marlon Brando',
+      summary: 'An organized crime dynasty changes hands.',
+      year: 1972,
+      locale: 'en-US',
+      imageUrl: 'https://image.tmdb.org/t/p/w500/poster.jpg',
+      popularity: 170.5,
+      voteCount: 20_798,
+    },
+  })
+})
+
+test('sends locale and requested media metadata filters to Upstash', async () => {
+  let body
+  const provider = createUpstashVectorProvider({
+    url: 'https://vector.example.test',
+    token: 'server-secret',
+    fetch: async (_url, init) => {
+      body = JSON.parse(init.body)
+      return Response.json({ result: [] })
+    },
+  })
+
+  await provider.search({
+    query: 'crime',
+    topK: 10,
+    locale: 'pt-BR',
+    region: 'BR',
+    mediaTypes: ['movie'],
+  })
+
+  assert.equal(body.filter, "locale = 'pt-BR' AND entityType IN ('movie', 'person')")
 })
 
 test('drops malformed metadata instead of exposing a partial provider candidate', async () => {

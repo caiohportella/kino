@@ -21,8 +21,26 @@ export interface SearchGatewayEvent {
   readonly rateLimited: boolean
 }
 
+export type SearchProviderStage =
+  | 'vector'
+  | 'tmdb_search'
+  | 'person_expansion'
+  | 'tmdb_presentation'
+
+export interface SearchProviderStageEvent {
+  readonly type: 'search_gateway_provider_stage'
+  readonly stage: SearchProviderStage
+  readonly outcome: 'success' | 'failure' | 'timeout' | 'skipped'
+  readonly durationMs: number
+  readonly resultCount?: number
+  readonly supplementationCount?: number
+  readonly expansionOccurred?: boolean
+}
+
+export type SearchTelemetryEvent = SearchGatewayEvent | SearchProviderStageEvent
+
 export interface SearchGatewayEventSink {
-  emit(event: SearchGatewayEvent): void | Promise<void>
+  emit(event: SearchTelemetryEvent): void | Promise<void>
 }
 
 interface CreateSearchGatewayEventInput {
@@ -65,9 +83,30 @@ export function createSearchGatewayEvent(input: CreateSearchGatewayEventInput): 
   }
 }
 
+export function createSearchProviderStageEvent(
+  input: Omit<SearchProviderStageEvent, 'type' | 'durationMs'> & {
+    readonly durationMs: number
+    readonly [ignored: string]: unknown
+  }
+): SearchProviderStageEvent {
+  return {
+    type: 'search_gateway_provider_stage',
+    stage: input.stage,
+    outcome: input.outcome,
+    durationMs: Math.max(0, Math.round(input.durationMs)),
+    ...(input.resultCount === undefined ? {} : { resultCount: Math.max(0, input.resultCount) }),
+    ...(input.supplementationCount === undefined
+      ? {}
+      : { supplementationCount: Math.max(0, input.supplementationCount) }),
+    ...(input.expansionOccurred === undefined
+      ? {}
+      : { expansionOccurred: input.expansionOccurred }),
+  }
+}
+
 export function publishSearchGatewayEvent(
   sink: SearchGatewayEventSink | undefined,
-  event: SearchGatewayEvent
+  event: SearchTelemetryEvent
 ): void {
   if (!sink) return
   try {

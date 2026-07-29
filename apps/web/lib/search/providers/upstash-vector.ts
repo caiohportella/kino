@@ -125,12 +125,38 @@ function normalizeUpstashResult(
     ...(voteCount === undefined ? {} : { voteCount }),
   }
 
+  if (type === 'person') {
+    return {
+      source: 'person',
+      confidence: Math.max(0, Math.min(1, score)),
+      entity: { ...entity, entityType: 'person' },
+      ...(relevance === undefined ? {} : { localeRelevance: relevance }),
+    }
+  }
   return {
     source: 'semantic',
     semanticScore: Math.max(0, Math.min(1, score)),
     entity,
     ...(relevance === undefined ? {} : { localeRelevance: relevance }),
   }
+}
+
+function quoteFilterValue(value: string): string {
+  return `'${value.replaceAll("'", "''")}'`
+}
+
+function metadataFilter(request: VectorSearchRequest): string | undefined {
+  const clauses: string[] = []
+  if (request.locale) {
+    clauses.push(`locale = ${quoteFilterValue(normalizeLocale(request.locale))}`)
+  } else if (request.region) {
+    clauses.push(`locale GLOB ${quoteFilterValue(`*-${request.region.toUpperCase()}`)}`)
+  }
+  if (request.mediaTypes?.length) {
+    const entityTypes = [...new Set([...request.mediaTypes, 'person'])]
+    clauses.push(`entityType IN (${entityTypes.map(quoteFilterValue).join(', ')})`)
+  }
+  return clauses.length === 0 ? undefined : clauses.join(' AND ')
 }
 
 function createRequester(
@@ -181,10 +207,12 @@ export function createUpstashVectorProvider(
       const index = new Index<UpstashMetadata>(createRequester(options, signal))
       let raw: UpstashQueryResult[]
       try {
+        const filter = metadataFilter(request)
         raw = await index.query<UpstashMetadata>({
           data: request.query,
           topK: request.topK,
           includeMetadata: true,
+          ...(filter === undefined ? {} : { filter }),
         })
       } catch (error) {
         if (isAbortError(error) || signal?.aborted) throw error

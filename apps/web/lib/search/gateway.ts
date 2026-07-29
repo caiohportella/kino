@@ -12,10 +12,12 @@ import {
 
 import { SearchGatewayError } from './errors.ts'
 import {
-  isAbortError,
-  type TmdbSearchProvider,
-  type VectorSearchProvider,
-} from './providers/vector.ts'
+  createSearchProviderStageEvent,
+  publishSearchGatewayEvent,
+  type SearchGatewayEventSink,
+  type SearchProviderStage,
+} from './observability.ts'
+import { type TmdbSearchProvider, type VectorSearchProvider } from './providers/vector.ts'
 
 const DEFAULT_MINIMUM_VECTOR_RESULTS = 5
 const DEFAULT_MINIMUM_VECTOR_SCORE = 0.55
@@ -34,6 +36,8 @@ interface CreateSearchGatewayDependencies {
   readonly minimumVectorResults?: number
   readonly minimumVectorScore?: number
   readonly providerTimeoutMs?: number
+  readonly telemetry?: SearchGatewayEventSink
+  readonly now?: () => number
 }
 
 function throwIfCancelled(signal: AbortSignal | undefined): void {
@@ -45,14 +49,37 @@ function providerSignal(signal: AbortSignal | undefined, timeoutMs: number): Abo
   return signal ? AbortSignal.any([signal, timeout]) : timeout
 }
 
+function stageOutcome(error: unknown): 'failure' | 'timeout' {
+  return error instanceof Error && error.name === 'TimeoutError' ? 'timeout' : 'failure'
+}
+
+function publishStage(
+  sink: SearchGatewayEventSink | undefined,
+  stage: SearchProviderStage,
+  outcome: 'success' | 'failure' | 'timeout' | 'skipped',
+  durationMs: number,
+  details: {
+    readonly resultCount?: number
+    readonly supplementationCount?: number
+    readonly expansionOccurred?: boolean
+  } = {}
+): void {
+  publishSearchGatewayEvent(
+    sink,
+    createSearchProviderStageEvent({ stage, outcome, durationMs, ...details })
+  )
+}
+
 function isSufficientVectorResult(
   result: SearchProviderResult,
   minimumResults: number,
   minimumScore: number
 ): boolean {
   if (result.candidates.length < minimumResults) return false
-  return result.candidates.some(
-    (candidate) => candidate.source === 'semantic' && candidate.semanticScore >= minimumScore
+  return result.candidates.some((candidate) =>
+    candidate.source === 'semantic'
+      ? candidate.semanticScore >= minimumScore
+      : candidate.source === 'person' && candidate.confidence >= minimumScore
   )
 }
 
@@ -97,38 +124,46 @@ async function resolvePresentation(
   tmdb: TmdbSearchProvider,
   context: LocaleContext | undefined,
   signal: AbortSignal | undefined,
-  timeoutMs: number
+  timeoutMs: number,
+  telemetry: SearchGatewayEventSink | undefined,
+  now: () => number
 ): Promise<SearchResponseV1> {
   if (!context || response.results.length === 0) return response
-  const presentedResults = await Promise.all(
-    response.results.map(async (result): Promise<SearchResultV1> => {
-      try {
+  const startedAt = now()
+  try {
+    const presentedResults = await Promise.all(
+      response.results.map(async (result): Promise<SearchResultV1> => {
         const entity = await tmdb.resolvePresentation(
           result.entity,
           context,
           providerSignal(signal, timeoutMs)
         )
         return { ...result, entity }
-      } catch (error) {
-        throwIfCancelled(signal)
-        if (isAbortError(error)) return result
-        return result
-      }
+      })
+    )
+    publishStage(telemetry, 'tmdb_presentation', 'success', now() - startedAt, {
+      resultCount: presentedResults.length,
     })
-  )
-  const presentedEntities = new Map<string, SearchEntity>(
-    presentedResults.map((result) => [result.entity.id, result.entity])
-  )
-  return {
-    ...response,
-    results: presentedResults,
-    groups: response.groups.map((group) => ({
-      ...group,
-      results: group.results.map((result) => ({
-        ...result,
-        entity: presentedEntities.get(result.entity.id) ?? result.entity,
+    const presentedEntities = new Map<string, SearchEntity>(
+      presentedResults.map((result) => [result.entity.id, result.entity])
+    )
+    return {
+      ...response,
+      results: presentedResults,
+      groups: response.groups.map((group) => ({
+        ...group,
+        results: group.results.map((result) => ({
+          ...result,
+          entity: presentedEntities.get(result.entity.id) ?? result.entity,
+        })),
       })),
-    })),
+    }
+  } catch (error) {
+    throwIfCancelled(signal)
+    publishStage(telemetry, 'tmdb_presentation', stageOutcome(error), now() - startedAt, {
+      resultCount: 0,
+    })
+    throw SearchGatewayError.temporaryUnavailable()
   }
 }
 
@@ -136,6 +171,7 @@ export function createSearchGateway(dependencies: CreateSearchGatewayDependencie
   const minimumVectorResults = dependencies.minimumVectorResults ?? DEFAULT_MINIMUM_VECTOR_RESULTS
   const minimumVectorScore = dependencies.minimumVectorScore ?? DEFAULT_MINIMUM_VECTOR_SCORE
   const providerTimeoutMs = dependencies.providerTimeoutMs ?? DEFAULT_PROVIDER_TIMEOUT_MS
+  const now = dependencies.now ?? Date.now
 
   return {
     async search(request, signal): Promise<SearchResponseV1> {
@@ -146,14 +182,13 @@ export function createSearchGateway(dependencies: CreateSearchGatewayDependencie
       let vectorIsSufficient = false
 
       if (dependencies.vector) {
+        const startedAt = now()
         try {
+          const pageWindow = (request.page ?? 1) * (request.limit ?? DEFAULT_RESULT_LIMIT)
           const result = await dependencies.vector.search(
             {
               query: request.query,
-              topK: Math.min(
-                MAX_PROVIDER_RESULTS,
-                Math.max(request.limit ?? DEFAULT_RESULT_LIMIT, minimumVectorResults) * 2
-              ),
+              topK: Math.min(MAX_PROVIDER_RESULTS, Math.max(pageWindow, minimumVectorResults) * 2),
               ...(request.locale === undefined ? {} : { locale: request.locale }),
               ...(request.region === undefined ? {} : { region: request.region }),
               ...(request.mediaTypes === undefined ? {} : { mediaTypes: request.mediaTypes }),
@@ -162,18 +197,27 @@ export function createSearchGateway(dependencies: CreateSearchGatewayDependencie
           )
           throwIfCancelled(signal)
           sources.push(result)
+          publishStage(dependencies.telemetry, 'vector', 'success', now() - startedAt, {
+            resultCount: result.candidates.length,
+          })
           vectorIsSufficient = isSufficientVectorResult(
             result,
             minimumVectorResults,
             minimumVectorScore
           )
-        } catch {
+        } catch (error) {
           throwIfCancelled(signal)
+          publishStage(dependencies.telemetry, 'vector', stageOutcome(error), now() - startedAt, {
+            resultCount: 0,
+          })
           vectorFailed = true
         }
+      } else {
+        publishStage(dependencies.telemetry, 'vector', 'skipped', 0, { resultCount: 0 })
       }
 
       if (!vectorIsSufficient) {
+        const startedAt = now()
         try {
           const tmdbResult = await dependencies.tmdb.search(
             {
@@ -181,20 +225,41 @@ export function createSearchGateway(dependencies: CreateSearchGatewayDependencie
               ...(request.locale === undefined ? {} : { locale: request.locale }),
               ...(request.region === undefined ? {} : { region: request.region }),
               ...(request.mediaTypes === undefined ? {} : { mediaTypes: request.mediaTypes }),
-              ...(request.page === undefined ? {} : { page: request.page }),
+              page: 1,
+              limit: Math.min(
+                MAX_PROVIDER_RESULTS,
+                (request.page ?? 1) * (request.limit ?? DEFAULT_RESULT_LIMIT)
+              ),
             },
             providerSignal(signal, providerTimeoutMs)
           )
           throwIfCancelled(signal)
           sources.push(tmdbResult)
+          publishStage(dependencies.telemetry, 'tmdb_search', 'success', now() - startedAt, {
+            resultCount: tmdbResult.candidates.length,
+            supplementationCount:
+              sources[0]?.sourceId === 'vector' ? tmdbResult.candidates.length : 0,
+          })
           fallback = vectorFailed ? 'provider_unavailable' : 'supplemented'
-        } catch {
+        } catch (error) {
           throwIfCancelled(signal)
+          publishStage(
+            dependencies.telemetry,
+            'tmdb_search',
+            stageOutcome(error),
+            now() - startedAt,
+            { resultCount: 0, supplementationCount: 0 }
+          )
           if (sources.every((source) => source.candidates.length === 0)) {
             throw SearchGatewayError.temporaryUnavailable()
           }
           fallback = 'provider_unavailable'
         }
+      } else {
+        publishStage(dependencies.telemetry, 'tmdb_search', 'skipped', 0, {
+          resultCount: 0,
+          supplementationCount: 0,
+        })
       }
 
       const person = topPerson(sources)
@@ -205,6 +270,7 @@ export function createSearchGateway(dependencies: CreateSearchGatewayDependencie
           }
         | undefined
       if (person?.entity.tmdbId) {
+        const startedAt = now()
         try {
           const credits = await dependencies.tmdb.getPersonCredits(
             person.entity.tmdbId,
@@ -212,9 +278,25 @@ export function createSearchGateway(dependencies: CreateSearchGatewayDependencie
           )
           throwIfCancelled(signal)
           personExpansion = { person, credits }
-        } catch {
+          publishStage(dependencies.telemetry, 'person_expansion', 'success', now() - startedAt, {
+            resultCount: credits.length,
+            expansionOccurred: true,
+          })
+        } catch (error) {
           throwIfCancelled(signal)
+          publishStage(
+            dependencies.telemetry,
+            'person_expansion',
+            stageOutcome(error),
+            now() - startedAt,
+            { resultCount: 0, expansionOccurred: false }
+          )
         }
+      } else {
+        publishStage(dependencies.telemetry, 'person_expansion', 'skipped', 0, {
+          resultCount: 0,
+          expansionOccurred: false,
+        })
       }
 
       const response = runSearchPipelineV1({
@@ -234,7 +316,9 @@ export function createSearchGateway(dependencies: CreateSearchGatewayDependencie
             }
           : undefined,
         signal,
-        providerTimeoutMs
+        providerTimeoutMs,
+        dependencies.telemetry,
+        now
       )
     },
   }
