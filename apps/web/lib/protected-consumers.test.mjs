@@ -30,3 +30,11 @@ for (const relativePath of ['../app/auth/login/page.tsx', '../app/auth/register/
     assert.match(source, /resolution\.status\s*===\s*['"]authenticated['"]/)
   })
 }
+
+test('the shared web shell gates initial restoration from typed auth resolution', async () => {
+  const source = await readFile(new URL('../components/app-shell.tsx', import.meta.url), 'utf8')
+
+  assert.match(source, /state\.resolution/)
+  assert.match(source, /resolution\.status\s*===\s*['"]resolving['"]/)
+  assert.doesNotMatch(source, /state\.loading/)
+})

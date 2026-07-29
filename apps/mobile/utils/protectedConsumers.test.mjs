@@ -99,3 +99,11 @@ test('profile status composes with auth restoration, refresh retention, and inva
     'unauthenticated'
   )
 })
+
+test('the shared mobile tab boundary renders a skeleton during initial auth restoration', async () => {
+  const source = await readFile(new URL('../app/(tabs)/_layout.tsx', import.meta.url), 'utf8')
+
+  assert.match(source, /useAuth\(\)/)
+  assert.match(source, /resolution\.status\s*===\s*['"]resolving['"]/)
+  assert.match(source, /<Skeleton/)
+})
