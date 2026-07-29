@@ -21,17 +21,20 @@ export interface LocalizedTitleBatchInput {
 
 export interface ResolvedLocalizedTitleSummary {
   readonly backdropPath: string | null
+  readonly backdropResolution: LocalizedTitleImageResolution
   readonly id: number
   readonly mediaType: LocalizedTitleBatchMediaType
   readonly posterPath: string | null
-  readonly posterResolution: {
-    readonly fallbackReason: LocalizedImageFallbackReason
-    readonly languageTier: LocalizedImageLanguageTier
-    readonly locale: string
-    readonly source: 'tmdb-images'
-  }
+  readonly posterResolution: LocalizedTitleImageResolution
   readonly title: string
   readonly year: number | null
+}
+
+export interface LocalizedTitleImageResolution {
+  readonly fallbackReason: LocalizedImageFallbackReason
+  readonly languageTier: LocalizedImageLanguageTier
+  readonly locale: string
+  readonly source: 'tmdb-images'
 }
 
 export interface LocalizedTitleBatchResponse {
@@ -110,6 +113,7 @@ function normalizeItem(input: unknown): LocalizedTitleBatchItem {
 function normalizeSummary(input: unknown): ResolvedLocalizedTitleSummary {
   const record = objectRecord(input, 'Localized title summary')
   const posterResolution = objectRecord(record.posterResolution, 'Poster resolution')
+  const backdropResolution = objectRecord(record.backdropResolution, 'Backdrop resolution')
   const mediaType = record.mediaType
   const id = record.id
   const year = record.year
@@ -124,12 +128,21 @@ function normalizeSummary(input: unknown): ResolvedLocalizedTitleSummary {
     !isNullableString(record.posterPath) ||
     !isLanguageTier(languageTier) ||
     !isFallbackReason(fallbackReason) ||
-    posterResolution.source !== 'tmdb-images'
+    posterResolution.source !== 'tmdb-images' ||
+    !isLanguageTier(backdropResolution.languageTier) ||
+    !isFallbackReason(backdropResolution.fallbackReason) ||
+    backdropResolution.source !== 'tmdb-images'
   ) {
     throw new Error('Localized title summary is malformed.')
   }
   return {
     backdropPath: record.backdropPath as string | null,
+    backdropResolution: {
+      fallbackReason: backdropResolution.fallbackReason,
+      languageTier: backdropResolution.languageTier,
+      locale: normalizeLocale(stringValue(backdropResolution.locale, 'backdrop locale')),
+      source: 'tmdb-images',
+    },
     id: id as number,
     mediaType,
     posterPath: record.posterPath as string | null,

@@ -35,6 +35,12 @@ test('validates a localized poster resolution response at runtime', () => {
     summaries: [
       {
         backdropPath: '/backdrop.jpg',
+        backdropResolution: {
+          fallbackReason: 'language-neutral',
+          languageTier: 'neutral',
+          locale: 'pt-BR',
+          source: 'tmdb-images',
+        },
         id: 238,
         mediaType: 'movie',
         posterPath: '/poster.jpg',
@@ -67,6 +73,12 @@ test('maps a validated summary to the canonical public cache identity', () => {
     summaries: [
       {
         backdropPath: null,
+        backdropResolution: {
+          fallbackReason: 'kino-placeholder',
+          languageTier: 'placeholder',
+          locale: 'pt-BR',
+          source: 'tmdb-images',
+        },
         id: 238,
         mediaType: 'movie',
         posterPath: null,
