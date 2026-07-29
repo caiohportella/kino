@@ -30,10 +30,10 @@ import { ModalDialog as Dialog } from '@/components/ui/modal-dialog'
 import { ShareCodeDisplay } from '@/components/watchlist-sharing'
 import { WatchlistVisibilitySelector } from '@/components/watchlist-visibility-selector'
 import { useTranslation } from '@/lib/i18n'
+import { resolveLocalizedTitlePresentation } from '@/lib/localized-title-presentation'
 import { parseWatchlistSegment, titlePath, watchlistPath } from '@/lib/routes'
 import { db, getTmdb } from '@/lib/services'
-import type { LocalizedTitleMap } from '@/lib/use-localized-titles'
-import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
+import { useLocalizedTitles } from '@/lib/use-localized-titles'
 import { publishWatchlistChange } from '@/lib/watchlist-cache-sync'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -92,11 +92,12 @@ export default function WatchlistDetailPage() {
   const isOwner = query.data?.isOwner || false
   const canEdit = query.data?.canEdit || false
   const copyText = query.data?.watchlist?.shareCode || ''
-  const localizedTitleMap = localizedTitles.data || {}
   const removeTargetTitle = removeTarget
-    ? localizedTitleMap[
-        localizedTitleKey({ tmdbId: removeTarget.title.tmdb_id, type: removeTarget.title.type })
-      ]?.title || removeTarget.title.title
+    ? resolveLocalizedTitlePresentation({
+        ...localizedTitles,
+        request: { tmdbId: removeTarget.title.tmdb_id, type: removeTarget.title.type },
+        unknownTitle: t('diary.unknownTitle'),
+      }).title
     : t('diary.unknownTitle')
 
   useEffect(() => {
@@ -298,7 +299,7 @@ export default function WatchlistDetailPage() {
             <WatchlistTitleCard
               item={item}
               key={item.id}
-              localizedTitles={localizedTitleMap}
+              localizedTitles={localizedTitles}
               onRemove={() => setRemoveTarget(item)}
               showRemove={canEdit}
             />
@@ -364,13 +365,16 @@ function WatchlistTitleCard({
   item: WatchlistItemDetails
   showRemove: boolean
   onRemove: () => void
-  localizedTitles: LocalizedTitleMap
+  localizedTitles: ReturnType<typeof useLocalizedTitles>
 }) {
   const { t } = useTranslation()
-  const localized =
-    localizedTitles[localizedTitleKey({ tmdbId: item.title.tmdb_id, type: item.title.type })]
-  const displayTitle = localized?.title || item.title.title
-  const poster = getTmdb().getImageUrl(localized?.posterPath ?? item.title.cover_image, 'w300')
+  const localized = resolveLocalizedTitlePresentation({
+    ...localizedTitles,
+    request: { tmdbId: item.title.tmdb_id, type: item.title.type },
+    unknownTitle: t('diary.unknownTitle'),
+  })
+  const displayTitle = localized.title
+  const poster = getTmdb().getImageUrl(localized.posterPath, 'w300')
   const profile = item.addedByUser || {
     avatar_url: null,
     display_name: null,
