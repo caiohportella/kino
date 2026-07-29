@@ -48,7 +48,7 @@ async function requestChunkedLocalizedTitleBatch(
   await Promise.all(
     Array.from({ length: Math.min(3, chunks.length) }, async () => {
       while (cursor < chunks.length) {
-        signal?.throwIfAborted()
+        throwIfAborted(signal)
         const index = cursor++
         const items = chunks[index]!
         try {
@@ -74,6 +74,13 @@ async function requestChunkedLocalizedTitleBatch(
     missing: responses.flatMap((response) => response.missing),
     summaries: responses.flatMap((response) => response.summaries),
   }
+}
+
+function throwIfAborted(signal?: AbortSignal) {
+  if (!signal?.aborted) return
+  const error = new Error('Localized title batch was cancelled.')
+  error.name = 'AbortError'
+  throw error
 }
 
 function chunkItems(items: LocalizedTitleBatchInput['items']) {

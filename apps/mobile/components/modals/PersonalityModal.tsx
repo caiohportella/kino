@@ -14,6 +14,7 @@ import {
 } from 'react-native'
 import { FlatList } from 'react-native-gesture-handler'
 import { TitleCard } from '~/components/common/TitleCard'
+import { localizedMediaKey, useLocalizedMediaData } from '~/hooks/data/useLocalizedMediaData'
 import { usePersonData } from '~/hooks/usePersonData'
 import { getTMDbService } from '~/services/tmdb'
 import type { TMDbPersonCredit } from '~/types'
@@ -39,12 +40,19 @@ export function PersonalityModal({ visible, onClose, personId }: PersonalityModa
           index === self.findIndex((t) => t.id === credit.id && t.media_type === credit.media_type)
       )
       .sort((a, b) => b.vote_count - a.vote_count) || []
-
-  // Get a backdrop from the most popular movie/show they've been in
-  const backdropCredit = knownFor.find((c) => c.backdrop_path)
-  const backdropUrl = backdropCredit
-    ? tmdb.getBackdropUrl(backdropCredit.backdrop_path, 'w780')
-    : null
+  const localizedMedia = useLocalizedMediaData(
+    knownFor.map((credit) => ({
+      tmdb_id: credit.id,
+      type: credit.media_type === 'tv' ? 'tv' : 'movie',
+    }))
+  )
+  const localizedBackdrop = knownFor
+    .map((credit) => {
+      const type = credit.media_type === 'tv' ? 'tv' : 'movie'
+      return localizedMedia[localizedMediaKey({ tmdb_id: credit.id, type })]?.backdrop_path
+    })
+    .find(Boolean)
+  const backdropUrl = localizedBackdrop ? tmdb.getBackdropUrl(localizedBackdrop, 'w780') : null
 
   const handleTitlePress = (credit: TMDbPersonCredit) => {
     onClose()
@@ -55,9 +63,20 @@ export function PersonalityModal({ visible, onClose, personId }: PersonalityModa
   }
 
   const renderKnownForItem = ({ item }: { item: TMDbPersonCredit }) => {
+    const type = item.media_type === 'tv' ? 'tv' : 'movie'
+    const localized = localizedMedia[localizedMediaKey({ tmdb_id: item.id, type })]
+    if (!localized) return null
     return (
       <View className="w-36 mr-4">
-        <TitleCard title={item} onPress={() => handleTitlePress(item)} />
+        <TitleCard
+          title={{
+            ...item,
+            name: type === 'tv' ? localized.title : item.name,
+            poster_path: localized.poster_path,
+            title: type === 'movie' ? localized.title : item.title,
+          }}
+          onPress={() => handleTitlePress(item)}
+        />
         {item.character && (
           <Text className="mt-2 text-xs text-center text-text-secondary" numberOfLines={1}>
             {item.character}
@@ -79,7 +98,7 @@ export function PersonalityModal({ visible, onClose, personId }: PersonalityModa
       onRequestClose={onClose}
     >
       <View className="flex-1 bg-primary">
-        {isLoading ? (
+        {isLoading || localizedMedia.isPending ? (
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator size="large" color="#1DB954" />
           </View>

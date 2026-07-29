@@ -25,6 +25,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { useTranslation } from '@/lib/i18n'
 import { resolveProviderDestination } from '@/lib/provider-destinations'
+import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
 import { cn } from '@/lib/utils'
 
 export interface TitleContextData {
@@ -42,7 +43,9 @@ export interface TitleContextData {
 
 export function FranchiseTitles({ items, loading }: { items?: TMDbTitle[]; loading: boolean }) {
   const { t } = useTranslation()
-  if (!loading && !items?.length) return null
+  const localizedTitles = useLocalizedTitles(localizationRequests(items))
+  const isPending = loading || localizedTitles.isPending
+  if (!isPending && !items?.length) return null
 
   return (
     <Card className="min-w-0">
@@ -50,7 +53,7 @@ export function FranchiseTitles({ items, loading }: { items?: TMDbTitle[]; loadi
         <CardTitle>{t('title.moreFromFranchise')}</CardTitle>
       </CardHeader>
       <CardContent className="min-w-0">
-        {loading ? (
+        {isPending ? (
           <div className="flex gap-4 overflow-hidden">
             {[0, 1, 2, 3].map((item) => (
               <Skeleton className="aspect-2/3 w-36 shrink-0 rounded-md" key={item} />
@@ -58,7 +61,7 @@ export function FranchiseTitles({ items, loading }: { items?: TMDbTitle[]; loadi
           </div>
         ) : (
           <MediaRow aria-label={t('title.moreFromFranchise')}>
-            {items?.map((item) => (
+            {localizedItems(items, localizedTitles.data).map((item) => (
               <MediaCard item={item} key={`${item.media_type}-${item.id}`} />
             ))}
           </MediaRow>
@@ -316,13 +319,15 @@ export function MoreLikeThis({
   loading: boolean
 }) {
   const { t } = useTranslation()
+  const localizedTitles = useLocalizedTitles(localizationRequests(items))
+  const isPending = loading || localizedTitles.isPending
   return (
     <Card className="min-w-0">
       <CardHeader>
         <CardTitle>{t('title.moreLikeThis')}</CardTitle>
       </CardHeader>
       <CardContent className="min-w-0">
-        {loading ? (
+        {isPending ? (
           <div className="flex gap-4 overflow-hidden">
             {[0, 1, 2, 3].map((item) => (
               <Skeleton className="aspect-2/3 w-36 shrink-0 rounded-md" key={item} />
@@ -330,7 +335,7 @@ export function MoreLikeThis({
           </div>
         ) : items?.length ? (
           <MediaRow aria-label={t('title.moreLikeThis')}>
-            {items.map((item) => (
+            {localizedItems(items, localizedTitles.data).map((item) => (
               <MediaCard item={item} key={`${item.media_type}-${item.id}`} />
             ))}
           </MediaRow>
@@ -342,6 +347,33 @@ export function MoreLikeThis({
       </CardContent>
     </Card>
   )
+}
+
+function localizationRequests(items?: TMDbTitle[]) {
+  return (items || []).map((item) => ({
+    tmdbId: item.id,
+    type: item.media_type === 'tv' ? ('tv' as const) : ('movie' as const),
+  }))
+}
+
+function localizedItems(
+  items: TMDbTitle[] | undefined,
+  localized: ReturnType<typeof useLocalizedTitles>['data']
+) {
+  return (items || []).flatMap((item) => {
+    const type = item.media_type === 'tv' ? 'tv' : 'movie'
+    const value = localized[localizedTitleKey({ tmdbId: item.id, type })]
+    if (!value) return []
+    return [
+      {
+        ...item,
+        backdrop_path: value.backdropPath,
+        name: type === 'tv' ? value.title : item.name,
+        poster_path: value.posterPath,
+        title: type === 'movie' ? value.title : item.title,
+      },
+    ]
+  })
 }
 
 function regionName(region: string) {

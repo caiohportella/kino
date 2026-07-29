@@ -1,6 +1,8 @@
 import { useRouter } from 'expo-router'
+import { useMemo } from 'react'
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native'
 import { TitleCard } from '~/components/common/TitleCard'
+import { localizedMediaKey, useLocalizedMediaData } from '~/hooks/data/useLocalizedMediaData'
 import type { TMDbTitle } from '~/types'
 
 interface HomeSectionProps {
@@ -12,8 +14,17 @@ interface HomeSectionProps {
 
 export function HomeSection({ title, data, onViewAll, loading = false }: HomeSectionProps) {
   const router = useRouter()
+  const mediaItems = useMemo(
+    () =>
+      data.map((item) => ({
+        tmdb_id: item.id,
+        type: item.media_type === 'tv' ? ('tv' as const) : ('movie' as const),
+      })),
+    [data]
+  )
+  const localizedMedia = useLocalizedMediaData(mediaItems)
 
-  if (loading || data.length === 0) {
+  if (loading || localizedMedia.isPending || data.length === 0) {
     // Basic skeleton or empty state could be here, or just return null
     return null
   }
@@ -36,18 +47,29 @@ export function HomeSection({ title, data, onViewAll, loading = false }: HomeSec
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
       >
-        {data.map((item) => (
-          <View key={`${item.id}-${item.media_type}`} className="w-[120px]">
-            <TitleCard
-              title={item}
-              onPress={() =>
-                router.push(
-                  `/title/${item.id}?type=${item.media_type || (item.title ? 'movie' : 'tv')}`
-                )
-              }
-            />
-          </View>
-        ))}
+        {data.map((item) => {
+          const type = item.media_type === 'tv' ? 'tv' : 'movie'
+          const localized = localizedMedia[localizedMediaKey({ tmdb_id: item.id, type })]
+          if (!localized) return null
+          const localizedItem = {
+            ...item,
+            name: type === 'tv' ? localized.title : item.name,
+            poster_path: localized.poster_path,
+            title: type === 'movie' ? localized.title : item.title,
+          }
+          return (
+            <View key={`${item.id}-${item.media_type}`} className="w-[120px]">
+              <TitleCard
+                title={localizedItem}
+                onPress={() =>
+                  router.push(
+                    `/title/${item.id}?type=${item.media_type || (item.title ? 'movie' : 'tv')}`
+                  )
+                }
+              />
+            </View>
+          )
+        })}
       </ScrollView>
     </View>
   )

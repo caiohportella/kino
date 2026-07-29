@@ -9,6 +9,7 @@ import {
 import { useReadyLanguage } from '~/hooks/useLanguage'
 
 export interface LocalizedMedia {
+  backdrop_path: string | null
   title: string
   poster_path: string | null
 }
@@ -59,6 +60,7 @@ export function useLocalizedMediaData(items: { tmdb_id: number; type: 'movie' | 
       (batchQuery.data?.summaries || []).flatMap((summary) => {
         const item = { tmdb_id: summary.id, type: summary.mediaType }
         const localized = {
+          backdrop_path: summary.backdropPath,
           poster_path: summary.posterPath,
           title: summary.title,
         }

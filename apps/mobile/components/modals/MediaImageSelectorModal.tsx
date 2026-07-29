@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons'
 import { BlurView } from 'expo-blur'
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   FlatList,
@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
+import { localizedMediaKey, useLocalizedMediaData } from '~/hooks/data/useLocalizedMediaData'
 import { getTMDbService } from '~/services/tmdb'
 import type { TMDbImage, TMDbTitle } from '~/types'
 
@@ -32,6 +33,16 @@ export function MediaImageSelectorModal({
   const [loading, setLoading] = useState(false)
   const [selectedMedia, setSelectedMedia] = useState<TMDbTitle | null>(null)
   const [mediaImages, setMediaImages] = useState<TMDbImage[]>([])
+  const localizedMedia = useLocalizedMediaData(
+    useMemo(
+      () =>
+        searchResults.map((item) => ({
+          tmdb_id: item.id,
+          type: item.media_type === 'tv' ? ('tv' as const) : ('movie' as const),
+        })),
+      [searchResults]
+    )
+  )
 
   const flatListRef = useRef<FlatList>(null)
 
@@ -43,11 +54,7 @@ export function MediaImageSelectorModal({
     try {
       const tmdb = getTMDbService()
       const response = await tmdb.search(query)
-      // Filter out items without posters or backdrops based on need
-      const filtered = response.results.filter((item) =>
-        imageType === 'banner' ? item.backdrop_path : item.poster_path
-      )
-      setSearchResults(filtered)
+      setSearchResults(response.results)
     } catch (error) {
       console.error(error)
     } finally {
@@ -150,42 +157,49 @@ export function MediaImageSelectorModal({
               </View>
 
               {/* Search Results */}
-              {loading ? (
+              {loading || localizedMedia.isPending ? (
                 <ActivityIndicator size="large" color="#1DB954" className="mt-8" />
               ) : (
                 <FlatList
                   data={searchResults}
                   keyExtractor={(item) => item.id.toString()}
                   contentContainerStyle={{ padding: 16, gap: 16 }}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity
-                      className="bg-surface rounded-xl overflow-hidden border border-white/5 active:opacity-80 flex-row"
-                      onPress={() => handleMediaSelect(item)}
-                    >
-                      <View className="w-20 h-28 bg-black/50">
-                        <Image
-                          source={
-                            item.poster_path
-                              ? { uri: `https://image.tmdb.org/t/p/w200${item.poster_path}` }
-                              : undefined
-                          }
-                          className="w-full h-full"
-                          resizeMode="cover"
-                        />
-                      </View>
-                      <View className="flex-1 justify-center p-4">
-                        <Text className="text-text-primary font-bold text-base" numberOfLines={2}>
-                          {item.title || item.name}
-                        </Text>
-                        <Text className="text-text-secondary text-xs mt-1">
-                          {(item.release_date || item.first_air_date || '').split('-')[0]}
-                        </Text>
-                      </View>
-                      <View className="justify-center pr-4">
-                        <Ionicons name="chevron-forward" size={20} color="#666" />
-                      </View>
-                    </TouchableOpacity>
-                  )}
+                  renderItem={({ item }) => {
+                    const type = item.media_type === 'tv' ? 'tv' : 'movie'
+                    const localized = localizedMedia[localizedMediaKey({ tmdb_id: item.id, type })]
+                    if (!localized) return null
+                    return (
+                      <TouchableOpacity
+                        className="bg-surface rounded-xl overflow-hidden border border-white/5 active:opacity-80 flex-row"
+                        onPress={() => handleMediaSelect(item)}
+                      >
+                        <View className="w-20 h-28 bg-black/50">
+                          <Image
+                            source={
+                              localized.poster_path
+                                ? {
+                                    uri: `https://image.tmdb.org/t/p/w200${localized.poster_path}`,
+                                  }
+                                : undefined
+                            }
+                            className="w-full h-full"
+                            resizeMode="cover"
+                          />
+                        </View>
+                        <View className="flex-1 justify-center p-4">
+                          <Text className="text-text-primary font-bold text-base" numberOfLines={2}>
+                            {localized.title}
+                          </Text>
+                          <Text className="text-text-secondary text-xs mt-1">
+                            {(item.release_date || item.first_air_date || '').split('-')[0]}
+                          </Text>
+                        </View>
+                        <View className="justify-center pr-4">
+                          <Ionicons name="chevron-forward" size={20} color="#666" />
+                        </View>
+                      </TouchableOpacity>
+                    )
+                  }}
                   ListEmptyComponent={
                     <View className="items-center mt-12 px-6">
                       <Ionicons name="search-outline" size={48} color="#333" />

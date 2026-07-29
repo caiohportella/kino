@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getTmdb } from '@/lib/services'
+import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
 import { useSettingsStore } from '@/stores/settings-store'
 
 export function BannerPickerDialog({
@@ -33,6 +34,12 @@ export function BannerPickerDialog({
   const [mediaImages, setMediaImages] = useState<TMDbImage[]>([])
   const [error, setError] = useState<string | null>(null)
   const language = useSettingsStore((state) => state.language)
+  const localizedTitles = useLocalizedTitles(
+    searchResults.map((item) => ({
+      tmdbId: item.id,
+      type: item.media_type === 'tv' ? 'tv' : 'movie',
+    }))
+  )
 
   useEffect(() => {
     if (!open) return
@@ -50,7 +57,7 @@ export function BannerPickerDialog({
       const tmdb = getTmdb()
       tmdb.setLanguage(language)
       const response = await tmdb.search(trimmedQuery)
-      return response.results.filter((item) => item.backdrop_path)
+      return response.results
     },
     onMutate: () => {
       setError(null)
@@ -147,8 +154,12 @@ export function BannerPickerDialog({
 
           {!selectedMedia ? (
             <div className="max-h-[52vh] overflow-y-auto pr-1">
-              {searchMutation.isPending ? <MediaModalSkeleton label="Searching TMDB..." /> : null}
-              {!searchMutation.isPending && searchResults.length === 0 ? (
+              {searchMutation.isPending || localizedTitles.isPending ? (
+                <MediaModalSkeleton label="Searching TMDB..." />
+              ) : null}
+              {!searchMutation.isPending &&
+              !localizedTitles.isPending &&
+              searchResults.length === 0 ? (
                 <div className="grid place-items-center rounded-md border border-white/10 bg-white/3 px-5 py-10 text-center">
                   <Search className="text-kino-subtle" size={36} />
                   <p className="mt-3 max-w-sm text-sm leading-6 text-kino-muted">
@@ -158,8 +169,12 @@ export function BannerPickerDialog({
               ) : null}
               <div className="grid gap-3">
                 {searchResults.map((item) => {
-                  const title = getDisplayTitle(item)
-                  const poster = getTmdb().getImageUrl(item.poster_path, 'w200')
+                  const type = item.media_type === 'tv' ? 'tv' : 'movie'
+                  const localizedTitle =
+                    localizedTitles.data[localizedTitleKey({ tmdbId: item.id, type })]
+                  if (!localizedTitle) return null
+                  const title = localizedTitle.title
+                  const poster = getTmdb().getImageUrl(localizedTitle.posterPath, 'w200')
                   const year = getReleaseYear(item)
                   return (
                     <button
