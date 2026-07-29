@@ -12,20 +12,24 @@ const DEFAULT_CONCURRENCY = 6
 const MAX_CACHE_ENTRIES = 2_000
 
 export interface LocalizedTitleProviderResult {
+  readonly backdrops: readonly ProviderImage[]
   readonly backdropPath: string | null
+  readonly defaultBackdropPath: string | null
   readonly defaultPosterPath: string | null
   readonly originalLanguage: string | null
-  readonly posters: readonly {
-    readonly aspect_ratio?: number | null
-    readonly file_path: string | null
-    readonly height?: number | null
-    readonly iso_639_1: string | null
-    readonly vote_average?: number | null
-    readonly vote_count?: number | null
-    readonly width?: number | null
-  }[]
+  readonly posters: readonly ProviderImage[]
   readonly title: string
   readonly year: number | null
+}
+
+interface ProviderImage {
+  readonly aspect_ratio?: number | null
+  readonly file_path: string | null
+  readonly height?: number | null
+  readonly iso_639_1: string | null
+  readonly vote_average?: number | null
+  readonly vote_count?: number | null
+  readonly width?: number | null
 }
 
 interface CacheEntry {
@@ -91,23 +95,29 @@ export function createLocalizedTitleBatchService(options: ServiceOptions) {
                 continue
               }
               const selectedPoster = selectLocalizedImage({
-                candidates: providerTitle.posters.map((poster) => ({
-                  aspectRatio: poster.aspect_ratio,
-                  filePath: poster.file_path,
-                  height: poster.height,
-                  language: poster.iso_639_1,
-                  voteAverage: poster.vote_average,
-                  voteCount: poster.vote_count,
-                  width: poster.width,
-                })),
+                candidates: providerTitle.posters.map(toLocalizedImageCandidate),
                 kind: 'poster',
                 locale: input.locale,
                 originalLanguage: providerTitle.originalLanguage,
                 placeholderPath: null,
                 tmdbDefaultPath: providerTitle.defaultPosterPath,
               })
+              const selectedBackdrop = selectLocalizedImage({
+                candidates: providerTitle.backdrops.map(toLocalizedImageCandidate),
+                kind: 'backdrop',
+                locale: input.locale,
+                originalLanguage: providerTitle.originalLanguage,
+                placeholderPath: null,
+                tmdbDefaultPath: providerTitle.defaultBackdropPath,
+              })
               const summary: ResolvedLocalizedTitleSummary = {
-                backdropPath: providerTitle.backdropPath,
+                backdropPath: selectedBackdrop.path,
+                backdropResolution: {
+                  fallbackReason: selectedBackdrop.fallbackReason,
+                  languageTier: selectedBackdrop.languageTier,
+                  locale: input.locale,
+                  source: 'tmdb-images',
+                },
                 id: current.item.tmdbId,
                 mediaType: current.item.type,
                 posterPath: selectedPoster.path,
@@ -161,6 +171,18 @@ export function createLocalizedTitleRateLimiter(options: {
       current.count += 1
       return true
     },
+  }
+}
+
+function toLocalizedImageCandidate(image: ProviderImage) {
+  return {
+    aspectRatio: image.aspect_ratio,
+    filePath: image.file_path,
+    height: image.height,
+    language: image.iso_639_1,
+    voteAverage: image.vote_average,
+    voteCount: image.vote_count,
+    width: image.width,
   }
 }
 

@@ -23,7 +23,9 @@ for (const [label, posters, expectedTier, expectedPath] of [
   test(`server resolves ${label} localized poster provenance truthfully`, async () => {
     const service = createLocalizedTitleBatchService({
       fetchTitle: async () => ({
+        backdrops: [],
         backdropPath: null,
+        defaultBackdropPath: null,
         defaultPosterPath: label === 'missing' ? null : '/default.jpg',
         originalLanguage: 'it',
         posters,
@@ -35,6 +37,44 @@ for (const [label, posters, expectedTier, expectedPath] of [
     assert.equal(response.summaries[0].posterPath, expectedPath)
     assert.equal(response.summaries[0].posterResolution.languageTier, expectedTier)
     assert.equal(response.summaries[0].posterResolution.source, 'tmdb-images')
+  })
+}
+
+for (const [label, backdrops, expectedTier, expectedPath] of [
+  [
+    'exact',
+    [{ file_path: '/exact-backdrop.jpg', iso_639_1: 'pt-BR' }],
+    'exact',
+    '/exact-backdrop.jpg',
+  ],
+  ['base', [{ file_path: '/base-backdrop.jpg', iso_639_1: 'pt' }], 'base', '/base-backdrop.jpg'],
+  [
+    'original',
+    [{ file_path: '/original-backdrop.jpg', iso_639_1: 'it' }],
+    'original',
+    '/original-backdrop.jpg',
+  ],
+  [
+    'neutral',
+    [{ file_path: '/neutral-backdrop.jpg', iso_639_1: null }],
+    'neutral',
+    '/neutral-backdrop.jpg',
+  ],
+  ['default', [], 'tmdb-default', '/default-backdrop.jpg'],
+]) {
+  test(`server resolves ${label} localized backdrop provenance truthfully`, async () => {
+    const service = createLocalizedTitleBatchService({
+      fetchTitle: async () => ({
+        ...title(),
+        backdrops,
+        defaultBackdropPath: '/default-backdrop.jpg',
+        originalLanguage: 'it',
+      }),
+    })
+    const response = await service.resolve(baseInput)
+    assert.equal(response.summaries[0].backdropPath, expectedPath)
+    assert.equal(response.summaries[0].backdropResolution.languageTier, expectedTier)
+    assert.equal(response.summaries[0].backdropResolution.source, 'tmdb-images')
   })
 }
 
@@ -103,7 +143,9 @@ test('rate limiter rejects repeated batches after the bounded allowance', () => 
 
 function title() {
   return {
+    backdrops: [],
     backdropPath: null,
+    defaultBackdropPath: null,
     defaultPosterPath: '/default.jpg',
     originalLanguage: 'en',
     posters: [{ file_path: '/exact.jpg', iso_639_1: 'pt-BR' }],

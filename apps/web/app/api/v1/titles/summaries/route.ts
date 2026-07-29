@@ -88,11 +88,14 @@ async function fetchLocalizedTitle(
   const imagesResponse = await fetch(imagesUrl, { signal })
   if (!imagesResponse.ok) throw new Error(`TMDb images request failed: ${imagesResponse.status}`)
   const images = (await imagesResponse.json()) as {
+    backdrops?: LocalizedTitleProviderResult['backdrops']
     posters?: LocalizedTitleProviderResult['posters']
   }
 
   return {
+    backdrops: images.backdrops ?? [],
     backdropPath: details.backdrop_path,
+    defaultBackdropPath: details.backdrop_path,
     defaultPosterPath: details.poster_path,
     originalLanguage,
     posters: images.posters ?? [],

@@ -59,9 +59,67 @@ test('localized summary gateway uses only server TMDB credentials and declares p
   assert.match(source, /createLocalizedTitleBatchService/)
 })
 
+for (const [count, expectedSizes] of [
+  [100, [100]],
+  [101, [100, 1]],
+]) {
+  test(`web batch adapter chunks ${count} titles without oversized or per-card calls`, async () => {
+    const queryClient = new QueryClient()
+    const sizes = []
+    const input = batchInput(count)
+    const response = await hydrateLocalizedTitleBatch(queryClient, input, async (chunk) => {
+      sizes.push(chunk.items.length)
+      return batchResponse(chunk.items)
+    })
+    assert.deepEqual(sizes, expectedSizes)
+    assert.deepEqual(
+      response.summaries.map((item) => item.id),
+      input.items.map((item) => item.tmdbId)
+    )
+    queryClient.clear()
+  })
+}
+
+test('web batch adapter merges 250 titles stably and preserves a failed chunk as item errors', async () => {
+  const queryClient = new QueryClient()
+  const input = batchInput(250)
+  let calls = 0
+  const response = await hydrateLocalizedTitleBatch(queryClient, input, async (chunk) => {
+    calls += 1
+    if (calls === 2) throw new Error('chunk unavailable')
+    return batchResponse(chunk.items)
+  })
+  assert.equal(calls, 3)
+  assert.deepEqual(
+    response.summaries.map((item) => item.id),
+    [...input.items.slice(0, 100), ...input.items.slice(200)].map((item) => item.tmdbId)
+  )
+  assert.deepEqual(response.errors, input.items.slice(100, 200))
+  for (const item of [...input.items.slice(0, 100), ...input.items.slice(200)]) {
+    assert.ok(
+      queryClient.getQueryData(
+        titleQueryKeys.summary({
+          id: item.tmdbId,
+          locale: input.locale,
+          mediaType: item.type,
+          region: input.region,
+          scope: { kind: 'public' },
+        })
+      )
+    )
+  }
+  queryClient.clear()
+})
+
 function summary(id, mediaType, title, posterPath) {
   return {
     backdropPath: null,
+    backdropResolution: {
+      fallbackReason: 'kino-placeholder',
+      languageTier: 'placeholder',
+      locale: 'pt',
+      source: 'tmdb-images',
+    },
     id,
     mediaType,
     posterPath,
@@ -73,5 +131,28 @@ function summary(id, mediaType, title, posterPath) {
     },
     title,
     year: null,
+  }
+}
+
+function batchInput(count) {
+  return {
+    schemaVersion: 1,
+    items: Array.from({ length: count }, (_, index) => ({
+      tmdbId: index + 1,
+      type: index % 2 ? 'tv' : 'movie',
+    })),
+    locale: 'pt',
+    region: 'BR',
+  }
+}
+
+function batchResponse(items) {
+  return {
+    schemaVersion: 1,
+    errors: [],
+    missing: [],
+    summaries: items.map((item) =>
+      summary(item.tmdbId, item.type, `Title ${item.tmdbId}`, `/poster-${item.tmdbId}.jpg`)
+    ),
   }
 }

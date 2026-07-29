@@ -46,9 +46,46 @@ test('cold mobile multi-title hydration uses one gateway request and seeds local
   queryClient.clear()
 })
 
+test('mobile adapter chunks 101 titles and preserves stable response order', async () => {
+  const queryClient = new QueryClient()
+  const input = {
+    schemaVersion: 1,
+    items: Array.from({ length: 101 }, (_, index) => ({
+      tmdbId: index + 1,
+      type: index % 2 ? 'tv' : 'movie',
+    })),
+    locale: 'pt',
+    region: 'BR',
+  }
+  const sizes = []
+  const response = await hydrateLocalizedTitleBatch(queryClient, input, async (chunk) => {
+    sizes.push(chunk.items.length)
+    return {
+      schemaVersion: 1,
+      errors: [],
+      missing: [],
+      summaries: chunk.items.map((item) =>
+        summary(item.tmdbId, item.type, `Title ${item.tmdbId}`, `/poster-${item.tmdbId}.jpg`)
+      ),
+    }
+  })
+  assert.deepEqual(sizes, [100, 1])
+  assert.deepEqual(
+    response.summaries.map((item) => item.id),
+    input.items.map((item) => item.tmdbId)
+  )
+  queryClient.clear()
+})
+
 function summary(id, mediaType, title, posterPath) {
   return {
     backdropPath: null,
+    backdropResolution: {
+      fallbackReason: 'kino-placeholder',
+      languageTier: 'placeholder',
+      locale: 'pt',
+      source: 'tmdb-images',
+    },
     id,
     mediaType,
     posterPath,
