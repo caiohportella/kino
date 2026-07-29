@@ -126,8 +126,6 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
   const [profileSearchOpen, setProfileSearchOpen] = useState(false)
   const [profileSearchQuery, setProfileSearchQuery] = useState('')
   const [socialListType, setSocialListType] = useState<SocialListType | null>(null)
-  const [movieRatingOpen, setMovieRatingOpen] = useState(false)
-  const [seriesRatingOpen, setSeriesRatingOpen] = useState(false)
 
   useEffect(
     () =>
@@ -384,17 +382,12 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
       <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-6">
         <ProfileStatCard icon={Film} label={t('profile.watchedMovies')} value={stats.movieCount} />
         <ProfileStatCard icon={Tv} label={t('profile.watchedSeries')} value={stats.seriesCount} />
-        <ProfileStatCard
-          icon={Star}
-          label={t('profile.avgMovieRating')}
-          onClick={() => setMovieRatingOpen(true)}
-          value={stats.averageMovieRating.toFixed(1)}
-        />
-        <ProfileStatCard
-          icon={Star}
-          label={t('profile.avgSeriesRating')}
-          onClick={() => setSeriesRatingOpen(true)}
-          value={seriesRatingRows.length > 0 ? averageSeriesRating.toFixed(1) : '—'}
+        <MovieRatingStat averageRating={stats.averageMovieRating} items={movies} />
+        <SeriesRatingStat
+          averageRating={averageSeriesRating}
+          items={series}
+          ratedCount={seriesRatingRows.length}
+          ratingRows={seriesRatingRows}
         />
         <SocialStatCard
           icon={UsersRound}
@@ -471,21 +464,6 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
         open={Boolean(socialListType)}
         users={socialListQuery.data || []}
         error={socialListQuery.error}
-      />
-
-      <SeriesRatingDialog
-        averageRating={averageSeriesRating}
-        items={query.data?.series || []}
-        open={seriesRatingOpen}
-        onOpenChange={setSeriesRatingOpen}
-        ratedCount={seriesRatingRows.length}
-        ratingRows={seriesRatingRows}
-      />
-      <MovieRatingDialog
-        averageRating={stats.averageMovieRating}
-        items={movies}
-        onOpenChange={setMovieRatingOpen}
-        open={movieRatingOpen}
       />
     </div>
   )
@@ -770,6 +748,71 @@ function ProfileModal({
   )
 }
 
+function MovieRatingStat({
+  averageRating,
+  items,
+}: {
+  averageRating: number
+  items: Awaited<ReturnType<typeof db.getWatchedMovies>>
+}) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+
+  return (
+    <>
+      <ProfileStatCard
+        icon={Star}
+        label={t('profile.avgMovieRating')}
+        onClick={() => setOpen(true)}
+        value={averageRating.toFixed(1)}
+      />
+      <MovieRatingDialog
+        averageRating={averageRating}
+        items={items}
+        onOpenChange={setOpen}
+        open={open}
+      />
+    </>
+  )
+}
+
+function SeriesRatingStat({
+  averageRating,
+  items,
+  ratedCount,
+  ratingRows,
+}: {
+  averageRating: number
+  items: Awaited<ReturnType<typeof db.getWatchedSeries>>
+  ratedCount: number
+  ratingRows: Array<{
+    series: Awaited<ReturnType<typeof db.getWatchedSeries>>[number]
+    rating: number
+  }>
+}) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+
+  return (
+    <>
+      <ProfileStatCard
+        icon={Star}
+        label={t('profile.avgSeriesRating')}
+        onClick={() => setOpen(true)}
+        value={ratedCount > 0 ? averageRating.toFixed(1) : '—'}
+      />
+      <SeriesRatingDialog
+        averageRating={averageRating}
+        items={items}
+        onOpenChange={setOpen}
+        open={open}
+        ratedCount={ratedCount}
+        ratingRows={ratingRows}
+      />
+    </>
+  )
+}
+
 function MovieRatingDialog({
   averageRating,
   items,
@@ -782,9 +825,11 @@ function MovieRatingDialog({
   open: boolean
 }) {
   const { t } = useTranslation()
-  const localizedTitles = useLocalizedTitles(
-    items.map((item) => ({ tmdbId: item.tmdb_id, type: 'movie' as const }))
+  const localizedRequests = useMemo(
+    () => items.map((item) => ({ tmdbId: item.tmdb_id, type: 'movie' as const })),
+    [items]
   )
+  const localizedTitles = useLocalizedTitles(localizedRequests)
   const rows = useMemo(
     () =>
       items
@@ -920,9 +965,11 @@ function SeriesRatingDialog({
   ratedCount: number
 }) {
   const { t } = useTranslation()
-  const localizedTitles = useLocalizedTitles(
-    items.map((item) => ({ tmdbId: item.tmdb_id, type: 'tv' as const }))
+  const localizedRequests = useMemo(
+    () => items.map((item) => ({ tmdbId: item.tmdb_id, type: 'tv' as const })),
+    [items]
   )
+  const localizedTitles = useLocalizedTitles(localizedRequests)
 
   const rows = useMemo(
     () =>
