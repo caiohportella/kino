@@ -28,6 +28,46 @@ test('normalizes a supported v1 request and ignores additive unknown fields', ()
   })
 })
 
+test('accepts requests at both result-window boundaries', () => {
+  for (const paging of [
+    { page: 100, limit: 1 },
+    { page: 2, limit: 50 },
+  ]) {
+    assert.deepEqual(
+      parseSearchRequestV1({
+        schemaVersion: SEARCH_SCHEMA_VERSION,
+        query: 'Alien',
+        ...paging,
+      }),
+      {
+        schemaVersion: SEARCH_SCHEMA_VERSION,
+        query: 'Alien',
+        ...paging,
+      }
+    )
+  }
+})
+
+test('rejects individually valid paging values whose result window exceeds 100', () => {
+  for (const paging of [
+    { page: 3, limit: 50 },
+    { page: 100, limit: 50 },
+  ]) {
+    assert.throws(
+      () =>
+        parseSearchRequestV1({
+          schemaVersion: SEARCH_SCHEMA_VERSION,
+          query: 'Alien',
+          ...paging,
+        }),
+      (error) =>
+        error instanceof SearchGatewayError &&
+        error.status === 400 &&
+        error.body.error.code === 'invalid_request'
+    )
+  }
+})
+
 test('rejects unsupported schemas with the negotiated supported range', () => {
   assert.throws(
     () => parseSearchRequestV1({ ...validRequest, schemaVersion: 2 }),

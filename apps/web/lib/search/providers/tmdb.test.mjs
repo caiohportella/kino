@@ -152,6 +152,31 @@ test('retrieves three TMDB pages for a 60-candidate shared-core window', async (
   assert.equal(result.candidates.length, 60)
 })
 
+test('retrieves at most five TMDB pages for the maximum accepted result window', async () => {
+  const pages = []
+  const provider = createTmdbSearchProvider({
+    apiKey: 'tmdb-server-key',
+    fetch: async (url) => {
+      const page = Number(new URL(url).searchParams.get('page'))
+      pages.push(page)
+      return Response.json({
+        page,
+        results: Array.from({ length: 20 }, (_, index) => ({
+          ...movie,
+          id: (page - 1) * 20 + index + 1,
+          title: `Movie ${(page - 1) * 20 + index + 1}`,
+        })),
+        total_pages: 10,
+        total_results: 200,
+      })
+    },
+  })
+
+  const result = await provider.search({ query: 'Godfather', page: 1, limit: 100 })
+  assert.deepEqual(pages, [1, 2, 3, 4, 5])
+  assert.equal(result.candidates.length, 100)
+})
+
 test('passes caller cancellation to TMDB without wrapping AbortError', async () => {
   const controller = new AbortController()
   const provider = createTmdbSearchProvider({

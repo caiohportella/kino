@@ -18,6 +18,7 @@ import {
   type SearchProviderStage,
 } from './observability.ts'
 import { type TmdbSearchProvider, type VectorSearchProvider } from './providers/vector.ts'
+import { assertSearchResultWindow } from './request.ts'
 
 const DEFAULT_MINIMUM_VECTOR_RESULTS = 5
 const DEFAULT_MINIMUM_VECTOR_SCORE = 0.55
@@ -175,6 +176,7 @@ export function createSearchGateway(dependencies: CreateSearchGatewayDependencie
   return {
     async search(request, signal): Promise<SearchResponseV1> {
       throwIfCancelled(signal)
+      assertSearchResultWindow(request)
       const sources: SearchProviderResult[] = []
       let fallback: SearchResponseV1['fallback'] = 'none'
       let vectorFailed = dependencies.vector === undefined

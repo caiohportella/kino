@@ -355,6 +355,31 @@ test('retrieves enough vector and TMDB candidates for a complete third core page
   assert.equal(response.results.length, 20)
 })
 
+test('rejects oversized direct gateway windows before invoking providers', async () => {
+  let providerCalls = 0
+  const gateway = createSearchGateway({
+    vector: {
+      search: async () => {
+        providerCalls += 1
+        return vectorResult()
+      },
+    },
+    tmdb: {
+      ...tmdbProvider(),
+      search: async () => {
+        providerCalls += 1
+        return tmdbResult()
+      },
+    },
+  })
+
+  await assert.rejects(
+    gateway.search({ ...request, page: 3, limit: 50 }),
+    (error) => error instanceof SearchGatewayError && error.body.error.code === 'invalid_request'
+  )
+  assert.equal(providerCalls, 0)
+})
+
 test('propagates caller cancellation instead of treating it as provider failure', async () => {
   const controller = new AbortController()
   const reason = new DOMException('caller cancelled', 'AbortError')
