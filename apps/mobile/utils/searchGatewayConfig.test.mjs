@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { resolveKinoApiOrigin } from './searchGatewayConfig.ts'
+import { resolveKinoApiOrigin, SearchGatewayConfigurationError } from './searchGatewayConfig.ts'
 
 test('production requires a deployed non-local Kino API origin', () => {
-  assert.throws(() => resolveKinoApiOrigin(undefined, 'production'), /required/i)
+  assert.throws(
+    () => resolveKinoApiOrigin(undefined, 'production'),
+    (error) => error instanceof SearchGatewayConfigurationError && /required/i.test(error.message)
+  )
   assert.throws(() => resolveKinoApiOrigin('http://localhost:3000', 'production'), /localhost/i)
 })
 
