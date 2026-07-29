@@ -80,8 +80,15 @@ test('the composed route emits sanitized telemetry and no broad CORS header', as
     assert.equal(response.status, 200)
     assert.match(response.headers.get('x-request-id'), /^[0-9a-f-]{36}$/u)
     assert.equal(response.headers.get('access-control-allow-origin'), null)
-    assert.equal(logs.length, 1)
-    assert.match(logs[0][0], /"type":"search_gateway_request"/u)
+    assert.equal(logs.length, 4)
+    assert.equal(
+      logs.some(([entry]) => /"type":"search_gateway_request"/u.test(entry)),
+      true
+    )
+    assert.equal(
+      logs.some(([entry]) => /"type":"search_gateway_provider_stage"/u.test(entry)),
+      true
+    )
     assert.doesNotMatch(
       JSON.stringify(logs),
       /Secret Movie Query|request-secret|authorization|cookie/u

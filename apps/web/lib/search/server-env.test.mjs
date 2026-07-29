@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { readTmdbServerApiKey, readVectorServerEnv } from './server-env.ts'
+import { readRedisServerEnv, readTmdbServerApiKey, readVectorServerEnv } from './server-env.ts'
 
 test('reads only server Upstash credentials and ignores public-prefixed values', () => {
   const reads = []
@@ -65,4 +65,19 @@ test('reads only the server TMDB key and never falls back to a public credential
     'server-tmdb-key'
   )
   assert.equal(readTmdbServerApiKey({ NEXT_PUBLIC_TMDB_API_KEY: 'public-tmdb-key' }), null)
+})
+
+test('accepts only paired server-side Redis rate-limit credentials', () => {
+  assert.deepEqual(
+    readRedisServerEnv({
+      UPSTASH_REDIS_REST_URL: 'https://redis.example.test',
+      UPSTASH_REDIS_REST_TOKEN: 'redis-secret',
+    }),
+    { url: 'https://redis.example.test', token: 'redis-secret' }
+  )
+  assert.equal(readRedisServerEnv({}), null)
+  assert.throws(
+    () => readRedisServerEnv({ UPSTASH_REDIS_REST_URL: 'https://redis.example.test' }),
+    (error) => error.code === 'invalid_server_configuration'
+  )
 })
