@@ -816,6 +816,8 @@ function MovieRatingDialog({
       <div className="grid min-h-0 flex-1 gap-2 overflow-y-auto pr-1">
         {localizedTitles.isPending ? (
           <LocalizedRowsSkeleton />
+        ) : localizedTitles.isError ? (
+          <DialogEmptyState body={t('common.tryAgain')} title={t('common.failed')} />
         ) : rows.length === 0 ? (
           <DialogEmptyState
             body={t('profile.movieRatingsModalEmptyBody')}
@@ -961,6 +963,8 @@ function SeriesRatingDialog({
       <div className="grid min-h-0 flex-1 gap-2 overflow-y-auto pr-1">
         {localizedTitles.isPending ? (
           <LocalizedRowsSkeleton />
+        ) : localizedTitles.isError ? (
+          <DialogEmptyState body={t('common.tryAgain')} title={t('common.failed')} />
         ) : rows.length === 0 ? (
           <DialogEmptyState
             body={t('profile.seriesRatingsModalEmptyBody')}
@@ -1060,6 +1064,21 @@ function LocalizedShelfSkeleton({ title }: { title: string }) {
   )
 }
 
+function LocalizedShelfError({ title }: { title: string }) {
+  const { t } = useTranslation()
+  return (
+    <section>
+      <h2 className="mb-3 text-xl font-semibold text-kino-text">{title}</h2>
+      <EmptyState
+        body={t('common.tryAgain')}
+        size="compact"
+        title={t('common.failed')}
+        variant="missing"
+      />
+    </section>
+  )
+}
+
 function ProfileShelf({
   title,
   items,
@@ -1080,6 +1099,7 @@ function ProfileShelf({
 
   if (items.length === 0) return null
   if (localizedTitles.isPending) return <LocalizedShelfSkeleton title={title} />
+  if (localizedTitles.isError) return <LocalizedShelfError title={title} />
 
   const renderTitleCard = (item: (typeof items)[number]) => {
     const localized = localizedTitles.data?.[localizedTitleKey({ tmdbId: item.tmdb_id, type })]
@@ -1182,6 +1202,7 @@ function SeriesShelfRow({
     ) : null
   }
   if (localizedTitles.isPending) return <LocalizedShelfSkeleton title={title} />
+  if (localizedTitles.isError) return <LocalizedShelfError title={title} />
 
   const renderTitleCard = (series: (typeof items)[number]) => {
     const localized =

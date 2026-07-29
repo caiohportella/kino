@@ -101,6 +101,7 @@ export function useTitleMetadata(tmdbId: number, type: MediaType) {
     ...query,
     data,
     isLoading: query.isPending || query.isPlaceholderData,
+    summary: query.data && !('kinoId' in query.data) ? query.data : undefined,
   }
 }
 

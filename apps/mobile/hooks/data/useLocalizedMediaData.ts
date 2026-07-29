@@ -1,7 +1,10 @@
-import { titleQueryKeys } from '@kino/core/cache'
-import { useQueries } from '@tanstack/react-query'
+import { LOCALIZED_TITLE_GC_TIME, LOCALIZED_TITLE_STALE_TIME } from '@kino/core/cache'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import type { LocalizedTitleSummary } from '~/hooks/data/titleQueries'
+import {
+  hydrateLocalizedTitleBatch,
+  requestLocalizedTitleBatch,
+} from '~/hooks/data/localizedTitleBatch'
 import { useReadyLanguage } from '~/hooks/useLanguage'
 
 export interface LocalizedMedia {
@@ -10,7 +13,10 @@ export interface LocalizedMedia {
 }
 
 export type LocalizedMediaMap = Record<string, LocalizedMedia | undefined> & {
+  readonly errors: Array<{ tmdbId: number; type: 'movie' | 'tv' }>
+  readonly isError: boolean
   readonly isPending: boolean
+  readonly missing: Array<{ tmdbId: number; type: 'movie' | 'tv' }>
 }
 
 /**
@@ -20,32 +26,38 @@ export type LocalizedMediaMap = Record<string, LocalizedMedia | undefined> & {
 export function useLocalizedMediaData(items: { tmdb_id: number; type: 'movie' | 'tv' }[]) {
   const language = useReadyLanguage()
   const uniqueItems = useMemo(() => normalizeLocalizedItems(items), [items])
-  const queryResults = useQueries({
-    queries: language
-      ? uniqueItems.map((item) => ({
-          enabled: false,
-          queryFn: async (): Promise<LocalizedTitleSummary> => {
-            throw new Error('Localized summaries must be hydrated by locale-ready list responses.')
-          },
-          queryKey: titleQueryKeys.summary({
-            id: item.tmdb_id,
-            locale: language,
-            mediaType: item.type,
-            region: localeRegion(language),
-            scope: { kind: 'public' },
-          }),
-        }))
-      : [],
+  const queryClient = useQueryClient()
+  const region = localeRegion(language ?? 'en')
+  const batchQuery = useQuery({
+    enabled: Boolean(language && uniqueItems.length > 0),
+    gcTime: LOCALIZED_TITLE_GC_TIME,
+    queryFn: ({ signal }) =>
+      hydrateLocalizedTitleBatch(
+        queryClient,
+        {
+          items: uniqueItems.map((item) => ({ tmdbId: item.tmdb_id, type: item.type })),
+          locale: language ?? 'en',
+          region,
+        },
+        requestLocalizedTitleBatch,
+        signal
+      ),
+    queryKey: [
+      'localized-title-batch',
+      language,
+      region,
+      uniqueItems.map(localizedMediaKey).join(','),
+    ],
+    staleTime: LOCALIZED_TITLE_STALE_TIME,
   })
 
   return useMemo(() => {
     const data = Object.fromEntries(
-      queryResults.flatMap((result, index) => {
-        const item = uniqueItems[index]
-        if (!item || !result.data) return []
+      (batchQuery.data?.summaries || []).flatMap((summary) => {
+        const item = { tmdb_id: summary.id, type: summary.mediaType }
         const localized = {
-          poster_path: result.data.posterPath,
-          title: result.data.title,
+          poster_path: summary.posterPath,
+          title: summary.title,
         }
         return [
           [localizedMediaKey(item), localized],
@@ -53,8 +65,13 @@ export function useLocalizedMediaData(items: { tmdb_id: number; type: 'movie' | 
         ]
       })
     ) as Record<number, LocalizedMedia>
-    return Object.assign(data, { isPending: !language }) as unknown as LocalizedMediaMap
-  }, [queryResults, uniqueItems, language])
+    return Object.assign(data, {
+      errors: batchQuery.data?.errors || [],
+      isError: batchQuery.isError,
+      isPending: !language || (uniqueItems.length > 0 && batchQuery.isPending),
+      missing: batchQuery.data?.missing || [],
+    }) as unknown as LocalizedMediaMap
+  }, [batchQuery.data, batchQuery.isError, batchQuery.isPending, uniqueItems.length, language])
 }
 
 /**

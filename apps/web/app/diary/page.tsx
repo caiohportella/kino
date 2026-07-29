@@ -181,7 +181,7 @@ export default function DiaryPage() {
       pageStatus={
         query.isPending || localizedTitles.isPending
           ? 'loading'
-          : query.isError
+          : query.isError || localizedTitles.isError
             ? 'error'
             : entries.length === 0
               ? 'empty'

@@ -95,9 +95,13 @@ export function WatchedSeriesSection({ series, onSeriesPress, onLongPress, onVie
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4">
-            {localizedData.isPending
-              ? renderSkeletons(keepWatchingSeries.length)
-              : keepWatchingSeries.slice(0, 10).map((item) => renderSeriesItem(item))}
+            {localizedData.isError ? (
+              <Text className="text-text-secondary text-sm">{t('common.failed')}</Text>
+            ) : localizedData.isPending ? (
+              renderSkeletons(keepWatchingSeries.length)
+            ) : (
+              keepWatchingSeries.slice(0, 10).map((item) => renderSeriesItem(item))
+            )}
           </ScrollView>
         </View>
       ) : null}
@@ -116,9 +120,13 @@ export function WatchedSeriesSection({ series, onSeriesPress, onLongPress, onVie
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4">
-            {localizedData.isPending
-              ? renderSkeletons(watchedSeries.length)
-              : watchedSeries.slice(0, 10).map((item) => renderSeriesItem(item))}
+            {localizedData.isError ? (
+              <Text className="text-text-secondary text-sm">{t('common.failed')}</Text>
+            ) : localizedData.isPending ? (
+              renderSkeletons(watchedSeries.length)
+            ) : (
+              watchedSeries.slice(0, 10).map((item) => renderSeriesItem(item))
+            )}
           </ScrollView>
         </View>
       ) : null}

@@ -369,6 +369,23 @@ export default function TitlePage() {
     router.push('/auth/login')
   }
 
+  if (rawTitleQuery.isPlaceholderData && rawTitleQuery.data && !('kinoId' in rawTitleQuery.data)) {
+    const summary = rawTitleQuery.data
+    return (
+      <div className="content-frame">
+        <div className="flex items-end gap-4">
+          <Poster
+            className="w-24 shrink-0 sm:w-32"
+            src={getTMDbImageUrl(summary.posterPath, 'w300')}
+            title={summary.title}
+          />
+          <h1 className="pb-4 text-3xl font-black text-kino-text">{summary.title}</h1>
+        </div>
+        <TitleSkeleton label={t('common.loading')} />
+      </div>
+    )
+  }
+
   if (titleQuery.isLoading) return <TitleSkeleton label={t('common.loading')} />
 
   if (titleQuery.error || !title) {

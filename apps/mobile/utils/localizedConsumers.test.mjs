@@ -63,7 +63,8 @@ test('mobile localized list hydration never fans out into per-card TMDB detail r
     'utf8'
   )
   assert.doesNotMatch(source, /getMovieDetails|getTVDetails/)
-  assert.match(source, /titleQueryKeys/)
+  assert.match(source, /hydrateLocalizedTitleBatch/)
+  assert.match(source, /queryKey:\s*\[\s*'localized-title-batch'/)
 })
 
 test('mobile detail consumers use canonical detail options and compatible summary placeholders', async () => {
@@ -77,6 +78,8 @@ test('mobile detail consumers use canonical detail options and compatible summar
   assert.match(querySource, /region:/)
   assert.match(querySource, /scope:/)
   assert.match(pageSource, /metaQuery\.isLoading/)
+  assert.match(pageSource, /metaQuery\.summary\.posterPath/)
+  assert.match(pageSource, /metaQuery\.summary\.title/)
 })
 
 test('mobile home and search lists resolve locale before producing cards', async () => {

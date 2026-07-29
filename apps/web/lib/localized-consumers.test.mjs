@@ -43,7 +43,8 @@ test('web missing or rejected localization uses Kino presentation fallbacks only
 test('web localized list hydration never fans out into per-card TMDB detail requests', async () => {
   const source = await readFile(new URL('./use-localized-titles.ts', import.meta.url), 'utf8')
   assert.doesNotMatch(source, /getMovieDetails|getTVDetails/)
-  assert.match(source, /titleQueryKeys/)
+  assert.match(source, /hydrateLocalizedTitleBatch/)
+  assert.match(source, /queryKey:\s*\[\s*'localized-title-batch'/)
 })
 
 test('web title detail query consumes canonical options and its compatible summary placeholder', async () => {
@@ -53,6 +54,8 @@ test('web title detail query consumes canonical options and its compatible summa
   assert.match(source, /region:/)
   assert.match(source, /scope:/)
   assert.match(source, /titleQuery\.isLoading/)
+  assert.match(source, /summary\.posterPath/)
+  assert.match(source, /summary\.title/)
 })
 
 test('web media rows delegate every title intent to the canonical MediaCard boundary', async () => {

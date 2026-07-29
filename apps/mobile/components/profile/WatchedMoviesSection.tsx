@@ -45,7 +45,9 @@ export function WatchedMoviesSection({ movies, onMoviePress, onLongPress, onView
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4">
-        {localizedData.isPending && movies.length > 0 ? (
+        {localizedData.isError ? (
+          <Text className="text-text-secondary text-sm">{t('common.failed')}</Text>
+        ) : localizedData.isPending && movies.length > 0 ? (
           Array.from({ length: Math.min(movies.length, 5) }, (_, index) => (
             <View
               key={`movie-skeleton-${index}`}

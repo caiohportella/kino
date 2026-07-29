@@ -25,6 +25,7 @@ import { ScreenHeader } from '~/components/layout/ScreenHeader'
 import { DiaryActionModal } from '~/components/modals/DiaryActionModal'
 import {
   type LocalizedMedia,
+  type LocalizedMediaMap,
   localizedMediaKey,
   useLocalizedMediaData,
 } from '~/hooks/data/useLocalizedMediaData'
@@ -83,6 +84,9 @@ export default function DiaryScreen() {
       data: grouped[key],
     }))
   }, [entries, language])
+  const localizedEntries = useLocalizedMediaData(
+    useMemo(() => entries.map((entry) => ({ tmdb_id: entry.tmdbId, type: entry.type })), [entries])
+  )
 
   /* Check if user exists before attempting to load diary */
   const loadDiary = useCallback(async () => {
@@ -239,10 +243,18 @@ export default function DiaryScreen() {
     )
   }
 
-  if (loading && !refreshing) {
+  if ((loading || localizedEntries.isPending) && !refreshing) {
     return (
       <View className="flex-1 items-center justify-center bg-primary">
         <ActivityIndicator size="large" color="#1DB954" />
+      </View>
+    )
+  }
+
+  if (localizedEntries.isError) {
+    return (
+      <View className="flex-1 items-center justify-center bg-primary p-4">
+        <Text className="text-text-secondary">{t('common.failed')}</Text>
       </View>
     )
   }
@@ -285,7 +297,11 @@ export default function DiaryScreen() {
               </View>
             )}
             renderItem={({ item }) => (
-              <DiaryEntryCard item={item} onOpenActionModal={openActionModal} />
+              <DiaryEntryCard
+                item={item}
+                localizedData={localizedEntries}
+                onOpenActionModal={openActionModal}
+              />
             )}
           />
         )}
@@ -303,9 +319,11 @@ export default function DiaryScreen() {
 
 function DiaryEntryCard({
   item,
+  localizedData,
   onOpenActionModal,
 }: {
   item: UIDiaryEntry
+  localizedData: LocalizedMediaMap
   onOpenActionModal: (entry: UIDiaryEntry) => void
 }) {
   const router = useRouter()
@@ -313,9 +331,6 @@ function DiaryEntryCard({
   const date = new Date(item.watchedAt)
   const day = format(date, 'd')
 
-  const localizedData = useLocalizedMediaData(
-    useMemo(() => [{ tmdb_id: item.tmdbId, type: item.type }], [item.tmdbId, item.type])
-  )
   const localized = localizedData[localizedMediaKey({ tmdb_id: item.tmdbId, type: item.type })] as
     | LocalizedMedia
     | undefined

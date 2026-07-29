@@ -111,6 +111,24 @@ test('seeded web card intents reuse the localized summary without refetching', a
   queryClient.clear()
 })
 
+test('web seeded detail navigation shows the summary and fetches missing details once', async () => {
+  const queryClient = new QueryClient()
+  let fetches = 0
+  seedTitleSummary(queryClient, context, summary)
+  const options = titleDetailsQueryOptions(queryClient, {
+    ...context,
+    fetchDetails: async () => {
+      fetches += 1
+      return { ...summary, kinoId: 'kino-title', overview: 'details' }
+    },
+  })
+
+  assert.deepEqual(options.placeholderData(), summary)
+  await Promise.all([queryClient.fetchQuery(options), queryClient.fetchQuery(options)])
+  assert.equal(fetches, 1)
+  queryClient.clear()
+})
+
 test('web equivalent cache inputs deduplicate with the canonical fetch request', async () => {
   const queryClient = new QueryClient()
   let fetches = 0
