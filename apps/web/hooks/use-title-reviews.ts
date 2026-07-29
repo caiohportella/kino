@@ -20,7 +20,7 @@ import {
 import { type InfiniteData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { db } from '@/lib/services'
 
-type Snapshot = Array<[readonly unknown[], unknown]>
+type Snapshot = [readonly unknown[], unknown][]
 type ProfileReviewCache = ProfileReviewsPage | InfiniteData<ProfileReviewsPage>
 
 function restoreSnapshot(
