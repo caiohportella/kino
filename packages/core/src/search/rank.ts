@@ -20,10 +20,14 @@ function bounded(value: number | undefined): number {
   return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0
 }
 
-function popularityConfidence(entity: SearchEntity): number {
-  const popularity = Math.log10(1 + Math.max(0, entity.popularity ?? 0)) / 6
-  const votes = Math.log10(1 + Math.max(0, entity.voteCount ?? 0)) / 6
-  return bounded((popularity + votes) / 2)
+function popularityScore(entity: SearchEntity): number {
+  return bounded(Math.log10(1 + Math.max(0, entity.popularity ?? 0)) / 6)
+}
+
+function voteConfidence(entity: SearchEntity): number {
+  return entity.voteCount === undefined
+    ? 0.5
+    : bounded(Math.log10(1 + Math.max(0, entity.voteCount)) / 6)
 }
 
 function releaseRelevance(candidate: FusedCandidate, queryYear: number | undefined): number {
@@ -55,7 +59,8 @@ function scoreComponents(
     entityConfidence,
     relationship,
     locale,
-    popularity: popularityConfidence(candidate.entity) * relevance,
+    popularity: popularityScore(candidate.entity) * relevance,
+    voteConfidence: voteConfidence(candidate.entity),
     release: releaseRelevance(candidate, queryYear),
   }
 }

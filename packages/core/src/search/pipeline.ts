@@ -2,6 +2,7 @@ import { fuseSearchCandidates } from './fusion.ts'
 import { detectSearchIntent } from './intent.ts'
 import { normalizeSearchQuery, normalizeSearchRequestV1 } from './normalize.ts'
 import { expandPersonCredits } from './person-expansion.ts'
+import { qualifyPersonExpansion } from './person-qualification.ts'
 import { rankSearchCandidates } from './rank.ts'
 import {
   type RankedSearchResult,
@@ -81,7 +82,12 @@ export function runSearchPipelineV1(input: RunSearchPipelineV1Input): SearchResp
   const relationshipCandidates =
     input.personExpansion === undefined || !['person', 'relationship'].includes(intent.kind)
       ? []
-      : expandPersonCredits(input.personExpansion.person, input.personExpansion.credits, intent)
+      : qualifyPersonExpansion(query, {
+            intent,
+            person: input.personExpansion.person,
+          })
+        ? expandPersonCredits(input.personExpansion.person, input.personExpansion.credits, intent)
+        : []
   const sources =
     relationshipCandidates.length === 0
       ? input.sources

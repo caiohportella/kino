@@ -53,6 +53,22 @@ test('returns grouped person and expanded credit results for Marlon Brando', () 
   )
 })
 
+test('does not expand unqualified Sofia Coppola relationship evidence', () => {
+  const sofia = {
+    source: 'person',
+    entity: { id: 'person:17609', entityType: 'person', title: 'Sofia Coppola', tmdbId: 17609 },
+    confidence: 0.49,
+  }
+  const response = runSearchPipelineV1({
+    request: { schemaVersion: 1, query: 'movies directed by Sofia Coppola', page: 1, limit: 10 },
+    intentEvidence: {},
+    sources: [{ sourceId: 'people', candidates: [sofia] }],
+    personExpansion: { person: sofia, credits: [media('movie', 426, 'Lost in Translation', 'directing')] },
+  })
+
+  assert.deepEqual(response.results.map((result) => result.entity.tmdbId), [17609])
+})
+
 test('returns identical ordering for identical mobile and web normalized inputs', () => {
   const input = {
     request: { schemaVersion: 1, query: 'Alien 1979', page: 1, limit: 10 },

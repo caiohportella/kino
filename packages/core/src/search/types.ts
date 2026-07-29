@@ -178,6 +178,7 @@ export interface SearchScoreComponents {
   readonly relationship: number
   readonly locale: number
   readonly popularity: number
+  readonly voteConfidence: number
   readonly release: number
 }
 

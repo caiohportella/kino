@@ -82,6 +82,30 @@ test('popularity cannot rescue a result with negligible relevance', () => {
   )
 })
 
+test('keeps missing vote confidence neutral while bounded relationship evidence outranks low semantics', () => {
+  const [relationship, semantic] = rank('Dexter starring Michael C. Hall', [
+    {
+      source: 'relationship',
+      entity: entity(1405, 'Dexter', { popularity: 4 }),
+      personId: 'person:6487',
+      personConfidence: 0.8,
+      role: 'acting',
+      relationshipScore: 1,
+      castOrder: 0,
+    },
+    {
+      source: 'semantic',
+      entity: entity(9999, 'Dexter Explained', { popularity: 50_000, voteCount: 400_000 }),
+      semanticScore: 0.05,
+    },
+  ])
+
+  assert.equal(relationship.entity.tmdbId, 1405)
+  assert.equal(relationship.components.relationship, 1)
+  assert.equal(relationship.components.voteConfidence, 0.5)
+  assert.equal(semantic.entity.tmdbId, 9999)
+})
+
 test('merged duplicate evidence affects one ranked result', () => {
   const result = rank('Alien', [
     { source: 'semantic', entity: entity(348, 'Alien'), semanticScore: 0.8 },
