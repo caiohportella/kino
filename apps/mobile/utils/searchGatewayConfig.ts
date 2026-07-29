@@ -42,6 +42,9 @@ export function resolveKinoApiOrigin(
       'Production EXPO_PUBLIC_KINO_API_URL cannot use localhost.'
     )
   }
+  if (environment === 'production' && url.protocol !== 'https:') {
+    throw new SearchGatewayConfigurationError('Production EXPO_PUBLIC_KINO_API_URL must use HTTPS.')
+  }
 
   url.pathname = url.pathname.replace(/\/+$/, '')
   url.search = ''

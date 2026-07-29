@@ -8,6 +8,7 @@ test('production requires a deployed non-local Kino API origin', () => {
     (error) => error instanceof SearchGatewayConfigurationError && /required/i.test(error.message)
   )
   assert.throws(() => resolveKinoApiOrigin('http://localhost:3000', 'production'), /localhost/i)
+  assert.throws(() => resolveKinoApiOrigin('http://kino.example.com', 'production'), /HTTPS/i)
 })
 
 test('development accepts and normalizes explicit LAN, tunnel, and preview origins', () => {
