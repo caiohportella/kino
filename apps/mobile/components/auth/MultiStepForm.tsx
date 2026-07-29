@@ -25,13 +25,13 @@ import { GlassContainer } from '~/components/ui/GlassContainer'
 export function MultiStepForm() {
   const router = useRouter()
   const { t } = useTranslation()
-  const { user, signUpWithEmail, signInWithGoogle, signInWithOtp } = useAuth()
+  const { resolution, signUpWithEmail, signInWithGoogle, signInWithOtp } = useAuth()
 
   useEffect(() => {
-    if (user) {
+    if (resolution.status === 'authenticated') {
       router.replace('/(tabs)')
     }
-  }, [router, user])
+  }, [resolution.status, router])
   const [step, setStep] = useState(1)
   const [email, setEmail] = useState('')
 

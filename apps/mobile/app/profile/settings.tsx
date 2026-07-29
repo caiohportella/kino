@@ -19,15 +19,18 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '@/hooks/useAuth'
+import { ProtectedContentGate } from '~/components/auth/ProtectedContentGate'
+import { Skeleton } from '~/components/common/Skeleton'
 import { MediaImageSelectorModal } from '~/components/modals/MediaImageSelectorModal'
+import { UnauthenticatedView } from '~/components/profile/UnauthenticatedView'
 import { changeLanguage } from '~/i18n'
 import { dbService } from '~/services/database'
 
 export default function SettingsScreen() {
-  const { user, signOut } = useAuth()
+  const { user, signOut, resolution } = useAuth()
   const router = useRouter()
   const { t, i18n } = useTranslation()
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -246,238 +249,246 @@ export default function SettingsScreen() {
     ])
   }
 
-  if (loading && !refreshing) {
-    return (
-      <SafeAreaView className="flex-1 bg-primary items-center justify-center">
-        <ActivityIndicator size="large" color="#1DB954" />
-      </SafeAreaView>
-    )
-  }
-
   return (
-    <View className="flex-1 bg-primary">
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          headerTitle: t('settings.editProfile'),
-          headerTitleAlign: 'center',
-          headerStyle: { backgroundColor: '#121212' },
-          headerTintColor: '#fff',
-          headerShadowVisible: false,
-          headerBackButtonDisplayMode: 'minimal',
-          headerRight: () => (
-            <TouchableOpacity
-              onPress={handleSave}
-              disabled={saving}
-              className="items-center justify-center w-8 h-8 ml-1.5"
-            >
-              {saving ? (
-                <ActivityIndicator size="small" color="#1DB954" />
-              ) : (
-                <Ionicons name="save-outline" size={24} color="#1DB954" />
-              )}
-            </TouchableOpacity>
-          ),
-        }}
-      />
+    <ProtectedContentGate
+      authLoadingFallback={<Skeleton layout="profile" />}
+      emptyFallback={<Skeleton layout="profile" />}
+      errorFallback={
+        <View className="flex-1 items-center justify-center bg-primary">
+          <Text className="text-text-primary">{t('common.failed')}</Text>
+        </View>
+      }
+      pageLoadingFallback={<Skeleton layout="profile" />}
+      pageStatus={loading && !refreshing ? 'loading' : 'content'}
+      resolution={resolution}
+      unauthenticatedFallback={<UnauthenticatedView onLoginPress={() => router.push('/login')} />}
+    >
+      <View className="flex-1 bg-primary">
+        <Stack.Screen
+          options={{
+            headerShown: true,
+            headerTitle: t('settings.editProfile'),
+            headerTitleAlign: 'center',
+            headerStyle: { backgroundColor: '#121212' },
+            headerTintColor: '#fff',
+            headerShadowVisible: false,
+            headerBackButtonDisplayMode: 'minimal',
+            headerRight: () => (
+              <TouchableOpacity
+                onPress={handleSave}
+                disabled={saving}
+                className="items-center justify-center w-8 h-8 ml-1.5"
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color="#1DB954" />
+                ) : (
+                  <Ionicons name="save-outline" size={24} color="#1DB954" />
+                )}
+              </TouchableOpacity>
+            ),
+          }}
+        />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-      >
-        <ScrollView
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           className="flex-1"
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingBottom: 100 }}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#1DB954"
-              colors={['#1DB954']}
-            />
-          }
         >
-          {refreshing && (
-            <View className="py-4 items-center">
-              <ActivityIndicator size="small" color="#1DB954" />
-            </View>
-          )}
-          {/* Banner Section */}
-          <TouchableOpacity
-            className="h-48 w-full bg-surface relative items-center justify-center"
-            onPress={() => setShowBannerModal(true)}
+          <ScrollView
+            className="flex-1"
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingBottom: 100 }}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor="#1DB954"
+                colors={['#1DB954']}
+              />
+            }
           >
-            {bannerUrl ? (
-              <Image source={{ uri: bannerUrl }} className="w-full h-full" resizeMode="cover" />
-            ) : (
-              <View className="items-center">
-                <Ionicons name="image-outline" size={32} color="#666" />
-                <Text className="text-text-secondary mt-2">Tap to set banner</Text>
+            {refreshing && (
+              <View className="py-4 items-center">
+                <ActivityIndicator size="small" color="#1DB954" />
               </View>
             )}
-            <View className="absolute bottom-2 right-2 bg-black/50 p-2 rounded-full">
-              <Ionicons name="pencil" size={16} color="#FFF" />
-            </View>
-          </TouchableOpacity>
-
-          {/* Avatar Section */}
-          <View className="items-center -mt-12 mb-6">
-            <TouchableOpacity className="relative" onPress={handleAvatarPress}>
-              <View className="h-24 w-24 rounded-full border-4 border-primary bg-surface overflow-hidden items-center justify-center">
-                {avatarUrl ? (
-                  <Image source={{ uri: avatarUrl }} className="w-full h-full" />
-                ) : (
-                  <Ionicons name="person" size={40} color="#666" />
-                )}
-              </View>
-              <View
-                className={`absolute bottom-0 right-0 p-2 rounded-full border-2 border-primary ${avatarUrl ? 'bg-red-500' : 'bg-accent'}`}
-              >
-                <Ionicons name={avatarUrl ? 'trash' : 'camera'} size={14} color="#FFF" />
+            {/* Banner Section */}
+            <TouchableOpacity
+              className="h-48 w-full bg-surface relative items-center justify-center"
+              onPress={() => setShowBannerModal(true)}
+            >
+              {bannerUrl ? (
+                <Image source={{ uri: bannerUrl }} className="w-full h-full" resizeMode="cover" />
+              ) : (
+                <View className="items-center">
+                  <Ionicons name="image-outline" size={32} color="#666" />
+                  <Text className="text-text-secondary mt-2">Tap to set banner</Text>
+                </View>
+              )}
+              <View className="absolute bottom-2 right-2 bg-black/50 p-2 rounded-full">
+                <Ionicons name="pencil" size={16} color="#FFF" />
               </View>
             </TouchableOpacity>
-          </View>
 
-          {/* Form Fields */}
-          <View className="px-4 space-y-4">
-            <View className="mb-4">
-              <Text className="text-text-secondary text-sm mb-2 uppercase font-bold tracking-wider">
-                {t('settings.displayName')}
-              </Text>
-              <TextInput
-                className="bg-surface text-text-primary p-4 rounded-lg border border-white/5"
-                placeholder="Your Name"
-                placeholderTextColor="#666"
-                value={displayName}
-                onChangeText={setDisplayName}
-              />
-            </View>
-
-            <View className="mb-4">
-              <Text className="text-text-secondary text-sm mb-2 uppercase font-bold tracking-wider">
-                {t('settings.username')}
-              </Text>
-              <TextInput
-                className={`bg-surface text-text-primary p-4 rounded-lg border ${usernameError ? 'border-red-500' : 'border-white/5'}`}
-                placeholder="username"
-                placeholderTextColor="#666"
-                value={username}
-                onChangeText={(text) => {
-                  setUsername(text)
-                  if (usernameError) setUsernameError('')
-                }}
-                autoCapitalize="none"
-              />
-              {usernameError ? (
-                <Text className="text-red-500 text-sm mt-1">{usernameError}</Text>
-              ) : null}
-            </View>
-
-            <View className="mb-4">
-              <Text className="text-text-secondary text-sm mb-2 uppercase font-bold tracking-wider">
-                {t('settings.bio')}
-              </Text>
-              <TextInput
-                className="bg-surface text-text-primary p-4 rounded-lg border border-white/5 h-24"
-                placeholder="Tell us about yourself..."
-                placeholderTextColor="#666"
-                value={bio}
-                onChangeText={setBio}
-                multiline
-                textAlignVertical="top"
-              />
-            </View>
-            <View className="mb-4">
-              <Text className="text-text-secondary text-sm mb-2 uppercase font-bold tracking-wider">
-                {t('settings.language')}
-              </Text>
-              <View className="bg-surface rounded-lg border border-white/5 overflow-hidden">
-                <Picker
-                  selectedValue={i18n.language}
-                  onValueChange={(value) => changeLanguage(value)}
-                  dropdownIconColor="#666"
-                  style={{
-                    color: '#fff',
-                    backgroundColor: 'transparent',
-                  }}
-                >
-                  {languages.map((lang) => (
-                    <Picker.Item
-                      key={lang.code}
-                      label={`${lang.flag} ${lang.label}`}
-                      value={lang.code}
-                      color={Platform.OS === 'ios' ? '#fff' : '#000'}
-                    />
-                  ))}
-                </Picker>
-              </View>
-            </View>
-
-            <View className="mb-4">
-              <Text className="text-text-secondary text-sm mb-2 uppercase font-bold tracking-wider">
-                {t('settings.import')}
-              </Text>
-              <TouchableOpacity
-                className="bg-surface border border-white/5 rounded-lg p-4 flex-row items-center justify-between"
-                onPress={() => router.push('/profile/import')}
-              >
-                <View className="flex-1 pr-3">
-                  <Text className="text-text-primary font-semibold text-base">
-                    {t('settings.importHistoryTitle')}
-                  </Text>
-                  <Text className="text-text-secondary text-sm mt-1">
-                    {t('settings.importHistorySubtitle')}
-                  </Text>
+            {/* Avatar Section */}
+            <View className="items-center -mt-12 mb-6">
+              <TouchableOpacity className="relative" onPress={handleAvatarPress}>
+                <View className="h-24 w-24 rounded-full border-4 border-primary bg-surface overflow-hidden items-center justify-center">
+                  {avatarUrl ? (
+                    <Image source={{ uri: avatarUrl }} className="w-full h-full" />
+                  ) : (
+                    <Ionicons name="person" size={40} color="#666" />
+                  )}
                 </View>
-                <Ionicons name="cloud-upload-outline" size={22} color="#1DB954" />
+                <View
+                  className={`absolute bottom-0 right-0 p-2 rounded-full border-2 border-primary ${avatarUrl ? 'bg-red-500' : 'bg-accent'}`}
+                >
+                  <Ionicons name={avatarUrl ? 'trash' : 'camera'} size={14} color="#FFF" />
+                </View>
               </TouchableOpacity>
             </View>
-          </View>
 
-          <View className="px-4 mt-8">
-            <TouchableOpacity
-              className="bg-red-500/10 border border-red-500/50 p-4 rounded-lg items-center justify-center flex-row space-x-2"
-              onPress={handleLogout}
-            >
-              <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-              <Text className="text-red-500 font-bold text-base ml-2">{t('settings.logout')}</Text>
-            </TouchableOpacity>
+            {/* Form Fields */}
+            <View className="px-4 space-y-4">
+              <View className="mb-4">
+                <Text className="text-text-secondary text-sm mb-2 uppercase font-bold tracking-wider">
+                  {t('settings.displayName')}
+                </Text>
+                <TextInput
+                  className="bg-surface text-text-primary p-4 rounded-lg border border-white/5"
+                  placeholder="Your Name"
+                  placeholderTextColor="#666"
+                  value={displayName}
+                  onChangeText={setDisplayName}
+                />
+              </View>
 
-            <TouchableOpacity
-              className="mt-4 bg-orange-500/10 border border-orange-500/50 p-4 rounded-lg items-center justify-center flex-row space-x-2"
-              onPress={handleDeleteData}
-            >
-              <Ionicons name="trash-outline" size={20} color="#F97316" />
-              <Text className="text-orange-500 font-bold text-base ml-2">
-                {t('settings.deleteData')}
-              </Text>
-            </TouchableOpacity>
+              <View className="mb-4">
+                <Text className="text-text-secondary text-sm mb-2 uppercase font-bold tracking-wider">
+                  {t('settings.username')}
+                </Text>
+                <TextInput
+                  className={`bg-surface text-text-primary p-4 rounded-lg border ${usernameError ? 'border-red-500' : 'border-white/5'}`}
+                  placeholder="username"
+                  placeholderTextColor="#666"
+                  value={username}
+                  onChangeText={(text) => {
+                    setUsername(text)
+                    if (usernameError) setUsernameError('')
+                  }}
+                  autoCapitalize="none"
+                />
+                {usernameError ? (
+                  <Text className="text-red-500 text-sm mt-1">{usernameError}</Text>
+                ) : null}
+              </View>
 
-            <TouchableOpacity
-              className="mt-4 p-4 rounded-lg items-center justify-center flex-row space-x-2"
-              onPress={handleDeleteAccount}
-            >
-              <Text className="text-red-500/70 font-semibold text-sm">
-                {t('settings.deleteAccount')}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+              <View className="mb-4">
+                <Text className="text-text-secondary text-sm mb-2 uppercase font-bold tracking-wider">
+                  {t('settings.bio')}
+                </Text>
+                <TextInput
+                  className="bg-surface text-text-primary p-4 rounded-lg border border-white/5 h-24"
+                  placeholder="Tell us about yourself..."
+                  placeholderTextColor="#666"
+                  value={bio}
+                  onChangeText={setBio}
+                  multiline
+                  textAlignVertical="top"
+                />
+              </View>
+              <View className="mb-4">
+                <Text className="text-text-secondary text-sm mb-2 uppercase font-bold tracking-wider">
+                  {t('settings.language')}
+                </Text>
+                <View className="bg-surface rounded-lg border border-white/5 overflow-hidden">
+                  <Picker
+                    selectedValue={i18n.language}
+                    onValueChange={(value) => changeLanguage(value)}
+                    dropdownIconColor="#666"
+                    style={{
+                      color: '#fff',
+                      backgroundColor: 'transparent',
+                    }}
+                  >
+                    {languages.map((lang) => (
+                      <Picker.Item
+                        key={lang.code}
+                        label={`${lang.flag} ${lang.label}`}
+                        value={lang.code}
+                        color={Platform.OS === 'ios' ? '#fff' : '#000'}
+                      />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
 
-      <MediaImageSelectorModal
-        visible={showBannerModal}
-        onClose={() => setShowBannerModal(false)}
-        onSelectImage={setBannerUrl}
-        imageType="banner"
-      />
-      <MediaImageSelectorModal
-        visible={showAvatarModal}
-        onClose={() => setShowAvatarModal(false)}
-        onSelectImage={setAvatarUrl}
-        imageType="avatar"
-      />
-    </View>
+              <View className="mb-4">
+                <Text className="text-text-secondary text-sm mb-2 uppercase font-bold tracking-wider">
+                  {t('settings.import')}
+                </Text>
+                <TouchableOpacity
+                  className="bg-surface border border-white/5 rounded-lg p-4 flex-row items-center justify-between"
+                  onPress={() => router.push('/profile/import')}
+                >
+                  <View className="flex-1 pr-3">
+                    <Text className="text-text-primary font-semibold text-base">
+                      {t('settings.importHistoryTitle')}
+                    </Text>
+                    <Text className="text-text-secondary text-sm mt-1">
+                      {t('settings.importHistorySubtitle')}
+                    </Text>
+                  </View>
+                  <Ionicons name="cloud-upload-outline" size={22} color="#1DB954" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View className="px-4 mt-8">
+              <TouchableOpacity
+                className="bg-red-500/10 border border-red-500/50 p-4 rounded-lg items-center justify-center flex-row space-x-2"
+                onPress={handleLogout}
+              >
+                <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+                <Text className="text-red-500 font-bold text-base ml-2">
+                  {t('settings.logout')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className="mt-4 bg-orange-500/10 border border-orange-500/50 p-4 rounded-lg items-center justify-center flex-row space-x-2"
+                onPress={handleDeleteData}
+              >
+                <Ionicons name="trash-outline" size={20} color="#F97316" />
+                <Text className="text-orange-500 font-bold text-base ml-2">
+                  {t('settings.deleteData')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className="mt-4 p-4 rounded-lg items-center justify-center flex-row space-x-2"
+                onPress={handleDeleteAccount}
+              >
+                <Text className="text-red-500/70 font-semibold text-sm">
+                  {t('settings.deleteAccount')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+
+        <MediaImageSelectorModal
+          visible={showBannerModal}
+          onClose={() => setShowBannerModal(false)}
+          onSelectImage={setBannerUrl}
+          imageType="banner"
+        />
+        <MediaImageSelectorModal
+          visible={showAvatarModal}
+          onClose={() => setShowAvatarModal(false)}
+          onSelectImage={setAvatarUrl}
+          imageType="avatar"
+        />
+      </View>
+    </ProtectedContentGate>
   )
 }
