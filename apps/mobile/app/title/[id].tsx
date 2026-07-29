@@ -27,6 +27,7 @@ import { useFollowedTitleRatings } from '~/hooks/data/useFollowedRatings'
 import { useTheaterStatus } from '~/hooks/data/useTheaterStatus'
 import { getOscarNominationsLegacy, useOscarData } from '~/services/awards'
 import { dbService } from '~/services/database'
+import { getTMDbService } from '~/services/tmdb'
 import type { MediaType } from '~/types'
 import { shareNativeResource } from '~/utils/native-share'
 
@@ -159,6 +160,31 @@ export default function TitleDetailScreen() {
         error instanceof Error ? error.message : 'Failed to process diary action'
       )
     }
+  }
+
+  if (metaQuery.isPlaceholderData && metaQuery.summary) {
+    const summaryPoster = getTMDbService().getImageUrl(metaQuery.summary.posterPath, 'w300')
+    return (
+      <View className="flex-1 bg-primary">
+        <View className="flex-row items-end gap-4 px-4 pt-16">
+          {summaryPoster ? (
+            <Image
+              source={{ uri: summaryPoster }}
+              className="h-36 w-24 rounded-lg"
+              resizeMode="cover"
+            />
+          ) : (
+            <View className="h-36 w-24 rounded-lg bg-surface" />
+          )}
+          <Text className="flex-1 pb-4 text-2xl font-bold text-text-primary">
+            {metaQuery.summary.title}
+          </Text>
+        </View>
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#1DB954" />
+        </View>
+      </View>
+    )
   }
 
   if (loading) {

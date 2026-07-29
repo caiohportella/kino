@@ -792,9 +792,9 @@ function MovieRatingDialog({
           const localized =
             localizedTitles.data?.[localizedTitleKey({ tmdbId: movie.tmdb_id, type: 'movie' })]
           return {
-            displayTitle: localized?.title || movie.title,
+            displayTitle: localized?.title || t('diary.unknownTitle'),
             movie,
-            posterPath: localized?.posterPath ?? movie.cover_image,
+            posterPath: localized?.posterPath ?? null,
           }
         })
         .sort(
@@ -803,7 +803,7 @@ function MovieRatingDialog({
             left.displayTitle.localeCompare(right.displayTitle)
         )
         .slice(0, 10),
-    [items, localizedTitles.data]
+    [items, localizedTitles.data, t]
   )
 
   return (
@@ -814,7 +814,11 @@ function MovieRatingDialog({
         summary={t('profile.movieRatingsModalSummary', { total: items.length })}
       />
       <div className="grid min-h-0 flex-1 gap-2 overflow-y-auto pr-1">
-        {rows.length === 0 ? (
+        {localizedTitles.isPending ? (
+          <LocalizedRowsSkeleton />
+        ) : localizedTitles.isError ? (
+          <DialogEmptyState body={t('common.tryAgain')} title={t('common.failed')} />
+        ) : rows.length === 0 ? (
           <DialogEmptyState
             body={t('profile.movieRatingsModalEmptyBody')}
             title={t('profile.movieRatingsModalEmptyTitle')}
@@ -926,8 +930,8 @@ function SeriesRatingDialog({
         .map(({ series, rating }) => {
           const localized =
             localizedTitles.data?.[localizedTitleKey({ tmdbId: series.tmdb_id, type: 'tv' })]
-          const displayTitle = localized?.title || series.title
-          const posterPath = localized?.posterPath ?? series.cover_image
+          const displayTitle = localized?.title || t('diary.unknownTitle')
+          const posterPath = localized?.posterPath ?? null
 
           return {
             rating,
@@ -941,7 +945,7 @@ function SeriesRatingDialog({
             right.rating - left.rating || left.displayTitle.localeCompare(right.displayTitle)
         )
         .slice(0, 10),
-    [localizedTitles.data, ratingRows]
+    [localizedTitles.data, ratingRows, t]
   )
 
   return (
@@ -957,7 +961,11 @@ function SeriesRatingDialog({
       />
 
       <div className="grid min-h-0 flex-1 gap-2 overflow-y-auto pr-1">
-        {rows.length === 0 ? (
+        {localizedTitles.isPending ? (
+          <LocalizedRowsSkeleton />
+        ) : localizedTitles.isError ? (
+          <DialogEmptyState body={t('common.tryAgain')} title={t('common.failed')} />
+        ) : rows.length === 0 ? (
           <DialogEmptyState
             body={t('profile.seriesRatingsModalEmptyBody')}
             title={t('profile.seriesRatingsModalEmptyTitle')}
@@ -1030,6 +1038,47 @@ function DialogEmptyState({ title, body }: { title: string; body: string }) {
   )
 }
 
+function LocalizedRowsSkeleton() {
+  return Array.from({ length: 4 }, (_, index) => (
+    <div
+      className="grid grid-cols-[32px_48px_minmax(0,1fr)] items-center gap-3 rounded-md border border-white/10 p-3"
+      key={`localized-row-skeleton-${index}`}
+    >
+      <Skeleton className="h-6 w-7" />
+      <Skeleton className="aspect-[2/3] w-12" />
+      <Skeleton className="h-5 w-2/3" />
+    </div>
+  ))
+}
+
+function LocalizedShelfSkeleton({ title }: { title: string }) {
+  return (
+    <section>
+      <h2 className="mb-3 text-xl font-semibold text-kino-text">{title}</h2>
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-7">
+        {Array.from({ length: 5 }, (_, index) => (
+          <Skeleton className="aspect-[2/3] w-full rounded-md" key={`shelf-skeleton-${index}`} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function LocalizedShelfError({ title }: { title: string }) {
+  const { t } = useTranslation()
+  return (
+    <section>
+      <h2 className="mb-3 text-xl font-semibold text-kino-text">{title}</h2>
+      <EmptyState
+        body={t('common.tryAgain')}
+        size="compact"
+        title={t('common.failed')}
+        variant="missing"
+      />
+    </section>
+  )
+}
+
 function ProfileShelf({
   title,
   items,
@@ -1049,11 +1098,13 @@ function ProfileShelf({
   const localizedTitles = useLocalizedTitles(items.map((item) => ({ tmdbId: item.tmdb_id, type })))
 
   if (items.length === 0) return null
+  if (localizedTitles.isPending) return <LocalizedShelfSkeleton title={title} />
+  if (localizedTitles.isError) return <LocalizedShelfError title={title} />
 
   const renderTitleCard = (item: (typeof items)[number]) => {
     const localized = localizedTitles.data?.[localizedTitleKey({ tmdbId: item.tmdb_id, type })]
-    const displayTitle = localized?.title || item.title
-    const posterPath = localized?.posterPath ?? item.cover_image
+    const displayTitle = localized?.title || t('diary.unknownTitle')
+    const posterPath = localized?.posterPath ?? null
     const releaseYear = localized?.year ?? item.release_year
 
     return (
@@ -1150,12 +1201,14 @@ function SeriesShelfRow({
       </section>
     ) : null
   }
+  if (localizedTitles.isPending) return <LocalizedShelfSkeleton title={title} />
+  if (localizedTitles.isError) return <LocalizedShelfError title={title} />
 
   const renderTitleCard = (series: (typeof items)[number]) => {
     const localized =
       localizedTitles.data?.[localizedTitleKey({ tmdbId: series.tmdb_id, type: 'tv' })]
-    const displayTitle = localized?.title || series.title
-    const posterPath = localized?.posterPath ?? series.cover_image
+    const displayTitle = localized?.title || t('diary.unknownTitle')
+    const posterPath = localized?.posterPath ?? null
     const releaseYear = localized?.year ?? series.release_year
 
     return (

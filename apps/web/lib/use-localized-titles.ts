@@ -1,11 +1,11 @@
 'use client'
 
 import type { MediaType } from '@kino/core'
-import { getReleaseYear } from '@kino/core'
-import { useQueries } from '@tanstack/react-query'
+import { LOCALIZED_TITLE_GC_TIME, LOCALIZED_TITLE_STALE_TIME } from '@kino/core/cache'
+import { LOCALIZED_TITLE_BATCH_SCHEMA_VERSION } from '@kino/core/localization'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { getTmdb } from '@/lib/services'
-import { titleSummaryQueryOptions } from '@/lib/title-queries'
+import { hydrateLocalizedTitleBatch, requestLocalizedTitleBatch } from '@/lib/localized-title-batch'
 import { useSettingsStore } from '@/stores/settings-store'
 
 export interface LocalizedTitleRequest {
@@ -30,71 +30,60 @@ export function useLocalizedTitles(items: LocalizedTitleRequest[]) {
   const language = useSettingsStore((state) => state.language)
   const localeStatus = useSettingsStore((state) => state.localeStatus)
   const uniqueItems = useMemo(() => normalizeLocalizedItems(items), [items])
+  const queryClient = useQueryClient()
+  const region = localeRegion(language)
 
-  const queryResults = useQueries({
-    queries:
-      localeStatus === 'resolving'
-        ? []
-        : uniqueItems.map((item) =>
-            titleSummaryQueryOptions({
-              fetchSummary: async (request) => {
-                const tmdb = getTmdb()
-                tmdb.setLanguage(request.locale)
-
-                if (request.mediaType === 'tv') {
-                  const details = await tmdb.getTVDetails(request.id)
-                  return {
-                    backdropPath: details.backdrop_path,
-                    id: request.id,
-                    mediaType: request.mediaType,
-                    posterPath: details.poster_path,
-                    title: details.name,
-                    year: getReleaseYear(details),
-                  }
-                }
-
-                const details = await tmdb.getMovieDetails(request.id)
-                return {
-                  backdropPath: details.backdrop_path,
-                  id: request.id,
-                  mediaType: request.mediaType,
-                  posterPath: details.poster_path,
-                  title: details.title,
-                  year: getReleaseYear(details),
-                }
-              },
-              id: item.tmdbId,
-              locale: language,
-              mediaType: item.type,
-              region: localeRegion(language),
-              scope: { kind: 'public' },
-            })
-          ),
+  const batchQuery = useQuery({
+    enabled: localeStatus !== 'resolving' && uniqueItems.length > 0,
+    gcTime: LOCALIZED_TITLE_GC_TIME,
+    queryFn: ({ signal }) =>
+      hydrateLocalizedTitleBatch(
+        queryClient,
+        {
+          schemaVersion: LOCALIZED_TITLE_BATCH_SCHEMA_VERSION,
+          items: uniqueItems,
+          locale: language,
+          region,
+        },
+        requestLocalizedTitleBatch,
+        signal
+      ),
+    queryKey: [
+      'localized-title-batch',
+      LOCALIZED_TITLE_BATCH_SCHEMA_VERSION,
+      language,
+      region,
+      uniqueItems.map(localizedTitleKey).join(','),
+    ],
+    staleTime: LOCALIZED_TITLE_STALE_TIME,
   })
 
   const data = useMemo(
     () =>
       Object.fromEntries(
-        queryResults.flatMap((result, index) => {
-          const item = uniqueItems[index]
-          if (!item || !result.data) return []
+        (batchQuery.data?.summaries || []).map((summary) => {
+          const item = { tmdbId: summary.id, type: summary.mediaType }
           return [
-            [
-              localizedTitleKey(item),
-              {
-                backdropPath: result.data.backdropPath,
-                posterPath: result.data.posterPath,
-                title: result.data.title,
-                year: result.data.year,
-              },
-            ],
+            localizedTitleKey(item),
+            {
+              backdropPath: summary.backdropPath,
+              posterPath: summary.posterPath,
+              title: summary.title,
+              year: summary.year,
+            },
           ]
         })
       ) as LocalizedTitleMap,
-    [queryResults, uniqueItems]
+    [batchQuery.data]
   )
 
-  return { data }
+  return {
+    data,
+    errors: batchQuery.data?.errors || [],
+    isError: batchQuery.isError,
+    isPending: localeStatus === 'resolving' || (uniqueItems.length > 0 && batchQuery.isPending),
+    missing: batchQuery.data?.missing || [],
+  }
 }
 
 function normalizeLocalizedItems(items: LocalizedTitleRequest[]) {

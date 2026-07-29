@@ -12,6 +12,7 @@ import { useSettingsStore } from '@/stores/settings-store'
 
 export default function DiscoverPage() {
   const language = useSettingsStore((state) => state.language)
+  const localeStatus = useSettingsStore((state) => state.localeStatus)
   const { t } = useTranslation()
   const query = useQuery({
     queryKey: ['discover', language],
@@ -30,9 +31,12 @@ export default function DiscoverPage() {
 
       return { trending, popularMovies, popularTV, topRated, nowPlaying, upcoming }
     },
+    enabled: localeStatus !== 'resolving',
   })
 
-  if (query.isLoading) return <HomeSkeleton label={t('common.loading')} />
+  if (localeStatus === 'resolving' || query.isLoading) {
+    return <HomeSkeleton label={t('common.loading')} />
+  }
 
   if (query.error || !query.data) {
     return (

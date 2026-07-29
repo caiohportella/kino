@@ -92,12 +92,15 @@ import { storeAuthRedirect } from '@/lib/auth-redirect'
 import { useTranslation } from '@/lib/i18n'
 import { parseResourceSegment, personPath } from '@/lib/routes'
 import { db, getTmdb } from '@/lib/services'
+import { type LocalizedTitleSummary, titleDetailsQueryOptions } from '@/lib/title-queries'
 import { cn } from '@/lib/utils'
 import { publishWatchlistChange } from '@/lib/watchlist-cache-sync'
 import { useAuthStore } from '@/stores/auth-store'
 import { useSettingsStore } from '@/stores/settings-store'
 
 const ANON_TITLE_ID = '00000000-0000-0000-0000-000000000000'
+type WebCanonicalTitleDetails = Omit<TitleDetails, 'id'> &
+  LocalizedTitleSummary & { kinoId: string }
 const EXTERNAL_LOGOS = {
   letterboxd: 'https://a.ltrbxd.com/logos/letterboxd-decal-dots-neg-rgb.svg',
   tmdb: 'https://www.themoviedb.org/assets/2/v4/logos/v2/blue_square_2-d537fb228cf3ded904ef09b136fe3fec72548ebc1fea3fbbd1ad9e36364db38b.svg',
@@ -112,6 +115,20 @@ function parseTmdbDate(value: string) {
 
 function formatDate(value: string) {
   return formatKinoDate(parseTmdbDate(value) || value)
+}
+
+function localeRegion(locale: string) {
+  const regions: Record<string, string> = { en: 'US', fr: 'FR', it: 'IT', no: 'NO', pt: 'BR' }
+  return regions[locale] ?? 'US'
+}
+
+function tmdbPath(url: string | null) {
+  if (!url) return null
+  const marker = '/t/p/'
+  const index = url.indexOf(marker)
+  if (index < 0) return url
+  const pathStart = url.indexOf('/', index + marker.length)
+  return pathStart < 0 ? null : url.slice(pathStart)
 }
 
 function getUpcomingSeason(title: TitleDetails) {
@@ -157,49 +174,72 @@ export default function TitlePage() {
   const [diaryCalendarOpen, setDiaryCalendarOpen] = useState(false)
   const [diaryDate, setDiaryDate] = useState(() => new Date())
 
-  const titleQuery = useQuery({
-    queryKey: ['title-metadata', tmdbId, type, language],
-    queryFn: async () => {
-      const tmdb = getTmdb()
-      tmdb.setLanguage(language)
-      const details =
-        type === 'movie'
-          ? transformMovieToTitleDetails(
-              tmdb,
-              await tmdb.getMovieDetails(tmdbId),
-              await tmdb.getMovieCredits(tmdbId)
-            )
-          : transformTVToTitleDetails(
-              tmdb,
-              await tmdb.getTVDetails(tmdbId),
-              await tmdb.getTVCredits(tmdbId)
-            )
+  const rawTitleQuery = useQuery(
+    titleDetailsQueryOptions<WebCanonicalTitleDetails>(queryClient, {
+      id: tmdbId,
+      locale: language,
+      mediaType: type,
+      region: localeRegion(language),
+      scope: { kind: 'public' },
+      fetchDetails: async () => {
+        const tmdb = getTmdb()
+        tmdb.setLanguage(language)
+        const details =
+          type === 'movie'
+            ? transformMovieToTitleDetails(
+                tmdb,
+                await tmdb.getMovieDetails(tmdbId),
+                await tmdb.getMovieCredits(tmdbId)
+              )
+            : transformTVToTitleDetails(
+                tmdb,
+                await tmdb.getTVDetails(tmdbId),
+                await tmdb.getTVCredits(tmdbId)
+              )
 
-      let id = ANON_TITLE_ID
-      try {
-        id = await db.getOrCreateTitle(details)
-      } catch (error) {
-        if (
-          !(
-            typeof error === 'object' &&
-            error !== null &&
-            'code' in error &&
-            error.code === '42501'
-          )
-        ) {
-          throw error
+        let id = ANON_TITLE_ID
+        try {
+          id = await db.getOrCreateTitle(details)
+        } catch (error) {
+          if (
+            !(
+              typeof error === 'object' &&
+              error !== null &&
+              'code' in error &&
+              error.code === '42501'
+            )
+          ) {
+            throw error
+          }
         }
-      }
 
-      return {
-        ...details,
-        id,
-        averageRating: 0,
-        ratingCount: 0,
-      } satisfies TitleDetails
-    },
-    enabled: Number.isFinite(tmdbId),
-  })
+        const titleDetails = {
+          ...details,
+          id,
+          averageRating: 0,
+          ratingCount: 0,
+        } satisfies TitleDetails
+        const { id: kinoId, ...presentation } = titleDetails
+        return {
+          ...presentation,
+          backdropPath: tmdbPath(titleDetails.backdropImage),
+          id: tmdbId,
+          kinoId,
+          mediaType: type,
+          posterPath: tmdbPath(titleDetails.coverImage),
+        } satisfies WebCanonicalTitleDetails
+      },
+    })
+  )
+  const titleData: TitleDetails | undefined =
+    rawTitleQuery.data && 'kinoId' in rawTitleQuery.data
+      ? { ...rawTitleQuery.data, id: rawTitleQuery.data.kinoId }
+      : undefined
+  const titleQuery = {
+    ...rawTitleQuery,
+    data: titleData,
+    isLoading: rawTitleQuery.isPending || rawTitleQuery.isPlaceholderData,
+  }
 
   const title = titleQuery.data
   const currentProfileQuery = useQuery({
@@ -327,6 +367,23 @@ export default function TitlePage() {
     const query = searchParams.toString()
     storeAuthRedirect(`${pathname}${query ? `?${query}` : ''}`)
     router.push('/auth/login')
+  }
+
+  if (rawTitleQuery.isPlaceholderData && rawTitleQuery.data && !('kinoId' in rawTitleQuery.data)) {
+    const summary = rawTitleQuery.data
+    return (
+      <div className="content-frame">
+        <div className="flex items-end gap-4">
+          <Poster
+            className="w-24 shrink-0 sm:w-32"
+            src={getTMDbImageUrl(summary.posterPath, 'w300')}
+            title={summary.title}
+          />
+          <h1 className="pb-4 text-3xl font-black text-kino-text">{summary.title}</h1>
+        </div>
+        <TitleSkeleton label={t('common.loading')} />
+      </div>
+    )
   }
 
   if (titleQuery.isLoading) return <TitleSkeleton label={t('common.loading')} />

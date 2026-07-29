@@ -179,9 +179,9 @@ export default function DiaryPage() {
       }
       pageLoadingFallback={<DiarySkeleton label={t('common.loading')} />}
       pageStatus={
-        query.isPending
+        query.isPending || localizedTitles.isPending
           ? 'loading'
-          : query.isError
+          : query.isError || localizedTitles.isError
             ? 'error'
             : entries.length === 0
               ? 'empty'
@@ -456,8 +456,8 @@ function DiaryRow({
   const day = String(watchedDate.getDate())
   const fullDate = formatDate(entry.watchedAt)
   const localized = localizedTitles[localizedTitleKey({ tmdbId: entry.tmdbId, type: entry.type })]
-  const displayTitle = localized?.title || entry.titleName
-  const poster = getTmdb().getImageUrl(localized?.posterPath ?? entry.coverImage, 'w200')
+  const displayTitle = localized?.title || t('diary.unknownTitle')
+  const poster = getTmdb().getImageUrl(localized?.posterPath ?? null, 'w200')
   const releaseYear = localized?.year ?? entry.releaseYear
   const pending = pendingEntryId === entry.id
   const ratingLabel = t('diary.ratingLabel', { title: displayTitle })
@@ -654,7 +654,7 @@ function DiaryDialog({
   if (!entry) return null
 
   const localized = localizedTitles[localizedTitleKey({ tmdbId: entry.tmdbId, type: entry.type })]
-  const displayTitle = localized?.title || entry.titleName
+  const displayTitle = localized?.title || t('diary.unknownTitle')
   const pending = pendingEntryId === entry.id
 
   return (
