@@ -138,6 +138,129 @@ test('profile and watchlist keys keep public and authenticated data separate', (
   )
 })
 
+test('resolves a normalized username before using the canonical profile identifier downstream', () => {
+  assert.deepEqual(profileQueryKeys.usernameResolution('  KinoFan  '), [
+    'v1',
+    'profile',
+    'username-resolution',
+    'kinofan',
+  ])
+
+  const beforeUsernameChange = profileQueryKeys.identity({
+    profileId: 'profile-immutable-id',
+    visibilityScope: publicScope,
+  })
+  const afterUsernameChange = profileQueryKeys.identity({
+    profileId: 'profile-immutable-id',
+    visibilityScope: publicScope,
+  })
+
+  assert.deepEqual(beforeUsernameChange, [
+    'v1',
+    'profile',
+    'identity',
+    'profile-immutable-id',
+    'public',
+  ])
+  assert.deepEqual(beforeUsernameChange, afterUsernameChange)
+  assert.notDeepEqual(
+    profileQueryKeys.usernameResolution('before-rename'),
+    profileQueryKeys.usernameResolution('after-rename')
+  )
+})
+
+test('isolates canonical profile sections by profile, viewer, scope, page, filters, and locale region', () => {
+  const profileId = 'profile-a'
+  const visibilityScope = { kind: 'authenticated', userId: 'profile-viewer' }
+  const pageAndFilters = { filters: { mediaType: 'movie', year: 2026 }, page: 2 }
+
+  assert.deepEqual(
+    profileQueryKeys.relationship({ profileId, viewerId: 'viewer-a' }),
+    ['v1', 'profile', 'relationship', 'profile-a', 'viewer-a']
+  )
+  assert.notDeepEqual(
+    profileQueryKeys.relationship({ profileId, viewerId: 'viewer-a' }),
+    profileQueryKeys.relationship({ profileId, viewerId: 'viewer-b' })
+  )
+
+  for (const section of [
+    profileQueryKeys.watchedMovies,
+    profileQueryKeys.watchedSeries,
+    profileQueryKeys.watchlists,
+    profileQueryKeys.reviews,
+    profileQueryKeys.ratings,
+  ]) {
+    const first = section({ profileId, visibilityScope, ...pageAndFilters })
+    assert.equal(first[0], 'v1')
+    assert.equal(first[3], profileId)
+    assert.notDeepEqual(
+      first,
+      section({ profileId: 'profile-b', visibilityScope, ...pageAndFilters })
+    )
+    assert.notDeepEqual(first, section({ profileId, visibilityScope, filters: {}, page: 3 }))
+  }
+
+  assert.deepEqual(
+    profileQueryKeys.statistics({ profileId, visibilityScope }),
+    ['v1', 'profile', 'statistics', 'profile-a', 'authenticated', 'profile-viewer']
+  )
+
+  const availability = profileQueryKeys.availability({
+    filters: { season: 2 },
+    locale: 'pt_br',
+    mediaType: 'tv',
+    page: 2,
+    profileId,
+    region: 'br',
+    seasonNumber: 2,
+    titleId: 1396,
+    visibilityScope,
+  })
+  assert.deepEqual(availability, [
+    'v1',
+    'profile',
+    'availability',
+    'profile-a',
+    'tv',
+    1396,
+    2,
+    'pt-BR',
+    'BR',
+    'authenticated',
+    'profile-viewer',
+    2,
+    { season: 2 },
+  ])
+  assert.notDeepEqual(
+    availability,
+    profileQueryKeys.availability({
+      filters: { season: 2 },
+      locale: 'en-US',
+      mediaType: 'tv',
+      page: 2,
+      profileId,
+      region: 'US',
+      seasonNumber: 2,
+      titleId: 1396,
+      visibilityScope,
+    })
+  )
+  assert.notDeepEqual(
+    availability,
+    profileQueryKeys.availability({
+      filters: { season: 2 },
+      locale: 'pt-BR',
+      mediaType: 'tv',
+      page: 2,
+      profileId,
+      region: 'BR',
+      seasonNumber: 2,
+      titleId: 66732,
+      visibilityScope,
+    })
+  )
+})
+
 function reorderedInput(key) {
   return {
     filters: key.at(-1),
