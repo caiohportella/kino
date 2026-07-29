@@ -13,8 +13,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useTranslation } from '@/lib/i18n'
+import { resolveLocalizedTitlePresentation } from '@/lib/localized-title-presentation'
 import { getTmdb } from '@/lib/services'
-import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
+import { useLocalizedTitles } from '@/lib/use-localized-titles'
 import { useSettingsStore } from '@/stores/settings-store'
 
 export function BannerPickerDialog({
@@ -28,6 +30,7 @@ export function BannerPickerDialog({
   currentBannerUrl?: string | null
   onSelectBanner: (bannerUrl: string | null) => Promise<void> | void
 }) {
+  const { t } = useTranslation()
   const [query, setQuery] = useState('')
   const [searchResults, setSearchResults] = useState<TMDbTitle[]>([])
   const [selectedMedia, setSelectedMedia] = useState<TMDbTitle | null>(null)
@@ -170,9 +173,11 @@ export function BannerPickerDialog({
               <div className="grid gap-3">
                 {searchResults.map((item) => {
                   const type = item.media_type === 'tv' ? 'tv' : 'movie'
-                  const localizedTitle =
-                    localizedTitles.data[localizedTitleKey({ tmdbId: item.id, type })]
-                  if (!localizedTitle) return null
+                  const localizedTitle = resolveLocalizedTitlePresentation({
+                    ...localizedTitles,
+                    request: { tmdbId: item.id, type },
+                    unknownTitle: t('diary.unknownTitle'),
+                  })
                   const title = localizedTitle.title
                   const poster = getTmdb().getImageUrl(localizedTitle.posterPath, 'w200')
                   const year = getReleaseYear(item)

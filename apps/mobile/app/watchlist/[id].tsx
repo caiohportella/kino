@@ -32,7 +32,8 @@ import { GroupedAvatar } from '~/components/common/GroupedAvatar'
 import { Skeleton } from '~/components/common/Skeleton'
 import { CreateWatchlistModal } from '~/components/modals/CreateWatchlistModal'
 import { ShareCodeBadge } from '~/components/watchlist/ShareCodeBadge'
-import { localizedMediaKey, useLocalizedMediaData } from '~/hooks/data/useLocalizedMediaData'
+import { resolveLocalizedMediaPresentation } from '~/hooks/data/localizedMediaPresentation'
+import { useLocalizedMediaData } from '~/hooks/data/useLocalizedMediaData'
 import { dbService } from '~/services/database'
 import type { UserProfile, Watchlist } from '~/types'
 import type { SupabaseTitle, SupabaseWatchlistItem } from '~/types/supabase'
@@ -411,10 +412,14 @@ export default function WatchlistDetailScreen() {
           />
         }
         renderItem={({ item }) => {
-          const localized =
-            localizedMedia[
-              localizedMediaKey({ tmdb_id: item.title.tmdb_id, type: item.title.type })
-            ]
+          const localized = resolveLocalizedMediaPresentation({
+            data: localizedMedia,
+            errors: localizedMedia.errors,
+            isError: localizedMedia.isError,
+            missing: localizedMedia.missing,
+            request: { tmdb_id: item.title.tmdb_id, type: item.title.type },
+            unknownTitle: t('diary.unknownTitle'),
+          })
           const imageUrl = localized?.poster_path
             ? `https://image.tmdb.org/t/p/w300${localized.poster_path}`
             : null

@@ -12,6 +12,7 @@ for (const relativePath of [
     const source = await readFile(new URL(relativePath, import.meta.url), 'utf8')
     assert.match(source, /useLocalizedTitles/)
     assert.match(source, /isPending/)
+    assert.match(source, /resolveLocalizedTitlePresentation/)
     assert.doesNotMatch(source, /getImageUrl\([^)]*(cover_image|poster_path)/)
   })
 }
@@ -23,7 +24,9 @@ test('owned and shared watchlist title grids avoid persisted poster presentation
   ]) {
     const source = await readFile(new URL(relativePath, import.meta.url), 'utf8')
     assert.match(source, /localizedTitle/)
+    assert.match(source, /resolveLocalizedTitlePresentation/)
     assert.doesNotMatch(source, /getImageUrl\(item\.title\.cover_image/)
+    assert.doesNotMatch(source, /localized\?\.title\s*\|\|\s*item\.title\.title/)
   }
 })
 

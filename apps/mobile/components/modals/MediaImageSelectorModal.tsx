@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons'
 import { BlurView } from 'expo-blur'
 import { useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
   FlatList,
@@ -11,7 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import { localizedMediaKey, useLocalizedMediaData } from '~/hooks/data/useLocalizedMediaData'
+import { resolveLocalizedMediaPresentation } from '~/hooks/data/localizedMediaPresentation'
+import { useLocalizedMediaData } from '~/hooks/data/useLocalizedMediaData'
 import { getTMDbService } from '~/services/tmdb'
 import type { TMDbImage, TMDbTitle } from '~/types'
 
@@ -28,6 +30,7 @@ export function MediaImageSelectorModal({
   onSelectImage,
   imageType,
 }: MediaImageSelectorModalProps) {
+  const { t } = useTranslation()
   const [query, setQuery] = useState('')
   const [searchResults, setSearchResults] = useState<TMDbTitle[]>([])
   const [loading, setLoading] = useState(false)
@@ -166,8 +169,14 @@ export function MediaImageSelectorModal({
                   contentContainerStyle={{ padding: 16, gap: 16 }}
                   renderItem={({ item }) => {
                     const type = item.media_type === 'tv' ? 'tv' : 'movie'
-                    const localized = localizedMedia[localizedMediaKey({ tmdb_id: item.id, type })]
-                    if (!localized) return null
+                    const localized = resolveLocalizedMediaPresentation({
+                      data: localizedMedia,
+                      errors: localizedMedia.errors,
+                      isError: localizedMedia.isError,
+                      missing: localizedMedia.missing,
+                      request: { tmdb_id: item.id, type },
+                      unknownTitle: t('diary.unknownTitle'),
+                    })
                     return (
                       <TouchableOpacity
                         className="bg-surface rounded-xl overflow-hidden border border-white/5 active:opacity-80 flex-row"

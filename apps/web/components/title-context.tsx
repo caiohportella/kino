@@ -24,8 +24,9 @@ import {
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useTranslation } from '@/lib/i18n'
+import { resolveLocalizedTitlePresentation } from '@/lib/localized-title-presentation'
 import { resolveProviderDestination } from '@/lib/provider-destinations'
-import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
+import { useLocalizedTitles } from '@/lib/use-localized-titles'
 import { cn } from '@/lib/utils'
 
 export interface TitleContextData {
@@ -61,7 +62,7 @@ export function FranchiseTitles({ items, loading }: { items?: TMDbTitle[]; loadi
           </div>
         ) : (
           <MediaRow aria-label={t('title.moreFromFranchise')}>
-            {localizedItems(items, localizedTitles.data).map((item) => (
+            {localizedItems(items, localizedTitles, t('diary.unknownTitle')).map((item) => (
               <MediaCard item={item} key={`${item.media_type}-${item.id}`} />
             ))}
           </MediaRow>
@@ -335,7 +336,7 @@ export function MoreLikeThis({
           </div>
         ) : items?.length ? (
           <MediaRow aria-label={t('title.moreLikeThis')}>
-            {localizedItems(items, localizedTitles.data).map((item) => (
+            {localizedItems(items, localizedTitles, t('diary.unknownTitle')).map((item) => (
               <MediaCard item={item} key={`${item.media_type}-${item.id}`} />
             ))}
           </MediaRow>
@@ -358,21 +359,23 @@ function localizationRequests(items?: TMDbTitle[]) {
 
 function localizedItems(
   items: TMDbTitle[] | undefined,
-  localized: ReturnType<typeof useLocalizedTitles>['data']
+  localized: ReturnType<typeof useLocalizedTitles>,
+  unknownTitle: string
 ) {
-  return (items || []).flatMap((item) => {
+  return (items || []).map((item) => {
     const type = item.media_type === 'tv' ? 'tv' : 'movie'
-    const value = localized[localizedTitleKey({ tmdbId: item.id, type })]
-    if (!value) return []
-    return [
-      {
-        ...item,
-        backdrop_path: value.backdropPath,
-        name: type === 'tv' ? value.title : item.name,
-        poster_path: value.posterPath,
-        title: type === 'movie' ? value.title : item.title,
-      },
-    ]
+    const value = resolveLocalizedTitlePresentation({
+      ...localized,
+      request: { tmdbId: item.id, type },
+      unknownTitle,
+    })
+    return {
+      ...item,
+      backdrop_path: value.backdropPath,
+      name: type === 'tv' ? value.title : item.name,
+      poster_path: value.posterPath,
+      title: type === 'movie' ? value.title : item.title,
+    }
   })
 }
 

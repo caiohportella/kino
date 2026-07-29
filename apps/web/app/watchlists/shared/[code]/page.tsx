@@ -7,9 +7,10 @@ import { EmptyState, Poster } from '@/components/kino'
 import { PageHeader } from '@/components/page-header'
 import { WatchlistsSkeleton } from '@/components/skeletons/page-skeletons'
 import { useTranslation } from '@/lib/i18n'
+import { resolveLocalizedTitlePresentation } from '@/lib/localized-title-presentation'
 import { titlePath } from '@/lib/routes'
 import { db, getTmdb } from '@/lib/services'
-import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
+import { useLocalizedTitles } from '@/lib/use-localized-titles'
 
 export default function SharedWatchlistPage() {
   const { code } = useParams<{ code: string }>()
@@ -48,11 +49,11 @@ export default function SharedWatchlistPage() {
       {query.data.items.length ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-x-5 gap-y-10 sm:grid-cols-[repeat(auto-fill,minmax(168px,1fr))]">
           {query.data.items.map((item) => {
-            const localizedTitle =
-              localizedTitles.data[
-                localizedTitleKey({ tmdbId: item.title.tmdb_id, type: item.title.type })
-              ]
-            if (!localizedTitle) return null
+            const localizedTitle = resolveLocalizedTitlePresentation({
+              ...localizedTitles,
+              request: { tmdbId: item.title.tmdb_id, type: item.title.type },
+              unknownTitle: t('diary.unknownTitle'),
+            })
             return (
               <Link
                 className="grid min-w-0 content-start gap-3"

@@ -14,6 +14,7 @@ for (const relativePath of localizedListConsumers) {
     const source = await readFile(new URL(relativePath, import.meta.url), 'utf8')
     assert.match(source, /useLocalizedMediaData/)
     assert.match(source, /isPending/)
+    assert.match(source, /resolveLocalizedMediaPresentation/)
     assert.doesNotMatch(source, /getImageUrl\([^)]*(cover_image|poster_path)/)
   })
 }
@@ -25,8 +26,19 @@ test('secondary mobile modals reuse localized list hydration without per-card TM
   ]) {
     const source = await readFile(new URL(relativePath, import.meta.url), 'utf8')
     assert.match(source, /useLocalizedMediaData/)
+    assert.match(source, /resolveLocalizedMediaPresentation/)
     assert.doesNotMatch(source, /getMovieDetails|getTVDetails/)
+    assert.doesNotMatch(source, /:\s*item\.cover_image/)
   }
+})
+
+test('HomeSection keeps section and card identity during loading and localization failure', async () => {
+  const source = await readFile(
+    new URL('../components/home/HomeSection.tsx', import.meta.url),
+    'utf8'
+  )
+  assert.match(source, /HomeSectionSkeleton/)
+  assert.match(source, /resolveLocalizedMediaPresentation/)
 })
 
 test('non-title watchlist and import surfaces do not introduce localized image requests', async () => {

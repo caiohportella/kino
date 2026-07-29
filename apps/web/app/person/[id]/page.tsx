@@ -27,10 +27,11 @@ import { PersonSkeleton } from '@/components/skeletons/page-skeletons'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useTranslation } from '@/lib/i18n'
+import { resolveLocalizedTitlePresentation } from '@/lib/localized-title-presentation'
 import { getPersonImagePaths } from '@/lib/person-visuals'
 import { parseResourceSegment, personPath } from '@/lib/routes'
 import { getTmdb } from '@/lib/services'
-import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
+import { useLocalizedTitles } from '@/lib/use-localized-titles'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/stores/settings-store'
 
@@ -165,14 +166,14 @@ export default function PersonPage() {
                 <PersonCreditCard
                   credit={credit}
                   key={`${credit.media_type}-${credit.id}`}
-                  localizedTitle={
-                    localizedTitles.data[
-                      localizedTitleKey({
-                        tmdbId: credit.id,
-                        type: credit.media_type === 'tv' ? 'tv' : 'movie',
-                      })
-                    ]
-                  }
+                  localizedTitle={resolveLocalizedTitlePresentation({
+                    ...localizedTitles,
+                    request: {
+                      tmdbId: credit.id,
+                      type: credit.media_type === 'tv' ? 'tv' : 'movie',
+                    },
+                    unknownTitle: t('diary.unknownTitle'),
+                  })}
                 />
               ))}
             </div>
@@ -194,12 +195,11 @@ function PersonCreditCard({
   localizedTitle,
 }: {
   credit: TMDbPersonCredit
-  localizedTitle?: {
+  localizedTitle: {
     posterPath: string | null
     title: string
   }
 }) {
-  if (!localizedTitle) return null
   const type = credit.media_type === 'tv' ? 'tv' : 'movie'
   const role = credit.character || credit.job
 

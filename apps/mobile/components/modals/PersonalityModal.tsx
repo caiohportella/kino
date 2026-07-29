@@ -14,6 +14,7 @@ import {
 } from 'react-native'
 import { FlatList } from 'react-native-gesture-handler'
 import { TitleCard } from '~/components/common/TitleCard'
+import { resolveLocalizedMediaPresentation } from '~/hooks/data/localizedMediaPresentation'
 import { localizedMediaKey, useLocalizedMediaData } from '~/hooks/data/useLocalizedMediaData'
 import { usePersonData } from '~/hooks/usePersonData'
 import { getTMDbService } from '~/services/tmdb'
@@ -64,8 +65,14 @@ export function PersonalityModal({ visible, onClose, personId }: PersonalityModa
 
   const renderKnownForItem = ({ item }: { item: TMDbPersonCredit }) => {
     const type = item.media_type === 'tv' ? 'tv' : 'movie'
-    const localized = localizedMedia[localizedMediaKey({ tmdb_id: item.id, type })]
-    if (!localized) return null
+    const localized = resolveLocalizedMediaPresentation({
+      data: localizedMedia,
+      errors: localizedMedia.errors,
+      isError: localizedMedia.isError,
+      missing: localizedMedia.missing,
+      request: { tmdb_id: item.id, type },
+      unknownTitle: t('diary.unknownTitle'),
+    })
     return (
       <View className="w-36 mr-4">
         <TitleCard
