@@ -16,13 +16,18 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import placeholderPoster from '@/assets/placeholder-poster.jpg'
 import { useAuth } from '@/hooks/useAuth'
 import { useLanguage } from '@/hooks/useLanguage'
 import { supabase } from '@/utils/supabase'
 import { RatingStars } from '~/components/common/RatingStars'
 import { ScreenHeader } from '~/components/layout/ScreenHeader'
 import { DiaryActionModal } from '~/components/modals/DiaryActionModal'
-import { useTitleDetailsFromTmdb } from '~/hooks/api/useTMDB'
+import {
+  type LocalizedMedia,
+  localizedMediaKey,
+  useLocalizedMediaData,
+} from '~/hooks/data/useLocalizedMediaData'
 import { dbService } from '~/services/database'
 import { getTMDbService } from '~/services/tmdb'
 
@@ -308,27 +313,14 @@ function DiaryEntryCard({
   const date = new Date(item.watchedAt)
   const day = format(date, 'd')
 
-  // Fetch localized details dynamically based on current app language
-  const { data: tmdbTitle, isPending: localizedTitlePending } = useTitleDetailsFromTmdb(
-    item.tmdbId,
-    item.type
+  const localizedData = useLocalizedMediaData(
+    useMemo(() => [{ tmdb_id: item.tmdbId, type: item.type }], [item.tmdbId, item.type])
   )
-  const displayTitle =
-    (item.type === 'movie' ? tmdbTitle?.title : tmdbTitle?.name) || item.titleName
-  const localizedPoster = getTMDbService().getImageUrl(tmdbTitle?.poster_path ?? null, 'w200')
-
-  if (localizedTitlePending) {
-    return (
-      <View className="flex-row items-center px-4 py-3">
-        <View className="mr-2 h-8 w-12 rounded-md bg-surface" />
-        <View className="mr-3 h-14 w-10 rounded-md bg-surface" />
-        <View className="flex-1 gap-2">
-          <View className="h-4 w-2/3 rounded bg-surface" />
-          <View className="h-3 w-1/3 rounded bg-surface" />
-        </View>
-      </View>
-    )
-  }
+  const localized = localizedData[localizedMediaKey({ tmdb_id: item.tmdbId, type: item.type })] as
+    | LocalizedMedia
+    | undefined
+  const displayTitle = localized?.title || t('diary.unknownTitle')
+  const localizedPoster = getTMDbService().getImageUrl(localized?.poster_path ?? null, 'w200')
 
   return (
     <TouchableOpacity
@@ -344,11 +336,7 @@ function DiaryEntryCard({
       <View className="flex-1 flex-row items-center">
         {/* Poster */}
         <Image
-          source={
-            localizedPoster
-              ? { uri: localizedPoster }
-              : { uri: 'https://via.placeholder.com/100x150' }
-          }
+          source={localizedPoster ? { uri: localizedPoster } : placeholderPoster}
           className="mr-3 h-14 w-10 rounded-md border border-surface bg-surface"
           resizeMode="cover"
         />

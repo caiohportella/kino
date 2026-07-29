@@ -35,6 +35,7 @@ export interface TitleSummaryQueryInput extends LocalizedTitleQueryContext {
 
 export interface TitleDetailsQueryInput<Details extends LocalizedTitleSummary>
   extends LocalizedTitleQueryContext {
+  readonly enabled?: boolean
   readonly fetchDetails: (request: LocalizedTitleFetchRequest) => Promise<Details>
 }
 
@@ -55,9 +56,14 @@ export function titleDetailsQueryOptions<Details extends LocalizedTitleSummary>(
 ) {
   const descriptor = titleQueryKeys.canonical(input)
   return {
+    enabled: input.enabled,
     gcTime: LOCALIZED_TITLE_GC_TIME,
     placeholderData: () => queryClient.getQueryData<LocalizedTitleSummary>(descriptor.summary),
-    queryFn: ({ signal }: { signal: AbortSignal }) =>
+    queryFn: async ({
+      signal,
+    }: {
+      signal: AbortSignal
+    }): Promise<Details | LocalizedTitleSummary> =>
       input.fetchDetails({ ...descriptor.context, signal }),
     queryKey: descriptor.details,
     staleTime: LOCALIZED_TITLE_STALE_TIME,

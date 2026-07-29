@@ -792,9 +792,9 @@ function MovieRatingDialog({
           const localized =
             localizedTitles.data?.[localizedTitleKey({ tmdbId: movie.tmdb_id, type: 'movie' })]
           return {
-            displayTitle: localized?.title || movie.title,
+            displayTitle: localized?.title || t('diary.unknownTitle'),
             movie,
-            posterPath: localized?.posterPath ?? movie.cover_image,
+            posterPath: localized?.posterPath ?? null,
           }
         })
         .sort(
@@ -803,7 +803,7 @@ function MovieRatingDialog({
             left.displayTitle.localeCompare(right.displayTitle)
         )
         .slice(0, 10),
-    [items, localizedTitles.data]
+    [items, localizedTitles.data, t]
   )
 
   return (
@@ -928,8 +928,8 @@ function SeriesRatingDialog({
         .map(({ series, rating }) => {
           const localized =
             localizedTitles.data?.[localizedTitleKey({ tmdbId: series.tmdb_id, type: 'tv' })]
-          const displayTitle = localized?.title || series.title
-          const posterPath = localized?.posterPath ?? series.cover_image
+          const displayTitle = localized?.title || t('diary.unknownTitle')
+          const posterPath = localized?.posterPath ?? null
 
           return {
             rating,
@@ -943,7 +943,7 @@ function SeriesRatingDialog({
             right.rating - left.rating || left.displayTitle.localeCompare(right.displayTitle)
         )
         .slice(0, 10),
-    [localizedTitles.data, ratingRows]
+    [localizedTitles.data, ratingRows, t]
   )
 
   return (
@@ -1083,8 +1083,8 @@ function ProfileShelf({
 
   const renderTitleCard = (item: (typeof items)[number]) => {
     const localized = localizedTitles.data?.[localizedTitleKey({ tmdbId: item.tmdb_id, type })]
-    const displayTitle = localized?.title || item.title
-    const posterPath = localized?.posterPath ?? item.cover_image
+    const displayTitle = localized?.title || t('diary.unknownTitle')
+    const posterPath = localized?.posterPath ?? null
     const releaseYear = localized?.year ?? item.release_year
 
     return (
@@ -1186,8 +1186,8 @@ function SeriesShelfRow({
   const renderTitleCard = (series: (typeof items)[number]) => {
     const localized =
       localizedTitles.data?.[localizedTitleKey({ tmdbId: series.tmdb_id, type: 'tv' })]
-    const displayTitle = localized?.title || series.title
-    const posterPath = localized?.posterPath ?? series.cover_image
+    const displayTitle = localized?.title || t('diary.unknownTitle')
+    const posterPath = localized?.posterPath ?? null
     const releaseYear = localized?.year ?? series.release_year
 
     return (

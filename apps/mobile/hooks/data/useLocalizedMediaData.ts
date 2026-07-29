@@ -1,16 +1,15 @@
+import { titleQueryKeys } from '@kino/core/cache'
 import { useQueries } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { titleSummaryQueryOptions } from '~/hooks/data/titleQueries'
+import type { LocalizedTitleSummary } from '~/hooks/data/titleQueries'
 import { useReadyLanguage } from '~/hooks/useLanguage'
-import { getTMDbService } from '~/services/tmdb'
 
 export interface LocalizedMedia {
   title: string
   poster_path: string | null
 }
 
-export type LocalizedMediaMap = {
-  [tmdbId: number]: LocalizedMedia
+export type LocalizedMediaMap = Record<string, LocalizedMedia | undefined> & {
   readonly isPending: boolean
 }
 
@@ -23,41 +22,19 @@ export function useLocalizedMediaData(items: { tmdb_id: number; type: 'movie' | 
   const uniqueItems = useMemo(() => normalizeLocalizedItems(items), [items])
   const queryResults = useQueries({
     queries: language
-      ? uniqueItems.map((item) =>
-          titleSummaryQueryOptions({
-            fetchSummary: async (request) => {
-              const tmdb = getTMDbService()
-              tmdb.setLanguage(request.locale)
-
-              if (request.mediaType === 'tv') {
-                const details = await tmdb.getTVDetails(request.id)
-                return {
-                  backdropPath: details.backdrop_path,
-                  id: request.id,
-                  mediaType: request.mediaType,
-                  posterPath: details.poster_path,
-                  title: details.name,
-                  year: releaseYear(details.first_air_date),
-                }
-              }
-
-              const details = await tmdb.getMovieDetails(request.id)
-              return {
-                backdropPath: details.backdrop_path,
-                id: request.id,
-                mediaType: request.mediaType,
-                posterPath: details.poster_path,
-                title: details.title,
-                year: releaseYear(details.release_date),
-              }
-            },
+      ? uniqueItems.map((item) => ({
+          enabled: false,
+          queryFn: async (): Promise<LocalizedTitleSummary> => {
+            throw new Error('Localized summaries must be hydrated by locale-ready list responses.')
+          },
+          queryKey: titleQueryKeys.summary({
             id: item.tmdb_id,
             locale: language,
             mediaType: item.type,
             region: localeRegion(language),
             scope: { kind: 'public' },
-          })
-        )
+          }),
+        }))
       : [],
   })
 
@@ -66,21 +43,18 @@ export function useLocalizedMediaData(items: { tmdb_id: number; type: 'movie' | 
       queryResults.flatMap((result, index) => {
         const item = uniqueItems[index]
         if (!item || !result.data) return []
+        const localized = {
+          poster_path: result.data.posterPath,
+          title: result.data.title,
+        }
         return [
-          [
-            item.tmdb_id,
-            {
-              poster_path: result.data.posterPath,
-              title: result.data.title,
-            },
-          ],
+          [localizedMediaKey(item), localized],
+          [item.tmdb_id, localized],
         ]
       })
     ) as Record<number, LocalizedMedia>
-    return Object.assign(data, {
-      isPending: queryResults.some((result) => result.isPending),
-    }) as LocalizedMediaMap
-  }, [queryResults, uniqueItems])
+    return Object.assign(data, { isPending: !language }) as unknown as LocalizedMediaMap
+  }, [queryResults, uniqueItems, language])
 }
 
 /**
@@ -88,7 +62,11 @@ export function useLocalizedMediaData(items: { tmdb_id: number; type: 'movie' | 
  */
 export function useLocalizedTitle(tmdbId: number, type: 'movie' | 'tv') {
   const mediaMap = useLocalizedMediaData(useMemo(() => [{ tmdb_id: tmdbId, type }], [tmdbId, type]))
-  return mediaMap[tmdbId] || null
+  return (mediaMap[localizedMediaKey({ tmdb_id: tmdbId, type })] as LocalizedMedia) || null
+}
+
+export function localizedMediaKey(item: { tmdb_id: number; type: 'movie' | 'tv' }) {
+  return `${item.type}:${item.tmdb_id}`
 }
 
 function normalizeLocalizedItems(items: { tmdb_id: number; type: 'movie' | 'tv' }[]) {
@@ -112,10 +90,4 @@ function localeRegion(language: string) {
       pt: 'BR',
     }[language] ?? 'US'
   )
-}
-
-function releaseYear(date: string | undefined) {
-  if (!date) return null
-  const year = Number.parseInt(date.slice(0, 4), 10)
-  return Number.isFinite(year) ? year : null
 }

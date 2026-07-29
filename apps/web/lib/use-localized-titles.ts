@@ -1,11 +1,10 @@
 'use client'
 
 import type { MediaType } from '@kino/core'
-import { getReleaseYear } from '@kino/core'
+import { titleQueryKeys } from '@kino/core/cache'
 import { useQueries } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { getTmdb } from '@/lib/services'
-import { titleSummaryQueryOptions } from '@/lib/title-queries'
+import type { LocalizedTitleSummary } from '@/lib/title-queries'
 import { useSettingsStore } from '@/stores/settings-store'
 
 export interface LocalizedTitleRequest {
@@ -35,41 +34,21 @@ export function useLocalizedTitles(items: LocalizedTitleRequest[]) {
     queries:
       localeStatus === 'resolving'
         ? []
-        : uniqueItems.map((item) =>
-            titleSummaryQueryOptions({
-              fetchSummary: async (request) => {
-                const tmdb = getTmdb()
-                tmdb.setLanguage(request.locale)
-
-                if (request.mediaType === 'tv') {
-                  const details = await tmdb.getTVDetails(request.id)
-                  return {
-                    backdropPath: details.backdrop_path,
-                    id: request.id,
-                    mediaType: request.mediaType,
-                    posterPath: details.poster_path,
-                    title: details.name,
-                    year: getReleaseYear(details),
-                  }
-                }
-
-                const details = await tmdb.getMovieDetails(request.id)
-                return {
-                  backdropPath: details.backdrop_path,
-                  id: request.id,
-                  mediaType: request.mediaType,
-                  posterPath: details.poster_path,
-                  title: details.title,
-                  year: getReleaseYear(details),
-                }
-              },
+        : uniqueItems.map((item) => ({
+            enabled: false,
+            queryFn: async (): Promise<LocalizedTitleSummary> => {
+              throw new Error(
+                'Localized summaries must be hydrated by locale-ready list responses.'
+              )
+            },
+            queryKey: titleQueryKeys.summary({
               id: item.tmdbId,
               locale: language,
               mediaType: item.type,
               region: localeRegion(language),
               scope: { kind: 'public' },
-            })
-          ),
+            }),
+          })),
   })
 
   const data = useMemo(
@@ -96,7 +75,7 @@ export function useLocalizedTitles(items: LocalizedTitleRequest[]) {
 
   return {
     data,
-    isPending: queryResults.some((result) => result.isPending),
+    isPending: localeStatus === 'resolving',
   }
 }
 

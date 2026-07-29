@@ -83,6 +83,34 @@ test('concurrent identical web summary prefetches invoke the fetcher once', asyn
   queryClient.clear()
 })
 
+test('seeded web card intents reuse the localized summary without refetching', async () => {
+  const queryClient = new QueryClient()
+  let fetches = 0
+  seedTitleSummary(queryClient, context, summary)
+  const input = {
+    ...context,
+    fetchSummary: async () => {
+      fetches += 1
+      return summary
+    },
+  }
+
+  await Promise.all([
+    prefetchTitleSummary(queryClient, input),
+    prefetchTitleSummary(queryClient, input),
+  ])
+
+  assert.equal(fetches, 0)
+  assert.deepEqual(
+    titleDetailsQueryOptions(queryClient, {
+      ...context,
+      fetchDetails: async () => ({ ...summary, overview: 'details' }),
+    }).placeholderData(),
+    summary
+  )
+  queryClient.clear()
+})
+
 test('web equivalent cache inputs deduplicate with the canonical fetch request', async () => {
   const queryClient = new QueryClient()
   let fetches = 0

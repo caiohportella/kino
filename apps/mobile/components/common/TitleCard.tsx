@@ -11,6 +11,7 @@ import { seedTitleSummary } from '~/hooks/data/titleQueries'
 import { useReadyLanguage } from '~/hooks/useLanguage'
 import { getTMDbService } from '~/services/tmdb'
 import type { TMDbTitle } from '~/types'
+import { prefetchTitleSummary } from '~/utils/titlePrefetch'
 import { OscarBadge } from './OscarBadge'
 
 interface TitleCardProps {
@@ -44,24 +45,26 @@ export function TitleCard({ title, onPress, showYear = true }: TitleCardProps) {
   const handlePressIn = () => {
     scale.value = withSpring(0.96, { damping: 10, stiffness: 300 })
     if (locale) {
-      seedTitleSummary(
-        queryClient,
-        {
-          id: title.id,
-          locale,
-          mediaType,
-          region: localeRegion(locale),
-          scope: { kind: 'public' },
-        },
-        {
-          backdropPath: title.backdrop_path,
-          id: title.id,
-          mediaType,
-          posterPath: title.poster_path,
-          title: displayTitle,
-          year,
-        }
-      )
+      const context = {
+        id: title.id,
+        locale,
+        mediaType,
+        region: localeRegion(locale),
+        scope: { kind: 'public' as const },
+      }
+      const summary = {
+        backdropPath: title.backdrop_path,
+        id: title.id,
+        mediaType,
+        posterPath: title.poster_path,
+        title: displayTitle,
+        year,
+      }
+      seedTitleSummary(queryClient, context, summary)
+      void prefetchTitleSummary(queryClient, {
+        ...context,
+        fetchSummary: async () => summary,
+      })
     }
   }
 

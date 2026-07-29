@@ -2,7 +2,11 @@ import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native'
 import placeholderPoster from '@/assets/placeholder-poster.jpg'
-import { useLocalizedMediaData } from '~/hooks/data/useLocalizedMediaData'
+import {
+  type LocalizedMedia,
+  localizedMediaKey,
+  useLocalizedMediaData,
+} from '~/hooks/data/useLocalizedMediaData'
 import { getTMDbService } from '~/services/tmdb'
 import { OscarBadge } from '../common/OscarBadge'
 
@@ -49,33 +53,34 @@ export function WatchedMoviesSection({ movies, onMoviePress, onLongPress, onView
             />
           ))
         ) : movies.length > 0 ? (
-          movies.map((movie) => (
-            <TouchableOpacity
-              key={movie.id}
-              className="mr-3"
-              onPress={() => onMoviePress(movie.tmdb_id)}
-              onLongPress={() => onLongPress?.(movie)}
-            >
-              <View className="relative">
-                <Image
-                  source={
-                    localizedData[movie.tmdb_id]?.poster_path
-                      ? {
-                          uri:
-                            tmdb.getImageUrl(localizedData[movie.tmdb_id].poster_path, 'w300') ||
-                            '',
-                        }
-                      : movie.cover_image
-                        ? { uri: movie.cover_image }
+          movies.map((movie) => {
+            const localized = localizedData[
+              localizedMediaKey({ tmdb_id: movie.tmdb_id, type: 'movie' })
+            ] as LocalizedMedia | undefined
+            return (
+              <TouchableOpacity
+                key={movie.id}
+                className="mr-3"
+                onPress={() => onMoviePress(movie.tmdb_id)}
+                onLongPress={() => onLongPress?.(movie)}
+              >
+                <View className="relative">
+                  <Image
+                    source={
+                      localized?.poster_path
+                        ? {
+                            uri: tmdb.getImageUrl(localized.poster_path, 'w300') || '',
+                          }
                         : placeholderPoster
-                  }
-                  className="w-24 h-36 rounded-lg bg-surface"
-                  resizeMode="cover"
-                />
-                <OscarBadge tmdbId={movie.tmdb_id} size="small" />
-              </View>
-            </TouchableOpacity>
-          ))
+                    }
+                    className="w-24 h-36 rounded-lg bg-surface"
+                    resizeMode="cover"
+                  />
+                  <OscarBadge tmdbId={movie.tmdb_id} size="small" />
+                </View>
+              </TouchableOpacity>
+            )
+          })
         ) : (
           <Text className="text-text-secondary text-sm">{t('profile.noMoviesYet')}</Text>
         )}
