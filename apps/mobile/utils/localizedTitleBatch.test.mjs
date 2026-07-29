@@ -8,6 +8,7 @@ test('cold mobile multi-title hydration uses one gateway request and seeds local
   const queryClient = new QueryClient()
   let requests = 0
   const input = {
+    schemaVersion: 1,
     items: [
       { tmdbId: 238, type: 'movie' },
       { tmdbId: 1396, type: 'tv' },
@@ -19,6 +20,7 @@ test('cold mobile multi-title hydration uses one gateway request and seeds local
   await hydrateLocalizedTitleBatch(queryClient, input, async () => {
     requests += 1
     return {
+      schemaVersion: 1,
       errors: [],
       missing: [],
       summaries: [
@@ -39,7 +41,7 @@ test('cold mobile multi-title hydration uses one gateway request and seeds local
         scope: { kind: 'public' },
       })
     )
-    assert.equal(cached.posterResolution.source, 'tmdb-localized-details')
+    assert.equal(cached.posterResolution.source, 'tmdb-images')
   }
   queryClient.clear()
 })
@@ -51,8 +53,10 @@ function summary(id, mediaType, title, posterPath) {
     mediaType,
     posterPath,
     posterResolution: {
+      fallbackReason: null,
+      languageTier: 'exact',
       locale: 'pt',
-      source: 'tmdb-localized-details',
+      source: 'tmdb-images',
     },
     title,
     year: null,

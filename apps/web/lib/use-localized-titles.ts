@@ -2,6 +2,7 @@
 
 import type { MediaType } from '@kino/core'
 import { LOCALIZED_TITLE_GC_TIME, LOCALIZED_TITLE_STALE_TIME } from '@kino/core/cache'
+import { LOCALIZED_TITLE_BATCH_SCHEMA_VERSION } from '@kino/core/localization'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { hydrateLocalizedTitleBatch, requestLocalizedTitleBatch } from '@/lib/localized-title-batch'
@@ -38,12 +39,18 @@ export function useLocalizedTitles(items: LocalizedTitleRequest[]) {
     queryFn: ({ signal }) =>
       hydrateLocalizedTitleBatch(
         queryClient,
-        { items: uniqueItems, locale: language, region },
+        {
+          schemaVersion: LOCALIZED_TITLE_BATCH_SCHEMA_VERSION,
+          items: uniqueItems,
+          locale: language,
+          region,
+        },
         requestLocalizedTitleBatch,
         signal
       ),
     queryKey: [
       'localized-title-batch',
+      LOCALIZED_TITLE_BATCH_SCHEMA_VERSION,
       language,
       region,
       uniqueItems.map(localizedTitleKey).join(','),

@@ -1,4 +1,5 @@
 import { LOCALIZED_TITLE_GC_TIME, LOCALIZED_TITLE_STALE_TIME } from '@kino/core/cache'
+import { LOCALIZED_TITLE_BATCH_SCHEMA_VERSION } from '@kino/core/localization'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import {
@@ -35,6 +36,7 @@ export function useLocalizedMediaData(items: { tmdb_id: number; type: 'movie' | 
       hydrateLocalizedTitleBatch(
         queryClient,
         {
+          schemaVersion: LOCALIZED_TITLE_BATCH_SCHEMA_VERSION,
           items: uniqueItems.map((item) => ({ tmdbId: item.tmdb_id, type: item.type })),
           locale: language ?? 'en',
           region,
@@ -44,6 +46,7 @@ export function useLocalizedMediaData(items: { tmdb_id: number; type: 'movie' | 
       ),
     queryKey: [
       'localized-title-batch',
+      LOCALIZED_TITLE_BATCH_SCHEMA_VERSION,
       language,
       region,
       uniqueItems.map(localizedMediaKey).join(','),

@@ -1,19 +1,27 @@
 import { TMDbService } from '@kino/core'
+import {
+  type LocalizedTitleBatchItem,
+  normalizeLocalizedTitleBatchRequest,
+} from '@kino/core/localization'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
-import type {
-  LocalizedTitleBatchItem,
-  LocalizedTitleBatchResponse,
-  ResolvedLocalizedTitleSummary,
-} from '@/lib/localized-title-batch'
+import {
+  createLocalizedTitleBatchService,
+  createLocalizedTitleRateLimiter,
+  type LocalizedTitleProviderResult,
+} from '@/lib/localized-title-batch-server'
 
-export const dynamic = 'force-dynamic'
-
-const MAX_BATCH_ITEMS = 40
+const TMDB_API_BASE = 'https://api.themoviedb.org/3'
+const rateLimiter = createLocalizedTitleRateLimiter({ limit: 30, windowMs: 60_000 })
+let service: ReturnType<typeof createLocalizedTitleBatchService> | undefined
 
 export async function POST(request: NextRequest) {
+  if (!rateLimiter.check(clientIdentifier(request))) {
+    return NextResponse.json({ error: 'Too many localized title requests.' }, { status: 429 })
+  }
+
   const input = await readInput(request)
-  if (!input) {
+  if (!input || input.items.length === 0) {
     return NextResponse.json({ error: 'Invalid localized title batch.' }, { status: 400 })
   }
 
@@ -23,95 +31,82 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Title localization is unavailable.' }, { status: 503 })
   }
 
-  const tmdb = new TMDbService(apiKey)
-  tmdb.setLanguage(input.locale.split(/[-_]/, 1)[0]?.toLowerCase() || 'en')
-  const settled = await Promise.allSettled(
-    input.items.map(async (item): Promise<ResolvedLocalizedTitleSummary> => {
-      const details =
-        item.type === 'movie'
-          ? await tmdb.getMovieDetails(item.tmdbId)
-          : await tmdb.getTVDetails(item.tmdbId)
-      return {
-        backdropPath: details.backdrop_path,
-        id: item.tmdbId,
-        mediaType: item.type,
-        posterPath: details.poster_path,
-        posterResolution: {
-          locale: input.locale,
-          source: 'tmdb-localized-details',
-        },
-        title: (item.type === 'movie' ? details.title : details.name) ?? '',
-        year: releaseYear(item.type === 'movie' ? details.release_date : details.first_air_date),
-      }
+  try {
+    service ??= createLocalizedTitleBatchService({
+      fetchTitle: (item, context, signal) =>
+        fetchLocalizedTitle(apiKey, item, context.locale, signal),
     })
-  )
-
-  const response: LocalizedTitleBatchResponse = {
-    errors: settled.flatMap((result, index) =>
-      result.status === 'rejected' ? [input.items[index]!] : []
-    ),
-    missing: settled.flatMap((result, index) =>
-      result.status === 'fulfilled' && !result.value.title ? [input.items[index]!] : []
-    ),
-    summaries: settled.flatMap((result) =>
-      result.status === 'fulfilled' && result.value.title ? [result.value] : []
-    ),
+    const response = await service.resolve(input, request.signal)
+    return NextResponse.json(response, {
+      headers: {
+        'Cache-Control': 'private, max-age=300, stale-while-revalidate=86400',
+      },
+    })
+  } catch (error) {
+    if (request.signal.aborted) {
+      return new NextResponse(null, { status: 499 })
+    }
+    console.warn('Localized title batch failed.', {
+      error: error instanceof Error ? error.name : 'UnknownError',
+    })
+    return NextResponse.json({ error: 'Title localization is unavailable.' }, { status: 503 })
   }
-
-  return NextResponse.json(response, {
-    headers: {
-      'Cache-Control': 'private, max-age=300, stale-while-revalidate=86400',
-    },
-  })
 }
 
 async function readInput(request: NextRequest) {
-  let body: unknown
   try {
-    body = await request.json()
+    return normalizeLocalizedTitleBatchRequest(await request.json())
   } catch {
     return null
   }
-  if (!body || typeof body !== 'object') return null
-  const candidate = body as { items?: unknown; locale?: unknown; region?: unknown }
-  if (
-    typeof candidate.locale !== 'string' ||
-    !candidate.locale.trim() ||
-    typeof candidate.region !== 'string' ||
-    !/^[A-Za-z]{2}$/.test(candidate.region) ||
-    !Array.isArray(candidate.items) ||
-    candidate.items.length === 0 ||
-    candidate.items.length > MAX_BATCH_ITEMS
-  ) {
-    return null
-  }
+}
 
-  const items: LocalizedTitleBatchItem[] = []
-  const seen = new Set<string>()
-  for (const value of candidate.items) {
-    if (!value || typeof value !== 'object') return null
-    const item = value as { tmdbId?: unknown; type?: unknown }
-    if (
-      !Number.isSafeInteger(item.tmdbId) ||
-      (item.tmdbId as number) <= 0 ||
-      (item.type !== 'movie' && item.type !== 'tv')
-    ) {
-      return null
-    }
-    const normalized: LocalizedTitleBatchItem = {
-      tmdbId: item.tmdbId as number,
-      type: item.type,
-    }
-    const key = `${normalized.type}:${normalized.tmdbId}`
-    if (!seen.has(key)) items.push(normalized)
-    seen.add(key)
+async function fetchLocalizedTitle(
+  apiKey: string,
+  item: LocalizedTitleBatchItem,
+  locale: string,
+  signal?: AbortSignal
+): Promise<LocalizedTitleProviderResult> {
+  const tmdb = new TMDbService(apiKey)
+  tmdb.setLanguage(locale.split(/[-_]/, 1)[0]?.toLowerCase() || 'en')
+  const details =
+    item.type === 'movie'
+      ? await tmdb.getMovieDetails(item.tmdbId)
+      : await tmdb.getTVDetails(item.tmdbId)
+  signal?.throwIfAborted()
+
+  const originalLanguage =
+    'original_language' in details && typeof details.original_language === 'string'
+      ? details.original_language
+      : null
+  const includeLanguages = [locale, locale.split(/[-_]/, 1)[0], originalLanguage, 'null'].filter(
+    (value, index, values): value is string => Boolean(value) && values.indexOf(value) === index
+  )
+  const imagesUrl = new URL(`${TMDB_API_BASE}/${item.type}/${item.tmdbId}/images`)
+  imagesUrl.searchParams.set('api_key', apiKey)
+  imagesUrl.searchParams.set('include_image_language', includeLanguages.join(','))
+  const imagesResponse = await fetch(imagesUrl, { signal })
+  if (!imagesResponse.ok) throw new Error(`TMDb images request failed: ${imagesResponse.status}`)
+  const images = (await imagesResponse.json()) as {
+    posters?: LocalizedTitleProviderResult['posters']
   }
 
   return {
-    items,
-    locale: candidate.locale.trim(),
-    region: candidate.region.toUpperCase(),
+    backdropPath: details.backdrop_path,
+    defaultPosterPath: details.poster_path,
+    originalLanguage,
+    posters: images.posters ?? [],
+    title: (item.type === 'movie' ? details.title : details.name) ?? '',
+    year: releaseYear(item.type === 'movie' ? details.release_date : details.first_air_date),
   }
+}
+
+function clientIdentifier(request: NextRequest) {
+  return (
+    request.headers.get('x-vercel-forwarded-for')?.split(',', 1)[0]?.trim() ||
+    request.headers.get('x-forwarded-for')?.split(',', 1)[0]?.trim() ||
+    'anonymous'
+  )
 }
 
 function releaseYear(date: string | undefined) {
