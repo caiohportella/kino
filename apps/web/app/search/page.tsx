@@ -194,6 +194,9 @@ export default function SearchPage() {
             id="search"
             onChange={(event) => {
               setSubmittedQuery('')
+              if (event.target.value.trim()) {
+                resetDiscoveryOnlyFilters({ genreIds, setMinRating, toggleGenre })
+              }
               setQuery(event.target.value)
               setActiveIndex(-1)
               resultRefs.current = []
@@ -520,6 +523,19 @@ function localeRegion(locale: string) {
       pt: 'BR',
     }[locale] ?? 'US'
   )
+}
+
+function resetDiscoveryOnlyFilters({
+  genreIds,
+  setMinRating,
+  toggleGenre,
+}: {
+  genreIds: number[]
+  setMinRating: (value: number) => void
+  toggleGenre: (id: number) => void
+}) {
+  setMinRating(0)
+  for (const genreId of genreIds) toggleGenre(genreId)
 }
 
 function SearchFilters({

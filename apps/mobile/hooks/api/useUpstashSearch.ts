@@ -25,6 +25,7 @@ export function useUpstashSearch({
   const [page, setPage] = useState(1)
   const region = localeRegion(language ?? 'en')
   const limit = mode === 'autocomplete' ? AUTOCOMPLETE_LIMIT : FULL_SEARCH_LIMIT
+  const requestPage = mode === 'autocomplete' ? 1 : page
   const mediaTypesKey = [...(mediaTypes || [])].sort().join(',')
   const gateway = useMemo(
     () =>
@@ -43,7 +44,7 @@ export function useUpstashSearch({
           locale: language ?? 'en',
           region,
           mediaTypes,
-          page,
+          page: requestPage,
           limit,
         },
         signal
@@ -51,7 +52,7 @@ export function useUpstashSearch({
     queryKey: searchQueryKeys.results({
       filters: { limit, mediaTypes: mediaTypesKey, mode, schemaVersion: SEARCH_SCHEMA_VERSION },
       locale: language ?? 'en',
-      page,
+      page: requestPage,
       query,
       region,
       scope: { kind: 'public' },

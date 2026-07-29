@@ -45,4 +45,7 @@ test('mobile search renders one gateway result stream and leaves TMDB fallback s
   assert.match(source, /people/)
   assert.match(source, /users/)
   assert.doesNotMatch(source, /activeResults = rawResults\.filter/)
+  assert.match(source, /mode=\{submittedQuery \? 'full' : 'autocomplete'\}/)
+  assert.match(source, /mode === 'full' && nextPage/)
+  assert.match(source, /resetDiscoveryOnlyFilters/)
 })

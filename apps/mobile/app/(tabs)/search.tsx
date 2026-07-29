@@ -258,10 +258,12 @@ export default function SearchScreen() {
   const handleSearchInput = (text: string) => {
     setSubmittedQuery('')
     setSearchQuery(text)
+    if (text.trim()) setFilters(resetDiscoveryOnlyFilters)
   }
   const handleSearchSubmit = (text: string) => {
     setSubmittedQuery(text)
     setSearchQuery(text)
+    setFilters(resetDiscoveryOnlyFilters)
   }
 
   // Determine what to show
@@ -316,6 +318,7 @@ export default function SearchScreen() {
           </View>
         ) : isHybridSearchActive ? (
           <SemanticGroups
+            mode={submittedQuery ? 'full' : 'autocomplete'}
             nextPage={nextPage}
             onNextPage={() => nextPage && semanticSearch(searchQuery, nextPage)}
             response={semanticResponse}
@@ -361,12 +364,14 @@ export default function SearchScreen() {
 }
 
 function SemanticGroups({
+  mode,
   nextPage,
   onNextPage,
   response,
   router,
   t,
 }: {
+  mode: 'autocomplete' | 'full'
   nextPage?: number
   onNextPage: () => void
   response?: SearchResponseV1
@@ -425,13 +430,17 @@ function SemanticGroups({
           </View>
         ) : null
       )}
-      {nextPage ? (
+      {mode === 'full' && nextPage ? (
         <TouchableOpacity className="items-center rounded-lg bg-accent p-3" onPress={onNextPage}>
           <Text className="font-bold text-black">→</Text>
         </TouchableOpacity>
       ) : null}
     </ScrollView>
   )
+}
+
+function resetDiscoveryOnlyFilters(current: FilterState): FilterState {
+  return { ...defaultFilterState, mediaType: current.mediaType }
 }
 
 function gatewayTitle({ entity, score }: SearchResultV1): TMDbTitle {

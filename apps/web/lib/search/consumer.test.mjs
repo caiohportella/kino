@@ -13,5 +13,6 @@ test('web search uses the v1 gateway, canonical locale cache key, cancellation, 
   assert.match(source, /AUTOCOMPLETE_LIMIT/)
   assert.match(source, /movies/)
   assert.match(source, /series/)
+  assert.match(source, /resetDiscoveryOnlyFilters/)
   assert.doesNotMatch(source, /tmdb\.search\(|tmdb\.searchPeople\(|db\.searchUsers\(/)
 })
