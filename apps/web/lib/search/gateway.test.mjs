@@ -302,6 +302,59 @@ test('retrieves the complete page window while shared core solely paginates page
   )
 })
 
+test('does not truncate page two at the former 50-candidate retrieval cap', async () => {
+  const candidates = Array.from({ length: 100 }, (_, index) =>
+    semantic(index + 1, `Alien ${index + 1}`, 0.99 - index / 1_000)
+  )
+  let topK
+  const gateway = createSearchGateway({
+    vector: {
+      search: async (providerRequest) => {
+        topK = providerRequest.topK
+        return vectorResult(...candidates.slice(0, providerRequest.topK))
+      },
+    },
+    tmdb: tmdbProvider(),
+    minimumVectorResults: 1,
+  })
+
+  const response = await gateway.search({ ...request, page: 2, limit: 50 })
+  assert.equal(topK, 200)
+  assert.equal(response.results.length, 50)
+})
+
+test('retrieves enough vector and TMDB candidates for a complete third core page', async () => {
+  const weakVector = Array.from({ length: 60 }, (_, index) =>
+    semantic(index + 1, `Alien ${index + 1}`, 0.2)
+  )
+  const lexicalCandidates = Array.from({ length: 60 }, (_, index) =>
+    lexical(index + 1, `Alien ${index + 1}`, 0.8)
+  )
+  let topK
+  let tmdbLimit
+  const gateway = createSearchGateway({
+    vector: {
+      search: async (providerRequest) => {
+        topK = providerRequest.topK
+        return vectorResult(...weakVector.slice(0, providerRequest.topK))
+      },
+    },
+    tmdb: {
+      ...tmdbProvider(),
+      search: async (providerRequest) => {
+        tmdbLimit = providerRequest.limit
+        return tmdbResult(...lexicalCandidates.slice(0, providerRequest.limit))
+      },
+    },
+    minimumVectorResults: 1,
+  })
+
+  const response = await gateway.search({ ...request, page: 3, limit: 20 })
+  assert.equal(topK, 120)
+  assert.equal(tmdbLimit, 60)
+  assert.equal(response.results.length, 20)
+})
+
 test('propagates caller cancellation instead of treating it as provider failure', async () => {
   const controller = new AbortController()
   const reason = new DOMException('caller cancelled', 'AbortError')

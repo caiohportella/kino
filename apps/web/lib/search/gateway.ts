@@ -21,7 +21,6 @@ import { type TmdbSearchProvider, type VectorSearchProvider } from './providers/
 
 const DEFAULT_MINIMUM_VECTOR_RESULTS = 5
 const DEFAULT_MINIMUM_VECTOR_SCORE = 0.55
-const MAX_PROVIDER_RESULTS = 50
 const DEFAULT_RESULT_LIMIT = 20
 const PERSON_EXPANSION_CONFIDENCE = 0.8
 const DEFAULT_PROVIDER_TIMEOUT_MS = 4_500
@@ -188,7 +187,7 @@ export function createSearchGateway(dependencies: CreateSearchGatewayDependencie
           const result = await dependencies.vector.search(
             {
               query: request.query,
-              topK: Math.min(MAX_PROVIDER_RESULTS, Math.max(pageWindow, minimumVectorResults) * 2),
+              topK: Math.max(pageWindow, minimumVectorResults) * 2,
               ...(request.locale === undefined ? {} : { locale: request.locale }),
               ...(request.region === undefined ? {} : { region: request.region }),
               ...(request.mediaTypes === undefined ? {} : { mediaTypes: request.mediaTypes }),
@@ -226,10 +225,7 @@ export function createSearchGateway(dependencies: CreateSearchGatewayDependencie
               ...(request.region === undefined ? {} : { region: request.region }),
               ...(request.mediaTypes === undefined ? {} : { mediaTypes: request.mediaTypes }),
               page: 1,
-              limit: Math.min(
-                MAX_PROVIDER_RESULTS,
-                (request.page ?? 1) * (request.limit ?? DEFAULT_RESULT_LIMIT)
-              ),
+              limit: (request.page ?? 1) * (request.limit ?? DEFAULT_RESULT_LIMIT),
             },
             providerSignal(signal, providerTimeoutMs)
           )
