@@ -8,7 +8,6 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native'
-import { useSearch } from '@/hooks/useSearch'
 import { useUpstashSearch } from '@/hooks/useUpstashSearch'
 import { TitleCard } from '~/components/common/TitleCard'
 import { EmptyState } from '~/components/EmptyState'
@@ -62,12 +61,6 @@ function getDecadeEnd(decade: string) {
 export default function SearchScreen() {
   const { t } = useTranslation()
   const {
-    results: tmdbResults,
-    loading: tmdbLoading,
-    search: tmdbSearch,
-    clearResults: clearTmdbResults,
-  } = useSearch()
-  const {
     results: semanticResults,
     loading: semanticLoading,
     search: semanticSearch,
@@ -95,7 +88,7 @@ export default function SearchScreen() {
   const tmdb = getTMDbService()
 
   const isHybridSearchActive = searchQuery.length > 0 || selectedThemes.length > 0
-  const isGlobalLoading = loading || tmdbLoading || semanticLoading
+  const isGlobalLoading = loading || semanticLoading
   // Check if any filter is active
   const hasActiveFilters =
     filters.mediaType !== 'all' ||
@@ -142,15 +135,13 @@ export default function SearchScreen() {
           constructedQuery += ` ${genreNames.join(' ')}`
         }
 
-        // Fire both searches for robust results
+        // The gateway owns semantic retrieval and its TMDB fallback.
         semanticSearch(constructedQuery)
-        tmdbSearch(searchQuery) // TMDb keyword search is separate
       }
       // 2. Standard Discovery (Filters Active)
       else if (hasActiveFilters) {
         setLoading(true)
         clearSemanticResults()
-        clearTmdbResults()
         try {
           const commonParams: Record<string, string> = {
             sort_by: 'popularity.desc',
@@ -231,7 +222,6 @@ export default function SearchScreen() {
       else {
         setLoading(true)
         clearSemanticResults()
-        clearTmdbResults()
         try {
           // Load popular from all types
           const data = await tmdb.getTrending('all', 'week')
@@ -256,12 +246,10 @@ export default function SearchScreen() {
     isHybridSearchActive,
     genres,
     clearSemanticResults,
-    clearTmdbResults,
     hasActiveFilters, // Fire both searches for robust results
     semanticSearch,
     tmdb.discoverMedia,
     tmdb.getTrending,
-    tmdbSearch,
   ])
 
   // Handlers
@@ -270,11 +258,7 @@ export default function SearchScreen() {
   }
 
   // Determine what to show
-  const rawResults = isHybridSearchActive
-    ? semanticResults.length > 0
-      ? semanticResults
-      : tmdbResults
-    : discoveryResults
+  const rawResults = isHybridSearchActive ? semanticResults : discoveryResults
 
   // Local filtering for Keyword searches (semantic/tmdb) where backend parameters weren't used
   const activeResults = rawResults.filter((item) => {

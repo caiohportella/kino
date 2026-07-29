@@ -1,3 +1,12 @@
+export class SearchGatewayConfigurationError extends Error {
+  readonly code = 'invalid_search_gateway_configuration'
+
+  constructor(message: string) {
+    super(message)
+    this.name = 'SearchGatewayConfigurationError'
+  }
+}
+
 export function resolveKinoApiOrigin(
   configured: string | undefined,
   environment = process.env.NODE_ENV
@@ -5,22 +14,33 @@ export function resolveKinoApiOrigin(
   const value = configured?.trim()
   if (!value) {
     if (environment === 'production') {
-      throw new Error('EXPO_PUBLIC_KINO_API_URL is required for production builds.')
+      throw new SearchGatewayConfigurationError(
+        'EXPO_PUBLIC_KINO_API_URL is required for production builds.'
+      )
     }
-    throw new Error(
+    throw new SearchGatewayConfigurationError(
       'EXPO_PUBLIC_KINO_API_URL must use an explicit LAN, tunnel, or preview origin in development.'
     )
   }
 
-  const url = new (URL as unknown as URLConstructor)(value)
+  let url: InstanceType<URLConstructor>
+  try {
+    url = new (URL as unknown as URLConstructor)(value)
+  } catch {
+    throw new SearchGatewayConfigurationError(
+      'EXPO_PUBLIC_KINO_API_URL must be a valid absolute URL.'
+    )
+  }
   if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-    throw new Error('EXPO_PUBLIC_KINO_API_URL must use HTTP or HTTPS.')
+    throw new SearchGatewayConfigurationError('EXPO_PUBLIC_KINO_API_URL must use HTTP or HTTPS.')
   }
   if (
     environment === 'production' &&
     (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '::1')
   ) {
-    throw new Error('Production EXPO_PUBLIC_KINO_API_URL cannot use localhost.')
+    throw new SearchGatewayConfigurationError(
+      'Production EXPO_PUBLIC_KINO_API_URL cannot use localhost.'
+    )
   }
 
   url.pathname = url.pathname.replace(/\/+$/, '')

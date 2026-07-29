@@ -1,6 +1,8 @@
 'use client'
 
 import type { MediaType, SearchResult, TMDbGenre, TMDbTitle } from '@kino/core'
+import { searchQueryKeys } from '@kino/core/cache'
+import { SEARCH_SCHEMA_VERSION, type SearchResponseV1 } from '@kino/core/search'
 import { useQuery } from '@tanstack/react-query'
 import { AlertCircle, SlidersHorizontal, X } from 'lucide-react'
 import {
@@ -19,14 +21,16 @@ import { SearchSkeleton } from '@/components/skeletons/page-skeletons'
 import { Button } from '@/components/ui/button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { useTranslation } from '@/lib/i18n'
-import { getPersonImagePaths } from '@/lib/person-visuals'
 import { personPath } from '@/lib/routes'
-import { db, getTmdb } from '@/lib/services'
+import { createSearchGatewayClient } from '@/lib/search/client'
+import { getTmdb } from '@/lib/services'
 import { cn } from '@/lib/utils'
 import { useLibraryStore } from '@/stores/library-store'
 import { useSettingsStore } from '@/stores/settings-store'
 
 const MIN_QUERY_LENGTH = 2
+const SEARCH_LIMIT = 12
+const searchGateway = createSearchGatewayClient()
 
 export default function SearchPage() {
   const language = useSettingsStore((state) => state.language)
@@ -43,11 +47,15 @@ export default function SearchPage() {
   const clearFilters = useLibraryStore((state) => state.clearFilters)
   const [showFilters, setShowFilters] = useState(false)
   const [debouncedQuery, setDebouncedQuery] = useState(queryText)
+  const [searchPage, setSearchPage] = useState(1)
   const [activeIndex, setActiveIndex] = useState(-1)
   const resultRefs = useRef<Array<HTMLAnchorElement | null>>([])
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => setDebouncedQuery(queryText.trim()), 350)
+    const timeout = window.setTimeout(() => {
+      setDebouncedQuery(queryText.trim())
+      setSearchPage(1)
+    }, 350)
     return () => window.clearTimeout(timeout)
   }, [queryText])
 
@@ -85,68 +93,32 @@ export default function SearchPage() {
   })
 
   const searchQuery = useQuery({
-    queryKey: ['global-search', language, debouncedQuery],
-    queryFn: async () => {
-      const tmdb = getTmdb()
-      tmdb.setLanguage(language)
-      const [titlesState, peopleState, usersState] = await Promise.allSettled([
-        tmdb.search(debouncedQuery),
-        tmdb.searchPeople(debouncedQuery),
-        db.searchUsers(debouncedQuery),
-      ])
-      const titles: SearchResult[] =
-        titlesState.status === 'fulfilled'
-          ? titlesState.value.results.slice(0, 12).map((item) => ({
-              kind: 'title',
-              id: item.id,
-              mediaType: item.media_type!,
-              name: item.title || item.name || t('diary.unknownTitle'),
-              imagePath: item.poster_path,
-              year:
-                Number((item.release_date || item.first_air_date || '').slice(0, 4)) || undefined,
-              media: item,
-            }))
-          : []
-      const people: SearchResult[] =
-        peopleState.status === 'fulfilled'
-          ? peopleState.value.results.slice(0, 8).map((person) => {
-              const { bannerPath, portraitPath } = getPersonImagePaths(person)
-
-              return {
-                kind: 'person',
-                id: person.id,
-                name: person.name,
-                avatarUrl: tmdb.getImageUrl(portraitPath, 'w300'),
-                backgroundUrl: tmdb.getBackdropUrl(bannerPath, 'w780'),
-                summary: person.known_for_department || undefined,
-              }
-            })
-          : []
-      const users: SearchResult[] =
-        usersState.status === 'fulfilled'
-          ? usersState.value
-              .slice(0, 8)
-              .filter((user) => user.username)
-              .map((user) => ({
-                kind: 'user',
-                id: user.id,
-                name: user.display_name || user.username!,
-                username: user.username!,
-                avatarUrl: user.avatar_url,
-                backgroundUrl: user.banner_url || user.avatar_url,
-              }))
-          : []
-      return {
-        groups: { titles, people, users },
-        failed: {
-          titles: titlesState.status === 'rejected',
-          people: peopleState.status === 'rejected',
-          users: usersState.status === 'rejected',
-        },
-      }
-    },
+    queryKey: searchQueryKeys.results({
+      filters: { limit: SEARCH_LIMIT, mediaType, schemaVersion: SEARCH_SCHEMA_VERSION },
+      locale: language,
+      page: searchPage,
+      query: debouncedQuery,
+      region: localeRegion(language),
+      scope: { kind: 'public' },
+    }),
+    queryFn: ({ signal }) =>
+      searchGateway
+        .search(
+          {
+            schemaVersion: SEARCH_SCHEMA_VERSION,
+            query: debouncedQuery,
+            locale: language,
+            region: localeRegion(language),
+            mediaTypes: mediaType === 'all' ? undefined : [mediaType === 'tv' ? 'series' : 'movie'],
+            page: searchPage,
+            limit: SEARCH_LIMIT,
+          },
+          signal
+        )
+        .then(toSearchGroups),
     enabled: localeStatus !== 'resolving' && searching,
     retry: 1,
+    staleTime: 60_000,
   })
 
   const flatResults = useMemo(
@@ -242,7 +214,10 @@ export default function SearchPage() {
           genreIds={genreIds}
           mediaType={mediaType}
           minRating={minRating}
-          setMediaType={setMediaType}
+          setMediaType={(value) => {
+            setSearchPage(1)
+            setMediaType(value)
+          }}
           setMinRating={setMinRating}
           t={t}
           toggleGenre={toggleGenre}
@@ -310,6 +285,24 @@ export default function SearchPage() {
                 title={t('search.noResults')}
                 variant="search"
               />
+            ) : null}
+            {searchPage > 1 || searchQuery.data.nextPage ? (
+              <div className="flex justify-center gap-3">
+                <Button
+                  disabled={searchPage <= 1 || searchQuery.isFetching}
+                  onClick={() => setSearchPage((current) => Math.max(1, current - 1))}
+                  variant="secondary"
+                >
+                  ←
+                </Button>
+                <Button
+                  disabled={!searchQuery.data.nextPage || searchQuery.isFetching}
+                  onClick={() => setSearchPage(searchQuery.data!.nextPage!)}
+                  variant="secondary"
+                >
+                  →
+                </Button>
+              </div>
             ) : null}
           </div>
         ) : null}
@@ -423,6 +416,83 @@ function RetryState({
         {t('search.retry')}
       </Button>
     </div>
+  )
+}
+
+function toSearchGroups(response: SearchResponseV1) {
+  const groups = {
+    titles: [] as SearchResult[],
+    people: [] as SearchResult[],
+    users: [] as SearchResult[],
+  }
+  for (const group of response.groups) {
+    for (const result of group.results) {
+      const entity = result.entity
+      if ((entity.entityType === 'movie' || entity.entityType === 'series') && entity.tmdbId) {
+        const mediaType: MediaType = entity.entityType === 'series' ? 'tv' : 'movie'
+        groups.titles.push({
+          kind: 'title',
+          id: entity.tmdbId,
+          imagePath: entity.imageUrl || null,
+          media: {
+            id: entity.tmdbId,
+            backdrop_path: null,
+            genre_ids: [],
+            media_type: mediaType,
+            name: mediaType === 'tv' ? entity.title : undefined,
+            overview: entity.summary || '',
+            poster_path: entity.imageUrl || null,
+            release_date: mediaType === 'movie' && entity.year ? `${entity.year}-01-01` : '',
+            first_air_date: mediaType === 'tv' && entity.year ? `${entity.year}-01-01` : '',
+            title: mediaType === 'movie' ? entity.title : undefined,
+            vote_average: result.score,
+            vote_count: entity.voteCount || 0,
+          },
+          mediaType,
+          name: entity.title,
+          year: entity.year,
+        })
+      } else if (entity.entityType === 'person') {
+        const id = entity.tmdbId ?? Number(entity.id.replace(/\D+/g, ''))
+        if (!Number.isSafeInteger(id) || id <= 0) continue
+        groups.people.push({
+          kind: 'person',
+          id,
+          avatarUrl: entity.imageUrl || null,
+          backgroundUrl: entity.imageUrl || null,
+          name: entity.title,
+          summary: entity.summary,
+        })
+      } else if (entity.entityType === 'user') {
+        const username = entity.route?.split('/').filter(Boolean).at(-1)
+        if (!username) continue
+        groups.users.push({
+          kind: 'user',
+          id: entity.id,
+          avatarUrl: entity.imageUrl || null,
+          backgroundUrl: entity.imageUrl || null,
+          name: entity.title,
+          username,
+        })
+      }
+    }
+  }
+  return {
+    groups,
+    failed: { people: false, titles: false, users: false },
+    nextPage: response.nextPage,
+  }
+}
+
+function localeRegion(locale: string) {
+  return (
+    {
+      en: 'US',
+      fr: 'FR',
+      it: 'IT',
+      no: 'NO',
+      pt: 'BR',
+    }[locale] ?? 'US'
   )
 }
 
