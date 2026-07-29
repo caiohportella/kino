@@ -4,7 +4,7 @@ import {
   titleQueryKeys,
 } from '@kino/core/cache'
 import type { CacheScope } from '@kino/core/localization'
-import type { QueryClient } from '@tanstack/query-core'
+import type { QueryClient } from '@tanstack/react-query'
 
 export type LocalizedTitleMediaType = 'movie' | 'tv'
 

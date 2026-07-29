@@ -5,7 +5,7 @@ import {
   normalizeLocalizedTitleBatchResponse,
   toLocalizedTitleSummaryCacheEntry,
 } from '@kino/core/localization'
-import type { QueryClient } from '@tanstack/query-core'
+import type { QueryClient } from '@tanstack/react-query'
 import { seedTitleSummary } from './title-queries.ts'
 
 export type {
