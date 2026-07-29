@@ -1,12 +1,21 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  isSearchResponse,
   isSearchResponseV1,
+  isSearchResponseV2,
+  normalizeCreditSearchScore,
   normalizeProviderCandidate,
   normalizeSearchQuery,
+  normalizeSearchRequest,
   normalizeSearchRequestV1,
+  normalizeSearchRequestV2,
 } from './normalize.ts'
-import { SEARCH_SCHEMA_VERSION } from './types.ts'
+import {
+  SEARCH_SCHEMA_VERSION,
+  SEARCH_SCHEMA_VERSION_V1,
+  SEARCH_SCHEMA_VERSION_V2,
+} from './types.ts'
 
 test('folds accents, case, whitespace, and a terminal release year', () => {
   assert.deepEqual(normalizeSearchQuery('  Amélie   2001 '), {
@@ -203,3 +212,109 @@ test('rejects malformed provider candidates', () => {
     assert.equal(normalizeProviderCandidate(malformed), null)
   }
 })
+
+test('normalizes V2 component scores at explicit bounds and defaults missing vote confidence to neutral', () => {
+  assert.deepEqual(
+    normalizeCreditSearchScore({
+      relationshipScore: -0.2,
+      semanticScore: 1.4,
+      popularityScore: 0.25,
+      castOrderScore: 0.75,
+    }),
+    {
+      relationshipScore: 0,
+      semanticScore: 1,
+      popularityScore: 0.25,
+      voteConfidenceScore: 0.5,
+      castOrderScore: 0.75,
+    }
+  )
+})
+
+test('rejects non-finite V2 scores and ratings', () => {
+  const valid = validV2Response()
+  const invalidResponses = [
+    {
+      ...valid,
+      results: [{ ...valid.results[0], score: { ...valid.results[0].score, semanticScore: Number.NaN } }],
+    },
+    {
+      ...valid,
+      results: [
+        {
+          ...valid.results[0],
+          entity: { ...valid.results[0].entity, tmdbVoteAverage: Number.POSITIVE_INFINITY },
+        },
+      ],
+    },
+  ]
+
+  for (const invalid of invalidResponses) assert.equal(isSearchResponseV2(invalid), false)
+})
+
+test('keeps nullable ratings independent from semantic relevance in V2 presentation contracts', () => {
+  const valid = validV2Response()
+  assert.equal(valid.results[0].entity.tmdbVoteAverage, null)
+  assert.equal(valid.results[0].entity.kinoAverageRating, null)
+  assert.equal(valid.results[0].score.semanticScore, 0.97)
+  assert.equal(isSearchResponseV2(valid), true)
+})
+
+test('normalizes only V2 requests and recognizes V1 and V2 compatibility contracts', () => {
+  assert.deepEqual(
+    normalizeSearchRequestV2({ schemaVersion: SEARCH_SCHEMA_VERSION_V2, query: '  Alien  ' }),
+    { schemaVersion: 2, query: 'Alien' }
+  )
+  assert.throws(() => normalizeSearchRequestV2({ schemaVersion: SEARCH_SCHEMA_VERSION_V1, query: 'Alien' }))
+  assert.deepEqual(
+    normalizeSearchRequest({ schemaVersion: SEARCH_SCHEMA_VERSION_V1, query: 'Alien' }),
+    { schemaVersion: 1, query: 'Alien' }
+  )
+  assert.deepEqual(
+    normalizeSearchRequest({ schemaVersion: SEARCH_SCHEMA_VERSION_V2, query: 'Alien' }),
+    { schemaVersion: 2, query: 'Alien' }
+  )
+  assert.equal(isSearchResponse(validV2Response()), true)
+  assert.equal(
+    isSearchResponse({
+      schemaVersion: SEARCH_SCHEMA_VERSION_V1,
+      query: { original: 'Alien', folded: 'alien', tokens: ['alien'] },
+      results: [],
+      groups: [],
+      total: 0,
+      page: 1,
+      limit: 20,
+    }),
+    true
+  )
+})
+
+function validV2Response() {
+  const result = {
+    entity: {
+      id: 'movie:348',
+      entityType: 'movie',
+      title: 'Alien',
+      tmdbId: 348,
+      tmdbVoteAverage: null,
+      kinoAverageRating: null,
+    },
+    score: {
+      relationshipScore: 0,
+      semanticScore: 0.97,
+      popularityScore: 0.4,
+      voteConfidenceScore: 0.5,
+      castOrderScore: 0,
+    },
+    sources: ['semantic'],
+  }
+  return {
+    schemaVersion: SEARCH_SCHEMA_VERSION_V2,
+    query: { original: 'Alien', folded: 'alien', tokens: ['alien'] },
+    results: [result],
+    groups: [{ type: 'movies', results: [result] }],
+    total: 1,
+    page: 1,
+    limit: 20,
+  }
+}

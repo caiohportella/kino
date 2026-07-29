@@ -1,12 +1,19 @@
 import {
+  type CreditSearchScore,
   type LexicalCandidate,
   type NormalizedSearchQuery,
   type PersonCandidate,
   SEARCH_SCHEMA_VERSION,
+  SEARCH_SCHEMA_VERSION_V1,
+  SEARCH_SCHEMA_VERSION_V2,
   type SearchEntity,
+  type SearchEntityV2,
   type SearchMediaType,
   type SearchProviderCandidate,
+  type SearchRequest,
   type SearchRequestV1,
+  type SearchRequestV2,
+  type SearchResponse,
   type SemanticCandidate,
   UnsupportedSearchVersion,
 } from './types.ts'
@@ -33,6 +40,13 @@ function boundedScore(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value)
     ? Math.max(0, Math.min(1, value))
     : undefined
+}
+
+function requiredBoundedScore(value: unknown, field: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new TypeError(`${field} must be a finite number`)
+  }
+  return Math.max(0, Math.min(1, value))
 }
 
 function positiveInteger(value: unknown): number | undefined {
@@ -90,6 +104,29 @@ function normalizeEntity(value: unknown): SearchEntity | null {
   }
 }
 
+function normalizeEntityV2(value: unknown): SearchEntityV2 | null {
+  const entity = normalizeEntity(value)
+  if (!entity || !isRecord(value)) return null
+  const tmdbVoteAverage = value.tmdbVoteAverage
+  const kinoAverageRating = value.kinoAverageRating
+  if (
+    (tmdbVoteAverage !== undefined &&
+      tmdbVoteAverage !== null &&
+      (typeof tmdbVoteAverage !== 'number' || !Number.isFinite(tmdbVoteAverage))) ||
+    (kinoAverageRating !== undefined &&
+      kinoAverageRating !== null &&
+      (typeof kinoAverageRating !== 'number' || !Number.isFinite(kinoAverageRating)))
+  ) {
+    return null
+  }
+
+  return {
+    ...entity,
+    ...(tmdbVoteAverage === undefined ? {} : { tmdbVoteAverage }),
+    ...(kinoAverageRating === undefined ? {} : { kinoAverageRating }),
+  }
+}
+
 export function normalizeSearchQuery(query: string): NormalizedSearchQuery {
   const original = query.trim().replace(/\s+/gu, ' ')
   const folded = original
@@ -119,8 +156,23 @@ export function normalizeSearchQuery(query: string): NormalizedSearchQuery {
 }
 
 export function normalizeSearchRequestV1(input: unknown): SearchRequestV1 {
-  if (!isRecord(input) || input.schemaVersion !== SEARCH_SCHEMA_VERSION) {
-    throw new UnsupportedSearchVersion(isRecord(input) ? input.schemaVersion : undefined)
+  return normalizeSearchRequestWithVersion(input, SEARCH_SCHEMA_VERSION_V1)
+}
+
+export function normalizeSearchRequestV2(input: unknown): SearchRequestV2 {
+  return normalizeSearchRequestWithVersion(input, SEARCH_SCHEMA_VERSION_V2)
+}
+
+function normalizeSearchRequestWithVersion<TVersion extends 1 | 2>(
+  input: unknown,
+  schemaVersion: TVersion
+): TVersion extends 1 ? SearchRequestV1 : SearchRequestV2 {
+  if (!isRecord(input) || input.schemaVersion !== schemaVersion) {
+    throw new UnsupportedSearchVersion(
+      isRecord(input) ? input.schemaVersion : undefined,
+      schemaVersion,
+      schemaVersion
+    )
   }
   if (typeof input.query !== 'string') throw new TypeError('Search query must be a string')
 
@@ -138,13 +190,34 @@ export function normalizeSearchRequestV1(input: unknown): SearchRequestV1 {
     : undefined
 
   return {
-    schemaVersion: SEARCH_SCHEMA_VERSION,
+    schemaVersion,
     query,
     ...(locale === undefined ? {} : { locale }),
     ...(region === undefined ? {} : { region }),
     ...(mediaTypes === undefined ? {} : { mediaTypes }),
     ...(page === undefined ? {} : { page }),
     ...(limit === undefined ? {} : { limit }),
+  } as TVersion extends 1 ? SearchRequestV1 : SearchRequestV2
+}
+
+export function normalizeSearchRequest(input: unknown): SearchRequest {
+  if (!isRecord(input)) throw new UnsupportedSearchVersion(undefined)
+  if (input.schemaVersion === SEARCH_SCHEMA_VERSION_V1) return normalizeSearchRequestV1(input)
+  if (input.schemaVersion === SEARCH_SCHEMA_VERSION_V2) return normalizeSearchRequestV2(input)
+  throw new UnsupportedSearchVersion(input.schemaVersion)
+}
+
+export function normalizeCreditSearchScore(input: unknown): CreditSearchScore {
+  if (!isRecord(input)) throw new TypeError('Search score must be an object')
+  return {
+    relationshipScore: requiredBoundedScore(input.relationshipScore, 'relationshipScore'),
+    semanticScore: requiredBoundedScore(input.semanticScore, 'semanticScore'),
+    popularityScore: requiredBoundedScore(input.popularityScore, 'popularityScore'),
+    voteConfidenceScore:
+      input.voteConfidenceScore === undefined
+        ? 0.5
+        : requiredBoundedScore(input.voteConfidenceScore, 'voteConfidenceScore'),
+    castOrderScore: requiredBoundedScore(input.castOrderScore, 'castOrderScore'),
   }
 }
 
@@ -273,4 +346,89 @@ export function isSearchResponseV1(value: unknown): boolean {
     (value.fallback === undefined ||
       (typeof value.fallback === 'string' && FALLBACK_TYPES.has(value.fallback)))
   )
+}
+
+function isSearchEntityV2(value: unknown): boolean {
+  const entity = normalizeEntityV2(value)
+  return entity !== null
+}
+
+function isCreditSearchScore(value: unknown): boolean {
+  try {
+    if (!isRecord(value)) return false
+    if (value.voteConfidenceScore === undefined) return false
+    normalizeCreditSearchScore(value)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function isSearchResultV2(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    isSearchEntityV2(value.entity) &&
+    isCreditSearchScore(value.score) &&
+    Array.isArray(value.sources) &&
+    value.sources.length > 0 &&
+    value.sources.every((source) => typeof source === 'string' && source.length > 0) &&
+    (value.relationship === undefined ||
+      (isRecord(value.relationship) &&
+        typeof value.relationship.personId === 'string' &&
+        value.relationship.personId.length > 0 &&
+        typeof value.relationship.role === 'string' &&
+        RELATIONSHIP_ROLES.has(value.relationship.role)))
+  )
+}
+
+export function isSearchResponseV2(value: unknown): boolean {
+  const isPositiveInteger = (input: unknown) =>
+    typeof input === 'number' && Number.isInteger(input) && input > 0
+  const isNonNegativeInteger = (input: unknown) =>
+    typeof input === 'number' && Number.isInteger(input) && input >= 0
+  const isQuery =
+    isRecord(value) &&
+    isRecord(value.query) &&
+    typeof value.query.original === 'string' &&
+    typeof value.query.folded === 'string' &&
+    Array.isArray(value.query.tokens) &&
+    value.query.tokens.every((token) => typeof token === 'string') &&
+    (value.query.year === undefined || isPositiveInteger(value.query.year))
+  const hasValidGroups =
+    isRecord(value) &&
+    Array.isArray(value.groups) &&
+    value.groups.every(
+      (group) =>
+        isRecord(group) &&
+        typeof group.type === 'string' &&
+        RESULT_GROUP_TYPES.has(group.type) &&
+        Array.isArray(group.results) &&
+        group.results.every(
+          (result) =>
+            isSearchResultV2(result) &&
+            isRecord(result) &&
+            isRecord(result.entity) &&
+            result.entity.entityType === GROUP_ENTITY_TYPES[group.type as string]
+        )
+    )
+
+  return (
+    isRecord(value) &&
+    value.schemaVersion === SEARCH_SCHEMA_VERSION_V2 &&
+    isQuery &&
+    Array.isArray(value.results) &&
+    value.results.every(isSearchResultV2) &&
+    hasValidGroups &&
+    isNonNegativeInteger(value.total) &&
+    Number(value.total) >= value.results.length &&
+    isPositiveInteger(value.page) &&
+    isPositiveInteger(value.limit) &&
+    (value.nextPage === undefined || isPositiveInteger(value.nextPage)) &&
+    (value.fallback === undefined ||
+      (typeof value.fallback === 'string' && FALLBACK_TYPES.has(value.fallback)))
+  )
+}
+
+export function isSearchResponse(value: unknown): value is SearchResponse {
+  return isSearchResponseV1(value) || isSearchResponseV2(value)
 }
