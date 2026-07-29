@@ -19,7 +19,6 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.38.4",
-    "@upstash/vector": "^1.2.2",
     "jszip": "^3.10.1"
   },
   "devDependencies": {

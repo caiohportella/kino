@@ -10,7 +10,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "lint": "biome lint app components lib stores",
-    "test": "node --test --experimental-strip-types lib/*.test.mjs"
+    "test": "node --test --experimental-strip-types lib/*.test.mjs lib/search/*.test.mjs lib/search/providers/*.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -26,6 +26,7 @@
     "@radix-ui/react-tooltip": "^1.2.11",
     "@supabase/supabase-js": "^2.38.4",
     "@tanstack/react-query": "^5.90.19",
+    "@upstash/vector": "^1.2.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
