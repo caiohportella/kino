@@ -200,6 +200,26 @@ test('isolates canonical profile sections by profile, viewer, scope, page, filte
     assert.notDeepEqual(first, section({ profileId, visibilityScope, filters: {}, page: 3 }))
   }
 
+  const publicWatchedMovies = profileQueryKeys.watchedMovies({
+    profileId,
+    visibilityScope: publicScope,
+    ...pageAndFilters,
+  })
+  const authenticatedWatchedMovies = profileQueryKeys.watchedMovies({
+    profileId,
+    visibilityScope,
+    ...pageAndFilters,
+  })
+  assert.notDeepEqual(publicWatchedMovies, authenticatedWatchedMovies)
+  assert.notDeepEqual(
+    authenticatedWatchedMovies,
+    profileQueryKeys.watchedMovies({
+      profileId,
+      visibilityScope: { kind: 'authenticated', userId: 'another-profile-viewer' },
+      ...pageAndFilters,
+    })
+  )
+
   assert.deepEqual(
     profileQueryKeys.statistics({ profileId, visibilityScope }),
     ['v1', 'profile', 'statistics', 'profile-a', 'authenticated', 'profile-viewer']
