@@ -252,6 +252,24 @@ test('rejects non-finite V2 scores and ratings', () => {
   for (const invalid of invalidResponses) assert.equal(isSearchResponseV2(invalid), false)
 })
 
+test('rejects raw V2 component scores outside the normalized range', () => {
+  const valid = validV2Response()
+  for (const semanticScore of [-0.01, 1.01]) {
+    assert.equal(
+      isSearchResponseV2({
+        ...valid,
+        results: [
+          {
+            ...valid.results[0],
+            score: { ...valid.results[0].score, semanticScore },
+          },
+        ],
+      }),
+      false
+    )
+  }
+})
+
 test('keeps nullable ratings independent from semantic relevance in V2 presentation contracts', () => {
   const valid = validV2Response()
   assert.equal(valid.results[0].entity.tmdbVoteAverage, null)
@@ -286,6 +304,33 @@ test('normalizes only V2 requests and recognizes V1 and V2 compatibility contrac
       limit: 20,
     }),
     true
+  )
+})
+
+test('rejects malformed V2 pagination and media type filters without weakening V1 compatibility', () => {
+  for (const malformed of [
+    { schemaVersion: SEARCH_SCHEMA_VERSION_V2, query: 'Alien', page: 0 },
+    {
+      schemaVersion: SEARCH_SCHEMA_VERSION_V2,
+      query: 'Alien',
+      mediaTypes: ['movie', 'documentary'],
+    },
+  ]) {
+    assert.throws(() => normalizeSearchRequestV2(malformed), TypeError)
+  }
+
+  assert.deepEqual(
+    normalizeSearchRequestV1({
+      schemaVersion: SEARCH_SCHEMA_VERSION_V1,
+      query: 'Alien',
+      page: 0,
+      mediaTypes: ['movie', 'documentary'],
+    }),
+    {
+      schemaVersion: 1,
+      query: 'Alien',
+      mediaTypes: ['movie'],
+    }
   )
 })
 

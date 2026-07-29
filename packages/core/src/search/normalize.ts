@@ -189,6 +189,28 @@ function normalizeSearchRequestWithVersion<TVersion extends 1 | 2>(
       ]
     : undefined
 
+  if (schemaVersion === SEARCH_SCHEMA_VERSION_V2) {
+    if (input.locale !== undefined && locale === undefined) {
+      throw new TypeError('Search locale must be a valid locale')
+    }
+    if (input.region !== undefined && region === undefined) {
+      throw new TypeError('Search region must be a non-empty string')
+    }
+    if (input.page !== undefined && page === undefined) {
+      throw new TypeError('Search page must be a positive integer')
+    }
+    if (input.limit !== undefined && limit === undefined) {
+      throw new TypeError('Search limit must be a positive integer')
+    }
+    if (
+      input.mediaTypes !== undefined &&
+      (!Array.isArray(input.mediaTypes) ||
+        input.mediaTypes.some((value) => !MEDIA_TYPES.has(value as SearchMediaType)))
+    ) {
+      throw new TypeError('Search media types must contain only movie or series')
+    }
+  }
+
   return {
     schemaVersion,
     query,
@@ -354,14 +376,17 @@ function isSearchEntityV2(value: unknown): boolean {
 }
 
 function isCreditSearchScore(value: unknown): boolean {
-  try {
-    if (!isRecord(value)) return false
-    if (value.voteConfidenceScore === undefined) return false
-    normalizeCreditSearchScore(value)
-    return true
-  } catch {
-    return false
-  }
+  if (!isRecord(value)) return false
+  return [
+    value.relationshipScore,
+    value.semanticScore,
+    value.popularityScore,
+    value.voteConfidenceScore,
+    value.castOrderScore,
+  ].every(
+    (score) =>
+      typeof score === 'number' && Number.isFinite(score) && score >= 0 && score <= 1
+  )
 }
 
 function isSearchResultV2(value: unknown): boolean {

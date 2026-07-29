@@ -220,7 +220,7 @@ export interface SearchResultGroupV1 {
 }
 
 export interface SearchResponseV1 {
-  readonly schemaVersion: SearchSchemaVersion
+  readonly schemaVersion: typeof SEARCH_SCHEMA_VERSION_V1
   readonly query: NormalizedSearchQuery
   /** The current per-group page flattened in people, movies, series, users order. */
   readonly results: readonly SearchResultV1[]
