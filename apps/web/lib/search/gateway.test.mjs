@@ -506,3 +506,142 @@ test('infers presentation region from locale when the request omits region', asy
   })
   assert.deepEqual(contexts, [{ locale: 'pt-BR', region: 'BR' }])
 })
+
+test('uses fresh and stale complete relationship records without blocking on TMDB credits', async () => {
+  const person = {
+    source: 'person',
+    confidence: 1,
+    entity: { id: 'person:3084', entityType: 'person', tmdbId: 3084, title: 'Marlon Brando' },
+  }
+  const credit = {
+    entity: { id: 'movie:238', entityType: 'movie', tmdbId: 238, title: 'The Godfather' },
+    role: 'acting',
+    castOrder: 0,
+  }
+
+  for (const state of ['fresh_complete', 'stale_complete']) {
+    let tmdbCreditCalls = 0
+    const gateway = createSearchGateway({
+      tmdb: {
+        ...tmdbProvider(tmdbResult(person)),
+        getPersonCredits: async () => {
+          tmdbCreditCalls += 1
+          return []
+        },
+      },
+      relationships: {
+        get: async () => ({
+          state,
+          record: {
+            schemaVersion: 1,
+            personId: 3084,
+            aliases: ['Marlon Brando'],
+            knownForDepartment: 'Acting',
+            movieCredits: [credit],
+            tvCredits: [],
+            complete: true,
+            updatedAt: '2026-07-20T00:00:00.000Z',
+          },
+        }),
+        set: async () => undefined,
+        scheduleRefresh: async () => undefined,
+      },
+    })
+
+    const response = await gateway.search({ ...request, query: 'Marlon Brando', limit: 10 })
+    assert.equal(tmdbCreditCalls, 0)
+    assert.equal(
+      response.results.some((result) => result.entity.id === 'movie:238'),
+      true
+    )
+  }
+})
+
+test('supplements missing and incomplete relationship records through TMDB and writes a bounded record', async () => {
+  const person = {
+    source: 'person',
+    confidence: 1,
+    entity: { id: 'person:3084', entityType: 'person', tmdbId: 3084, title: 'Marlon Brando' },
+  }
+  for (const cached of [{ state: 'missing' }, { state: 'incomplete', record: {} }]) {
+    const writes = []
+    let creditCalls = 0
+    const gateway = createSearchGateway({
+      tmdb: {
+        ...tmdbProvider(tmdbResult(person)),
+        getPersonCredits: async () => {
+          creditCalls += 1
+          return [
+            {
+              entity: {
+                id: 'movie:238',
+                entityType: 'movie',
+                tmdbId: 238,
+                title: 'The Godfather',
+              },
+              role: 'acting',
+            },
+          ]
+        },
+      },
+      relationships: {
+        get: async () => cached,
+        set: async (value) => writes.push(value),
+        scheduleRefresh: async () => undefined,
+      },
+      now: () => Date.parse('2026-07-29T00:00:00.000Z'),
+    })
+    const response = await gateway.search({ ...request, query: 'Marlon Brando', limit: 10 })
+    assert.equal(creditCalls, 1)
+    assert.equal(writes.length, 1)
+    assert.equal(writes[0].complete, true)
+    assert.equal(
+      response.results.some((result) => result.entity.id === 'movie:238'),
+      true
+    )
+  }
+})
+
+test('degrades relationship expansion failure without changing ordinary result order', async () => {
+  const person = {
+    source: 'person',
+    confidence: 1,
+    entity: { id: 'person:3084', entityType: 'person', tmdbId: 3084, title: 'Marlon Brando' },
+  }
+  const title = lexical(238, 'The Godfather', 0.8)
+  const gateway = createSearchGateway({
+    tmdb: {
+      ...tmdbProvider(tmdbResult(person, title)),
+      getPersonCredits: async () => Promise.reject(new Error('credits unavailable')),
+    },
+    relationships: {
+      get: async () => ({ state: 'missing' }),
+      set: async () => undefined,
+      scheduleRefresh: async () => undefined,
+    },
+  })
+
+  const response = await gateway.search({ ...request, query: 'Marlon Brando', limit: 10 })
+  assert.deepEqual(
+    response.results.map((result) => result.entity.id),
+    ['person:3084', 'movie:238']
+  )
+})
+
+test('serializes requested V2 responses with structured relevance and separate TMDB rating', async () => {
+  const gateway = createSearchGateway({
+    tmdb: tmdbProvider(
+      tmdbResult(lexical(238, 'The Godfather', 1, { tmdbVoteAverage: 8.7, voteCount: 1000 }))
+    ),
+  })
+  const response = await gateway.search({ ...request, schemaVersion: 2, query: 'The Godfather' })
+  assert.equal(response.schemaVersion, 2)
+  assert.equal(response.results[0].entity.tmdbVoteAverage, 8.7)
+  assert.deepEqual(Object.keys(response.results[0].score).sort(), [
+    'castOrderScore',
+    'popularityScore',
+    'relationshipScore',
+    'semanticScore',
+    'voteConfidenceScore',
+  ])
+})

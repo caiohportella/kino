@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { SEARCH_SCHEMA_VERSION } from '@kino/core/search'
+import { SEARCH_SCHEMA_VERSION, SEARCH_SCHEMA_VERSION_V2 } from '@kino/core/search'
 import { createSearchGateway, SearchGatewayClientError } from '../services/search-gateway.ts'
 
 const response = {
@@ -34,6 +34,28 @@ test('mobile gateway posts the shared schema and preserves gateway fallback', as
   )
   assert.equal(calls[0].url, 'https://kino.example.com/api/v1/search')
   assert.equal(JSON.parse(calls[0].init.body).schemaVersion, SEARCH_SCHEMA_VERSION)
+})
+
+test('mobile gateway accepts V2 while preserving explicit V1 rollback compatibility', async () => {
+  const versions = []
+  const gateway = createSearchGateway({
+    origin: 'https://kino.example.com',
+    fetch: async (_url, init) => {
+      const version = JSON.parse(init.body).schemaVersion
+      versions.push(version)
+      return Response.json({ ...response, schemaVersion: version })
+    },
+  })
+  assert.equal(
+    (await gateway.search({ schemaVersion: SEARCH_SCHEMA_VERSION_V2, query: 'Brando' }))
+      .schemaVersion,
+    2
+  )
+  assert.equal(
+    (await gateway.search({ schemaVersion: SEARCH_SCHEMA_VERSION, query: 'Brando' })).schemaVersion,
+    1
+  )
+  assert.deepEqual(versions, [2, 1])
 })
 
 test('mobile gateway propagates cancellation and returns typed timeout/schema errors', async () => {

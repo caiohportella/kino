@@ -78,6 +78,7 @@ test('normalizes complete TMDB multi-search results into core candidates', async
           locale: 'pt-BR',
           popularity: 170.5,
           voteCount: 20_798,
+          tmdbVoteAverage: 8.7,
         },
       },
       {
@@ -91,6 +92,7 @@ test('normalizes complete TMDB multi-search results into core candidates', async
           imageUrl: 'https://image.tmdb.org/t/p/w500/brando.jpg',
           locale: 'pt-BR',
           popularity: 40.2,
+          department: 'Acting',
         },
       },
     ],
@@ -306,5 +308,6 @@ test('resolves locale-sensitive media presentation without changing entity ident
     locale: 'pt-BR',
     popularity: 170.5,
     voteCount: 20_798,
+    tmdbVoteAverage: 8.7,
   })
 })

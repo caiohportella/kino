@@ -1,7 +1,9 @@
 import { normalizeLocale, normalizeRegion } from '@kino/core/localization'
 import {
-  SEARCH_SCHEMA_VERSION,
+  SEARCH_SCHEMA_VERSION_V1,
+  SEARCH_SCHEMA_VERSION_V2,
   type SearchMediaType,
+  type SearchRequest,
   type SearchRequestV1,
 } from '@kino/core/search'
 
@@ -84,7 +86,7 @@ export function assertSearchResultWindow(request: Pick<SearchRequestV1, 'page' |
 
 export function parseSearchRequestV1(json: unknown): SearchRequestV1 {
   if (!isRecord(json)) throw SearchGatewayError.invalidRequest('body')
-  if (json.schemaVersion !== SEARCH_SCHEMA_VERSION) throw SearchGatewayError.unsupportedVersion()
+  if (json.schemaVersion !== SEARCH_SCHEMA_VERSION_V1) throw SearchGatewayError.unsupportedVersion()
 
   const query = normalizeQuery(json.query)
   const locale = optionalLocale(json.locale)
@@ -95,7 +97,7 @@ export function parseSearchRequestV1(json: unknown): SearchRequestV1 {
   assertSearchResultWindow({ page, limit })
 
   return {
-    schemaVersion: SEARCH_SCHEMA_VERSION,
+    schemaVersion: SEARCH_SCHEMA_VERSION_V1,
     query,
     ...(locale === undefined ? {} : { locale }),
     ...(region === undefined ? {} : { region }),
@@ -103,4 +105,13 @@ export function parseSearchRequestV1(json: unknown): SearchRequestV1 {
     ...(page === undefined ? {} : { page }),
     ...(limit === undefined ? {} : { limit }),
   }
+}
+
+export function parseSearchRequest(json: unknown): SearchRequest {
+  if (!isRecord(json)) throw SearchGatewayError.invalidRequest('body')
+  const schemaVersion = json.schemaVersion ?? SEARCH_SCHEMA_VERSION_V2
+  if (schemaVersion === SEARCH_SCHEMA_VERSION_V1) return parseSearchRequestV1(json)
+  if (schemaVersion !== SEARCH_SCHEMA_VERSION_V2) throw SearchGatewayError.unsupportedVersion()
+  const parsed = parseSearchRequestV1({ ...json, schemaVersion: SEARCH_SCHEMA_VERSION_V1 })
+  return { ...parsed, schemaVersion: SEARCH_SCHEMA_VERSION_V2 }
 }

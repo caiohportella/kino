@@ -619,7 +619,9 @@
       "Crew": "Crew",
       "Visual Effects": "Visual Effects",
       "Costume & Make-Up": "Costume & Make-Up",
-      "Lighting": "Lighting"
+      "Lighting": "Lighting",
+      "Creator": "Creator",
+      "Person": "Person"
     }
   },
   "landing": {

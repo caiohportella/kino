@@ -1,4 +1,10 @@
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  SEARCH_CARD_GAP_PX,
+  SEARCH_CARD_MIN_WIDTH_PX,
+  SEARCH_RESULTS_MAX_WIDTH_PX,
+  searchSkeletonCapacity,
+} from '@/lib/search/presentation'
 
 function ScreenReaderLoading({ label }: { label: string }) {
   return <span className="sr-only">{label}</span>
@@ -121,21 +127,38 @@ export function DiarySkeleton({ label = 'Loading' }: { label?: string }) {
 }
 
 export function SearchSkeleton({ label = 'Loading' }: { label?: string }) {
+  const titleCount = searchSkeletonCapacity({
+    cardWidth: SEARCH_CARD_MIN_WIDTH_PX,
+    containerWidth: SEARCH_RESULTS_MAX_WIDTH_PX,
+    gap: SEARCH_CARD_GAP_PX,
+    padding: 0,
+    rows: 2,
+  })
   return (
-    <div aria-busy="true" className="content-frame grid gap-6" role="status">
+    <div aria-busy="true" className="grid gap-8" role="status">
       <ScreenReaderLoading label={label} />
-      <HeadingSkeleton />
-      <Skeleton className="h-11 w-full" />
-      <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
-        <div className="hidden gap-3 lg:grid">
-          {Array.from({ length: 5 }, (_, index) => (
-            <Skeleton className="h-10 w-full" key={index} />
+      {['movies', 'series'].map((group) => (
+        <section className="grid gap-4" data-search-skeleton-group={group} key={group}>
+          <Skeleton className="h-6 w-36" />
+          <div className="poster-grid">
+            {Array.from({ length: titleCount }, (_, index) => (
+              <div className="grid gap-3" key={index}>
+                <Skeleton className="aspect-2/3 w-full" />
+                <Skeleton className="h-4 w-4/5" />
+                <Skeleton className="h-3 w-2/5" />
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+      <section className="grid gap-4" data-search-skeleton-group="people">
+        <Skeleton className="h-6 w-28" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 8 }, (_, index) => (
+            <Skeleton className="h-24 w-full" key={index} />
           ))}
         </div>
-        <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
-          <PosterRowSkeleton count={4} />
-        </div>
-      </div>
+      </section>
     </div>
   )
 }

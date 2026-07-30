@@ -2,17 +2,21 @@ import { fuseSearchCandidates } from './fusion.ts'
 import { detectSearchIntent } from './intent.ts'
 import { normalizeSearchQuery, normalizeSearchRequestV1 } from './normalize.ts'
 import { expandPersonCredits } from './person-expansion.ts'
+import { qualifyPersonExpansion } from './person-qualification.ts'
 import { rankSearchCandidates } from './rank.ts'
 import {
   type RankedSearchResult,
   type RunSearchPipelineV1Input,
+  type RunSearchPipelineV2Input,
   SEARCH_SCHEMA_VERSION,
   type SearchMediaType,
   type SearchProviderResult,
   type SearchResponseV1,
+  type SearchResponseV2,
   type SearchResultGroupType,
   type SearchResultGroupV1,
   type SearchResultV1,
+  type SearchResultV2,
 } from './types.ts'
 
 const DEFAULT_PAGE = 1
@@ -81,7 +85,12 @@ export function runSearchPipelineV1(input: RunSearchPipelineV1Input): SearchResp
   const relationshipCandidates =
     input.personExpansion === undefined || !['person', 'relationship'].includes(intent.kind)
       ? []
-      : expandPersonCredits(input.personExpansion.person, input.personExpansion.credits, intent)
+      : qualifyPersonExpansion(query, {
+            intent,
+            person: input.personExpansion.person,
+          })
+        ? expandPersonCredits(input.personExpansion.person, input.personExpansion.credits, intent)
+        : []
   const sources =
     relationshipCandidates.length === 0
       ? input.sources
@@ -114,6 +123,70 @@ export function runSearchPipelineV1(input: RunSearchPipelineV1Input): SearchResp
     results,
     groups,
     total: ranked.length,
+    page,
+    limit,
+    ...(untrimmedGroups.some((group) => end < group.results.length) ? { nextPage: page + 1 } : {}),
+    fallback: input.fallback ?? 'none',
+  }
+}
+
+export function runSearchPipelineV2(input: RunSearchPipelineV2Input): SearchResponseV2 {
+  const request = normalizeSearchRequestV1({
+    ...input.request,
+    schemaVersion: SEARCH_SCHEMA_VERSION,
+  })
+  const query = normalizeSearchQuery(request.query)
+  const intent = detectSearchIntent(query, input.intentEvidence)
+  const relationshipCandidates =
+    input.personExpansion === undefined || !['person', 'relationship'].includes(intent.kind)
+      ? []
+      : qualifyPersonExpansion(query, {
+            intent,
+            person: input.personExpansion.person,
+          })
+        ? expandPersonCredits(input.personExpansion.person, input.personExpansion.credits, intent)
+        : []
+  const sources =
+    relationshipCandidates.length === 0
+      ? input.sources
+      : [...input.sources, { sourceId: 'person-expansion', candidates: relationshipCandidates }]
+  const constrainedSources = enforceMediaTypes(sources, request.mediaTypes)
+  const ranked = dedupeRankedResults(
+    rankSearchCandidates({ query, candidates: fuseSearchCandidates(constrainedSources) })
+  )
+  const serialize = (result: RankedSearchResult): SearchResultV2 => ({
+    entity: result.entity,
+    score: {
+      relationshipScore: result.components.relationship,
+      semanticScore: result.components.semantic,
+      popularityScore: result.components.popularity,
+      voteConfidenceScore: result.components.voteConfidence,
+      castOrderScore: 0,
+    },
+    sources: result.sources,
+    ...(result.relationship === undefined ? {} : { relationship: result.relationship }),
+  })
+  const serialized = ranked.map(serialize)
+  const page = request.page ?? DEFAULT_PAGE
+  const limit = request.limit ?? DEFAULT_LIMIT
+  const start = (page - 1) * limit
+  const end = start + limit
+  const groupType = (result: SearchResultV2): SearchResultGroupType =>
+    groupTypeForResult(result as unknown as SearchResultV1)
+  const untrimmedGroups = GROUP_ORDER.flatMap((type) => {
+    const results = serialized.filter((result) => groupType(result) === type)
+    return results.length === 0 ? [] : [{ type, results }]
+  })
+  const groups = untrimmedGroups.flatMap((group) => {
+    const results = group.results.slice(start, end)
+    return results.length === 0 ? [] : [{ ...group, results }]
+  })
+  return {
+    schemaVersion: 2,
+    query,
+    results: groups.flatMap((group) => group.results),
+    groups,
+    total: serialized.length,
     page,
     limit,
     ...(untrimmedGroups.some((group) => end < group.results.length) ? { nextPage: page + 1 } : {}),

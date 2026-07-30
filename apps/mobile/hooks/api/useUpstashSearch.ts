@@ -1,8 +1,8 @@
 import { searchQueryKeys } from '@kino/core/cache'
 import {
-  SEARCH_SCHEMA_VERSION,
+  SEARCH_SCHEMA_VERSION_V2,
   type SearchMediaType,
-  type SearchResponseV1,
+  type SearchResponseV2,
 } from '@kino/core/search'
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
@@ -34,12 +34,12 @@ export function useUpstashSearch({
       }),
     []
   )
-  const searchQuery = useQuery<SearchResponseV1>({
+  const searchQuery = useQuery<SearchResponseV2>({
     enabled: Boolean(language && query),
-    queryFn: ({ signal }) =>
-      gateway.search(
+    queryFn: async ({ signal }) => {
+      const response = await gateway.search(
         {
-          schemaVersion: SEARCH_SCHEMA_VERSION,
+          schemaVersion: SEARCH_SCHEMA_VERSION_V2,
           query,
           locale: language ?? 'en',
           region,
@@ -48,9 +48,14 @@ export function useUpstashSearch({
           limit,
         },
         signal
-      ),
+      )
+      if (response.schemaVersion !== SEARCH_SCHEMA_VERSION_V2) {
+        throw new Error('Search gateway returned an unexpected schema version')
+      }
+      return response
+    },
     queryKey: searchQueryKeys.results({
-      filters: { limit, mediaTypes: mediaTypesKey, mode, schemaVersion: SEARCH_SCHEMA_VERSION },
+      filters: { limit, mediaTypes: mediaTypesKey, mode, schemaVersion: SEARCH_SCHEMA_VERSION_V2 },
       locale: language ?? 'en',
       page: requestPage,
       query,

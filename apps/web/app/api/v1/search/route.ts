@@ -1,5 +1,11 @@
 import { createSearchGateway } from '../../../../lib/search/gateway.ts'
 import type { SearchGatewayEventSink } from '../../../../lib/search/observability.ts'
+import { PERSON_RELATIONSHIP_MAX_CREDITS } from '../../../../lib/search/person-relationships.ts'
+import {
+  createPersonRelationshipCache,
+  createUpstashPersonRelationshipStore,
+  type PersonRelationshipCache,
+} from '../../../../lib/search/providers/person-relationship-cache.ts'
 import { createTmdbSearchProvider } from '../../../../lib/search/providers/tmdb.ts'
 import { createUpstashVectorProvider } from '../../../../lib/search/providers/upstash-vector.ts'
 import {
@@ -55,10 +61,37 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const vectorConfig = readVectorServerEnv()
+    const redisConfig = readRedisServerEnv()
     const tmdb = createTmdbSearchProvider({ apiKey: tmdbApiKey, fetch: globalThis.fetch })
+    let relationships: PersonRelationshipCache | undefined
+    if (redisConfig) {
+      relationships = createPersonRelationshipCache({
+        store: createUpstashPersonRelationshipStore({
+          ...redisConfig,
+          fetch: globalThis.fetch,
+        }),
+        scheduler: {
+          async schedule({ personId }) {
+            const credits = await tmdb.getPersonCredits(personId)
+            const boundedCredits = credits.slice(0, PERSON_RELATIONSHIP_MAX_CREDITS)
+            await relationships?.set({
+              schemaVersion: 1,
+              personId,
+              aliases: [],
+              knownForDepartment: null,
+              movieCredits: boundedCredits.filter((credit) => credit.entity.entityType === 'movie'),
+              tvCredits: boundedCredits.filter((credit) => credit.entity.entityType === 'series'),
+              complete: true,
+              updatedAt: new Date().toISOString(),
+            })
+          },
+        },
+      })
+    }
     const gateway = createSearchGateway({
       tmdb,
       telemetry: eventSink,
+      ...(relationships ? { relationships } : {}),
       ...(vectorConfig
         ? {
             vector: createUpstashVectorProvider({

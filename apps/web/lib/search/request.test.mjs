@@ -4,7 +4,7 @@ import test from 'node:test'
 import { SEARCH_SCHEMA_VERSION } from '@kino/core/search'
 
 import { SearchGatewayError } from './errors.ts'
-import { parseSearchRequestV1 } from './request.ts'
+import { parseSearchRequest, parseSearchRequestV1 } from './request.ts'
 
 const validRequest = {
   schemaVersion: SEARCH_SCHEMA_VERSION,
@@ -78,11 +78,17 @@ test('rejects unsupported schemas with the negotiated supported range', () => {
         error: {
           code: 'unsupported_version',
           supportedMinimum: SEARCH_SCHEMA_VERSION,
-          supportedMaximum: SEARCH_SCHEMA_VERSION,
+          supportedMaximum: 2,
           upgradeRequired: true,
         },
       }) === undefined
   )
+})
+
+test('defaults schema-less new requests to V2 while preserving explicit versions', () => {
+  assert.equal(parseSearchRequest({ query: 'Alien' }).schemaVersion, 2)
+  assert.equal(parseSearchRequest({ schemaVersion: 1, query: 'Alien' }).schemaVersion, 1)
+  assert.equal(parseSearchRequest({ schemaVersion: 2, query: 'Alien' }).schemaVersion, 2)
 })
 
 const invalidRequests = [

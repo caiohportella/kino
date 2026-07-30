@@ -1,4 +1,4 @@
-import type { SearchResponseV1 } from '@kino/core/search'
+import type { SearchResponse } from '@kino/core/search'
 
 import { SearchGatewayError } from './errors.ts'
 import type { SearchGateway } from './gateway.ts'
@@ -10,7 +10,7 @@ import {
 } from './observability.ts'
 import { isAbortError } from './providers/vector.ts'
 import type { SearchRateLimiter } from './rate-limit.ts'
-import { parseSearchRequestV1 } from './request.ts'
+import { parseSearchRequest } from './request.ts'
 
 interface CreateSearchRouteHandlerDependencies {
   readonly gateway: SearchGateway
@@ -93,9 +93,9 @@ export function createSearchRouteHandler({
     }
 
     try {
-      const parsed = parseSearchRequestV1(body)
+      const parsed = parseSearchRequest(body)
       const queryFingerprint = await fingerprintSearchQuery(parsed.query)
-      const response: SearchResponseV1 = await gateway.search(parsed, request.signal)
+      const response: SearchResponse = await gateway.search(parsed, request.signal)
       publishSearchGatewayEvent(
         eventSink,
         createSearchGatewayEvent({

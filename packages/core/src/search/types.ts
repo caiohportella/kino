@@ -1,6 +1,10 @@
-export const SEARCH_SCHEMA_VERSION = 1 as const
+export const SEARCH_SCHEMA_VERSION_V1 = 1 as const
+export const SEARCH_SCHEMA_VERSION_V2 = 2 as const
 
-export type SearchSchemaVersion = typeof SEARCH_SCHEMA_VERSION
+/** @deprecated Use SEARCH_SCHEMA_VERSION_V1 or SEARCH_SCHEMA_VERSION_V2 explicitly. */
+export const SEARCH_SCHEMA_VERSION = SEARCH_SCHEMA_VERSION_V1
+
+export type SearchSchemaVersion = typeof SEARCH_SCHEMA_VERSION_V1 | typeof SEARCH_SCHEMA_VERSION_V2
 export type SearchMediaType = 'movie' | 'series'
 export type SearchEntityType = SearchMediaType | 'person' | 'user'
 
@@ -34,7 +38,7 @@ export interface SearchIntentEvidence {
 }
 
 export interface SearchRequestV1 {
-  readonly schemaVersion: SearchSchemaVersion
+  readonly schemaVersion: typeof SEARCH_SCHEMA_VERSION_V1
   readonly query: string
   readonly locale?: string
   readonly region?: string
@@ -52,10 +56,41 @@ export interface SearchEntity {
   readonly locale?: string
   readonly route?: string
   readonly summary?: string
+  readonly department?: string
   readonly imageUrl?: string
   readonly popularity?: number
   readonly voteCount?: number
 }
+
+/**
+ * V2 keeps content ratings separate from relevance and ranking evidence.
+ * Missing source ratings are represented as null or omitted, never as a score.
+ */
+export interface SearchEntityV2 extends SearchEntity {
+  readonly tmdbVoteAverage?: number | null
+  readonly kinoAverageRating?: number | null
+}
+
+export interface CreditSearchScore {
+  readonly relationshipScore: number
+  readonly semanticScore: number
+  readonly popularityScore: number
+  readonly voteConfidenceScore: number
+  readonly castOrderScore: number
+}
+
+export interface SearchRequestV2 {
+  readonly schemaVersion: typeof SEARCH_SCHEMA_VERSION_V2
+  readonly query: string
+  readonly locale?: string
+  readonly region?: string
+  readonly mediaTypes?: readonly SearchMediaType[]
+  readonly page?: number
+  readonly limit?: number
+}
+
+export type SearchRequest = SearchRequestV1 | SearchRequestV2
+export type CompatibleSearchRequest = SearchRequest
 
 interface CandidateBase {
   readonly entity: SearchEntity
@@ -142,6 +177,7 @@ export interface SearchScoreComponents {
   readonly relationship: number
   readonly locale: number
   readonly popularity: number
+  readonly voteConfidence: number
   readonly release: number
 }
 
@@ -166,6 +202,17 @@ export interface RunSearchPipelineV1Input {
   readonly fallback?: SearchResponseV1['fallback']
 }
 
+export interface RunSearchPipelineV2Input {
+  readonly request: SearchRequestV2
+  readonly intentEvidence: SearchIntentEvidence
+  readonly sources: readonly SearchProviderResult[]
+  readonly personExpansion?: {
+    readonly person: PersonCandidate
+    readonly credits: readonly PersonCredit[]
+  }
+  readonly fallback?: SearchResponseV2['fallback']
+}
+
 export interface SearchResultV1 {
   readonly entity: SearchEntity
   readonly score: number
@@ -184,7 +231,7 @@ export interface SearchResultGroupV1 {
 }
 
 export interface SearchResponseV1 {
-  readonly schemaVersion: SearchSchemaVersion
+  readonly schemaVersion: typeof SEARCH_SCHEMA_VERSION_V1
   readonly query: NormalizedSearchQuery
   /** The current per-group page flattened in people, movies, series, users order. */
   readonly results: readonly SearchResultV1[]
@@ -198,6 +245,36 @@ export interface SearchResponseV1 {
   readonly nextPage?: number
   readonly fallback?: 'none' | 'supplemented' | 'provider_unavailable'
 }
+
+export interface SearchResultV2 {
+  readonly entity: SearchEntityV2
+  readonly score: CreditSearchScore
+  readonly sources: readonly string[]
+  readonly relationship?: {
+    readonly personId: string
+    readonly role: SearchRelationshipRole
+  }
+}
+
+export interface SearchResultGroupV2 {
+  readonly type: SearchResultGroupType
+  readonly results: readonly SearchResultV2[]
+}
+
+export interface SearchResponseV2 {
+  readonly schemaVersion: typeof SEARCH_SCHEMA_VERSION_V2
+  readonly query: NormalizedSearchQuery
+  readonly results: readonly SearchResultV2[]
+  readonly groups: readonly SearchResultGroupV2[]
+  readonly total: number
+  readonly page: number
+  readonly limit: number
+  readonly nextPage?: number
+  readonly fallback?: 'none' | 'supplemented' | 'provider_unavailable'
+}
+
+export type SearchResponse = SearchResponseV1 | SearchResponseV2
+export type CompatibleSearchResponse = SearchResponse
 
 export interface UnsupportedSearchVersionError {
   readonly code: 'unsupported_version'
@@ -215,14 +292,20 @@ export type SearchError = UnsupportedSearchVersionError | TemporarySearchUnavail
 
 export class UnsupportedSearchVersion extends Error implements UnsupportedSearchVersionError {
   readonly code = 'unsupported_version'
-  readonly supportedMinimum = SEARCH_SCHEMA_VERSION
-  readonly supportedMaximum = SEARCH_SCHEMA_VERSION
+  readonly supportedMinimum: SearchSchemaVersion
+  readonly supportedMaximum: SearchSchemaVersion
   readonly upgradeRequired = true
   readonly receivedVersion: unknown
 
-  constructor(receivedVersion: unknown) {
+  constructor(
+    receivedVersion: unknown,
+    supportedMinimum: SearchSchemaVersion = SEARCH_SCHEMA_VERSION_V1,
+    supportedMaximum: SearchSchemaVersion = SEARCH_SCHEMA_VERSION_V2
+  ) {
     super(`Unsupported search schema version: ${String(receivedVersion)}`)
     this.name = 'UnsupportedSearchVersion'
     this.receivedVersion = receivedVersion
+    this.supportedMinimum = supportedMinimum
+    this.supportedMaximum = supportedMaximum
   }
 }
