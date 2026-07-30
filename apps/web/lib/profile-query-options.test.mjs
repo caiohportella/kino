@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { keepPreviousData } from '@tanstack/react-query'
 import { profileQueryKeys } from '@kino/core/cache'
+import { keepPreviousData } from '@tanstack/react-query'
 import {
   profileIdentityQueryOptions,
   profileRatingsQueryOptions,
@@ -21,8 +21,16 @@ function createService() {
   return {
     getAverageSeasonRatingsForTitles: async (id, titleIds) => ({ [id]: titleIds.length }),
     getFollowCounts: async () => ({ followers: 4, following: 3 }),
-    getFollowRelationship: async () => ({ isFollowedBy: false, isFollowing: true, isMutual: false }),
-    getProfileReviews: async (username) => ({ items: [], nextCursor: null, totalCount: username.length }),
+    getFollowRelationship: async () => ({
+      isFollowedBy: false,
+      isFollowing: true,
+      isMutual: false,
+    }),
+    getProfileReviews: async (username) => ({
+      items: [],
+      nextCursor: null,
+      totalCount: username.length,
+    }),
     getPublicProfileStatsByUsername: async () => ({
       diaryEntries: 3,
       moviesWatched: 2,
@@ -67,7 +75,10 @@ test('keeps identity and every content section scoped to the canonical profile i
     visibilityScope: scope,
   })
 
-  assert.deepEqual(identity.queryKey, profileQueryKeys.identity({ profileId, visibilityScope: scope }))
+  assert.deepEqual(
+    identity.queryKey,
+    profileQueryKeys.identity({ profileId, visibilityScope: scope })
+  )
   assert.deepEqual(
     movies.queryKey,
     profileQueryKeys.watchedMovies({ profileId, visibilityScope: scope })
@@ -80,7 +91,10 @@ test('keeps identity and every content section scoped to the canonical profile i
     watchlists.queryKey,
     profileQueryKeys.watchlists({ profileId, visibilityScope: scope })
   )
-  assert.deepEqual(reviews.queryKey, profileQueryKeys.reviews({ profileId, visibilityScope: scope }))
+  assert.deepEqual(
+    reviews.queryKey,
+    profileQueryKeys.reviews({ profileId, visibilityScope: scope })
+  )
   assert.deepEqual(
     ratings.queryKey,
     profileQueryKeys.ratings({
@@ -93,9 +107,17 @@ test('keeps identity and every content section scoped to the canonical profile i
 })
 
 test('starts relationship work from a canonical route id without waiting for unrelated profile sections', async () => {
+  const relationshipCalls = []
+  const service = {
+    ...createService(),
+    getFollowRelationship: async (...args) => {
+      relationshipCalls.push(args)
+      return { isFollowedBy: false, isFollowing: true, isMutual: false }
+    },
+  }
   const enabled = profileRelationshipQueryOptions({
     profileId,
-    service: createService(),
+    service,
     viewerId: 'viewer-a',
   })
   const disabled = profileRelationshipQueryOptions({
@@ -111,6 +133,7 @@ test('starts relationship work from a canonical route id without waiting for unr
     profileQueryKeys.relationship({ profileId, viewerId: 'viewer-a' })
   )
   assert.equal((await enabled.queryFn()).isFollowing, true)
+  assert.deepEqual(relationshipCalls, [[profileId]])
 })
 
 test('preserves successful section data while a refreshed section is pending or fails', async () => {
@@ -126,4 +149,28 @@ test('preserves successful section data while a refreshed section is pending or 
     counts: { followers: 4, following: 3 },
     publicStats: { diaryEntries: 3, moviesWatched: 2, reviews: 1, seriesWatched: 1 },
   })
+})
+
+test('passes a sorted mutable title-id copy to the real ratings service signature', async () => {
+  const originalTitleIds = Object.freeze(['series-b', 'series-a'])
+  let receivedTitleIds
+  const service = {
+    ...createService(),
+    getAverageSeasonRatingsForTitles: async (_id, titleIds) => {
+      receivedTitleIds = titleIds
+      titleIds.push('service-can-mutate-this-copy')
+      return {}
+    },
+  }
+  const options = profileRatingsQueryOptions({
+    profileId,
+    service,
+    titleIds: originalTitleIds,
+    visibilityScope: scope,
+  })
+
+  await options.queryFn()
+
+  assert.deepEqual(originalTitleIds, ['series-b', 'series-a'])
+  assert.deepEqual(receivedTitleIds, ['series-a', 'series-b', 'service-can-mutate-this-copy'])
 })

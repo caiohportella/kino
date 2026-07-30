@@ -1,20 +1,22 @@
+import type { KinoDatabaseService } from '@kino/core'
 import { profileCachePolicies, profileQueryKeys } from '@kino/core/cache'
 import { keepPreviousData } from '@tanstack/react-query'
 
 type VisibilityScope = { kind: 'public' } | { kind: 'authenticated'; userId: string }
 
-export interface ProfileQueryService {
-  getUserProfileByUsername(username: string): Promise<unknown>
-  getUserProfile(profileId: string): Promise<unknown>
-  getFollowRelationship(viewerId: string, profileId: string): Promise<unknown>
-  getFollowCounts(profileId: string): Promise<unknown>
-  getWatchedMovies(profileId: string): Promise<unknown>
-  getWatchedSeries(profileId: string): Promise<unknown>
-  getPublicProfileStatsByUsername(username: string): Promise<unknown>
-  getPublicWatchlists(profileId: string): Promise<unknown>
-  getProfileReviews(username: string, options?: { limit?: number }): Promise<unknown>
-  getAverageSeasonRatingsForTitles(profileId: string, titleIds: readonly string[]): Promise<unknown>
-}
+export type ProfileQueryService = Pick<
+  KinoDatabaseService,
+  | 'getAverageSeasonRatingsForTitles'
+  | 'getFollowCounts'
+  | 'getFollowRelationship'
+  | 'getProfileReviews'
+  | 'getPublicProfileStatsByUsername'
+  | 'getPublicWatchlists'
+  | 'getUserProfile'
+  | 'getUserProfileByUsername'
+  | 'getWatchedMovies'
+  | 'getWatchedSeries'
+>
 
 const retained = { placeholderData: keepPreviousData }
 
@@ -53,14 +55,18 @@ export function profileRelationshipQueryOptions(input: {
       profileId: input.profileId,
       viewerId: input.viewerId ?? 'anonymous',
     }),
-    queryFn: () => input.service.getFollowRelationship(input.viewerId!, input.profileId),
+    queryFn: () => input.service.getFollowRelationship(input.profileId),
     enabled: Boolean(input.viewerId),
     ...profileCachePolicies.relationship,
     ...retained,
   }
 }
 
-function sectionOptions<T>(queryKey: readonly unknown[], queryFn: () => Promise<T>, policy: object) {
+function sectionOptions<T>(
+  queryKey: readonly unknown[],
+  queryFn: () => Promise<T>,
+  policy: object
+) {
   return { queryKey, queryFn, ...policy, ...retained }
 }
 
