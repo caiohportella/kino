@@ -2,7 +2,7 @@
 
 import type { MediaType, SearchResult, TMDbGenre, TMDbTitle } from '@kino/core'
 import { searchQueryKeys } from '@kino/core/cache'
-import { SEARCH_SCHEMA_VERSION, type SearchResponseV1 } from '@kino/core/search'
+import { SEARCH_SCHEMA_VERSION_V2 } from '@kino/core/search'
 import { useQuery } from '@tanstack/react-query'
 import { AlertCircle, SlidersHorizontal, X } from 'lucide-react'
 import {
@@ -23,6 +23,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { useTranslation } from '@/lib/i18n'
 import { personPath } from '@/lib/routes'
 import { createSearchGatewayClient } from '@/lib/search/client'
+import { toWebSearchGroups } from '@/lib/search/presentation'
 import { getTmdb } from '@/lib/services'
 import { cn } from '@/lib/utils'
 import { useLibraryStore } from '@/stores/library-store'
@@ -99,7 +100,7 @@ export default function SearchPage() {
   const searchQuery = useQuery({
     queryKey: searching
       ? searchQueryKeys.results({
-          filters: { limit: searchLimit, mediaType, mode, schemaVersion: SEARCH_SCHEMA_VERSION },
+          filters: { limit: searchLimit, mediaType, mode, schemaVersion: SEARCH_SCHEMA_VERSION_V2 },
           locale: language,
           page: mode === 'full' ? searchPage : 1,
           query: debouncedQuery,
@@ -111,7 +112,7 @@ export default function SearchPage() {
       searchGateway
         .search(
           {
-            schemaVersion: SEARCH_SCHEMA_VERSION,
+            schemaVersion: SEARCH_SCHEMA_VERSION_V2,
             query: debouncedQuery,
             locale: language,
             region: localeRegion(language),
@@ -121,7 +122,26 @@ export default function SearchPage() {
           },
           signal
         )
-        .then(toSearchGroups),
+        .then((response) =>
+          toWebSearchGroups(response, {
+            departmentLabels: {
+              acting: t('person.department.Acting'),
+              art: t('person.department.Art'),
+              camera: t('person.department.Camera'),
+              costumeAndMakeUp: t('person.department.Costume & Make-Up'),
+              creator: t('person.department.Creator'),
+              crew: t('person.department.Crew'),
+              directing: t('person.department.Directing'),
+              editing: t('person.department.Editing'),
+              fallback: t('person.department.Person'),
+              lighting: t('person.department.Lighting'),
+              production: t('person.department.Production'),
+              sound: t('person.department.Sound'),
+              visualEffects: t('person.department.Visual Effects'),
+              writing: t('person.department.Writing'),
+            },
+          })
+        ),
     enabled: localeStatus !== 'resolving' && searching,
     retry: 1,
     staleTime: 60_000,
@@ -168,79 +188,82 @@ export default function SearchPage() {
 
   let resultIndex = 0
   return (
-    <div className="content-frame">
-      <PageHeader
-        action={
-          <Button
-            aria-controls="search-filters"
-            aria-expanded={showFilters}
-            onClick={() => setShowFilters((v) => !v)}
-            variant="secondary"
-          >
-            <SlidersHorizontal size={16} />
-            {t('search.filters')}
-          </Button>
-        }
-        title={t('search.title')}
-      />
-      <div className="mb-5 grid gap-3 md:grid-cols-[1fr_auto]">
-        <label className="grid gap-2 text-sm font-semibold text-kino-text" htmlFor="search">
-          {t('search.title')}
-          <input
-            aria-activedescendant={activeIndex >= 0 ? `search-result-${activeIndex}` : undefined}
-            aria-controls="global-search-results"
-            aria-expanded={searching}
-            aria-haspopup="listbox"
-            autoComplete="off"
-            className="min-h-11 w-full rounded-md border border-white/10 bg-kino-surface px-3 text-base text-kino-text outline-none transition-colors placeholder:text-kino-muted focus:border-kino-accent"
-            id="search"
-            onChange={(event) => {
-              setSubmittedQuery('')
-              if (event.target.value.trim()) {
-                resetDiscoveryOnlyFilters({ genreIds, setMinRating, toggleGenre })
-              }
-              setQuery(event.target.value)
-              setActiveIndex(-1)
-              resultRefs.current = []
-            }}
-            onKeyDown={handleSearchKeyDown}
-            placeholder={t('search.placeholder')}
-            role="combobox"
-            value={queryText}
-          />
-        </label>
-        <div className="flex items-end">
-          <Button
-            onClick={() => {
-              setQuery('')
-              clearFilters()
-            }}
-            variant="ghost"
-          >
-            <X size={16} />
-            {t('search.clear')}
-          </Button>
+    <div>
+      <div className="content-frame" data-search-controls>
+        <PageHeader
+          action={
+            <Button
+              aria-controls="search-filters"
+              aria-expanded={showFilters}
+              onClick={() => setShowFilters((v) => !v)}
+              variant="secondary"
+            >
+              <SlidersHorizontal size={16} />
+              {t('search.filters')}
+            </Button>
+          }
+          title={t('search.title')}
+        />
+        <div className="mb-5 grid gap-3 md:grid-cols-[1fr_auto]">
+          <label className="grid gap-2 text-sm font-semibold text-kino-text" htmlFor="search">
+            {t('search.title')}
+            <input
+              aria-activedescendant={activeIndex >= 0 ? `search-result-${activeIndex}` : undefined}
+              aria-controls="global-search-results"
+              aria-expanded={searching}
+              aria-haspopup="listbox"
+              autoComplete="off"
+              className="min-h-11 w-full rounded-md border border-white/10 bg-kino-surface px-3 text-base text-kino-text outline-none transition-colors placeholder:text-kino-muted focus:border-kino-accent"
+              id="search"
+              onChange={(event) => {
+                setSubmittedQuery('')
+                if (event.target.value.trim()) {
+                  resetDiscoveryOnlyFilters({ genreIds, setMinRating, toggleGenre })
+                }
+                setQuery(event.target.value)
+                setActiveIndex(-1)
+                resultRefs.current = []
+              }}
+              onKeyDown={handleSearchKeyDown}
+              placeholder={t('search.placeholder')}
+              role="combobox"
+              value={queryText}
+            />
+          </label>
+          <div className="flex items-end">
+            <Button
+              onClick={() => {
+                setQuery('')
+                clearFilters()
+              }}
+              variant="ghost"
+            >
+              <X size={16} />
+              {t('search.clear')}
+            </Button>
+          </div>
         </div>
+
+        {showFilters && !searching ? (
+          <SearchFilters
+            genres={genresQuery.data || []}
+            genreIds={genreIds}
+            mediaType={mediaType}
+            minRating={minRating}
+            setMediaType={(value) => {
+              setSearchPage(1)
+              setMediaType(value)
+            }}
+            setMinRating={setMinRating}
+            t={t}
+            toggleGenre={toggleGenre}
+          />
+        ) : null}
       </div>
 
-      {showFilters && !searching ? (
-        <SearchFilters
-          genres={genresQuery.data || []}
-          genreIds={genreIds}
-          mediaType={mediaType}
-          minRating={minRating}
-          setMediaType={(value) => {
-            setSearchPage(1)
-            setMediaType(value)
-          }}
-          setMinRating={setMinRating}
-          t={t}
-          toggleGenre={toggleGenre}
-        />
-      ) : null}
-
       <section
-        className="min-w-0"
+        data-search-results
+        className="content-frame min-w-0"
         id="global-search-results"
         role={searching ? 'listbox' : undefined}
       >
@@ -447,72 +470,6 @@ function RetryState({
       </Button>
     </div>
   )
-}
-
-function toSearchGroups(response: SearchResponseV1) {
-  const groups = {
-    movies: [] as SearchResult[],
-    series: [] as SearchResult[],
-    people: [] as SearchResult[],
-    users: [] as SearchResult[],
-  }
-  for (const group of response.groups) {
-    for (const result of group.results) {
-      const entity = result.entity
-      if ((entity.entityType === 'movie' || entity.entityType === 'series') && entity.tmdbId) {
-        const mediaType: MediaType = entity.entityType === 'series' ? 'tv' : 'movie'
-        groups[entity.entityType === 'series' ? 'series' : 'movies'].push({
-          kind: 'title',
-          id: entity.tmdbId,
-          imagePath: entity.imageUrl || null,
-          media: {
-            id: entity.tmdbId,
-            backdrop_path: null,
-            genre_ids: [],
-            media_type: mediaType,
-            name: mediaType === 'tv' ? entity.title : undefined,
-            overview: entity.summary || '',
-            poster_path: entity.imageUrl || null,
-            release_date: mediaType === 'movie' && entity.year ? `${entity.year}-01-01` : '',
-            first_air_date: mediaType === 'tv' && entity.year ? `${entity.year}-01-01` : '',
-            title: mediaType === 'movie' ? entity.title : undefined,
-            vote_average: result.score,
-            vote_count: entity.voteCount || 0,
-          },
-          mediaType,
-          name: entity.title,
-          year: entity.year,
-        })
-      } else if (entity.entityType === 'person') {
-        const id = entity.tmdbId ?? Number(entity.id.replace(/\D+/g, ''))
-        if (!Number.isSafeInteger(id) || id <= 0) continue
-        groups.people.push({
-          kind: 'person',
-          id,
-          avatarUrl: entity.imageUrl || null,
-          backgroundUrl: entity.imageUrl || null,
-          name: entity.title,
-          summary: entity.summary,
-        })
-      } else if (entity.entityType === 'user') {
-        const username = entity.route?.split('/').filter(Boolean).at(-1)
-        if (!username) continue
-        groups.users.push({
-          kind: 'user',
-          id: entity.id,
-          avatarUrl: entity.imageUrl || null,
-          backgroundUrl: entity.imageUrl || null,
-          name: entity.title,
-          username,
-        })
-      }
-    }
-  }
-  return {
-    groups,
-    failed: { movies: false, people: false, series: false, users: false },
-    nextPage: response.nextPage,
-  }
 }
 
 function localeRegion(locale: string) {

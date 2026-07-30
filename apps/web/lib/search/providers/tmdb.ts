@@ -122,6 +122,7 @@ function personCandidate(
   if (!tmdbId || !name) return null
   const profile = imageUrl(value.profile_path)
   const popularity = finiteNumber(value.popularity)
+  const department = text(value.known_for_department)
   const entity: SearchEntity & { readonly entityType: 'person' } = {
     id: `person:${tmdbId}`,
     entityType: 'person',
@@ -130,6 +131,7 @@ function personCandidate(
     ...(profile === undefined ? {} : { imageUrl: profile }),
     ...(request.locale === undefined ? {} : { locale: request.locale }),
     ...(popularity === undefined ? {} : { popularity }),
+    ...(department === undefined ? {} : { summary: department }),
   }
   return {
     source: 'person',
