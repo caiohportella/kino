@@ -579,7 +579,9 @@
       "Crew": "Equipe",
       "Visual Effects": "Efeitos Visuais",
       "Costume & Make-Up": "Figurino e Maquiagem",
-      "Lighting": "Iluminação"
+      "Lighting": "Iluminação",
+      "Creator": "Criação",
+      "Person": "Pessoa"
     }
   },
   "landing": {
