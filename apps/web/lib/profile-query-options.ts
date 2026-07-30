@@ -1,6 +1,5 @@
 import type { KinoDatabaseService } from '@kino/core'
 import { profileCachePolicies, profileQueryKeys } from '@kino/core/cache'
-import { keepPreviousData } from '@tanstack/react-query'
 
 type VisibilityScope = { kind: 'public' } | { kind: 'authenticated'; userId: string }
 
@@ -18,7 +17,26 @@ export type ProfileQueryService = Pick<
   | 'getWatchedSeries'
 >
 
-const retained = { placeholderData: keepPreviousData }
+function retainSameProfileOwner<T>(input: { profileId: string; visibilityScope: VisibilityScope }) {
+  return {
+    placeholderData: (
+      previousData: T | undefined,
+      previousQuery: { queryKey: readonly unknown[] } | undefined
+    ) => {
+      const previousKey = previousQuery?.queryKey
+      if (previousKey?.[3] !== input.profileId || previousKey[4] !== input.visibilityScope.kind) {
+        return undefined
+      }
+      if (
+        input.visibilityScope.kind === 'authenticated' &&
+        previousKey[5] !== input.visibilityScope.userId
+      ) {
+        return undefined
+      }
+      return previousData
+    },
+  }
+}
 
 export function profileUsernameResolutionQueryOptions(input: {
   service: ProfileQueryService
@@ -41,7 +59,7 @@ export function profileIdentityQueryOptions(input: {
     queryKey: profileQueryKeys.identity(input),
     queryFn: () => input.service.getUserProfile(input.profileId),
     ...profileCachePolicies.identity,
-    ...retained,
+    ...retainSameProfileOwner<Awaited<ReturnType<ProfileQueryService['getUserProfile']>>>(input),
   }
 }
 
@@ -58,16 +76,24 @@ export function profileRelationshipQueryOptions(input: {
     queryFn: () => input.service.getFollowRelationship(input.profileId),
     enabled: Boolean(input.viewerId),
     ...profileCachePolicies.relationship,
-    ...retained,
+    placeholderData: (
+      previousData: Awaited<ReturnType<ProfileQueryService['getFollowRelationship']>> | undefined,
+      previousQuery: { queryKey: readonly unknown[] } | undefined
+    ) =>
+      previousQuery?.queryKey[3] === input.profileId &&
+      previousQuery.queryKey[4] === (input.viewerId ?? 'anonymous')
+        ? previousData
+        : undefined,
   }
 }
 
 function sectionOptions<T>(
   queryKey: readonly unknown[],
   queryFn: () => Promise<T>,
-  policy: object
+  policy: object,
+  owner: { profileId: string; visibilityScope: VisibilityScope }
 ) {
-  return { queryKey, queryFn, ...policy, ...retained }
+  return { queryKey, queryFn, ...policy, ...retainSameProfileOwner<T>(owner) }
 }
 
 export function profileWatchedMoviesQueryOptions(input: {
@@ -78,7 +104,8 @@ export function profileWatchedMoviesQueryOptions(input: {
   return sectionOptions(
     profileQueryKeys.watchedMovies(input),
     () => input.service.getWatchedMovies(input.profileId),
-    profileCachePolicies.watchedMovies
+    profileCachePolicies.watchedMovies,
+    input
   )
 }
 
@@ -90,7 +117,8 @@ export function profileWatchedSeriesQueryOptions(input: {
   return sectionOptions(
     profileQueryKeys.watchedSeries(input),
     () => input.service.getWatchedSeries(input.profileId),
-    profileCachePolicies.watchedSeries
+    profileCachePolicies.watchedSeries,
+    input
   )
 }
 
@@ -102,7 +130,8 @@ export function profileWatchlistsQueryOptions(input: {
   return sectionOptions(
     profileQueryKeys.watchlists(input),
     () => input.service.getPublicWatchlists(input.profileId),
-    profileCachePolicies.watchlists
+    profileCachePolicies.watchlists,
+    input
   )
 }
 
@@ -115,7 +144,8 @@ export function profileReviewsQueryOptions(input: {
   return sectionOptions(
     profileQueryKeys.reviews(input),
     () => input.service.getProfileReviews(input.username, { limit: 6 }),
-    profileCachePolicies.reviews
+    profileCachePolicies.reviews,
+    input
   )
 }
 
@@ -133,7 +163,8 @@ export function profileRatingsQueryOptions(input: {
       filters: { titleIds },
     }),
     () => input.service.getAverageSeasonRatingsForTitles(input.profileId, titleIds),
-    profileCachePolicies.ratings
+    profileCachePolicies.ratings,
+    input
   )
 }
 
@@ -152,6 +183,7 @@ export function profileStatisticsQueryOptions(input: {
       ])
       return { publicStats, counts }
     },
-    profileCachePolicies.statistics
+    profileCachePolicies.statistics,
+    input
   )
 }

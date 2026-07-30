@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { profileQueryKeys } from '@kino/core/cache'
-import { keepPreviousData } from '@tanstack/react-query'
 import {
   profileIdentityQueryOptions,
   profileRatingsQueryOptions,
@@ -144,11 +143,118 @@ test('preserves successful section data while a refreshed section is pending or 
     visibilityScope: scope,
   })
 
-  assert.equal(options.placeholderData, keepPreviousData)
+  assert.deepEqual(
+    options.placeholderData(
+      { counts: { followers: 4, following: 3 }, publicStats: null },
+      { queryKey: options.queryKey }
+    ),
+    { counts: { followers: 4, following: 3 }, publicStats: null }
+  )
   assert.deepEqual(await options.queryFn(), {
     counts: { followers: 4, following: 3 },
     publicStats: { diaryEntries: 3, moviesWatched: 2, reviews: 1, seriesWatched: 1 },
   })
+})
+
+test('never retains section data from a different canonical profile owner', () => {
+  const service = createService()
+  const options = profileWatchedMoviesQueryOptions({
+    profileId: 'profile-b',
+    service,
+    visibilityScope: scope,
+  })
+
+  assert.equal(
+    options.placeholderData([{ id: 'movie-a' }], {
+      queryKey: profileQueryKeys.watchedMovies({
+        profileId: 'profile-a',
+        visibilityScope: scope,
+      }),
+    }),
+    undefined
+  )
+})
+
+test('never retains same-profile content when visibility changes from authenticated to public', () => {
+  const service = createService()
+  const options = profileWatchedMoviesQueryOptions({
+    profileId,
+    service,
+    visibilityScope: { kind: 'public' },
+  })
+
+  assert.equal(
+    options.placeholderData([{ id: 'private-movie' }], {
+      queryKey: profileQueryKeys.watchedMovies({
+        profileId,
+        visibilityScope: { kind: 'authenticated', userId: 'viewer-a' },
+      }),
+    }),
+    undefined
+  )
+})
+
+test('never retains same-profile identity, statistics, or ratings across account scopes', () => {
+  const service = createService()
+  const nextScope = { kind: 'authenticated', userId: 'viewer-b' }
+  const previousScope = { kind: 'authenticated', userId: 'viewer-a' }
+  const cases = [
+    {
+      options: profileIdentityQueryOptions({ profileId, service, visibilityScope: nextScope }),
+      previousData: { id: profileId },
+      previousKey: profileQueryKeys.identity({ profileId, visibilityScope: previousScope }),
+    },
+    {
+      options: profileStatisticsQueryOptions({
+        profileId,
+        service,
+        username: 'ada',
+        visibilityScope: nextScope,
+      }),
+      previousData: { counts: { followers: 1, following: 2 }, publicStats: null },
+      previousKey: profileQueryKeys.statistics({ profileId, visibilityScope: previousScope }),
+    },
+    {
+      options: profileRatingsQueryOptions({
+        profileId,
+        service,
+        titleIds: ['series-a'],
+        visibilityScope: nextScope,
+      }),
+      previousData: { 'series-a': 4 },
+      previousKey: profileQueryKeys.ratings({
+        filters: { titleIds: ['series-a'] },
+        profileId,
+        visibilityScope: previousScope,
+      }),
+    },
+  ]
+
+  for (const item of cases) {
+    assert.equal(
+      item.options.placeholderData(item.previousData, { queryKey: item.previousKey }),
+      undefined
+    )
+  }
+})
+
+test('never retains relationship data when the authenticated viewer owner changes', () => {
+  const service = createService()
+  const options = profileRelationshipQueryOptions({
+    profileId,
+    service,
+    viewerId: 'viewer-b',
+  })
+
+  assert.equal(
+    options.placeholderData(
+      { isFollowedBy: false, isFollowing: true, isMutual: false },
+      {
+        queryKey: profileQueryKeys.relationship({ profileId, viewerId: 'viewer-a' }),
+      }
+    ),
+    undefined
+  )
 })
 
 test('passes a sorted mutable title-id copy to the real ratings service signature', async () => {

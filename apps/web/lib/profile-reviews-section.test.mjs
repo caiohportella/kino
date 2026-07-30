@@ -77,8 +77,11 @@ for (const { name, query, wantData, wantKind } of queryStateCases) {
 test('public web profiles render the Reviews row and use only known-empty review data', () => {
   assert.match(profileSource, /<ProfileReviewsSection/)
   assert.match(profileSource, /username=\{profile\.username\}/)
-  assert.match(profileSource, /resolveProfileReviewsQueryState\(profileReviewsQuery\)/)
-  assert.match(profileSource, /profileReviewsState\.kind === 'empty'/)
+  assert.match(profileSource, /toSliceState\([\s\S]*sections\.reviews/)
+  assert.match(
+    profileSource,
+    /isProfileKnownEmpty\(\[moviesState, seriesState, watchlistsState, reviewsState\]\)/
+  )
   assert.doesNotMatch(profileSource, /profileReviewsQuery\.isLoading/)
   assert.doesNotMatch(profileSource, /!profileReviewsQuery\.data\?\.totalCount/)
   assert.match(

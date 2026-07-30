@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import {
+  type ProfileQueryService,
   profileIdentityQueryOptions,
   profileRatingsQueryOptions,
   profileRelationshipQueryOptions,
@@ -11,7 +12,6 @@ import {
   profileWatchedMoviesQueryOptions,
   profileWatchedSeriesQueryOptions,
   profileWatchlistsQueryOptions,
-  type ProfileQueryService,
 } from '@/lib/profile-query-options'
 
 export function useProfileUsernameResolution(
@@ -37,25 +37,58 @@ export function useProfileIdentity(
   })
 }
 
-export function useProfileSections(input: {
-  profileId: string
-  username: string
-  viewerId?: string
-  service: ProfileQueryService
-  visibilityScope: { kind: 'public' } | { kind: 'authenticated'; userId: string }
-  ratingTitleIds?: readonly string[]
-}) {
-  return {
-    relationship: useQuery(profileRelationshipQueryOptions(input)),
-    watchedMovies: useQuery(profileWatchedMoviesQueryOptions(input)),
-    watchedSeries: useQuery(profileWatchedSeriesQueryOptions(input)),
-    statistics: useQuery(profileStatisticsQueryOptions(input)),
-    watchlists: useQuery(profileWatchlistsQueryOptions(input)),
-    reviews: useQuery(profileReviewsQueryOptions(input)),
-    ratings: useQuery(
-      profileRatingsQueryOptions({ ...input, titleIds: input.ratingTitleIds ?? [] })
-    ),
+export function useProfileSections(
+  input:
+    | {
+        profileId: string
+        username: string
+        viewerId?: string
+        service: ProfileQueryService
+        visibilityScope: { kind: 'public' } | { kind: 'authenticated'; userId: string }
+      }
+    | undefined
+) {
+  const resolvedInput = input ?? {
+    profileId: 'pending',
+    username: 'pending',
+    service: pendingService,
+    visibilityScope: { kind: 'public' } as const,
   }
+  const relationshipOptions = profileRelationshipQueryOptions(resolvedInput)
+  const watchedMoviesOptions = profileWatchedMoviesQueryOptions(resolvedInput)
+  const watchedSeriesOptions = profileWatchedSeriesQueryOptions(resolvedInput)
+  const statisticsOptions = profileStatisticsQueryOptions(resolvedInput)
+  const watchlistsOptions = profileWatchlistsQueryOptions(resolvedInput)
+  const reviewsOptions = profileReviewsQueryOptions(resolvedInput)
+  const enabled = Boolean(input)
+
+  return {
+    relationship: useQuery({
+      ...relationshipOptions,
+      enabled: enabled && relationshipOptions.enabled,
+    }),
+    watchedMovies: useQuery({ ...watchedMoviesOptions, enabled }),
+    watchedSeries: useQuery({ ...watchedSeriesOptions, enabled }),
+    statistics: useQuery({ ...statisticsOptions, enabled }),
+    watchlists: useQuery({ ...watchlistsOptions, enabled }),
+    reviews: useQuery({ ...reviewsOptions, enabled }),
+  }
+}
+
+export function useProfileRatings(
+  input:
+    | (Parameters<typeof profileRatingsQueryOptions>[0] & { titleIds: readonly string[] })
+    | undefined
+) {
+  const options = profileRatingsQueryOptions(
+    input ?? {
+      profileId: 'pending',
+      service: pendingService,
+      titleIds: [],
+      visibilityScope: { kind: 'public' },
+    }
+  )
+  return useQuery({ ...options, enabled: Boolean(input && input.titleIds.length > 0) })
 }
 
 const pendingService = new Proxy(

@@ -21,6 +21,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { db } from '@/lib/services'
 
 const PROFILE_REVIEW_PREVIEW_LIMIT = 6
@@ -46,13 +47,24 @@ function updateProfileReviewCache(
   return updater(cache)
 }
 
-export function useProfileReviews(username: string | null | undefined) {
+export function useProfileReviews(username: string | null | undefined, enabled = true) {
   return useQuery({
     queryKey: profileReviewKeys.profile(username ?? ''),
     queryFn: () => db.getProfileReviews(username!, { limit: PROFILE_REVIEW_PREVIEW_LIMIT }),
-    enabled: Boolean(username),
+    enabled: enabled && Boolean(username),
     staleTime: 60_000,
   })
+}
+
+export function useBridgeProfileReviewsCache(
+  username: string | null | undefined,
+  data: ProfileReviewsPage | undefined
+) {
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    if (!username || !data) return
+    queryClient.setQueryData(profileReviewKeys.profile(username), data)
+  }, [data, queryClient, username])
 }
 
 export function useAllProfileReviews(username: string, enabled: boolean) {
