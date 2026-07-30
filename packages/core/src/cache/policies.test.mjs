@@ -26,5 +26,7 @@ test('defines named cache policies for every progressive profile query boundary'
 
 test('keeps viewer relationship data and availability on their own refresh cadences', () => {
   assert.ok(profileCachePolicies.relationship.staleTime < profileCachePolicies.identity.staleTime)
-  assert.ok(profileCachePolicies.availability.staleTime > profileCachePolicies.watchedSeries.staleTime)
+  assert.ok(
+    profileCachePolicies.availability.staleTime > profileCachePolicies.watchedSeries.staleTime
+  )
 })

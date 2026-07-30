@@ -1,21 +1,53 @@
-import type { KinoDatabaseService } from '@kino/core'
+import type {
+  FollowRelationship,
+  NextEpisodeCandidate,
+  ProfileReviewOptions,
+  ProfileReviewsPage,
+  PublicWatchlistSummary,
+  UserProfile,
+  WatchedMovie,
+  WatchedSeries,
+} from '@kino/core'
 import { profileCachePolicies, profileQueryKeys } from '@kino/core/cache'
 
 type VisibilityScope = { kind: 'public' } | { kind: 'authenticated'; userId: string }
 
-export type ProfileQueryService = Pick<
-  KinoDatabaseService,
-  | 'getAverageSeasonRatingsForTitles'
-  | 'getFollowCounts'
-  | 'getFollowRelationship'
-  | 'getProfileReviews'
-  | 'getPublicProfileStatsByUsername'
-  | 'getPublicWatchlists'
-  | 'getUserProfile'
-  | 'getUserProfileByUsername'
-  | 'getWatchedMovies'
-  | 'getWatchedSeries'
->
+export interface ProfileQueryService {
+  getAverageSeasonRatingsForTitles(
+    profileId: string,
+    titleIds: string[]
+  ): Promise<Record<string, number>>
+  getFollowCounts(profileId: string): Promise<ProfileFollowCounts>
+  getFollowRelationship(profileId: string): Promise<FollowRelationship>
+  getProfileReviewsByProfileId(
+    profileId: string,
+    options?: ProfileReviewOptions
+  ): Promise<ProfileReviewsPage>
+  getPublicWatchlists(profileId: string): Promise<PublicWatchlistSummary[]>
+  getPublicProfileStatsByProfileId(profileId: string): Promise<PublicProfileStats | null>
+  getUserProfile(profileId: string): Promise<UserProfile | null>
+  getUserProfileByUsername(username: string): Promise<UserProfile | null>
+  getWatchedMovies(profileId: string): Promise<WatchedMovie[]>
+  getWatchedSeries(profileId: string): Promise<ProfileWatchedSeries[]>
+}
+
+export interface ProfileFollowCounts {
+  followers: number
+  following: number
+}
+
+export interface PublicProfileStats {
+  diaryEntries: number
+  moviesWatched: number
+  reviews: number
+  seriesWatched: number
+}
+
+export interface ProfileWatchedSeries extends WatchedSeries {
+  is_series_completed: boolean
+  next_episode: NextEpisodeCandidate | null
+  watched_episode_keys: string[]
+}
 
 function retainSameProfileOwner<T>(input: { profileId: string; visibilityScope: VisibilityScope }) {
   return {
@@ -138,12 +170,11 @@ export function profileWatchlistsQueryOptions(input: {
 export function profileReviewsQueryOptions(input: {
   profileId: string
   service: ProfileQueryService
-  username: string
   visibilityScope: VisibilityScope
 }) {
   return sectionOptions(
     profileQueryKeys.reviews(input),
-    () => input.service.getProfileReviews(input.username, { limit: 6 }),
+    () => input.service.getProfileReviewsByProfileId(input.profileId, { limit: 6 }),
     profileCachePolicies.reviews,
     input
   )
@@ -171,14 +202,13 @@ export function profileRatingsQueryOptions(input: {
 export function profileStatisticsQueryOptions(input: {
   profileId: string
   service: ProfileQueryService
-  username: string
   visibilityScope: VisibilityScope
 }) {
   return sectionOptions(
     profileQueryKeys.statistics(input),
     async () => {
       const [publicStats, counts] = await Promise.all([
-        input.service.getPublicProfileStatsByUsername(input.username),
+        input.service.getPublicProfileStatsByProfileId(input.profileId),
         input.service.getFollowCounts(input.profileId),
       ])
       return { publicStats, counts }

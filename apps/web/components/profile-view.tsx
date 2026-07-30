@@ -238,10 +238,9 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
   const identityQuery = useProfileIdentity(identityInput)
   const canonicalUsername = identityQuery.data?.username || username
   const sections = useProfileSections(
-    targetUserId && canonicalUsername
+    targetUserId
       ? {
           profileId: targetUserId,
-          username: canonicalUsername,
           viewerId: user?.id,
           service: db,
           visibilityScope,

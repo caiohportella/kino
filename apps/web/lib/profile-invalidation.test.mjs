@@ -253,6 +253,15 @@ test('identity writes invalidate the username-resolution root', () => {
   )
 })
 
+test('profile review mutations do not invalidate the removed username-keyed profile cache', () => {
+  const hookSource = readFileSync(
+    new URL('../hooks/use-profile-reviews.ts', import.meta.url),
+    'utf8'
+  )
+
+  assert.doesNotMatch(hookSource, /\['profile-by-username',\s*username\]/)
+})
+
 test('review-like consumers carry author ownership into canonical invalidation', () => {
   const hookSource = readFileSync(new URL('../hooks/use-title-reviews.ts', import.meta.url), 'utf8')
   const callerSource = readFileSync(

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { profileQueryKeys } from '@kino/core/cache'
 import {
@@ -16,8 +17,16 @@ import {
 const scope = { kind: 'authenticated', userId: 'viewer-a' }
 const profileId = 'profile-a'
 
+test('keeps the app query port structurally independent from the concrete database service', () => {
+  const source = readFileSync(new URL('./profile-query-options.ts', import.meta.url), 'utf8')
+
+  assert.doesNotMatch(source, /KinoDatabaseService/)
+})
+
 function createService() {
+  const canonicalCalls = []
   return {
+    canonicalCalls,
     getAverageSeasonRatingsForTitles: async (id, titleIds) => ({ [id]: titleIds.length }),
     getFollowCounts: async () => ({ followers: 4, following: 3 }),
     getFollowRelationship: async () => ({
@@ -25,17 +34,20 @@ function createService() {
       isFollowing: true,
       isMutual: false,
     }),
-    getProfileReviews: async (username) => ({
+    getProfileReviewsByProfileId: async (id) => ({
       items: [],
       nextCursor: null,
-      totalCount: username.length,
+      totalCount: id.length,
     }),
-    getPublicProfileStatsByUsername: async () => ({
-      diaryEntries: 3,
-      moviesWatched: 2,
-      reviews: 1,
-      seriesWatched: 1,
-    }),
+    getPublicProfileStatsByProfileId: async (id) => {
+      canonicalCalls.push(['statistics', id])
+      return {
+        diaryEntries: 3,
+        moviesWatched: 2,
+        reviews: 1,
+        seriesWatched: 1,
+      }
+    },
     getPublicWatchlists: async () => [],
     getUserProfile: async (id) => ({ id }),
     getUserProfileByUsername: async (username) => ({ id: profileId, username }),
@@ -64,7 +76,6 @@ test('keeps identity and every content section scoped to the canonical profile i
   const reviews = profileReviewsQueryOptions({
     profileId,
     service,
-    username: 'ada',
     visibilityScope: scope,
   })
   const ratings = profileRatingsQueryOptions({
@@ -102,6 +113,7 @@ test('keeps identity and every content section scoped to the canonical profile i
       visibilityScope: scope,
     })
   )
+  assert.equal((await reviews.queryFn()).totalCount, profileId.length)
   assert.deepEqual(await identity.queryFn(), { id: profileId })
 })
 
@@ -139,7 +151,6 @@ test('preserves successful section data while a refreshed section is pending or 
   const options = profileStatisticsQueryOptions({
     profileId,
     service: createService(),
-    username: 'ada',
     visibilityScope: scope,
   })
 
@@ -208,7 +219,6 @@ test('never retains same-profile identity, statistics, or ratings across account
       options: profileStatisticsQueryOptions({
         profileId,
         service,
-        username: 'ada',
         visibilityScope: nextScope,
       }),
       previousData: { counts: { followers: 1, following: 2 }, publicStats: null },

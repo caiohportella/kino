@@ -41,7 +41,6 @@ export function useProfileSections(
   input:
     | {
         profileId: string
-        username: string
         viewerId?: string
         service: ProfileQueryService
         visibilityScope: { kind: 'public' } | { kind: 'authenticated'; userId: string }
@@ -50,7 +49,6 @@ export function useProfileSections(
 ) {
   const resolvedInput = input ?? {
     profileId: 'pending',
-    username: 'pending',
     service: pendingService,
     visibilityScope: { kind: 'public' } as const,
   }

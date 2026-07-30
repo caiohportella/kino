@@ -177,7 +177,6 @@ export function useProfileReviewMutations(username: string) {
               }),
             ]
           : []),
-        queryClient.invalidateQueries({ queryKey: ['profile-by-username', username] }),
       ]),
   })
 

@@ -22,6 +22,10 @@ test('the web coordinator resolves a username once and keys every slice by canon
   assert.match(coordinatorSource, /useProfileIdentity\(identityInput\)/)
   assert.match(
     coordinatorSource,
+    /useProfileSections\([\s\S]*targetUserId\s*\?\s*\{[\s\S]*profileId: targetUserId/
+  )
+  assert.doesNotMatch(
+    coordinatorSource,
     /useProfileSections\([\s\S]*profileId: targetUserId,[\s\S]*username: canonicalUsername/
   )
   assert.doesNotMatch(coordinatorSource, /\['profile-by-username', username\]/)
