@@ -48,10 +48,10 @@ export function ProfileReviewCard({
   const posterUrl = getTmdb().getImageUrl(review.title.posterUrl, 'w300')
 
   return (
-    <article className="group relative grid min-h-56 grid-cols-[76px_minmax(0,1fr)] gap-4 overflow-hidden rounded-md border border-white/10 bg-white/2.5 p-4 transition-colors hover:border-kino-accent/35 hover:bg-white/4">
+    <article className="group relative grid h-full min-h-56 grid-cols-[76px_minmax(0,1fr)] gap-4 overflow-hidden rounded-md border border-white/10 bg-white/2.5 p-4 transition-colors hover:border-kino-accent/35 hover:bg-white/4">
       <Link
         aria-label={t('reviews.openForTitle', { title: review.title.name })}
-        className="focus-ring absolute inset-0 rounded-md"
+        className="focus-ring absolute inset-0 z-10 rounded-md"
         href={href}
       />
       <div className="pointer-events-none relative">
@@ -67,7 +67,7 @@ export function ProfileReviewCard({
           </h3>
         </div>
 
-        <div className="relative z-10 mt-3 flex items-start justify-between gap-2">
+        <div className="relative z-20 mt-3 flex items-start justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <ReviewAuthor author={review.author} size="sm" />
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-kino-muted">
@@ -93,13 +93,13 @@ export function ProfileReviewCard({
           ) : null}
         </div>
 
-        <p className="mt-2 text-xs text-kino-subtle">
+        <p className="pointer-events-none mt-2 text-xs text-kino-subtle">
           {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(
             new Date(review.createdAt)
           )}
         </p>
 
-        <div className="relative z-10 mt-3">
+        <div className={editing ? 'relative z-20 mt-3' : 'pointer-events-none mt-3'}>
           {editing ? (
             <ReviewEditor
               initialContent={review.content}
@@ -118,7 +118,7 @@ export function ProfileReviewCard({
           )}
         </div>
 
-        <div className="relative z-10 mt-3 flex items-center gap-2 text-sm">
+        <div className="relative z-20 mt-3 flex items-center gap-2 text-sm">
           {!review.isViewerReview ? (
             <button
               aria-pressed={review.likedByViewer}

@@ -494,7 +494,7 @@ export default function TitlePage() {
       {type === 'movie' && isNowPlayingInBrazil ? (
         <Button
           render={
-            <Link href={ticketsUrl} target="_blank">
+            <Link className="w-full sm:w-auto" href={ticketsUrl} target="_blank">
               <Ticket size={17} />
               {t('title.buyCinemaTickets')}
             </Link>
@@ -515,7 +515,7 @@ export default function TitlePage() {
             <h2 className="text-xl font-semibold text-kino-text">
               {t('title.synopsis', { defaultValue: 'Synopsis' })}
             </h2>
-            <p className="max-w-4xl text-base leading-7 text-kino-text">
+            <p className="max-w-4xl text-left text-base leading-7 text-kino-text">
               {title.synopsis ||
                 t('title.noSynopsis', {
                   defaultValue: 'No synopsis is available.',
@@ -733,12 +733,12 @@ function TitleHeader({
 
       <div className="relative z-10 grid min-h-155 content-end gap-5 p-5 md:min-h-147 md:grid-cols-[184px_1fr] md:items-end md:p-6">
         <Poster
-          className="w-36 border border-white/10 shadow-[0_18px_42px_rgb(0_0_0/0.35)] md:w-full"
+          className="mx-auto w-36 border border-white/10 shadow-[0_18px_42px_rgb(0_0_0/0.35)] md:mx-0 md:w-full"
           src={title.coverImage}
           title={title.title}
         />
         <div className="min-w-0">
-          <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-kino-muted">
+          <div className="mb-2 flex flex-wrap justify-center gap-x-3 gap-y-1 md:justify-start text-center text-sm text-kino-muted md:text-left">
             <span>{title.type === 'tv' ? t('common.tv') : t('common.movie')}</span>
             <span>{title.year || 'TBA'}</span>
             {title.runtime ? <span>{formatRuntime(title.runtime)}</span> : null}
@@ -749,11 +749,11 @@ function TitleHeader({
               </span>
             ) : null}
           </div>
-          <h1 className="max-w-4xl text-3xl font-semibold text-kino-text md:text-4xl">
+          <h1 className="max-w-4xl text-center text-3xl font-semibold text-kino-text md:text-left md:text-4xl">
             {title.title}
           </h1>
           {title.genres.length > 0 ? (
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap justify-center gap-2 md:justify-start">
               {title.genres.slice(0, 5).map((genre) => (
                 <span
                   className="rounded-md border border-white/10 bg-white/4 px-2.5 py-1 text-xs font-semibold text-kino-muted"
@@ -765,7 +765,7 @@ function TitleHeader({
             </div>
           ) : null}
           {upcomingSeason ? (
-            <div className="mt-4 flex w-fit max-w-full items-center gap-2 rounded-md border border-kino-accent/35 bg-kino-accent/10 px-3 py-2 text-sm font-semibold text-kino-text">
+            <div className="mt-4 flex w-fit max-w-full items-center gap-2 rounded-md border border-kino-accent/35 bg-kino-accent/10 px-3 py-2 text-left text-sm font-semibold text-kino-text">
               <CalendarDays aria-hidden="true" size={16} />
               <span>
                 {t('seasons.newSeasonComing', {

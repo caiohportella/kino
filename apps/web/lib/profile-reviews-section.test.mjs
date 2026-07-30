@@ -2,11 +2,109 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
-test('public web profiles render the Reviews row and include it in empty-state logic', async () => {
-  const source = await readFile(new URL('../components/profile-view.tsx', import.meta.url), 'utf8')
+const profileReviewState = await import('./profile-review-query-state.ts').catch(() => null)
+const profileSource = await readFile(
+  new URL('../components/profile-view.tsx', import.meta.url),
+  'utf8'
+)
+const sectionSource = await readFile(
+  new URL('../components/reviews/profile-reviews-section.tsx', import.meta.url),
+  'utf8'
+)
 
-  assert.match(source, /<ProfileReviewsSection/)
-  assert.match(source, /username=\{profile\.username\}/)
-  assert.match(source, /profileReviewsQuery\.data\?\.totalCount/)
-  assert.match(source, /<SeriesShelf[\s\S]*<ProfileReviewsSection[\s\S]*<PublicWatchlistShelf/)
+const cachedEmpty = { items: [], totalCount: 0 }
+const cachedNonempty = {
+  items: [{ id: 'review-1' }, { id: 'review-2' }],
+  totalCount: 2,
+}
+
+const queryStateCases = [
+  {
+    name: 'fetching initial pending',
+    query: { data: undefined, fetchStatus: 'fetching', status: 'pending' },
+    wantKind: 'pending',
+  },
+  {
+    name: 'paused initial pending',
+    query: { data: undefined, fetchStatus: 'paused', status: 'pending' },
+    wantKind: 'pending',
+  },
+  {
+    name: 'initial error',
+    query: { data: undefined, fetchStatus: 'idle', status: 'error' },
+    wantKind: 'error',
+  },
+  {
+    name: 'successful empty',
+    query: { data: cachedEmpty, fetchStatus: 'idle', status: 'success' },
+    wantKind: 'empty',
+  },
+  {
+    name: 'retained nonempty refresh',
+    query: { data: cachedNonempty, fetchStatus: 'fetching', status: 'success' },
+    wantData: cachedNonempty,
+    wantKind: 'content',
+  },
+  {
+    name: 'retained nonempty refetch error',
+    query: { data: cachedNonempty, fetchStatus: 'idle', status: 'error' },
+    wantData: cachedNonempty,
+    wantKind: 'content',
+  },
+  {
+    name: 'retained empty refetch error',
+    query: { data: cachedEmpty, fetchStatus: 'idle', status: 'error' },
+    wantData: cachedEmpty,
+    wantKind: 'content',
+  },
+]
+
+for (const { name, query, wantData, wantKind } of queryStateCases) {
+  test(`profile review query state: ${name}`, () => {
+    const resolveProfileReviewsQueryState = profileReviewState?.resolveProfileReviewsQueryState
+    assert.equal(
+      typeof resolveProfileReviewsQueryState,
+      'function',
+      'the shared profile-review query-state resolver must exist'
+    )
+
+    const state = resolveProfileReviewsQueryState(query)
+    assert.equal(state.kind, wantKind)
+    if (wantData) assert.strictEqual(state.data, wantData)
+  })
+}
+
+test('public web profiles render the Reviews row and use only known-empty review data', () => {
+  assert.match(profileSource, /<ProfileReviewsSection/)
+  assert.match(profileSource, /username=\{profile\.username\}/)
+  assert.match(profileSource, /resolveProfileReviewsQueryState\(profileReviewsQuery\)/)
+  assert.match(profileSource, /profileReviewsState\.kind === 'empty'/)
+  assert.doesNotMatch(profileSource, /profileReviewsQuery\.isLoading/)
+  assert.doesNotMatch(profileSource, /!profileReviewsQuery\.data\?\.totalCount/)
+  assert.match(
+    profileSource,
+    /<SeriesShelf[\s\S]*<ProfileReviewsSection[\s\S]*<PublicWatchlistShelf/
+  )
+})
+
+test('profile review section distinguishes initial states from retained-data states', () => {
+  const pending = sectionSource.indexOf("reviewState.kind === 'pending'")
+  const error = sectionSource.indexOf("reviewState.kind === 'error'")
+  const empty = sectionSource.indexOf("reviewState.kind === 'empty'")
+
+  assert.match(sectionSource, /resolveProfileReviewsQueryState\(query\)/)
+  assert.ok(pending >= 0, 'initial pending state must render review skeletons')
+  assert.ok(error > pending, 'initial error state must follow the pending state')
+  assert.ok(empty > error, 'only a successful empty result may hide the section')
+  assert.match(sectionSource, /role="alert"/)
+  assert.match(sectionSource, /reviews\.loadFailure/)
+  assert.doesNotMatch(sectionSource, /query\.isLoading/)
+  assert.doesNotMatch(sectionSource, /!query\.data\?\.totalCount/)
+})
+
+test('profile review refreshes retain cards and expose busy/error state', () => {
+  assert.match(sectionSource, /aria-busy=\{query\.isFetching\}/)
+  assert.match(sectionSource, /query\.isError \?/)
+  assert.doesNotMatch(sectionSource, /if \(query\.isFetching\)/)
+  assert.match(sectionSource, /reviewState\.data\.items\.map/)
 })
