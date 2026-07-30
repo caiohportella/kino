@@ -425,7 +425,7 @@ function SemanticGroups({
                       <Text className="font-semibold text-text-primary">{result.entity.title}</Text>
                       {result.entity.entityType === 'person' ? (
                         <Text className="text-sm text-text-secondary">
-                          {mobilePersonDepartment(result.entity.summary, {
+                          {mobilePersonDepartment(result.entity.department, {
                             acting: t('person.department.Acting'),
                             art: t('person.department.Art'),
                             camera: t('person.department.Camera'),

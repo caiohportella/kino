@@ -56,6 +56,7 @@ export interface SearchEntity {
   readonly locale?: string
   readonly route?: string
   readonly summary?: string
+  readonly department?: string
   readonly imageUrl?: string
   readonly popularity?: number
   readonly voteCount?: number

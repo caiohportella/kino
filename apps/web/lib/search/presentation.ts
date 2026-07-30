@@ -93,7 +93,7 @@ export function toWebSearchGroups(
           avatarUrl: entity.imageUrl ?? null,
           backgroundUrl: entity.imageUrl ?? null,
           name: entity.title,
-          summary: getLocalizedPersonDepartment(entity.summary, options.departmentLabels),
+          summary: getLocalizedPersonDepartment(entity.department, options.departmentLabels),
         })
       } else if (entity.entityType === 'user') {
         const username = entity.route?.split('/').filter(Boolean).at(-1)

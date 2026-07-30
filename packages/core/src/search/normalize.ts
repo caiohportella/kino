@@ -85,6 +85,7 @@ function normalizeEntity(value: unknown): SearchEntity | null {
   const locale = normalizeLocale(value.locale)
   const route = optionalTrimmedString(value.route)
   const summary = optionalTrimmedString(value.summary)
+  const department = optionalTrimmedString(value.department)
   const imageUrl = optionalTrimmedString(value.imageUrl)
   const popularity = optionalFiniteNumber(value.popularity)
   const voteCount = optionalFiniteNumber(value.voteCount)
@@ -98,6 +99,7 @@ function normalizeEntity(value: unknown): SearchEntity | null {
     ...(locale === undefined ? {} : { locale }),
     ...(route === undefined ? {} : { route }),
     ...(summary === undefined ? {} : { summary }),
+    ...(department === undefined ? {} : { department }),
     ...(imageUrl === undefined ? {} : { imageUrl }),
     ...(popularity === undefined ? {} : { popularity }),
     ...(voteCount === undefined ? {} : { voteCount }),

@@ -172,6 +172,7 @@ test('normalizes provider-neutral candidate data and discards unknown fields', (
         year: 2001,
         locale: 'fr-fr',
         route: '/movie/194',
+        department: ' Directing ',
         vendorNamespace: 'must-not-escape',
       },
       semanticScore: 1.4,
@@ -187,6 +188,7 @@ test('normalizes provider-neutral candidate data and discards unknown fields', (
         year: 2001,
         locale: 'fr-FR',
         route: '/movie/194',
+        department: 'Directing',
       },
       semanticScore: 1,
     }

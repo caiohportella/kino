@@ -92,7 +92,7 @@ test('normalizes complete TMDB multi-search results into core candidates', async
           imageUrl: 'https://image.tmdb.org/t/p/w500/brando.jpg',
           locale: 'pt-BR',
           popularity: 40.2,
-          summary: 'Acting',
+          department: 'Acting',
         },
       },
     ],

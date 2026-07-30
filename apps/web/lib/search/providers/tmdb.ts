@@ -131,7 +131,7 @@ function personCandidate(
     ...(profile === undefined ? {} : { imageUrl: profile }),
     ...(request.locale === undefined ? {} : { locale: request.locale }),
     ...(popularity === undefined ? {} : { popularity }),
-    ...(department === undefined ? {} : { summary: department }),
+    ...(department === undefined ? {} : { department }),
   }
   return {
     source: 'person',
