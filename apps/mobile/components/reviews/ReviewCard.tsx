@@ -28,19 +28,19 @@ export function ReviewCard({
   const name = review.author.displayName || review.author.username || t('reviews.user')
 
   return (
-    <View className="flex-row gap-3 border-t border-black/30 py-4">
+    <View className="w-full flex-row gap-3 border-t border-black/30 py-4">
       {review.author.avatarUrl ? (
         <Image
           accessibilityLabel={`${name} avatar`}
-          className="h-10 w-10 rounded-full"
+          className="h-10 w-10 shrink-0 rounded-full"
           source={{ uri: review.author.avatarUrl }}
         />
       ) : (
-        <View className="h-10 w-10 items-center justify-center rounded-full bg-primary">
+        <View className="h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary">
           <Text className="font-bold text-text-secondary">{name[0]?.toUpperCase()}</Text>
         </View>
       )}
-      <View className="flex-1">
+      <View className="min-w-0 flex-1">
         <View className="flex-row flex-wrap items-center gap-2">
           <Text className="text-sm text-text-secondary">
             {t('reviews.reviewedBy')} <Text className="font-bold text-text-primary">{name}</Text>
@@ -60,7 +60,7 @@ export function ReviewCard({
               pending={pending}
             />
           ) : (
-            <Text className="text-sm leading-6 text-text-primary">{review.content}</Text>
+            <Text className="w-full text-sm leading-6 text-text-primary">{review.content}</Text>
           )}
         </View>
         <View className="mt-3 flex-row items-center gap-4">

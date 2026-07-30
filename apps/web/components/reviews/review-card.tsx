@@ -44,11 +44,11 @@ export function ReviewCard({
   const edited = review.updatedAt !== review.createdAt
 
   return (
-    <article className="flex items-start gap-3 border-t border-white/8 py-5 first:border-t-0 first:pt-0">
+    <article className="grid grid-cols-[40px_minmax(0,1fr)] items-start gap-3 border-t border-white/8 py-5 first:border-t-0 first:pt-0">
       <ReviewAuthor author={review.author} size="lg" />
       <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-kino-muted">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-kino-muted">
             <span>
               {t('reviews.reviewedBy')} <ReviewAuthor author={review.author} variant="name" />
             </span>
@@ -62,11 +62,13 @@ export function ReviewCard({
             ) : null}
           </div>
           {review.isViewerReview ? (
-            <ReviewOwnerActions
-              disabled={pendingOwnerAction}
-              onDelete={() => setConfirmDelete(true)}
-              onEdit={() => setEditing(true)}
-            />
+            <div className="shrink-0">
+              <ReviewOwnerActions
+                disabled={pendingOwnerAction}
+                onDelete={() => setConfirmDelete(true)}
+                onEdit={() => setEditing(true)}
+              />
+            </div>
           ) : null}
         </div>
 
@@ -90,7 +92,7 @@ export function ReviewCard({
               pending={pendingOwnerAction}
             />
           ) : (
-            <p className="max-w-[70ch] whitespace-pre-wrap text-sm leading-7 text-kino-text">
+            <p className="w-full wrap-break-word whitespace-pre-wrap text-sm leading-7 text-kino-text">
               {review.content}
             </p>
           )}
