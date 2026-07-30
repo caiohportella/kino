@@ -90,6 +90,7 @@ import { WatchlistDialog } from '@/components/watchlist-dialog'
 import { useFollowedEpisodeRatings } from '@/hooks/use-followed-ratings'
 import { storeAuthRedirect } from '@/lib/auth-redirect'
 import { useTranslation } from '@/lib/i18n'
+import { invalidateProfileMutation } from '@/lib/profile-invalidation'
 import { parseResourceSegment, personPath } from '@/lib/routes'
 import { db, getTmdb } from '@/lib/services'
 import { type LocalizedTitleSummary, titleDetailsQueryOptions } from '@/lib/title-queries'
@@ -318,7 +319,14 @@ export default function TitlePage() {
       queryClient.invalidateQueries({
         queryKey: ['title-stats', title?.id, type],
       })
-      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+      if (user?.id) {
+        void invalidateProfileMutation(queryClient, {
+          kind: 'rating-diary',
+          mediaType: type,
+          profileId: user.id,
+          visibilityScope: { kind: 'authenticated', userId: user.id },
+        })
+      }
     },
   })
 
@@ -339,7 +347,14 @@ export default function TitlePage() {
         queryKey: ['title-stats', title?.id, type],
       })
       queryClient.invalidateQueries({ queryKey: ['diary', user?.id] })
-      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+      if (user?.id) {
+        void invalidateProfileMutation(queryClient, {
+          kind: 'rating-diary',
+          mediaType: 'movie',
+          profileId: user.id,
+          visibilityScope: { kind: 'authenticated', userId: user.id },
+        })
+      }
     },
   })
 
@@ -357,7 +372,14 @@ export default function TitlePage() {
         queryKey: ['title-user-data', title?.id, user?.id],
       })
       queryClient.invalidateQueries({ queryKey: ['diary', user?.id] })
-      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+      if (user?.id && title) {
+        void invalidateProfileMutation(queryClient, {
+          kind: 'rating-diary',
+          mediaType: title.type,
+          profileId: user.id,
+          visibilityScope: { kind: 'authenticated', userId: user.id },
+        })
+      }
       setDiaryCalendarOpen(false)
       setDiaryDate(new Date())
     },
@@ -829,7 +851,13 @@ function WatchlistPicker({
         queryKey: ['title-user-data', titleId, userId],
       })
       queryClient.invalidateQueries({ queryKey: ['watchlists', userId] })
-      queryClient.invalidateQueries({ queryKey: ['profile', userId] })
+      if (userId) {
+        void invalidateProfileMutation(queryClient, {
+          kind: 'watchlist',
+          profileId: userId,
+          visibilityScope: { kind: 'authenticated', userId },
+        })
+      }
       queryClient.invalidateQueries({ queryKey: ['public-watchlists'] })
     },
   })
@@ -1349,7 +1377,14 @@ function SeasonEpisodes({
     queryClient.invalidateQueries({
       queryKey: ['title-stats', title.id, title.type],
     })
-    queryClient.invalidateQueries({ queryKey: ['profile', userId] })
+    if (userId) {
+      void invalidateProfileMutation(queryClient, {
+        kind: 'rating-diary',
+        mediaType: 'tv',
+        profileId: userId,
+        visibilityScope: { kind: 'authenticated', userId },
+      })
+    }
   }
 
   function syncSavedRatings(savedRatings: EpisodeRating[]) {

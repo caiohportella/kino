@@ -18,7 +18,9 @@ import {
   updateReviewLike,
 } from '@kino/core'
 import { type InfiniteData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { invalidateProfileMutation } from '@/lib/profile-invalidation'
 import { db } from '@/lib/services'
+import { useAuthStore } from '@/stores/auth-store'
 
 type Snapshot = [readonly unknown[], unknown][]
 type ProfileReviewCache = ProfileReviewsPage | InfiniteData<ProfileReviewsPage>
@@ -65,6 +67,7 @@ export function useTitleReviews(titleId: string, enabled = true) {
 
 export function useCreateReviewMutation() {
   const queryClient = useQueryClient()
+  const viewerId = useAuthStore((state) => state.user?.id)
   return useMutation({
     mutationFn: ({
       titleId,
@@ -118,13 +121,20 @@ export function useCreateReviewMutation() {
     onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: reviewKeys.title(variables.titleId) })
       queryClient.invalidateQueries({ queryKey: profileReviewKeys.all })
-      queryClient.invalidateQueries({ queryKey: ['profile'] })
+      if (viewerId) {
+        void invalidateProfileMutation(queryClient, {
+          kind: 'review',
+          profileId: viewerId,
+          visibilityScope: { kind: 'authenticated', userId: viewerId },
+        })
+      }
     },
   })
 }
 
 export function useUpdateReviewMutation(titleId: string) {
   const queryClient = useQueryClient()
+  const viewerId = useAuthStore((state) => state.user?.id)
   return useMutation({
     mutationFn: ({ reviewId, content }: { reviewId: string; content: string }) =>
       db.updateReview(reviewId, content),
@@ -164,12 +174,20 @@ export function useUpdateReviewMutation(titleId: string) {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: reviewKeys.title(titleId) })
       queryClient.invalidateQueries({ queryKey: profileReviewKeys.all })
+      if (viewerId) {
+        void invalidateProfileMutation(queryClient, {
+          kind: 'review',
+          profileId: viewerId,
+          visibilityScope: { kind: 'authenticated', userId: viewerId },
+        })
+      }
     },
   })
 }
 
 export function useDeleteReviewMutation(titleId: string) {
   const queryClient = useQueryClient()
+  const viewerId = useAuthStore((state) => state.user?.id)
   return useMutation({
     mutationFn: (reviewId: string) => db.deleteReview(reviewId),
     onMutate: async (reviewId) => {
@@ -190,16 +208,29 @@ export function useDeleteReviewMutation(titleId: string) {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: reviewKeys.title(titleId) })
       queryClient.invalidateQueries({ queryKey: profileReviewKeys.all })
-      queryClient.invalidateQueries({ queryKey: ['profile'] })
+      if (viewerId) {
+        void invalidateProfileMutation(queryClient, {
+          kind: 'review',
+          profileId: viewerId,
+          visibilityScope: { kind: 'authenticated', userId: viewerId },
+        })
+      }
     },
   })
 }
 
 export function useReviewLikeMutation(titleId: string) {
   const queryClient = useQueryClient()
+  const viewerId = useAuthStore((state) => state.user?.id)
   return useMutation({
-    mutationFn: ({ reviewId, liked }: { reviewId: string; liked: boolean }) =>
-      liked ? db.unlikeReview(reviewId) : db.likeReview(reviewId),
+    mutationFn: ({
+      reviewId,
+      liked,
+    }: {
+      reviewId: string
+      liked: boolean
+      authorProfileId: string
+    }) => (liked ? db.unlikeReview(reviewId) : db.likeReview(reviewId)),
     onMutate: async ({ reviewId, liked }) => {
       await Promise.all([
         queryClient.cancelQueries({ queryKey: reviewKeys.title(titleId) }),
@@ -218,9 +249,16 @@ export function useReviewLikeMutation(titleId: string) {
     },
     onError: (_error, _variables, context) =>
       restoreSnapshot(queryClient, context?.previous as Snapshot | undefined),
-    onSettled: () => {
+    onSettled: (_data, _error, { authorProfileId }) => {
       queryClient.invalidateQueries({ queryKey: reviewKeys.title(titleId) })
       queryClient.invalidateQueries({ queryKey: profileReviewKeys.all })
+      if (viewerId) {
+        void invalidateProfileMutation(queryClient, {
+          kind: 'review',
+          profileId: authorProfileId,
+          visibilityScope: { kind: 'authenticated', userId: viewerId },
+        })
+      }
     },
   })
 }

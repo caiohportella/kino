@@ -21,7 +21,10 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { invalidateProfileMutation } from '@/lib/profile-invalidation'
 import { db } from '@/lib/services'
+import { useAuthStore } from '@/stores/auth-store'
 
 const PROFILE_REVIEW_PREVIEW_LIMIT = 6
 const PROFILE_REVIEW_PAGE_LIMIT = 20
@@ -46,13 +49,24 @@ function updateProfileReviewCache(
   return updater(cache)
 }
 
-export function useProfileReviews(username: string | null | undefined) {
+export function useProfileReviews(username: string | null | undefined, enabled = true) {
   return useQuery({
     queryKey: profileReviewKeys.profile(username ?? ''),
     queryFn: () => db.getProfileReviews(username!, { limit: PROFILE_REVIEW_PREVIEW_LIMIT }),
-    enabled: Boolean(username),
+    enabled: enabled && Boolean(username),
     staleTime: 60_000,
   })
+}
+
+export function useBridgeProfileReviewsCache(
+  username: string | null | undefined,
+  data: ProfileReviewsPage | undefined
+) {
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    if (!username || !data) return
+    queryClient.setQueryData(profileReviewKeys.profile(username), data)
+  }, [data, queryClient, username])
 }
 
 export function useAllProfileReviews(username: string, enabled: boolean) {
@@ -71,6 +85,7 @@ export function useAllProfileReviews(username: string, enabled: boolean) {
 
 export function useProfileReviewMutations(username: string) {
   const queryClient = useQueryClient()
+  const viewerId = useAuthStore((state) => state.user?.id)
 
   const update = useMutation({
     mutationFn: ({ reviewId, content }: { reviewId: string; content: string }) =>
@@ -112,7 +127,18 @@ export function useProfileReviewMutations(username: string) {
       )
     },
     onSettled: () =>
-      queryClient.invalidateQueries({ queryKey: profileReviewKeys.profile(username) }),
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: profileReviewKeys.profile(username) }),
+        ...(viewerId
+          ? [
+              invalidateProfileMutation(queryClient, {
+                kind: 'review',
+                profileId: viewerId,
+                visibilityScope: { kind: 'authenticated', userId: viewerId },
+              }),
+            ]
+          : []),
+      ]),
   })
 
   const remove = useMutation({
@@ -142,8 +168,15 @@ export function useProfileReviewMutations(username: string) {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: profileReviewKeys.profile(username) }),
         queryClient.invalidateQueries({ queryKey: reviewKeys.title(review.titleId) }),
-        queryClient.invalidateQueries({ queryKey: ['profile'] }),
-        queryClient.invalidateQueries({ queryKey: ['profile-by-username', username] }),
+        ...(viewerId
+          ? [
+              invalidateProfileMutation(queryClient, {
+                kind: 'review',
+                profileId: review.userId,
+                visibilityScope: { kind: 'authenticated', userId: viewerId },
+              }),
+            ]
+          : []),
       ]),
   })
 
@@ -178,6 +211,15 @@ export function useProfileReviewMutations(username: string) {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: profileReviewKeys.profile(username) }),
         queryClient.invalidateQueries({ queryKey: reviewKeys.title(review.titleId) }),
+        ...(viewerId
+          ? [
+              invalidateProfileMutation(queryClient, {
+                kind: 'review',
+                profileId: review.userId,
+                visibilityScope: { kind: 'authenticated', userId: viewerId },
+              }),
+            ]
+          : []),
       ]),
   })
 

@@ -1,11 +1,12 @@
 'use client'
 
 import { KinoDatabaseService, TMDbService } from '@kino/core'
+import { createProfileQueryService } from './profile-query-service'
 import { supabase } from './supabase'
 
 let tmdbService: TMDbService | null = null
 
-export const db = new KinoDatabaseService(supabase)
+export const db = createProfileQueryService(new KinoDatabaseService(supabase))
 
 export function getTmdb() {
   if (!tmdbService) {

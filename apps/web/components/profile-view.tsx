@@ -1,12 +1,7 @@
 'use client'
 
 import type { FollowerInfo, PublicWatchlistSummary, UserProfile } from '@kino/core'
-import {
-  applyReleasedSeriesProgress,
-  formatDate,
-  isFutureDateOnly,
-  parseDateOnly,
-} from '@kino/core'
+import { formatDate, isFutureDateOnly, parseDateOnly } from '@kino/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -44,9 +39,22 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useProfileReviews } from '@/hooks/use-profile-reviews'
+import { useBridgeProfileReviewsCache } from '@/hooks/use-profile-reviews'
+import {
+  useProfileIdentity,
+  useProfileRatings,
+  useProfileSections,
+  useProfileUsernameResolution,
+} from '@/hooks/use-profile-sections'
 import { useTranslation } from '@/lib/i18n'
-import { resolveProfileReviewsQueryState } from '@/lib/profile-review-query-state'
+import { invalidateProfileMutation } from '@/lib/profile-invalidation'
+import {
+  isProfileKnownEmpty,
+  type ProfileSliceState,
+  selectProfilePageState,
+  selectProfileSliceState,
+} from '@/lib/profile-progressive-state'
+import { resolveProfileSectionPresentation } from '@/lib/profile-section-presentation'
 import { normalizeProfileWatchlistCard } from '@/lib/profile-watchlist-card'
 import { titlePath, watchlistCoverPath, watchlistPath } from '@/lib/routes'
 import { db, getTmdb } from '@/lib/services'
@@ -55,35 +63,6 @@ import { cn } from '@/lib/utils'
 import { subscribeToWatchlistChanges } from '@/lib/watchlist-cache-sync'
 import { useAuthStore } from '@/stores/auth-store'
 import { useSettingsStore } from '@/stores/settings-store'
-
-async function refreshSeriesAvailability(items: Awaited<ReturnType<typeof db.getWatchedSeries>>) {
-  const tmdb = getTmdb()
-
-  return Promise.all(
-    items.map(async (series) => {
-      const metadataSeasons = (series.seasons_metadata || []).filter(
-        (season) => season.season_number > 0 && season.episode_count > 0
-      )
-      if (metadataSeasons.length === 0) return series
-
-      const seasons = metadataSeasons.filter((season) => !isFutureDateOnly(season.air_date))
-      if (seasons.length === 0) return applyReleasedSeriesProgress(series, [])
-
-      const results = await Promise.all(
-        seasons.map((season) =>
-          tmdb.getSeasonDetails(series.tmdb_id, season.season_number).catch(() => null)
-        )
-      )
-      if (results.some((season) => season === null)) return series
-      const loadedSeasons = results.filter((season) => season !== null)
-
-      return applyReleasedSeriesProgress(
-        series,
-        loadedSeasons.flatMap((season) => season.episodes)
-      )
-    })
-  )
-}
 
 type SocialListType = 'followers' | 'following'
 
@@ -110,19 +89,164 @@ function formatMutualSince(
   })
 }
 
+type ProfileQueryResult<T> = {
+  data: T | undefined
+  error: Error | null
+  fetchStatus: 'fetching' | 'idle' | 'paused'
+  status: 'error' | 'pending' | 'success'
+  refetch: () => Promise<unknown>
+}
+
+function toSliceState<T>(
+  query: ProfileQueryResult<T>,
+  profileId: string,
+  isEmpty?: (data: T) => boolean
+) {
+  return selectProfileSliceState(
+    {
+      data: query.data,
+      dataOwnerId: query.data === undefined ? undefined : profileId,
+      error: query.error,
+      fetchStatus: query.fetchStatus,
+      status: query.status,
+    },
+    profileId,
+    isEmpty
+  )
+}
+
+function sliceData<T>(state: ProfileSliceState<T>, fallback: T): T {
+  return 'data' in state ? state.data : fallback
+}
+
+function ProfileSectionState<T>({
+  children,
+  query,
+  state,
+}: {
+  children: ReactNode
+  query: Pick<ProfileQueryResult<T>, 'refetch'>
+  state: ProfileSliceState<T>
+}) {
+  const { t } = useTranslation()
+  const presentation = resolveProfileSectionPresentation(state)
+  if (presentation.kind === 'pending') {
+    return (
+      <section aria-busy="true" className="mb-10 min-h-56">
+        <Skeleton className="h-6 w-48" />
+        <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+          {Array.from({ length: 4 }, (_, index) => (
+            <Skeleton className="aspect-2/3 w-full" key={`profile-section-skeleton-${index}`} />
+          ))}
+        </div>
+      </section>
+    )
+  }
+  if (presentation.kind === 'paused') {
+    return (
+      <section className="mb-10 min-h-32 rounded-md border border-white/10 p-4" role="status">
+        <p className="text-sm text-kino-muted">{t('common.tryAgain')}</p>
+        <Button className="mt-3" onClick={() => void query.refetch()} size="sm" variant="outline">
+          {t('search.retry')}
+        </Button>
+      </section>
+    )
+  }
+  if (presentation.kind === 'error') {
+    return (
+      <section className="mb-10 min-h-32" role="alert">
+        <p className="text-sm text-red-300">{t('search.sectionFailed')}</p>
+        <Button className="mt-3" onClick={() => void query.refetch()} size="sm" variant="outline">
+          {t('search.retry')}
+        </Button>
+      </section>
+    )
+  }
+  return (
+    <div aria-busy={presentation.busy} className="min-h-0">
+      {presentation.refreshFailed ? (
+        <p className="mb-3 text-sm text-red-300" role="status">
+          {t('search.sectionFailed')}{' '}
+          <button className="underline" onClick={() => void query.refetch()} type="button">
+            {t('search.retry')}
+          </button>
+        </p>
+      ) : null}
+      {children}
+    </div>
+  )
+}
+
+function ProfileCompactState<T>({
+  children,
+  query,
+  state,
+}: {
+  children: ReactNode
+  query: Pick<ProfileQueryResult<T>, 'refetch'>
+  state: ProfileSliceState<T>
+}) {
+  const { t } = useTranslation()
+  const presentation = resolveProfileSectionPresentation(state)
+  if (presentation.kind === 'pending') return <Skeleton className="h-10 w-32 rounded-md" />
+  if (presentation.kind === 'paused' || presentation.kind === 'error') {
+    return (
+      <Button onClick={() => void query.refetch()} size="sm" variant="outline">
+        {t('search.retry')}
+      </Button>
+    )
+  }
+  return (
+    <div aria-busy={presentation.busy} className="contents">
+      {children}
+      {presentation.refreshFailed ? (
+        <button
+          className="text-xs text-red-300 underline"
+          onClick={() => void query.refetch()}
+          type="button"
+        >
+          {t('search.retry')}
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
+function ProfileRelationshipAction<T>(props: Parameters<typeof ProfileCompactState<T>>[0]) {
+  return <ProfileCompactState {...props} />
+}
+
+function ProfileRatingStatState<T>(props: Parameters<typeof ProfileCompactState<T>>[0]) {
+  return <ProfileCompactState {...props} />
+}
+
 export function ProfileView({ profileId, username }: { profileId?: string; username?: string }) {
   const user = useAuthStore((state) => state.user)
   const language = useSettingsStore((state) => state.language)
   const queryClient = useQueryClient()
   const { notify } = useToast()
   const { t } = useTranslation()
-  const resolvedProfile = useQuery({
-    queryKey: ['profile-by-username', username],
-    queryFn: () => db.getUserProfileByUsername(username!),
-    enabled: Boolean(username),
-  })
+  const resolvedProfile = useProfileUsernameResolution(db, username)
   const targetUserId = profileId || resolvedProfile.data?.id || (!username ? user?.id : undefined)
   const isOwnProfile = Boolean(user?.id && targetUserId === user.id)
+  const visibilityScope = user?.id
+    ? ({ kind: 'authenticated', userId: user.id } as const)
+    : ({ kind: 'public' } as const)
+  const identityInput = targetUserId
+    ? { profileId: targetUserId, service: db, visibilityScope }
+    : undefined
+  const identityQuery = useProfileIdentity(identityInput)
+  const canonicalUsername = identityQuery.data?.username || username
+  const sections = useProfileSections(
+    targetUserId
+      ? {
+          profileId: targetUserId,
+          viewerId: user?.id,
+          service: db,
+          visibilityScope,
+        }
+      : undefined
+  )
   const [bannerDialogOpen, setBannerDialogOpen] = useState(false)
   const [profileSearchOpen, setProfileSearchOpen] = useState(false)
   const [profileSearchQuery, setProfileSearchQuery] = useState('')
@@ -131,48 +255,33 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
   useEffect(
     () =>
       subscribeToWatchlistChanges(() => {
-        void queryClient.invalidateQueries({ queryKey: ['profile', targetUserId] })
+        if (targetUserId) {
+          void invalidateProfileMutation(queryClient, {
+            kind: 'subscription',
+            profileId: targetUserId,
+            visibilityScope,
+          })
+        }
         void queryClient.invalidateQueries({ queryKey: ['public-watchlists'] })
       }),
-    [queryClient, targetUserId]
+    [queryClient, targetUserId, visibilityScope]
   )
-
-  const query = useQuery({
-    queryKey: ['profile', targetUserId],
-    queryFn: async () => {
-      const [profile, movies, storedSeries, counts, relationship, publicStats, publicWatchlists] =
-        await Promise.all([
-          db.getUserProfile(targetUserId!),
-          db.getWatchedMovies(targetUserId!),
-          db.getWatchedSeries(targetUserId!),
-          db.getFollowCounts(targetUserId!),
-          user && !isOwnProfile
-            ? db.getFollowRelationship(targetUserId!)
-            : Promise.resolve({
-                isFollowing: false,
-                isFollowedBy: false,
-                isMutual: false,
-                mutualSince: undefined as string | undefined,
-              }),
-          username
-            ? db.getPublicProfileStatsByUsername(username).catch(() => null)
-            : Promise.resolve(null),
-          db.getPublicWatchlists(targetUserId!),
-        ])
-      const series = await refreshSeriesAvailability(storedSeries)
-      return { profile, movies, series, counts, relationship, publicStats, publicWatchlists }
-    },
-    enabled: Boolean(targetUserId),
-  })
-  const profileReviewsQuery = useProfileReviews(query.data?.profile?.username)
 
   const followMutation = useMutation({
     mutationFn: async () => {
-      if (!targetUserId || !query.data) return
-      if (query.data.relationship.isFollowing) await db.unfollowUser(targetUserId)
+      if (!targetUserId) return
+      if (sections.relationship.data?.isFollowing) await db.unfollowUser(targetUserId)
       else await db.followUser(targetUserId)
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['profile', targetUserId] }),
+    onSuccess: () => {
+      if (!targetUserId || !user?.id) return
+      void invalidateProfileMutation(queryClient, {
+        kind: 'follow',
+        profileId: targetUserId,
+        viewerId: user.id,
+        visibilityScope,
+      })
+    },
   })
 
   const profileSearch = useQuery({
@@ -196,9 +305,16 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
       if (result.isFollowing) await db.unfollowUser(result.profile.id)
       else await db.followUser(result.profile.id)
     },
-    onSuccess: () => {
+    onSuccess: (_data, result) => {
       queryClient.invalidateQueries({ queryKey: ['profile-user-search'] })
-      queryClient.invalidateQueries({ queryKey: ['profile', targetUserId] })
+      if (user?.id) {
+        void invalidateProfileMutation(queryClient, {
+          kind: 'follow',
+          profileId: result.profile.id,
+          viewerId: user.id,
+          visibilityScope,
+        })
+      }
     },
   })
 
@@ -235,7 +351,14 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
         tone: 'success',
         title: t(variables.isFollowing ? 'profile.unfollowedUser' : 'profile.followedUser'),
       })
-      queryClient.invalidateQueries({ queryKey: ['profile'] })
+      if (user?.id) {
+        void invalidateProfileMutation(queryClient, {
+          kind: 'follow',
+          profileId: variables.userId,
+          viewerId: user.id,
+          visibilityScope,
+        })
+      }
       queryClient.invalidateQueries({ queryKey: ['profile-social-list'] })
       queryClient.invalidateQueries({ queryKey: ['profile-user-search'] })
     },
@@ -268,33 +391,37 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
 
   const stats = useMemo(() => {
     const movieCount =
-      query.data?.publicStats?.moviesWatched ??
-      new Set(query.data?.movies.map((movie) => movie.id) || []).size
+      sections.statistics.data?.publicStats?.moviesWatched ??
+      new Set(sections.watchedMovies.data?.map((movie) => movie.id) || []).size
     const seriesCount =
-      query.data?.publicStats?.seriesWatched ??
-      new Set(query.data?.series.map((series) => series.id) || []).size
+      sections.statistics.data?.publicStats?.seriesWatched ??
+      new Set(sections.watchedSeries.data?.map((series) => series.id) || []).size
     const averageMovieRating =
       movieCount > 0
-        ? (query.data?.movies.reduce((sum, movie) => sum + movie.rating, 0) || 0) / movieCount
+        ? (sections.watchedMovies.data?.reduce((sum, movie) => sum + movie.rating, 0) || 0) /
+          movieCount
         : 0
     return { movieCount, seriesCount, averageMovieRating }
-  }, [query.data])
+  }, [sections.statistics.data, sections.watchedMovies.data, sections.watchedSeries.data])
 
   const seriesIds = useMemo(
-    () => query.data?.series.map((series) => series.id).sort() || [],
-    [query.data?.series]
+    () => sections.watchedSeries.data?.map((series) => series.id).sort() || [],
+    [sections.watchedSeries.data]
   )
-  const seriesRatingQuery = useQuery({
-    queryKey: ['profile-series-ratings', targetUserId, seriesIds.join('|')],
-    queryFn: async () => {
-      if (!targetUserId || seriesIds.length === 0) return {}
-      return db.getAverageSeasonRatingsForTitles(targetUserId, seriesIds)
-    },
-    enabled: Boolean(targetUserId && seriesIds.length > 0),
-  })
+  const seriesRatingQuery = useProfileRatings(
+    targetUserId
+      ? {
+          profileId: targetUserId,
+          service: db,
+          titleIds: seriesIds,
+          visibilityScope,
+        }
+      : undefined
+  )
+  useBridgeProfileReviewsCache(canonicalUsername, sections.reviews.data)
   const seriesRatingRows = useMemo(() => {
     const ratings = seriesRatingQuery.data || {}
-    return (query.data?.series || [])
+    return (sections.watchedSeries.data || [])
       .map((series) => ({
         series,
         rating: ratings[series.id] || 0,
@@ -304,27 +431,60 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
         (left, right) =>
           right.rating - left.rating || left.series.title.localeCompare(right.series.title)
       )
-  }, [query.data?.series, seriesRatingQuery.data])
+  }, [sections.watchedSeries.data, seriesRatingQuery.data])
   const averageSeriesRating = useMemo(() => {
     if (seriesRatingRows.length === 0) return 0
     return seriesRatingRows.reduce((sum, entry) => sum + entry.rating, 0) / seriesRatingRows.length
   }, [seriesRatingRows])
 
   if (!targetUserId) {
+    if (username && resolvedProfile.isPending)
+      return <ProfileSkeleton label={t('common.loading')} />
     return <ProtectedEmpty />
   }
 
-  if (resolvedProfile.isLoading || query.isLoading)
-    return <ProfileSkeleton label={t('common.loading')} />
-
-  if (!query.data?.profile) {
+  const identityPageState = selectProfilePageState(
+    {
+      data: identityQuery.data,
+      dataOwnerId: identityQuery.data?.id,
+      error: identityQuery.error,
+      fetchStatus: identityQuery.fetchStatus,
+      status: identityQuery.status,
+    },
+    targetUserId
+  )
+  if (identityPageState.phase === 'blocking') return <ProfileSkeleton label={t('common.loading')} />
+  if (identityPageState.phase === 'error') {
+    return <EmptyState body={t('common.tryAgain')} title={t('profile.title')} />
+  }
+  if (!identityPageState.identity) {
     return <EmptyState body={t('common.tryAgain')} title={t('profile.title')} />
   }
 
-  const { profile, movies, series, counts, relationship, publicWatchlists } = query.data
-  const profileReviewsState = profile.username
-    ? resolveProfileReviewsQueryState(profileReviewsQuery)
-    : ({ kind: 'empty' } as const)
+  const profile = identityPageState.identity
+  const relationshipState = toSliceState(sections.relationship, targetUserId, () => false)
+  const moviesState = toSliceState(sections.watchedMovies, targetUserId)
+  const seriesState = toSliceState(sections.watchedSeries, targetUserId)
+  const statisticsState = toSliceState(sections.statistics, targetUserId)
+  const watchlistsState = toSliceState(sections.watchlists, targetUserId)
+  const reviewsState = toSliceState(
+    sections.reviews,
+    targetUserId,
+    (data) => data.items.length === 0
+  )
+  const ratingsState =
+    seriesIds.length === 0 && seriesState.phase === 'empty'
+      ? ({ data: {}, phase: 'empty' } as const)
+      : toSliceState(seriesRatingQuery, targetUserId, (data) => Object.keys(data).length === 0)
+  const movies = sliceData(moviesState, [])
+  const series = sliceData(seriesState, [])
+  const publicWatchlists = sliceData(watchlistsState, [])
+  const relationship = sections.relationship.data ?? {
+    isFollowing: false,
+    isFollowedBy: false,
+    isMutual: false,
+  }
+  const counts = sections.statistics.data?.counts ?? { followers: 0, following: 0 }
   const profileName = profile.display_name || profile.username || t('profile.user')
   const initials = getInitials(profile)
   const mutualSinceLabel =
@@ -370,47 +530,54 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
           <div className="flex flex-wrap gap-3 md:justify-end">
             {profile.username ? <ProfileShareButton username={profile.username} /> : null}
             {!isOwnProfile && user ? (
-              <Button disabled={followMutation.isPending} onClick={() => followMutation.mutate()}>
-                {relationship.isFollowing ? <UserRoundCheck size={16} /> : <UserPlus size={16} />}
-                {relationship.isFollowing
-                  ? t('profile.following')
-                  : relationship.isFollowedBy
-                    ? t('profile.followBack')
-                    : t('profile.follow')}
-              </Button>
+              <ProfileRelationshipAction query={sections.relationship} state={relationshipState}>
+                <Button disabled={followMutation.isPending} onClick={() => followMutation.mutate()}>
+                  {relationship.isFollowing ? <UserRoundCheck size={16} /> : <UserPlus size={16} />}
+                  {relationship.isFollowing
+                    ? t('profile.following')
+                    : relationship.isFollowedBy
+                      ? t('profile.followBack')
+                      : t('profile.follow')}
+                </Button>
+              </ProfileRelationshipAction>
             ) : null}
           </div>
         </div>
       </section>
 
-      <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-6">
-        <ProfileStatCard icon={Film} label={t('profile.watchedMovies')} value={stats.movieCount} />
-        <ProfileStatCard icon={Tv} label={t('profile.watchedSeries')} value={stats.seriesCount} />
-        <MovieRatingStat averageRating={stats.averageMovieRating} items={movies} />
-        <SeriesRatingStat
-          averageRating={averageSeriesRating}
-          items={series}
-          ratedCount={seriesRatingRows.length}
-          ratingRows={seriesRatingRows}
-        />
-        <SocialStatCard
-          icon={UsersRound}
-          label={t('profile.followers')}
-          onClick={() => setSocialListType('followers')}
-          value={counts.followers}
-        />
-        <SocialStatCard
-          icon={UserRoundCheck}
-          label={t('profile.following')}
-          onClick={() => setSocialListType('following')}
-          value={counts.following}
-        />
-      </div>
+      <ProfileSectionState query={sections.statistics} state={statisticsState}>
+        <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-6">
+          <ProfileStatCard
+            icon={Film}
+            label={t('profile.watchedMovies')}
+            value={stats.movieCount}
+          />
+          <ProfileStatCard icon={Tv} label={t('profile.watchedSeries')} value={stats.seriesCount} />
+          <MovieRatingStat averageRating={stats.averageMovieRating} items={movies} />
+          <ProfileRatingStatState query={seriesRatingQuery} state={ratingsState}>
+            <SeriesRatingStat
+              averageRating={averageSeriesRating}
+              items={series}
+              ratedCount={seriesRatingRows.length}
+              ratingRows={seriesRatingRows}
+            />
+          </ProfileRatingStatState>
+          <SocialStatCard
+            icon={UsersRound}
+            label={t('profile.followers')}
+            onClick={() => setSocialListType('followers')}
+            value={counts.followers}
+          />
+          <SocialStatCard
+            icon={UserRoundCheck}
+            label={t('profile.following')}
+            onClick={() => setSocialListType('following')}
+            value={counts.following}
+          />
+        </div>
+      </ProfileSectionState>
 
-      {movies.length === 0 &&
-      series.length === 0 &&
-      publicWatchlists.length === 0 &&
-      profileReviewsState.kind === 'empty' ? (
+      {isProfileKnownEmpty([moviesState, seriesState, watchlistsState, reviewsState]) ? (
         <EmptyState
           body={t('emptyStates.profileBody')}
           illustrationLabel={t('emptyStates.profileIllustration')}
@@ -419,10 +586,20 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
         />
       ) : (
         <>
-          <ProfileShelf items={movies} title={t('profile.watchedMovies')} type="movie" />
-          <SeriesShelf items={series} />
-          {profile.username ? <ProfileReviewsSection username={profile.username} /> : null}
-          <PublicWatchlistShelf items={publicWatchlists} />
+          <ProfileSectionState query={sections.watchedMovies} state={moviesState}>
+            <ProfileShelf items={movies} title={t('profile.watchedMovies')} type="movie" />
+          </ProfileSectionState>
+          <ProfileSectionState query={sections.watchedSeries} state={seriesState}>
+            <SeriesShelf items={series} />
+          </ProfileSectionState>
+          {profile.username ? (
+            <ProfileSectionState query={sections.reviews} state={reviewsState}>
+              <ProfileReviewsSection query={sections.reviews} username={profile.username} />
+            </ProfileSectionState>
+          ) : null}
+          <ProfileSectionState query={sections.watchlists} state={watchlistsState}>
+            <PublicWatchlistShelf items={publicWatchlists} />
+          </ProfileSectionState>
         </>
       )}
 
@@ -433,7 +610,11 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
           onSelectBanner={async (bannerUrl) => {
             await db.updateUserProfile(user!.id, { banner_url: bannerUrl })
             await Promise.all([
-              queryClient.invalidateQueries({ queryKey: ['profile', targetUserId] }),
+              invalidateProfileMutation(queryClient, {
+                kind: 'banner',
+                profileId: user!.id,
+                visibilityScope,
+              }),
               queryClient.invalidateQueries({ queryKey: ['profile-settings', user!.id] }),
             ])
           }}

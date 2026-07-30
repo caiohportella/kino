@@ -1,7 +1,14 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native'
+import {
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native'
 import { useAuth } from '@/hooks/useAuth'
 import { ProtectedContentGate } from '~/components/auth/ProtectedContentGate'
 import { Skeleton } from '~/components/common/Skeleton'
@@ -37,10 +44,35 @@ export default function ProfileScreen() {
   const isOwnProfile = user?.id === targetUserId
 
   // Custom hooks
-  const { profile, watchedMovies, watchedSeries, loading, error, refreshing, onRefresh } =
-    useProfileData(targetUserId)
+  const {
+    profile,
+    watchedMovies,
+    watchedSeries,
+    loading,
+    error,
+    refreshing,
+    onRefresh,
+    relationship,
+    relationshipState,
+    retryRelationship,
+    retryWatchedMovies,
+    retryWatchedSeries,
+    watchedMoviesState,
+    watchedSeriesState,
+  } = useProfileData(targetUserId, user?.id)
 
-  const followSystem = useFollowSystem(targetUserId, isOwnProfile)
+  const relationshipHasData =
+    relationshipState.phase === 'ready' ||
+    relationshipState.phase === 'empty' ||
+    relationshipState.phase === 'retained-refresh' ||
+    relationshipState.phase === 'retained-refresh-error'
+  const followSystem = useFollowSystem(
+    targetUserId,
+    isOwnProfile,
+    user?.id,
+    relationship,
+    relationshipHasData
+  )
   const searchSystem = useUserSearch()
 
   const [watchedSeriesModalVisible, setWatchedSeriesModalVisible] = useState(false)
@@ -133,31 +165,109 @@ export default function ProfileScreen() {
           <ProfileHeader
             profile={profile}
             isOwnProfile={isOwnProfile}
-            isFollowing={followSystem.isFollowing}
+            isFollowing={followSystem.isFollowing ?? false}
+            relationshipKnown={relationshipHasData}
             onSearchPress={() => searchSystem.setSearchModalVisible(true)}
             onSharePress={handleShare}
             onFollowToggle={followSystem.handleFollowToggle}
           />
 
-          <ProfileStats
-            followersCount={followSystem.followersCount}
-            followingCount={followSystem.followingCount}
-            onFollowersPress={() => followSystem.handleOpenUserList('followers')}
-            onFollowingPress={() => followSystem.handleOpenUserList('following')}
-          />
+          {relationshipHasData ? (
+            <ProfileStats
+              followersCount={followSystem.followersCount ?? 0}
+              followingCount={followSystem.followingCount ?? 0}
+              onFollowersPress={() => followSystem.handleOpenUserList('followers')}
+              onFollowingPress={() => followSystem.handleOpenUserList('following')}
+            />
+          ) : (
+            <View className="mb-12 mt-4 items-center px-4">
+              {relationshipState.phase === 'initial-pending' ? (
+                <ActivityIndicator size="small" color="#1DB954" />
+              ) : (
+                <>
+                  <Text className="text-text-secondary">
+                    {relationshipState.phase === 'paused'
+                      ? t('search.sectionFailed')
+                      : t('common.failed')}
+                  </Text>
+                  <TouchableOpacity onPress={retryRelationship}>
+                    <Text className="mt-2 text-accent">{t('common.retry')}</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          )}
+          {relationshipState.phase === 'retained-refresh-error' && (
+            <View className="mb-4 items-center px-4">
+              <Text className="text-text-secondary">{t('common.failed')}</Text>
+              <TouchableOpacity onPress={retryRelationship}>
+                <Text className="mt-2 text-accent">{t('common.retry')}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
-          <WatchedMoviesSection
-            movies={watchedMovies}
-            onMoviePress={handleMoviePress}
-            onViewAll={handleViewAllMovies}
-          />
+          {watchedMoviesState.phase === 'initial-pending' ? (
+            <View className="px-4 py-4 flex-row gap-3">
+              <Skeleton width={96} height={144} />
+              <Skeleton width={96} height={144} />
+              <Skeleton width={96} height={144} />
+            </View>
+          ) : watchedMoviesState.phase === 'paused' || watchedMoviesState.phase === 'failed' ? (
+            <View className="items-start px-4 py-4">
+              <Text className="text-text-secondary">{t('common.failed')}</Text>
+              <TouchableOpacity onPress={retryWatchedMovies}>
+                <Text className="mt-2 text-accent">{t('common.retry')}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              <WatchedMoviesSection
+                movies={watchedMovies}
+                onMoviePress={handleMoviePress}
+                onViewAll={handleViewAllMovies}
+              />
+              {watchedMoviesState.phase === 'retained-refresh-error' && (
+                <View className="items-start px-4 pb-4">
+                  <Text className="text-text-secondary">{t('common.failed')}</Text>
+                  <TouchableOpacity onPress={retryWatchedMovies}>
+                    <Text className="mt-2 text-accent">{t('common.retry')}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </>
+          )}
 
           <View className="mb-20">
-            <WatchedSeriesSection
-              series={watchedSeries}
-              onSeriesPress={handleSeriesPress}
-              onViewAll={handleViewAllSeries}
-            />
+            {watchedSeriesState.phase === 'initial-pending' ? (
+              <View className="px-4 py-4 flex-row gap-3">
+                <Skeleton width={96} height={144} />
+                <Skeleton width={96} height={144} />
+                <Skeleton width={96} height={144} />
+              </View>
+            ) : watchedSeriesState.phase === 'paused' || watchedSeriesState.phase === 'failed' ? (
+              <View className="items-start px-4 py-4">
+                <Text className="text-text-secondary">{t('common.failed')}</Text>
+                <TouchableOpacity onPress={retryWatchedSeries}>
+                  <Text className="mt-2 text-accent">{t('common.retry')}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                <WatchedSeriesSection
+                  series={watchedSeries}
+                  onSeriesPress={handleSeriesPress}
+                  onViewAll={handleViewAllSeries}
+                />
+                {watchedSeriesState.phase === 'retained-refresh-error' && (
+                  <View className="items-start px-4 pb-4">
+                    <Text className="text-text-secondary">{t('common.failed')}</Text>
+                    <TouchableOpacity onPress={retryWatchedSeries}>
+                      <Text className="mt-2 text-accent">{t('common.retry')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </>
+            )}
           </View>
         </ScrollView>
 

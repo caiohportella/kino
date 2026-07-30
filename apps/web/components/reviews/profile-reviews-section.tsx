@@ -18,13 +18,20 @@ import { ProfileReviewsDialog } from './profile-reviews-dialog'
 const PROFILE_REVIEW_ROW_CLASS_NAME =
   '[--profile-row-gap:1rem] snap-x snap-mandatory [&_.media-row-track]:w-full [&_.media-row-track]:auto-cols-[calc(100%-2rem)] [&_.media-row-track]:gap-[var(--profile-row-gap)] [&_.media-row-track>*]:!w-auto md:[&_.media-row-track]:auto-cols-[calc((100%-var(--profile-row-gap))/2)]'
 
-export function ProfileReviewsSection({ username }: { username: string }) {
+export function ProfileReviewsSection({
+  username,
+  query: progressiveQuery,
+}: {
+  username: string
+  query?: ReturnType<typeof useProfileReviews>
+}) {
   const { t } = useTranslation()
   const user = useAuthStore((state) => state.user)
   const pathname = usePathname()
   const router = useRouter()
   const toast = useToast()
-  const query = useProfileReviews(username)
+  const legacyQuery = useProfileReviews(username, !progressiveQuery)
+  const query = legacyQuery.data ? legacyQuery : (progressiveQuery ?? legacyQuery)
   const mutations = useProfileReviewMutations(username)
   const [showAllOpen, setShowAllOpen] = useState(false)
   const reviewState = resolveProfileReviewsQueryState(query)

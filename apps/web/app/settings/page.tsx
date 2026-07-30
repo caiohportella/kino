@@ -26,6 +26,7 @@ import { Card } from '@/components/ui/card'
 import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useTranslation } from '@/lib/i18n'
+import { invalidateProfileMutation } from '@/lib/profile-invalidation'
 import { db } from '@/lib/services'
 import { useAuthStore } from '@/stores/auth-store'
 import type { KinoLanguage } from '@/stores/settings-store'
@@ -101,7 +102,13 @@ export default function SettingsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile-settings', user?.id] })
-      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+      if (user?.id) {
+        void invalidateProfileMutation(queryClient, {
+          kind: 'identity',
+          profileId: user.id,
+          visibilityScope: { kind: 'authenticated', userId: user.id },
+        })
+      }
       router.push(`/${username.trim()}`)
     },
     onError: (caught) =>

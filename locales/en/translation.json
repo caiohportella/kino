@@ -561,6 +561,7 @@
     "copyFailed": "Could not copy the link",
     "success": "Success",
     "failed": "Failed",
+    "retry": "Retry",
     "tryAgain": "Please try again.",
     "joinedSuccessfully": "Joined watchlist successfully!",
     "enterShareCode": "Please enter a share code",
