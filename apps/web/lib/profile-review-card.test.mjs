@@ -17,5 +17,8 @@ test('profile review cards link titles while preserving independent controls', a
   assert.match(source, /ReviewOwnerActions/)
   assert.match(source, /aria-pressed=/)
   assert.match(source, /event\.stopPropagation\(\)/)
+  assert.match(source, /focus-ring absolute inset-0 z-10 rounded-md/)
+  assert.match(source, /relative z-20/)
+  assert.match(source, /pointer-events-none/)
   assert.equal(source.includes('<Link href={href}>'), false)
 })

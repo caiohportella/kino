@@ -3,6 +3,7 @@
 import type { ProfileReview } from '@kino/core'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { ProfileHorizontalRow } from '@/components/profile-horizontal-row'
 import { useToast } from '@/components/toast-provider'
 import { Button } from '@/components/ui/button'
 import { useProfileReviewMutations, useProfileReviews } from '@/hooks/use-profile-reviews'
@@ -12,6 +13,9 @@ import { useAuthStore } from '@/stores/auth-store'
 import { ProfileReviewCard } from './profile-review-card'
 import { ProfileReviewSkeleton } from './profile-review-skeleton'
 import { ProfileReviewsDialog } from './profile-reviews-dialog'
+
+const PROFILE_REVIEW_ROW_CLASS_NAME =
+  '[--profile-row-gap:1rem] snap-x snap-mandatory [&_.media-row-track]:w-full [&_.media-row-track]:auto-cols-[calc(100%-2rem)] [&_.media-row-track]:gap-[var(--profile-row-gap)] [&_.media-row-track>*]:!w-auto md:[&_.media-row-track]:auto-cols-[calc((100%-var(--profile-row-gap))/2)]'
 
 export function ProfileReviewsSection({ username }: { username: string }) {
   const { t } = useTranslation()
@@ -23,19 +27,34 @@ export function ProfileReviewsSection({ username }: { username: string }) {
   const mutations = useProfileReviewMutations(username)
   const [showAllOpen, setShowAllOpen] = useState(false)
 
-  if (query.isLoading) {
+  if (query.isLoading && !query.data) {
     return (
-      <section aria-label={t('reviews.title')} className="mb-10">
+      <ProfileHorizontalRow
+        aria-busy={true}
+        rowClassName={PROFILE_REVIEW_ROW_CLASS_NAME}
+        title={t('reviews.title')}
+      >
+        {Array.from({ length: 2 }, (_, index) => (
+          <div className="h-full w-full snap-start" key={`profile-review-skeleton-${index}`}>
+            <ProfileReviewSkeleton />
+          </div>
+        ))}
+      </ProfileHorizontalRow>
+    )
+  }
+
+  if (query.isError && !query.data) {
+    return (
+      <section className="mb-10">
         <h2 className="mb-4 text-xl font-semibold text-kino-text">{t('reviews.title')}</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          <ProfileReviewSkeleton />
-          <ProfileReviewSkeleton />
-        </div>
+        <p className="text-sm text-red-300" role="alert">
+          {t('reviews.loadFailure')}
+        </p>
       </section>
     )
   }
 
-  if (query.isError || !query.data?.totalCount) return null
+  if (!query.data?.totalCount) return null
 
   const onAuthRequired = () => {
     storeAuthRedirect(pathname)
@@ -78,22 +97,38 @@ export function ProfileReviewsSection({ username }: { username: string }) {
   )
 
   return (
-    <section className="mb-10">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold text-kino-text">{t('reviews.title')}</h2>
-        {query.data.totalCount > query.data.items.length ? (
+    <ProfileHorizontalRow
+      action={
+        query.data.totalCount > query.data.items.length ? (
           <Button onClick={() => setShowAllOpen(true)} size="sm" variant="ghost">
             {t('reviews.showAll')}
           </Button>
-        ) : null}
-      </div>
-      <div className="grid gap-4 md:grid-cols-2">{query.data.items.map(renderReview)}</div>
-      <ProfileReviewsDialog
-        onOpenChange={setShowAllOpen}
-        open={showAllOpen}
-        renderReview={renderReview}
-        username={username}
-      />
-    </section>
+        ) : null
+      }
+      after={
+        <ProfileReviewsDialog
+          onOpenChange={setShowAllOpen}
+          open={showAllOpen}
+          renderReview={renderReview}
+          username={username}
+        />
+      }
+      aria-busy={query.isFetching}
+      notice={
+        query.isError ? (
+          <p className="mb-3 text-sm text-red-300" role="status">
+            {t('reviews.loadFailure')}
+          </p>
+        ) : null
+      }
+      rowClassName={PROFILE_REVIEW_ROW_CLASS_NAME}
+      title={t('reviews.title')}
+    >
+      {query.data.items.map((review) => (
+        <div className="h-full w-full snap-start" key={review.id}>
+          {renderReview(review)}
+        </div>
+      ))}
+    </ProfileHorizontalRow>
   )
 }

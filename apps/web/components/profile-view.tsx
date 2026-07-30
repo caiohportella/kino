@@ -26,7 +26,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { BannerPickerDialog } from '@/components/banner-picker-dialog'
 import { DisplayTitle } from '@/components/display-title'
 import { EmptyState, Poster } from '@/components/kino'
-import { MediaRow } from '@/components/media-row'
+import { ProfileHorizontalRow } from '@/components/profile-horizontal-row'
 import { ProfileShareButton } from '@/components/profile-share-button'
 import { ProtectedEmpty } from '@/components/protected-empty'
 import { RatingStars } from '@/components/rating-stars'
@@ -407,6 +407,7 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
       series.length === 0 &&
       publicWatchlists.length === 0 &&
       !profileReviewsQuery.isLoading &&
+      !profileReviewsQuery.isError &&
       !profileReviewsQuery.data?.totalCount ? (
         <EmptyState
           body={t('emptyStates.profileBody')}
@@ -1295,9 +1296,24 @@ function ProfileTitleRow<T>({
   const visibleItems = hasMore ? items.slice(0, PROFILE_ROW_LIMIT) : items
 
   return (
-    <section className="mb-10">
-      <h2 className="mb-4 text-xl font-semibold text-kino-text">{title}</h2>
-      <MediaRow>
+    <ProfileHorizontalRow
+      after={
+        hasMore ? (
+          <ProfileModal
+            contentClassName="max-w-5xl"
+            onOpenChange={setShowAllOpen}
+            open={showAllOpen}
+            title={title}
+          >
+            <div className="poster-grid min-h-0 flex-1 overflow-y-auto pr-1">
+              {items.map(renderTitleCard)}
+            </div>
+          </ProfileModal>
+        ) : null
+      }
+      title={title}
+    >
+      <>
         {visibleItems.map(renderTitleCard)}
         {hasMore ? (
           <Button
@@ -1309,21 +1325,8 @@ function ProfileTitleRow<T>({
             {t('profile.showAll')}
           </Button>
         ) : null}
-      </MediaRow>
-
-      {hasMore ? (
-        <ProfileModal
-          contentClassName="max-w-5xl"
-          onOpenChange={setShowAllOpen}
-          open={showAllOpen}
-          title={title}
-        >
-          <div className="poster-grid min-h-0 flex-1 overflow-y-auto pr-1">
-            {items.map(renderTitleCard)}
-          </div>
-        </ProfileModal>
-      ) : null}
-    </section>
+      </>
+    </ProfileHorizontalRow>
   )
 }
 

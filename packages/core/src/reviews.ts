@@ -218,7 +218,11 @@ export const profileReviewKeys = {
 
 export function mapProfileReviewsPage(rows: ProfileReviewRow[], limit: number): ProfileReviewsPage {
   const safeLimit = Math.max(1, limit)
-  const pageRows = rows.slice(0, safeLimit)
+  const orderedRows = [...rows].sort(
+    (left, right) =>
+      right.created_at.localeCompare(left.created_at) || right.id.localeCompare(left.id)
+  )
+  const pageRows = orderedRows.slice(0, safeLimit)
   const last = pageRows.at(-1)
 
   return {
@@ -235,7 +239,7 @@ export function mapProfileReviewsPage(rows: ProfileReviewRow[], limit: number): 
       },
     })),
     nextCursor:
-      rows.length > safeLimit && last ? { created_at: last.created_at, id: last.id } : null,
+      orderedRows.length > safeLimit && last ? { created_at: last.created_at, id: last.id } : null,
     totalCount: toSafeCount(rows[0]?.total_count),
   }
 }
