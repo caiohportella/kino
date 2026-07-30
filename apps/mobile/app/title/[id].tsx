@@ -30,6 +30,7 @@ import { dbService } from '~/services/database'
 import { getTMDbService } from '~/services/tmdb'
 import type { MediaType } from '~/types'
 import { shareNativeResource } from '~/utils/native-share'
+import { buildTitleIdentityMetadata } from '~/utils/titleResponsiveLayout'
 
 export default function TitleDetailScreen() {
   const { id, type } = useLocalSearchParams<{ id: string; type: MediaType }>()
@@ -206,6 +207,11 @@ export default function TitleDetailScreen() {
     )
   }
 
+  const identityMetadata = buildTitleIdentityMetadata({
+    genres: title.genres,
+    year: title.year,
+  })
+
   return (
     <>
       <Stack.Screen
@@ -240,14 +246,11 @@ export default function TitleDetailScreen() {
           )}
           <View className="w-full items-center pb-2">
             <Text className="text-center text-2xl font-bold text-text-primary">{title.title}</Text>
-            {title.year || title.genres.length > 0 ? (
+            {identityMetadata.length > 0 ? (
               <View className="mt-1 flex-row flex-wrap justify-center gap-x-2 gap-y-1">
-                {title.year ? (
-                  <Text className="font-medium text-text-secondary">{title.year}</Text>
-                ) : null}
-                {title.genres.slice(0, 2).map((genre) => (
-                  <Text className="font-medium text-text-secondary" key={genre.id}>
-                    {genre.name}
+                {identityMetadata.map((item) => (
+                  <Text className="font-medium text-text-secondary" key={item.key}>
+                    {item.label}
                   </Text>
                 ))}
               </View>

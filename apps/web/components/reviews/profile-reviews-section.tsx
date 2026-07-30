@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { useProfileReviewMutations, useProfileReviews } from '@/hooks/use-profile-reviews'
 import { storeAuthRedirect } from '@/lib/auth-redirect'
 import { useTranslation } from '@/lib/i18n'
+import { resolveProfileReviewsQueryState } from '@/lib/profile-review-query-state'
 import { useAuthStore } from '@/stores/auth-store'
 import { ProfileReviewCard } from './profile-review-card'
 import { ProfileReviewSkeleton } from './profile-review-skeleton'
@@ -26,8 +27,9 @@ export function ProfileReviewsSection({ username }: { username: string }) {
   const query = useProfileReviews(username)
   const mutations = useProfileReviewMutations(username)
   const [showAllOpen, setShowAllOpen] = useState(false)
+  const reviewState = resolveProfileReviewsQueryState(query)
 
-  if (query.isLoading && !query.data) {
+  if (reviewState.kind === 'pending') {
     return (
       <ProfileHorizontalRow
         aria-busy={true}
@@ -43,7 +45,7 @@ export function ProfileReviewsSection({ username }: { username: string }) {
     )
   }
 
-  if (query.isError && !query.data) {
+  if (reviewState.kind === 'error') {
     return (
       <section className="mb-10">
         <h2 className="mb-4 text-xl font-semibold text-kino-text">{t('reviews.title')}</h2>
@@ -54,7 +56,7 @@ export function ProfileReviewsSection({ username }: { username: string }) {
     )
   }
 
-  if (!query.data?.totalCount) return null
+  if (reviewState.kind === 'empty') return null
 
   const onAuthRequired = () => {
     storeAuthRedirect(pathname)
@@ -99,7 +101,7 @@ export function ProfileReviewsSection({ username }: { username: string }) {
   return (
     <ProfileHorizontalRow
       action={
-        query.data.totalCount > query.data.items.length ? (
+        reviewState.data.totalCount > reviewState.data.items.length ? (
           <Button onClick={() => setShowAllOpen(true)} size="sm" variant="ghost">
             {t('reviews.showAll')}
           </Button>
@@ -124,7 +126,7 @@ export function ProfileReviewsSection({ username }: { username: string }) {
       rowClassName={PROFILE_REVIEW_ROW_CLASS_NAME}
       title={t('reviews.title')}
     >
-      {query.data.items.map((review) => (
+      {reviewState.data.items.map((review) => (
         <div className="h-full w-full snap-start" key={review.id}>
           {renderReview(review)}
         </div>

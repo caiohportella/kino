@@ -46,6 +46,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { useProfileReviews } from '@/hooks/use-profile-reviews'
 import { useTranslation } from '@/lib/i18n'
+import { resolveProfileReviewsQueryState } from '@/lib/profile-review-query-state'
 import { normalizeProfileWatchlistCard } from '@/lib/profile-watchlist-card'
 import { titlePath, watchlistCoverPath, watchlistPath } from '@/lib/routes'
 import { db, getTmdb } from '@/lib/services'
@@ -321,6 +322,9 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
   }
 
   const { profile, movies, series, counts, relationship, publicWatchlists } = query.data
+  const profileReviewsState = profile.username
+    ? resolveProfileReviewsQueryState(profileReviewsQuery)
+    : ({ kind: 'empty' } as const)
   const profileName = profile.display_name || profile.username || t('profile.user')
   const initials = getInitials(profile)
   const mutualSinceLabel =
@@ -406,9 +410,7 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
       {movies.length === 0 &&
       series.length === 0 &&
       publicWatchlists.length === 0 &&
-      !profileReviewsQuery.isLoading &&
-      !profileReviewsQuery.isError &&
-      !profileReviewsQuery.data?.totalCount ? (
+      profileReviewsState.kind === 'empty' ? (
         <EmptyState
           body={t('emptyStates.profileBody')}
           illustrationLabel={t('emptyStates.profileIllustration')}
