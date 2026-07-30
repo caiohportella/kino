@@ -40,7 +40,10 @@ test('distinguishes missing, fresh complete, stale complete, and incomplete reco
 })
 
 test('rejects old-version, corrupt, and oversized records', () => {
-  assert.equal(evaluateRelationshipRecord(record({ schemaVersion: 0 }), { now }).state, 'incompatible')
+  assert.equal(
+    evaluateRelationshipRecord(record({ schemaVersion: 0 }), { now }).state,
+    'incompatible'
+  )
   assert.equal(
     evaluateRelationshipRecord({ ...record(), movieCredits: [{ bad: true }] }, { now }).state,
     'corrupt'
@@ -60,4 +63,3 @@ test('rejects old-version, corrupt, and oversized records', () => {
     'oversized'
   )
 })
-

@@ -25,8 +25,65 @@ export interface PersonRelationshipCache {
   scheduleRefresh(input: PersonRelationshipRefreshInput): Promise<void>
 }
 
+interface UpstashPersonRelationshipStoreOptions {
+  readonly url: string
+  readonly token: string
+  readonly fetch: typeof globalThis.fetch
+  readonly ttlSeconds?: number
+}
+
 export function personRelationshipCacheKey(personId: number): string {
   return `search:person-relationships:v${PERSON_RELATIONSHIP_SCHEMA_VERSION}:${personId}`
+}
+
+export function createUpstashPersonRelationshipStore(
+  options: UpstashPersonRelationshipStoreOptions
+): PersonRelationshipStore {
+  const baseUrl = options.url.replace(/\/+$/u, '')
+  const ttlSeconds = options.ttlSeconds ?? 30 * 24 * 60 * 60
+
+  async function command(parts: readonly string[]): Promise<unknown> {
+    const response = await options.fetch(`${baseUrl}/pipeline`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${options.token}`,
+      },
+      body: JSON.stringify([parts]),
+      cache: 'no-store',
+    })
+    if (!response.ok) throw new Error('Person relationship store unavailable')
+    const payload: unknown = await response.json()
+    if (
+      !Array.isArray(payload) ||
+      payload.length !== 1 ||
+      !payload[0] ||
+      typeof payload[0] !== 'object' ||
+      !('result' in payload[0])
+    ) {
+      throw new Error('Person relationship store returned an invalid response')
+    }
+    return payload[0].result
+  }
+
+  return {
+    async get(key) {
+      const result = await command(['GET', key])
+      if (result === null) return null
+      if (typeof result !== 'string') {
+        throw new Error('Person relationship store returned an invalid record')
+      }
+      try {
+        return JSON.parse(result) as unknown
+      } catch {
+        throw new Error('Person relationship store returned an invalid record')
+      }
+    },
+
+    async set(key, value) {
+      await command(['SET', key, JSON.stringify(value), 'EX', String(ttlSeconds)])
+    },
+  }
 }
 
 export function createPersonRelationshipCache(options: {

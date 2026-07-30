@@ -1,11 +1,15 @@
-import { SEARCH_SCHEMA_VERSION } from '@kino/core/search'
+import {
+  SEARCH_SCHEMA_VERSION_V1,
+  SEARCH_SCHEMA_VERSION_V2,
+  type SearchSchemaVersion,
+} from '@kino/core/search'
 
 export type SearchGatewayErrorBody =
   | {
       readonly error: {
         readonly code: 'unsupported_version'
-        readonly supportedMinimum: typeof SEARCH_SCHEMA_VERSION
-        readonly supportedMaximum: typeof SEARCH_SCHEMA_VERSION
+        readonly supportedMinimum: SearchSchemaVersion
+        readonly supportedMaximum: SearchSchemaVersion
         readonly upgradeRequired: true
       }
     }
@@ -45,8 +49,8 @@ export class SearchGatewayError extends Error {
     return new SearchGatewayError(426, {
       error: {
         code: 'unsupported_version',
-        supportedMinimum: SEARCH_SCHEMA_VERSION,
-        supportedMaximum: SEARCH_SCHEMA_VERSION,
+        supportedMinimum: SEARCH_SCHEMA_VERSION_V1,
+        supportedMaximum: SEARCH_SCHEMA_VERSION_V2,
         upgradeRequired: true,
       },
     })

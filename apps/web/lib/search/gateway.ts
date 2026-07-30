@@ -1,13 +1,20 @@
 import { type LocaleContext, localeRegion } from '@kino/core/localization'
 import {
+  detectSearchIntent,
+  normalizeSearchQuery,
   type PersonCandidate,
+  qualifyPersonExpansion,
   runSearchPipelineV1,
+  runSearchPipelineV2,
   type SearchEntity,
   type SearchIntentEvidence,
   type SearchProviderResult,
+  type SearchRequest,
   type SearchRequestV1,
+  type SearchResponse,
   type SearchResponseV1,
   type SearchResultV1,
+  type SearchResultV2,
 } from '@kino/core/search'
 
 import { SearchGatewayError } from './errors.ts'
@@ -17,17 +24,22 @@ import {
   type SearchGatewayEventSink,
   type SearchProviderStage,
 } from './observability.ts'
+import {
+  PERSON_RELATIONSHIP_MAX_CREDITS,
+  PERSON_RELATIONSHIP_SCHEMA_VERSION,
+  type PersonRelationshipRecord,
+} from './person-relationships.ts'
+import type { PersonRelationshipCache } from './providers/person-relationship-cache.ts'
 import { type TmdbSearchProvider, type VectorSearchProvider } from './providers/vector.ts'
 import { assertSearchResultWindow } from './request.ts'
 
 const DEFAULT_MINIMUM_VECTOR_RESULTS = 5
 const DEFAULT_MINIMUM_VECTOR_SCORE = 0.55
 const DEFAULT_RESULT_LIMIT = 20
-const PERSON_EXPANSION_CONFIDENCE = 0.8
 const DEFAULT_PROVIDER_TIMEOUT_MS = 4_500
 
 export interface SearchGateway {
-  search(request: SearchRequestV1, signal?: AbortSignal): Promise<SearchResponseV1>
+  search(request: SearchRequest, signal?: AbortSignal): Promise<SearchResponse>
 }
 
 interface CreateSearchGatewayDependencies {
@@ -37,6 +49,7 @@ interface CreateSearchGatewayDependencies {
   readonly minimumVectorScore?: number
   readonly providerTimeoutMs?: number
   readonly telemetry?: SearchGatewayEventSink
+  readonly relationships?: PersonRelationshipCache
   readonly now?: () => number
 }
 
@@ -109,7 +122,6 @@ function topPerson(sources: readonly SearchProviderResult[]): PersonCandidate | 
     for (const candidate of source.candidates) {
       if (
         candidate.source === 'person' &&
-        candidate.confidence >= PERSON_EXPANSION_CONFIDENCE &&
         (selected === undefined || candidate.confidence > selected.confidence)
       ) {
         selected = candidate
@@ -119,20 +131,49 @@ function topPerson(sources: readonly SearchProviderResult[]): PersonCandidate | 
   return selected
 }
 
+function qualifiedTopPerson(
+  request: SearchRequest,
+  sources: readonly SearchProviderResult[]
+): PersonCandidate | undefined {
+  const person = topPerson(sources)
+  if (!person) return undefined
+  const query = normalizeSearchQuery(request.query)
+  const intent = detectSearchIntent(query, intentEvidence(sources))
+  return qualifyPersonExpansion(query, { intent, person }) ? person : undefined
+}
+
+function relationshipRecord(
+  person: PersonCandidate,
+  credits: Awaited<ReturnType<TmdbSearchProvider['getPersonCredits']>>,
+  updatedAt: string
+): PersonRelationshipRecord {
+  const boundedCredits = credits.slice(0, PERSON_RELATIONSHIP_MAX_CREDITS)
+  return {
+    schemaVersion: PERSON_RELATIONSHIP_SCHEMA_VERSION,
+    personId: person.entity.tmdbId!,
+    aliases: [person.entity.title],
+    knownForDepartment: null,
+    movieCredits: boundedCredits.filter((credit) => credit.entity.entityType === 'movie'),
+    tvCredits: boundedCredits.filter((credit) => credit.entity.entityType === 'series'),
+    complete: true,
+    updatedAt,
+  }
+}
+
 async function resolvePresentation(
-  response: SearchResponseV1,
+  response: SearchResponse,
   tmdb: TmdbSearchProvider,
   context: LocaleContext | undefined,
   signal: AbortSignal | undefined,
   timeoutMs: number,
   telemetry: SearchGatewayEventSink | undefined,
   now: () => number
-): Promise<SearchResponseV1> {
+): Promise<SearchResponse> {
   if (!context || response.results.length === 0) return response
   const startedAt = now()
   try {
     const presentedResults = await Promise.all(
-      response.results.map(async (result): Promise<SearchResultV1> => {
+      response.results.map(async (result): Promise<SearchResultV1 | SearchResultV2> => {
         const entity = await tmdb.resolvePresentation(
           result.entity,
           context,
@@ -157,7 +198,7 @@ async function resolvePresentation(
           entity: presentedEntities.get(result.entity.id) ?? result.entity,
         })),
       })),
-    }
+    } as SearchResponse
   } catch (error) {
     throwIfCancelled(signal)
     publishStage(telemetry, 'tmdb_presentation', stageOutcome(error), now() - startedAt, {
@@ -174,7 +215,7 @@ export function createSearchGateway(dependencies: CreateSearchGatewayDependencie
   const now = dependencies.now ?? Date.now
 
   return {
-    async search(request, signal): Promise<SearchResponseV1> {
+    async search(request, signal): Promise<SearchResponse> {
       throwIfCancelled(signal)
       assertSearchResultWindow(request)
       const sources: SearchProviderResult[] = []
@@ -260,7 +301,7 @@ export function createSearchGateway(dependencies: CreateSearchGatewayDependencie
         })
       }
 
-      const person = topPerson(sources)
+      const person = qualifiedTopPerson(request, sources)
       let personExpansion:
         | {
             readonly person: PersonCandidate
@@ -270,10 +311,26 @@ export function createSearchGateway(dependencies: CreateSearchGatewayDependencie
       if (person?.entity.tmdbId) {
         const startedAt = now()
         try {
-          const credits = await dependencies.tmdb.getPersonCredits(
-            person.entity.tmdbId,
-            providerSignal(signal, providerTimeoutMs)
-          )
+          const cached = dependencies.relationships
+            ? await dependencies.relationships.get(person.entity.tmdbId)
+            : { state: 'missing' as const }
+          let credits: Awaited<ReturnType<TmdbSearchProvider['getPersonCredits']>>
+          if (cached.state === 'fresh_complete' || cached.state === 'stale_complete') {
+            credits = [...cached.record.movieCredits, ...cached.record.tvCredits]
+          } else {
+            credits = await dependencies.tmdb.getPersonCredits(
+              person.entity.tmdbId,
+              providerSignal(signal, providerTimeoutMs)
+            )
+            if (dependencies.relationships) {
+              const record = relationshipRecord(person, credits, new Date(now()).toISOString())
+              try {
+                await dependencies.relationships.set(record)
+              } catch {
+                // Cache writes are not part of the search success path.
+              }
+            }
+          }
           throwIfCancelled(signal)
           personExpansion = { person, credits }
           publishStage(dependencies.telemetry, 'person_expansion', 'success', now() - startedAt, {
@@ -297,13 +354,17 @@ export function createSearchGateway(dependencies: CreateSearchGatewayDependencie
         })
       }
 
-      const response = runSearchPipelineV1({
+      const pipelineInput = {
         request,
         intentEvidence: intentEvidence(sources),
         sources,
         ...(personExpansion === undefined ? {} : { personExpansion }),
         fallback,
-      })
+      }
+      const response =
+        request.schemaVersion === 2
+          ? runSearchPipelineV2({ ...pipelineInput, request })
+          : runSearchPipelineV1({ ...pipelineInput, request })
       return resolvePresentation(
         response,
         dependencies.tmdb,

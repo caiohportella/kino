@@ -4,9 +4,7 @@ export const SEARCH_SCHEMA_VERSION_V2 = 2 as const
 /** @deprecated Use SEARCH_SCHEMA_VERSION_V1 or SEARCH_SCHEMA_VERSION_V2 explicitly. */
 export const SEARCH_SCHEMA_VERSION = SEARCH_SCHEMA_VERSION_V1
 
-export type SearchSchemaVersion =
-  | typeof SEARCH_SCHEMA_VERSION_V1
-  | typeof SEARCH_SCHEMA_VERSION_V2
+export type SearchSchemaVersion = typeof SEARCH_SCHEMA_VERSION_V1 | typeof SEARCH_SCHEMA_VERSION_V2
 export type SearchMediaType = 'movie' | 'series'
 export type SearchEntityType = SearchMediaType | 'person' | 'user'
 
@@ -201,6 +199,17 @@ export interface RunSearchPipelineV1Input {
     readonly credits: readonly PersonCredit[]
   }
   readonly fallback?: SearchResponseV1['fallback']
+}
+
+export interface RunSearchPipelineV2Input {
+  readonly request: SearchRequestV2
+  readonly intentEvidence: SearchIntentEvidence
+  readonly sources: readonly SearchProviderResult[]
+  readonly personExpansion?: {
+    readonly person: PersonCandidate
+    readonly credits: readonly PersonCredit[]
+  }
+  readonly fallback?: SearchResponseV2['fallback']
 }
 
 export interface SearchResultV1 {

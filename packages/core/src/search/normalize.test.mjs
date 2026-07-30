@@ -236,7 +236,9 @@ test('rejects non-finite V2 scores and ratings', () => {
   const invalidResponses = [
     {
       ...valid,
-      results: [{ ...valid.results[0], score: { ...valid.results[0].score, semanticScore: Number.NaN } }],
+      results: [
+        { ...valid.results[0], score: { ...valid.results[0].score, semanticScore: Number.NaN } },
+      ],
     },
     {
       ...valid,
@@ -283,7 +285,9 @@ test('normalizes only V2 requests and recognizes V1 and V2 compatibility contrac
     normalizeSearchRequestV2({ schemaVersion: SEARCH_SCHEMA_VERSION_V2, query: '  Alien  ' }),
     { schemaVersion: 2, query: 'Alien' }
   )
-  assert.throws(() => normalizeSearchRequestV2({ schemaVersion: SEARCH_SCHEMA_VERSION_V1, query: 'Alien' }))
+  assert.throws(() =>
+    normalizeSearchRequestV2({ schemaVersion: SEARCH_SCHEMA_VERSION_V1, query: 'Alien' })
+  )
   assert.deepEqual(
     normalizeSearchRequest({ schemaVersion: SEARCH_SCHEMA_VERSION_V1, query: 'Alien' }),
     { schemaVersion: 1, query: 'Alien' }

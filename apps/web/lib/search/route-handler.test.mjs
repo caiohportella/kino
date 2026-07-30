@@ -211,3 +211,25 @@ test('returns the search response when the observability sink throws', async () 
   assert.equal(response.status, 200)
   assert.deepEqual(await response.json(), success)
 })
+
+test('defaults schema-less requests to V2 and preserves explicit V1', async () => {
+  const received = []
+  const handler = createSearchRouteHandler({
+    gateway: {
+      search: async (request) => {
+        received.push(request.schemaVersion)
+        return { ...success, schemaVersion: request.schemaVersion }
+      },
+    },
+  })
+  for (const body of [{ query: 'Alien' }, { schemaVersion: 1, query: 'Alien' }]) {
+    const response = await handler(
+      new Request('https://kino.example/api/v1/search', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      })
+    )
+    assert.equal(response.status, 200)
+  }
+  assert.deepEqual(received, [2, 1])
+})

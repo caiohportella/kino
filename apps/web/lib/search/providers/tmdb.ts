@@ -4,6 +4,7 @@ import type {
   PersonCandidate,
   PersonCredit,
   SearchEntity,
+  SearchEntityV2,
   SearchMediaType,
   SearchProviderCandidate,
   SearchProviderResult,
@@ -87,7 +88,8 @@ function mediaCandidate(
   const releaseYear = year(type === 'movie' ? value.release_date : value.first_air_date)
   const popularity = finiteNumber(value.popularity)
   const voteCount = finiteNumber(value.vote_count)
-  const entity: SearchEntity = {
+  const tmdbVoteAverage = finiteNumber(value.vote_average)
+  const entity: SearchEntityV2 = {
     id: `${type}:${tmdbId}`,
     entityType: type,
     tmdbId,
@@ -98,6 +100,7 @@ function mediaCandidate(
     ...(request.locale === undefined ? {} : { locale: request.locale }),
     ...(popularity === undefined ? {} : { popularity }),
     ...(voteCount === undefined ? {} : { voteCount }),
+    ...(tmdbVoteAverage === undefined ? {} : { tmdbVoteAverage }),
   }
 
   return {
@@ -192,6 +195,7 @@ function localizedPresentation(
   )
   const popularity = finiteNumber(value.popularity)
   const voteCount = finiteNumber(value.vote_count)
+  const tmdbVoteAverage = finiteNumber(value.vote_average)
   return {
     ...entity,
     title,
@@ -201,6 +205,7 @@ function localizedPresentation(
     locale,
     ...(popularity === undefined ? {} : { popularity }),
     ...(voteCount === undefined ? {} : { voteCount }),
+    ...(tmdbVoteAverage === undefined ? {} : { tmdbVoteAverage }),
   }
 }
 

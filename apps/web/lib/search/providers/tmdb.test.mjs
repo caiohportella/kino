@@ -78,6 +78,7 @@ test('normalizes complete TMDB multi-search results into core candidates', async
           locale: 'pt-BR',
           popularity: 170.5,
           voteCount: 20_798,
+          tmdbVoteAverage: 8.7,
         },
       },
       {
@@ -306,5 +307,6 @@ test('resolves locale-sensitive media presentation without changing entity ident
     locale: 'pt-BR',
     popularity: 170.5,
     voteCount: 20_798,
+    tmdbVoteAverage: 8.7,
   })
 })

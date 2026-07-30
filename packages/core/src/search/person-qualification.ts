@@ -12,9 +12,7 @@ export interface PersonExpansionEvidence {
 }
 
 function bounded(value: number | undefined): number {
-  return typeof value === 'number' && Number.isFinite(value)
-    ? Math.max(0, Math.min(1, value))
-    : 0
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0
 }
 
 export function qualifyPersonExpansion(
