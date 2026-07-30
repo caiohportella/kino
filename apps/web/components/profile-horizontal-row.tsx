@@ -3,15 +3,8 @@
 import type { ComponentPropsWithoutRef, KeyboardEvent, ReactNode, UIEvent } from 'react'
 import { useLayoutEffect, useRef } from 'react'
 import { MediaRow } from '@/components/media-row'
+import { isInteractiveMediaRowTarget } from '@/lib/media-row-interactions'
 import { cn } from '@/lib/utils'
-
-const PROFILE_ROW_INTERACTIVE_SELECTOR =
-  'a, button, input, select, textarea, [contenteditable]:not([contenteditable="false"]), [role="button"], [role="checkbox"], [role="combobox"], [role="link"], [role="radio"], [role="slider"], [role="switch"], [role="textbox"]'
-
-function isInteractiveProfileRowTarget(target: EventTarget | null) {
-  if (!target || typeof (target as Element).closest !== 'function') return false
-  return Boolean((target as Element).closest(PROFILE_ROW_INTERACTIVE_SELECTOR))
-}
 
 function getProfileRowScrollDistance(viewport: HTMLDivElement) {
   const track = viewport.firstElementChild
@@ -58,7 +51,7 @@ export function ProfileHorizontalRow({
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
-    if (isInteractiveProfileRowTarget(event.target)) return
+    if (isInteractiveMediaRowTarget(event.target)) return
 
     event.preventDefault()
     const direction = event.key === 'ArrowRight' ? 1 : -1
