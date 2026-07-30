@@ -40,6 +40,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useTranslation } from '@/lib/i18n'
+import { invalidateProfileMutation } from '@/lib/profile-invalidation'
 import { titlePath } from '@/lib/routes'
 import { db, getTmdb } from '@/lib/services'
 import type { LocalizedTitleMap } from '@/lib/use-localized-titles'
@@ -344,7 +345,14 @@ function useDiaryEntryActions(userId: string | undefined) {
 
   function refreshRelatedData(entry: DiaryEntry) {
     queryClient.invalidateQueries({ queryKey })
-    queryClient.invalidateQueries({ queryKey: ['profile', userId] })
+    if (userId) {
+      void invalidateProfileMutation(queryClient, {
+        kind: 'rating-diary',
+        mediaType: entry.type,
+        profileId: userId,
+        visibilityScope: { kind: 'authenticated', userId },
+      })
+    }
     queryClient.invalidateQueries({
       queryKey: ['title-user-data', entry.titleId, userId],
     })

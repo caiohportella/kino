@@ -56,7 +56,11 @@ export function ReviewsSection({
       }}
       onLike={() =>
         like.mutate(
-          { reviewId: review.id, liked: review.likedByViewer },
+          {
+            reviewId: review.id,
+            liked: review.likedByViewer,
+            authorProfileId: review.userId,
+          },
           { onError: () => notifyError('reviews.likeFailure') }
         )
       }

@@ -31,6 +31,7 @@ import { ShareCodeDisplay } from '@/components/watchlist-sharing'
 import { WatchlistVisibilitySelector } from '@/components/watchlist-visibility-selector'
 import { useTranslation } from '@/lib/i18n'
 import { resolveLocalizedTitlePresentation } from '@/lib/localized-title-presentation'
+import { invalidateProfileMutation } from '@/lib/profile-invalidation'
 import { parseWatchlistSegment, titlePath, watchlistPath } from '@/lib/routes'
 import { db, getTmdb } from '@/lib/services'
 import { useLocalizedTitles } from '@/lib/use-localized-titles'
@@ -131,7 +132,15 @@ export default function WatchlistDetailPage() {
     onSettled: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: detailQueryKey }),
-        queryClient.invalidateQueries({ queryKey: ['profile'] }),
+        ...(query.data?.watchlist && user?.id
+          ? [
+              invalidateProfileMutation(queryClient, {
+                kind: 'watchlist',
+                profileId: query.data.watchlist.userId,
+                visibilityScope: { kind: 'authenticated', userId: user.id },
+              }),
+            ]
+          : []),
         queryClient.invalidateQueries({ queryKey: ['public-watchlists'] }),
       ]),
   })
@@ -157,7 +166,15 @@ export default function WatchlistDetailPage() {
       queryClient.removeQueries({ queryKey: detailQueryKey })
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: ['watchlists', user?.id] }),
-        queryClient.invalidateQueries({ queryKey: ['profile'] }),
+        ...(query.data?.watchlist && user?.id
+          ? [
+              invalidateProfileMutation(queryClient, {
+                kind: 'watchlist',
+                profileId: query.data.watchlist.userId,
+                visibilityScope: { kind: 'authenticated', userId: user.id },
+              }),
+            ]
+          : []),
         queryClient.invalidateQueries({ queryKey: ['public-watchlists'] }),
       ])
       router.replace('/watchlists')
@@ -345,7 +362,15 @@ export default function WatchlistDetailPage() {
           void Promise.all([
             queryClient.invalidateQueries({ queryKey: detailQueryKey }),
             queryClient.invalidateQueries({ queryKey: ['watchlists', user?.id] }),
-            queryClient.invalidateQueries({ queryKey: ['profile'] }),
+            ...(user?.id
+              ? [
+                  invalidateProfileMutation(queryClient, {
+                    kind: 'watchlist',
+                    profileId: watchlist.userId,
+                    visibilityScope: { kind: 'authenticated', userId: user.id },
+                  }),
+                ]
+              : []),
             queryClient.invalidateQueries({ queryKey: ['public-watchlists'] }),
           ])
         }}
@@ -503,6 +528,7 @@ function EditWatchlistDialog({
   const { t } = useTranslation()
   const { notify } = useToast()
   const queryClient = useQueryClient()
+  const viewerId = useAuthStore((state) => state.user?.id)
   const [name, setName] = useState(watchlist.name)
   const [description, setDescription] = useState(watchlist.description || '')
   const [visibility, setVisibility] = useState<WatchlistVisibility>(watchlist.visibility)
@@ -571,7 +597,15 @@ function EditWatchlistDialog({
       )
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: ['watchlist-picker'] }),
-        queryClient.invalidateQueries({ queryKey: ['profile'] }),
+        ...(viewerId
+          ? [
+              invalidateProfileMutation(queryClient, {
+                kind: 'watchlist',
+                profileId: watchlist.userId,
+                visibilityScope: { kind: 'authenticated', userId: viewerId },
+              }),
+            ]
+          : []),
         queryClient.invalidateQueries({ queryKey: ['public-watchlists'] }),
       ])
       notify({

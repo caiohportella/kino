@@ -47,6 +47,7 @@ import {
   useProfileUsernameResolution,
 } from '@/hooks/use-profile-sections'
 import { useTranslation } from '@/lib/i18n'
+import { invalidateProfileMutation } from '@/lib/profile-invalidation'
 import {
   isProfileKnownEmpty,
   type ProfileSliceState,
@@ -255,10 +256,16 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
   useEffect(
     () =>
       subscribeToWatchlistChanges(() => {
-        void sections.watchlists.refetch()
+        if (targetUserId) {
+          void invalidateProfileMutation(queryClient, {
+            kind: 'subscription',
+            profileId: targetUserId,
+            visibilityScope,
+          })
+        }
         void queryClient.invalidateQueries({ queryKey: ['public-watchlists'] })
       }),
-    [queryClient, sections.watchlists]
+    [queryClient, targetUserId, visibilityScope]
   )
 
   const followMutation = useMutation({
@@ -267,7 +274,15 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
       if (sections.relationship.data?.isFollowing) await db.unfollowUser(targetUserId)
       else await db.followUser(targetUserId)
     },
-    onSuccess: () => sections.relationship.refetch(),
+    onSuccess: () => {
+      if (!targetUserId || !user?.id) return
+      void invalidateProfileMutation(queryClient, {
+        kind: 'follow',
+        profileId: targetUserId,
+        viewerId: user.id,
+        visibilityScope,
+      })
+    },
   })
 
   const profileSearch = useQuery({
@@ -291,9 +306,16 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
       if (result.isFollowing) await db.unfollowUser(result.profile.id)
       else await db.followUser(result.profile.id)
     },
-    onSuccess: () => {
+    onSuccess: (_data, result) => {
       queryClient.invalidateQueries({ queryKey: ['profile-user-search'] })
-      sections.relationship.refetch()
+      if (user?.id) {
+        void invalidateProfileMutation(queryClient, {
+          kind: 'follow',
+          profileId: result.profile.id,
+          viewerId: user.id,
+          visibilityScope,
+        })
+      }
     },
   })
 
@@ -330,8 +352,14 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
         tone: 'success',
         title: t(variables.isFollowing ? 'profile.unfollowedUser' : 'profile.followedUser'),
       })
-      void sections.relationship.refetch()
-      void sections.statistics.refetch()
+      if (user?.id) {
+        void invalidateProfileMutation(queryClient, {
+          kind: 'follow',
+          profileId: variables.userId,
+          viewerId: user.id,
+          visibilityScope,
+        })
+      }
       queryClient.invalidateQueries({ queryKey: ['profile-social-list'] })
       queryClient.invalidateQueries({ queryKey: ['profile-user-search'] })
     },
@@ -583,7 +611,11 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
           onSelectBanner={async (bannerUrl) => {
             await db.updateUserProfile(user!.id, { banner_url: bannerUrl })
             await Promise.all([
-              identityQuery.refetch(),
+              invalidateProfileMutation(queryClient, {
+                kind: 'banner',
+                profileId: user!.id,
+                visibilityScope,
+              }),
               queryClient.invalidateQueries({ queryKey: ['profile-settings', user!.id] }),
             ])
           }}

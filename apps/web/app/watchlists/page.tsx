@@ -17,6 +17,7 @@ import { LabeledField as Field } from '@/components/ui/labeled-field'
 import { WatchlistDialog } from '@/components/watchlist-dialog'
 import { WatchlistVisibilityBadge } from '@/components/watchlist-sharing'
 import { useTranslation } from '@/lib/i18n'
+import { invalidateProfileMutation } from '@/lib/profile-invalidation'
 import { watchlistPath } from '@/lib/routes'
 import { db } from '@/lib/services'
 import { useAuthStore } from '@/stores/auth-store'
@@ -96,7 +97,11 @@ export default function WatchlistsPage() {
             onSaved={() => {
               void Promise.all([
                 queryClient.invalidateQueries({ queryKey: ['watchlists', user!.id] }),
-                queryClient.invalidateQueries({ queryKey: ['profile', user!.id] }),
+                invalidateProfileMutation(queryClient, {
+                  kind: 'watchlist',
+                  profileId: user!.id,
+                  visibilityScope: { kind: 'authenticated', userId: user!.id },
+                }),
                 queryClient.invalidateQueries({ queryKey: ['public-watchlists'] }),
               ])
             }}
@@ -184,7 +189,11 @@ export default function WatchlistsPage() {
           onSaved={() => {
             void Promise.all([
               queryClient.invalidateQueries({ queryKey: ['watchlists', user!.id] }),
-              queryClient.invalidateQueries({ queryKey: ['profile', user!.id] }),
+              invalidateProfileMutation(queryClient, {
+                kind: 'watchlist',
+                profileId: user!.id,
+                visibilityScope: { kind: 'authenticated', userId: user!.id },
+              }),
               queryClient.invalidateQueries({ queryKey: ['public-watchlists'] }),
             ])
           }}
