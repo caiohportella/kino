@@ -54,13 +54,26 @@ export default function ProfileScreen() {
     refreshing,
     onRefresh,
     relationship,
+    relationshipState,
+    retryRelationship,
     retryWatchedMovies,
     retryWatchedSeries,
     watchedMoviesState,
     watchedSeriesState,
   } = useProfileData(targetUserId, user?.id)
 
-  const followSystem = useFollowSystem(targetUserId, isOwnProfile, user?.id, relationship)
+  const relationshipHasData =
+    relationshipState.phase === 'ready' ||
+    relationshipState.phase === 'empty' ||
+    relationshipState.phase === 'retained-refresh' ||
+    relationshipState.phase === 'retained-refresh-error'
+  const followSystem = useFollowSystem(
+    targetUserId,
+    isOwnProfile,
+    user?.id,
+    relationship,
+    relationshipHasData
+  )
   const searchSystem = useUserSearch()
 
   const [watchedSeriesModalVisible, setWatchedSeriesModalVisible] = useState(false)
@@ -178,27 +191,54 @@ export default function ProfileScreen() {
           <ProfileHeader
             profile={profile}
             isOwnProfile={isOwnProfile}
-            isFollowing={followSystem.isFollowing}
+            isFollowing={followSystem.isFollowing ?? false}
+            relationshipKnown={relationshipHasData}
             onSearchPress={() => searchSystem.setSearchModalVisible(true)}
             onSharePress={handleShare}
             onFollowToggle={followSystem.handleFollowToggle}
           />
 
-          <ProfileStats
-            followersCount={followSystem.followersCount}
-            followingCount={followSystem.followingCount}
-            onFollowersPress={() => followSystem.handleOpenUserList('followers')}
-            onFollowingPress={() => followSystem.handleOpenUserList('following')}
-          />
+          {relationshipHasData ? (
+            <ProfileStats
+              followersCount={followSystem.followersCount ?? 0}
+              followingCount={followSystem.followingCount ?? 0}
+              onFollowersPress={() => followSystem.handleOpenUserList('followers')}
+              onFollowingPress={() => followSystem.handleOpenUserList('following')}
+            />
+          ) : (
+            <View className="mb-12 mt-4 items-center px-4">
+              {relationshipState.phase === 'initial-pending' ? (
+                <ActivityIndicator size="small" color="#1DB954" />
+              ) : (
+                <>
+                  <Text className="text-text-secondary">
+                    {relationshipState.phase === 'paused'
+                      ? t('search.sectionFailed')
+                      : t('common.failed')}
+                  </Text>
+                  <TouchableOpacity onPress={retryRelationship}>
+                    <Text className="mt-2 text-accent">{t('common.retry')}</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          )}
+          {relationshipState.phase === 'retained-refresh-error' && (
+            <View className="mb-4 items-center px-4">
+              <Text className="text-text-secondary">{t('common.failed')}</Text>
+              <TouchableOpacity onPress={retryRelationship}>
+                <Text className="mt-2 text-accent">{t('common.retry')}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
-          {watchedMoviesState.phase === 'initial-pending' ||
-          watchedMoviesState.phase === 'paused' ? (
+          {watchedMoviesState.phase === 'initial-pending' ? (
             <View className="px-4 py-4 flex-row gap-3">
               <Skeleton width={96} height={144} />
               <Skeleton width={96} height={144} />
               <Skeleton width={96} height={144} />
             </View>
-          ) : watchedMoviesState.phase === 'failed' ? (
+          ) : watchedMoviesState.phase === 'paused' || watchedMoviesState.phase === 'failed' ? (
             <View className="items-start px-4 py-4">
               <Text className="text-text-secondary">{t('common.failed')}</Text>
               <TouchableOpacity onPress={retryWatchedMovies}>
@@ -206,23 +246,32 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
           ) : (
-            <WatchedMoviesSection
-              movies={watchedMovies}
-              onMoviePress={handleMoviePress}
-              onLongPress={(movie) => handleDeleteMedia(movie.tmdb_id, movie.title, 'movie')}
-              onViewAll={handleViewAllMovies}
-            />
+            <>
+              <WatchedMoviesSection
+                movies={watchedMovies}
+                onMoviePress={handleMoviePress}
+                onLongPress={(movie) => handleDeleteMedia(movie.tmdb_id, movie.title, 'movie')}
+                onViewAll={handleViewAllMovies}
+              />
+              {watchedMoviesState.phase === 'retained-refresh-error' && (
+                <View className="items-start px-4 pb-4">
+                  <Text className="text-text-secondary">{t('common.failed')}</Text>
+                  <TouchableOpacity onPress={retryWatchedMovies}>
+                    <Text className="mt-2 text-accent">{t('common.retry')}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </>
           )}
 
           <View className="mb-20">
-            {watchedSeriesState.phase === 'initial-pending' ||
-            watchedSeriesState.phase === 'paused' ? (
+            {watchedSeriesState.phase === 'initial-pending' ? (
               <View className="px-4 py-4 flex-row gap-3">
                 <Skeleton width={96} height={144} />
                 <Skeleton width={96} height={144} />
                 <Skeleton width={96} height={144} />
               </View>
-            ) : watchedSeriesState.phase === 'failed' ? (
+            ) : watchedSeriesState.phase === 'paused' || watchedSeriesState.phase === 'failed' ? (
               <View className="items-start px-4 py-4">
                 <Text className="text-text-secondary">{t('common.failed')}</Text>
                 <TouchableOpacity onPress={retryWatchedSeries}>
@@ -230,12 +279,22 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               </View>
             ) : (
-              <WatchedSeriesSection
-                series={watchedSeries}
-                onSeriesPress={handleSeriesPress}
-                onLongPress={(series) => handleDeleteMedia(series.tmdb_id, series.title, 'tv')}
-                onViewAll={handleViewAllSeries}
-              />
+              <>
+                <WatchedSeriesSection
+                  series={watchedSeries}
+                  onSeriesPress={handleSeriesPress}
+                  onLongPress={(series) => handleDeleteMedia(series.tmdb_id, series.title, 'tv')}
+                  onViewAll={handleViewAllSeries}
+                />
+                {watchedSeriesState.phase === 'retained-refresh-error' && (
+                  <View className="items-start px-4 pb-4">
+                    <Text className="text-text-secondary">{t('common.failed')}</Text>
+                    <TouchableOpacity onPress={retryWatchedSeries}>
+                      <Text className="mt-2 text-accent">{t('common.retry')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </>
             )}
           </View>
         </ScrollView>

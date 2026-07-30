@@ -8,9 +8,9 @@ import type { FollowerInfo } from '~/types'
 import type { MobileProfileRelationship } from './profileQueryOptions'
 
 export interface UseFollowSystemReturn {
-  followersCount: number
-  followingCount: number
-  isFollowing: boolean
+  followersCount: number | undefined
+  followingCount: number | undefined
+  isFollowing: boolean | undefined
   handleFollowToggle: () => Promise<void>
   handleOpenUserList: (type: 'followers' | 'following') => Promise<void>
   handleUserListAction: (userId: string) => Promise<void>
@@ -26,7 +26,8 @@ export function useFollowSystem(
   targetUserId: string | undefined,
   isOwnProfile: boolean,
   viewerId: string | undefined,
-  relationship: MobileProfileRelationship | undefined
+  relationship: MobileProfileRelationship | undefined,
+  relationshipAvailable: boolean
 ): UseFollowSystemReturn {
   const queryClient = useQueryClient()
   const relationshipKey = targetUserId
@@ -59,7 +60,8 @@ export function useFollowSystem(
   }, [queryClient, relationshipKey])
 
   const handleFollowToggle = useCallback(async () => {
-    if (!targetUserId || !viewerId || isOwnProfile) return
+    if (!relationshipAvailable) return
+    if (!targetUserId || !viewerId || isOwnProfile || !relationship) return
 
     try {
       if (relationship?.isFollowing) {
@@ -88,7 +90,8 @@ export function useFollowSystem(
   }, [
     invalidateRelationship,
     isOwnProfile,
-    relationship?.isFollowing,
+    relationship,
+    relationshipAvailable,
     targetUserId,
     updateRelationship,
     viewerId,
@@ -155,9 +158,9 @@ export function useFollowSystem(
   )
 
   return {
-    followersCount: relationship?.counts.followers ?? 0,
-    followingCount: relationship?.counts.following ?? 0,
-    isFollowing: relationship?.isFollowing ?? false,
+    followersCount: relationshipAvailable ? relationship?.counts.followers : undefined,
+    followingCount: relationshipAvailable ? relationship?.counts.following : undefined,
+    isFollowing: relationshipAvailable ? relationship?.isFollowing : undefined,
     handleFollowToggle,
     handleOpenUserList,
     handleUserListAction,

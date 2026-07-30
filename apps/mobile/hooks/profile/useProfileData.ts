@@ -13,6 +13,8 @@ export interface UseProfileDataReturn {
   refreshing: boolean
   onRefresh: () => Promise<void>
   relationship: MobileProfileRelationship | undefined
+  relationshipState: MobileProfileSliceState<MobileProfileRelationship>
+  retryRelationship: () => Promise<void>
   retryWatchedMovies: () => Promise<void>
   retryWatchedSeries: () => Promise<void>
   watchedMoviesState: MobileProfileSliceState<WatchedMovie[]>
@@ -35,6 +37,8 @@ export function useProfileData(
     refreshing: sections.refreshing,
     onRefresh: sections.onRefresh,
     relationship: sections.relationship.data,
+    relationshipState: sections.relationshipState,
+    retryRelationship: sections.retryRelationship,
     retryWatchedMovies: sections.retryWatchedMovies,
     retryWatchedSeries: sections.retryWatchedSeries,
     watchedMoviesState: sections.watchedMoviesState as MobileProfileSliceState<WatchedMovie[]>,

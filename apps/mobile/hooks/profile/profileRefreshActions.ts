@@ -15,6 +15,9 @@ export function createProfileRefreshActions(refetch: {
         refetch.watchedSeries(),
       ])
     },
+    retryRelationship: async () => {
+      await refetch.relationship()
+    },
     retryWatchedMovies: async () => {
       await refetch.watchedMovies()
     },

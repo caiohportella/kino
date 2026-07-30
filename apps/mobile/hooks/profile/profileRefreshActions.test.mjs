@@ -19,6 +19,19 @@ test('section retries dispatch only their own query', async () => {
   assert.deepEqual(calls, ['series'])
 })
 
+test('relationship retry dispatches only the relationship query', async () => {
+  const calls = []
+  const actions = createProfileRefreshActions({
+    identity: async () => calls.push('identity'),
+    relationship: async () => calls.push('relationship'),
+    watchedMovies: async () => calls.push('movies'),
+    watchedSeries: async () => calls.push('series'),
+  })
+
+  await actions.retryRelationship()
+  assert.deepEqual(calls, ['relationship'])
+})
+
 test('pull refresh updates every rendered profile slice', async () => {
   const calls = []
   const actions = createProfileRefreshActions({

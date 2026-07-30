@@ -110,14 +110,47 @@ test('the compatibility facade is identity-blocking and has no initial TMDB fan-
   const source = await readFile(new URL('./useProfileData.ts', import.meta.url), 'utf8')
   assert.match(source, /useProfileSections\(targetUserId, viewerId\)/)
   assert.match(source, /loading:\s*identity\.phase === 'blocking'/)
+  assert.match(source, /relationshipState:\s*sections\.relationshipState/)
+  assert.match(source, /retryRelationship:\s*sections\.retryRelationship/)
   assert.doesNotMatch(source, /refreshSeriesAvailability|getSeasonDetails|getTMDbService/)
 })
 
-test('both profile screens render content slices independently', async () => {
+test('both profile screens own relationship and content failure states independently', async () => {
   for (const relativePath of ['../../app/profile/[id].tsx', '../../app/(tabs)/profile.tsx']) {
     const source = await readFile(new URL(relativePath, import.meta.url), 'utf8')
+    assert.match(source, /relationshipState/)
+    assert.match(source, /retryRelationship/)
+    assert.match(source, /relationshipHasData/)
+    assert.match(source, /relationshipState\.phase === 'paused'/)
+    assert.match(source, /relationshipState\.phase === 'retained-refresh-error'/)
+    assert.match(source, /onPress=\{retryRelationship\}/)
+    assert.match(source, /relationshipHasData\s*\?\s*\(/)
+    assert.match(source, /relationshipKnown=\{relationshipHasData\}/)
     assert.match(source, /watchedMoviesState/)
     assert.match(source, /watchedSeriesState/)
+    assert.match(source, /watchedMoviesState\.phase === 'paused'/)
+    assert.match(source, /watchedSeriesState\.phase === 'paused'/)
+    assert.match(source, /watchedMoviesState\.phase === 'retained-refresh-error'/)
+    assert.match(source, /watchedSeriesState\.phase === 'retained-refresh-error'/)
+    assert.match(source, /onPress=\{retryWatchedMovies\}/)
+    assert.match(source, /onPress=\{retryWatchedSeries\}/)
     assert.match(source, /useProfileData\(targetUserId, user\?\.id\)/)
   }
+})
+
+test('the profile header hides follow state until relationship evidence is known', async () => {
+  const source = await readFile(
+    new URL('../../components/profile/ProfileHeader.tsx', import.meta.url),
+    'utf8'
+  )
+  assert.match(source, /relationshipKnown\?: boolean/)
+  assert.match(source, /!isOwnProfile && relationshipKnown &&/)
+})
+
+test('follow actions only consume relationship data from a valid or retained slice', async () => {
+  const source = await readFile(new URL('./useFollowSystem.ts', import.meta.url), 'utf8')
+  assert.match(source, /relationshipAvailable/)
+  assert.match(source, /if \(!relationshipAvailable\) return/)
+  assert.doesNotMatch(source, /relationship\?\.counts\.followers \?\? 0/)
+  assert.doesNotMatch(source, /relationship\?\.isFollowing \?\? false/)
 })

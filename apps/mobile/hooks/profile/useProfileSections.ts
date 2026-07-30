@@ -81,6 +81,7 @@ export function useProfileSections(profileId: string | undefined, viewerId?: str
       watchedMovies.isRefetching ||
       watchedSeries.isRefetching,
     onRefresh: enabled ? refreshActions.refreshAll : async () => {},
+    retryRelationship: refreshActions.retryRelationship,
     retryWatchedMovies: refreshActions.retryWatchedMovies,
     retryWatchedSeries: refreshActions.retryWatchedSeries,
   }
