@@ -1,7 +1,15 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Alert, RefreshControl, ScrollView, Text, View } from 'react-native'
+import {
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native'
 import { useAuth } from '@/hooks/useAuth'
 import { ProtectedContentGate } from '~/components/auth/ProtectedContentGate'
 import { Skeleton } from '~/components/common/Skeleton'
@@ -37,10 +45,22 @@ export default function ProfileScreen() {
   const isOwnProfile = user?.id === targetUserId
 
   // Custom hooks
-  const { profile, watchedMovies, watchedSeries, loading, error, refreshing, onRefresh } =
-    useProfileData(targetUserId)
+  const {
+    profile,
+    watchedMovies,
+    watchedSeries,
+    loading,
+    error,
+    refreshing,
+    onRefresh,
+    relationship,
+    retryWatchedMovies,
+    retryWatchedSeries,
+    watchedMoviesState,
+    watchedSeriesState,
+  } = useProfileData(targetUserId, user?.id)
 
-  const followSystem = useFollowSystem(targetUserId, isOwnProfile)
+  const followSystem = useFollowSystem(targetUserId, isOwnProfile, user?.id, relationship)
   const searchSystem = useUserSearch()
 
   const [watchedSeriesModalVisible, setWatchedSeriesModalVisible] = useState(false)
@@ -171,20 +191,52 @@ export default function ProfileScreen() {
             onFollowingPress={() => followSystem.handleOpenUserList('following')}
           />
 
-          <WatchedMoviesSection
-            movies={watchedMovies}
-            onMoviePress={handleMoviePress}
-            onLongPress={(movie) => handleDeleteMedia(movie.tmdb_id, movie.title, 'movie')}
-            onViewAll={handleViewAllMovies}
-          />
+          {watchedMoviesState.phase === 'initial-pending' ||
+          watchedMoviesState.phase === 'paused' ? (
+            <View className="px-4 py-4 flex-row gap-3">
+              <Skeleton width={96} height={144} />
+              <Skeleton width={96} height={144} />
+              <Skeleton width={96} height={144} />
+            </View>
+          ) : watchedMoviesState.phase === 'failed' ? (
+            <View className="items-start px-4 py-4">
+              <Text className="text-text-secondary">{t('common.failed')}</Text>
+              <TouchableOpacity onPress={retryWatchedMovies}>
+                <Text className="mt-2 text-accent">{t('common.retry')}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <WatchedMoviesSection
+              movies={watchedMovies}
+              onMoviePress={handleMoviePress}
+              onLongPress={(movie) => handleDeleteMedia(movie.tmdb_id, movie.title, 'movie')}
+              onViewAll={handleViewAllMovies}
+            />
+          )}
 
           <View className="mb-20">
-            <WatchedSeriesSection
-              series={watchedSeries}
-              onSeriesPress={handleSeriesPress}
-              onLongPress={(series) => handleDeleteMedia(series.tmdb_id, series.title, 'tv')}
-              onViewAll={handleViewAllSeries}
-            />
+            {watchedSeriesState.phase === 'initial-pending' ||
+            watchedSeriesState.phase === 'paused' ? (
+              <View className="px-4 py-4 flex-row gap-3">
+                <Skeleton width={96} height={144} />
+                <Skeleton width={96} height={144} />
+                <Skeleton width={96} height={144} />
+              </View>
+            ) : watchedSeriesState.phase === 'failed' ? (
+              <View className="items-start px-4 py-4">
+                <Text className="text-text-secondary">{t('common.failed')}</Text>
+                <TouchableOpacity onPress={retryWatchedSeries}>
+                  <Text className="mt-2 text-accent">{t('common.retry')}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <WatchedSeriesSection
+                series={watchedSeries}
+                onSeriesPress={handleSeriesPress}
+                onLongPress={(series) => handleDeleteMedia(series.tmdb_id, series.title, 'tv')}
+                onViewAll={handleViewAllSeries}
+              />
+            )}
           </View>
         </ScrollView>
 
