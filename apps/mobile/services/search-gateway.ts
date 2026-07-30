@@ -1,7 +1,7 @@
-import { isSearchResponseV1, type SearchRequestV1, type SearchResponseV1 } from '@kino/core/search'
+import { isSearchResponse, type SearchRequest, type SearchResponse } from '@kino/core/search'
 
 export interface SearchGateway {
-  search(input: SearchRequestV1, signal?: AbortSignal): Promise<SearchResponseV1>
+  search(input: SearchRequest, signal?: AbortSignal): Promise<SearchResponse>
 }
 
 export class SearchGatewayClientError extends Error {
@@ -48,13 +48,13 @@ export function createSearchGateway(options: {
           )
         }
         if (!response.ok) throw gatewayError(body, response.status)
-        if (!isSearchResponseV1(body)) {
+        if (!isSearchResponse(body)) {
           throw new SearchGatewayClientError(
             'invalid_response',
             'Search returned an invalid response.'
           )
         }
-        return body as SearchResponseV1
+        return body as SearchResponse
       } catch (error) {
         if (signal?.aborted) throw abortError()
         if (controller.signal.aborted) {

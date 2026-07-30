@@ -8,7 +8,7 @@ test('mobile semantic hook uses shared contracts, canonical keys, cancellation, 
     new URL('../hooks/api/useUpstashSearch.ts', import.meta.url),
     'utf8'
   )
-  assert.match(source, /SEARCH_SCHEMA_VERSION/)
+  assert.match(source, /SEARCH_SCHEMA_VERSION_V2/)
   assert.match(source, /searchQueryKeys\.results/)
   assert.match(source, /mediaTypes/)
   assert.match(source, /mode/)
@@ -48,4 +48,7 @@ test('mobile search renders one gateway result stream and leaves TMDB fallback s
   assert.match(source, /mode=\{submittedQuery \? 'full' : 'autocomplete'\}/)
   assert.match(source, /mode === 'full' && nextPage/)
   assert.match(source, /resetDiscoveryOnlyFilters/)
+  assert.match(source, /toMobileSearchTitle/)
+  assert.doesNotMatch(source, /vote_average:\s*(score|result\.score)/)
+  assert.doesNotMatch(source, /function gatewayTitle/)
 })

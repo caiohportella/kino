@@ -1,4 +1,4 @@
-import type { SearchResponseV1, SearchResultV1 } from '@kino/core/search'
+import type { SearchResponse, SearchResultV1, SearchResultV2 } from '@kino/core/search'
 import { useRouter } from 'expo-router'
 import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -25,6 +25,7 @@ import {
 import { SearchBar } from '~/components/search/SearchBar'
 import { getTMDbService } from '~/services/tmdb'
 import type { TMDbGenre, TMDbTitle } from '~/types'
+import { mobilePersonDepartment, toMobileSearchTitle } from '~/utils/searchPresentation'
 
 // Helper to get decade start year
 function getDecadeStart(decade: string) {
@@ -374,7 +375,7 @@ function SemanticGroups({
   mode: 'autocomplete' | 'full'
   nextPage?: number
   onNextPage: () => void
-  response?: SearchResponseV1
+  response?: SearchResponse
   router: ReturnType<typeof useRouter>
   t: ReturnType<typeof useTranslation>['t']
 }) {
@@ -404,7 +405,7 @@ function SemanticGroups({
               {group.results.map((result) =>
                 group.type === 'movies' || group.type === 'series' ? (
                   <View className="w-[120px]" key={result.entity.id}>
-                    <TitleCard title={gatewayTitle(result)} />
+                    <TitleCard title={toMobileSearchTitle(result)} />
                   </View>
                 ) : (
                   <TouchableOpacity
@@ -420,9 +421,29 @@ function SemanticGroups({
                     ) : (
                       <View className="h-12 w-12 rounded-full bg-white/10" />
                     )}
-                    <Text className="flex-1 font-semibold text-text-primary">
-                      {result.entity.title}
-                    </Text>
+                    <View className="flex-1">
+                      <Text className="font-semibold text-text-primary">{result.entity.title}</Text>
+                      {result.entity.entityType === 'person' ? (
+                        <Text className="text-sm text-text-secondary">
+                          {mobilePersonDepartment(result.entity.summary, {
+                            acting: t('person.department.Acting'),
+                            art: t('person.department.Art'),
+                            camera: t('person.department.Camera'),
+                            costumeAndMakeUp: t('person.department.Costume & Make-Up'),
+                            creator: t('person.department.Creator'),
+                            crew: t('person.department.Crew'),
+                            directing: t('person.department.Directing'),
+                            editing: t('person.department.Editing'),
+                            fallback: t('person.department.Person'),
+                            lighting: t('person.department.Lighting'),
+                            production: t('person.department.Production'),
+                            sound: t('person.department.Sound'),
+                            visualEffects: t('person.department.Visual Effects'),
+                            writing: t('person.department.Writing'),
+                          })}
+                        </Text>
+                      ) : null}
+                    </View>
                   </TouchableOpacity>
                 )
               )}
@@ -443,25 +464,7 @@ function resetDiscoveryOnlyFilters(current: FilterState): FilterState {
   return { ...defaultFilterState, mediaType: current.mediaType }
 }
 
-function gatewayTitle({ entity, score }: SearchResultV1): TMDbTitle {
-  const type = entity.entityType === 'series' ? 'tv' : 'movie'
-  return {
-    id: entity.tmdbId!,
-    backdrop_path: null,
-    genre_ids: [],
-    media_type: type,
-    name: type === 'tv' ? entity.title : undefined,
-    overview: entity.summary || '',
-    poster_path: entity.imageUrl || null,
-    release_date: type === 'movie' && entity.year ? `${entity.year}-01-01` : '',
-    first_air_date: type === 'tv' && entity.year ? `${entity.year}-01-01` : '',
-    title: type === 'movie' ? entity.title : undefined,
-    vote_average: score,
-    vote_count: entity.voteCount || 0,
-  }
-}
-
-function gatewayRoute({ entity }: SearchResultV1) {
+function gatewayRoute({ entity }: SearchResultV1 | SearchResultV2) {
   if (entity.route) return entity.route
   if (entity.entityType === 'person') return `/person/${entity.tmdbId || entity.id}`
   if (entity.entityType === 'user') return `/${entity.id}`
