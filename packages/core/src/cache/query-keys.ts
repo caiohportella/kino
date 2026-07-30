@@ -96,6 +96,21 @@ export interface ProfileAvailabilityQueryInput extends ProfileSectionQueryInput 
   readonly titleId: number
 }
 
+type ProfileSectionInvalidationDescriptor = {
+  readonly profileId: string
+  readonly visibilityScope: CacheScope
+}
+
+export type ProfileInvalidationDescriptor =
+  | ({ readonly kind: 'identity' } & ProfileIdentityQueryInput)
+  | ({ readonly kind: 'relationship' } & ProfileRelationshipQueryInput)
+  | ({ readonly kind: 'watched-movies' } & ProfileSectionInvalidationDescriptor)
+  | ({ readonly kind: 'watched-series' } & ProfileSectionInvalidationDescriptor)
+  | ({ readonly kind: 'statistics' } & ProfileIdentityQueryInput)
+  | ({ readonly kind: 'watchlists' } & ProfileSectionInvalidationDescriptor)
+  | ({ readonly kind: 'reviews' } & ProfileSectionInvalidationDescriptor)
+  | ({ readonly kind: 'ratings' } & ProfileSectionInvalidationDescriptor)
+
 export interface ProfileListQueryInput extends ProfileQueryInput {
   readonly filters?: CacheFilters
   readonly page?: number
@@ -177,7 +192,11 @@ export const profileQueryKeys = {
       requireIdentifier(input.viewerId, 'viewer id'),
     ] as const,
   watchedMovies: (input: ProfileSectionQueryInput) => profileSectionKey('watched-movies', input),
+  watchedMoviesRoot: (input: ProfileIdentityQueryInput) =>
+    profileSectionRootKey('watched-movies', input),
   watchedSeries: (input: ProfileSectionQueryInput) => profileSectionKey('watched-series', input),
+  watchedSeriesRoot: (input: ProfileIdentityQueryInput) =>
+    profileSectionRootKey('watched-series', input),
   statistics: (input: ProfileIdentityQueryInput) =>
     [
       ...PROFILE_ROOT,
@@ -186,8 +205,11 @@ export const profileQueryKeys = {
       ...scopeSegments(input.visibilityScope),
     ] as const,
   watchlists: (input: ProfileSectionQueryInput) => profileSectionKey('watchlists', input),
+  watchlistsRoot: (input: ProfileIdentityQueryInput) => profileSectionRootKey('watchlists', input),
   reviews: (input: ProfileSectionQueryInput) => profileSectionKey('reviews', input),
+  reviewsRoot: (input: ProfileIdentityQueryInput) => profileSectionRootKey('reviews', input),
   ratings: (input: ProfileSectionQueryInput) => profileSectionKey('ratings', input),
+  ratingsRoot: (input: ProfileIdentityQueryInput) => profileSectionRootKey('ratings', input),
   availability: (input: ProfileAvailabilityQueryInput) =>
     [
       ...PROFILE_ROOT,
@@ -225,13 +247,28 @@ export const profileQueryKeys = {
 
 function profileSectionKey(section: string, input: ProfileSectionQueryInput) {
   return [
+    ...profileSectionRootKey(section, input),
+    normalizePage(input.page),
+    normalizeFilters(input.filters),
+  ] as const
+}
+
+function profileSectionRootKey(section: string, input: ProfileIdentityQueryInput) {
+  return [
     ...PROFILE_ROOT,
     section,
     requireIdentifier(input.profileId, 'profile id'),
     ...scopeSegments(input.visibilityScope),
-    normalizePage(input.page),
-    normalizeFilters(input.filters),
   ] as const
+}
+
+export function createProfileInvalidationDescriptor<
+  Kind extends ProfileInvalidationDescriptor['kind'],
+>(
+  kind: Kind,
+  input: Omit<Extract<ProfileInvalidationDescriptor, { kind: Kind }>, 'kind'>
+): Extract<ProfileInvalidationDescriptor, { kind: Kind }> {
+  return { kind, ...input } as Extract<ProfileInvalidationDescriptor, { kind: Kind }>
 }
 
 export const watchlistQueryKeys = {

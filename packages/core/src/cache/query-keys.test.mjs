@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  createProfileInvalidationDescriptor,
   profileQueryKeys,
   searchQueryKeys,
   titleQueryKeys,
@@ -174,10 +175,13 @@ test('isolates canonical profile sections by profile, viewer, scope, page, filte
   const visibilityScope = { kind: 'authenticated', userId: 'profile-viewer' }
   const pageAndFilters = { filters: { mediaType: 'movie', year: 2026 }, page: 2 }
 
-  assert.deepEqual(
-    profileQueryKeys.relationship({ profileId, viewerId: 'viewer-a' }),
-    ['v1', 'profile', 'relationship', 'profile-a', 'viewer-a']
-  )
+  assert.deepEqual(profileQueryKeys.relationship({ profileId, viewerId: 'viewer-a' }), [
+    'v1',
+    'profile',
+    'relationship',
+    'profile-a',
+    'viewer-a',
+  ])
   assert.notDeepEqual(
     profileQueryKeys.relationship({ profileId, viewerId: 'viewer-a' }),
     profileQueryKeys.relationship({ profileId, viewerId: 'viewer-b' })
@@ -220,10 +224,14 @@ test('isolates canonical profile sections by profile, viewer, scope, page, filte
     })
   )
 
-  assert.deepEqual(
-    profileQueryKeys.statistics({ profileId, visibilityScope }),
-    ['v1', 'profile', 'statistics', 'profile-a', 'authenticated', 'profile-viewer']
-  )
+  assert.deepEqual(profileQueryKeys.statistics({ profileId, visibilityScope }), [
+    'v1',
+    'profile',
+    'statistics',
+    'profile-a',
+    'authenticated',
+    'profile-viewer',
+  ])
 
   const availability = profileQueryKeys.availability({
     filters: { season: 2 },
@@ -278,6 +286,40 @@ test('isolates canonical profile sections by profile, viewer, scope, page, filte
       titleId: 66732,
       visibilityScope,
     })
+  )
+})
+
+test('creates canonical scoped prefixes for progressive section invalidation', () => {
+  assert.deepEqual(
+    profileQueryKeys.watchedMoviesRoot({
+      profileId: ' profile-a ',
+      visibilityScope: publicScope,
+    }),
+    ['v1', 'profile', 'watched-movies', 'profile-a', 'public']
+  )
+  assert.deepEqual(
+    profileQueryKeys.reviewsRoot({
+      profileId: 'profile-a',
+      visibilityScope: { kind: 'authenticated', userId: 'viewer-a' },
+    }),
+    ['v1', 'profile', 'reviews', 'profile-a', 'authenticated', 'viewer-a']
+  )
+})
+
+test('constructs typed invalidation descriptors without executing cache mutations', () => {
+  assert.deepEqual(
+    createProfileInvalidationDescriptor('relationship', {
+      profileId: 'profile-a',
+      viewerId: 'viewer-a',
+    }),
+    { kind: 'relationship', profileId: 'profile-a', viewerId: 'viewer-a' }
+  )
+  assert.deepEqual(
+    createProfileInvalidationDescriptor('ratings', {
+      profileId: 'profile-a',
+      visibilityScope: publicScope,
+    }),
+    { kind: 'ratings', profileId: 'profile-a', visibilityScope: publicScope }
   )
 })
 
