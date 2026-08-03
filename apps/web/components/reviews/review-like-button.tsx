@@ -1,6 +1,7 @@
 'use client'
 
 import { Heart, LoaderCircle } from 'lucide-react'
+import type { ComponentPropsWithoutRef } from 'react'
 import { useTranslation } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 
@@ -11,6 +12,7 @@ export function ReviewLikeButton({
   onAuthRequired,
   onLike,
   pending,
+  ...buttonProps
 }: {
   canLike: boolean
   likedByViewer: boolean
@@ -18,14 +20,14 @@ export function ReviewLikeButton({
   onAuthRequired: () => void
   onLike: () => void
   pending: boolean
-}) {
+} & ComponentPropsWithoutRef<'button'>) {
   const { t } = useTranslation()
 
   return (
     <div className="flex items-center gap-2 text-sm">
       <button
         aria-busy={pending}
-        aria-pressed={likedByViewer}
+        aria-pressed={buttonProps['aria-pressed'] ?? likedByViewer}
         className={cn(
           'focus-ring inline-flex items-center gap-1.5 rounded-md px-1 py-1 font-medium transition-colors',
           likedByViewer ? 'text-kino-accent' : 'text-kino-muted hover:text-kino-text',
@@ -34,6 +36,7 @@ export function ReviewLikeButton({
         disabled={pending}
         onClick={() => (canLike ? onLike() : onAuthRequired())}
         type="button"
+        {...buttonProps}
       >
         {pending ? (
           <LoaderCircle aria-hidden="true" className="animate-spin" size={16} />

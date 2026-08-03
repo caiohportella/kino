@@ -11,7 +11,6 @@ import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-title
 import { useAuthStore } from '@/stores/auth-store'
 import { ProfileHorizontalRow } from '../profile-horizontal-row'
 import { ProfileReviewCard } from './profile-review-card'
-import { ProfileReviewSkeleton } from './profile-review-skeleton'
 import { ProfileReviewsDialog } from './profile-reviews-dialog'
 
 export function ProfileReviewsSection({ username }: { username: string }) {
@@ -34,23 +33,18 @@ export function ProfileReviewsSection({ username }: { username: string }) {
   )
   const localizedTitles = useLocalizedTitles(localizedTitleRequests)
 
-  if (query.isLoading) {
+  if (query.isLoading && !query.data) return null
+
+  if (query.isError && !query.data) {
     return (
-      <section aria-label={t('reviews.title')} className="mb-10">
+      <section aria-label={t('reviews.title')} className="mb-10" role="alert">
         <h2 className="mb-4 text-xl font-semibold text-kino-text">{t('reviews.title')}</h2>
-        <div className="flex gap-4.5">
-          <div className="w-[calc(50%-9px)] shrink-0">
-            <ProfileReviewSkeleton />
-          </div>
-          <div className="w-[calc(50%-9px)] shrink-0">
-            <ProfileReviewSkeleton />
-          </div>
-        </div>
+        <p className="text-sm text-red-300">{t('reviews.loadFailure')}</p>
       </section>
     )
   }
 
-  if (query.isError || !query.data?.totalCount) return null
+  if (!query.data?.totalCount) return null
 
   const onAuthRequired = () => {
     storeAuthRedirect(pathname)
@@ -113,26 +107,34 @@ export function ProfileReviewsSection({ username }: { username: string }) {
   const hasMore = query.data.totalCount > query.data.items.length
 
   return (
-    <ProfileHorizontalRow
-      action={
-        hasMore ? (
-          <Button onClick={() => setShowAllOpen(true)} size="sm" variant="ghost">
-            {t('reviews.showAll')}
-          </Button>
-        ) : null
-      }
-      after={
-        <ProfileReviewsDialog
-          onOpenChange={setShowAllOpen}
-          open={showAllOpen}
-          renderReview={renderReview}
-          username={username}
-        />
-      }
-      rowClassName="media-row--reviews"
-      title={t('reviews.title')}
-    >
-      {query.data.items.map(renderReview)}
-    </ProfileHorizontalRow>
+    <>
+      {query.isError ? (
+        <p className="mb-3 text-sm text-red-300" role="alert">
+          {t('reviews.loadFailure')}
+        </p>
+      ) : null}
+      <ProfileHorizontalRow
+        action={
+          hasMore ? (
+            <Button onClick={() => setShowAllOpen(true)} size="sm" variant="ghost">
+              {t('reviews.showAll')}
+            </Button>
+          ) : null
+        }
+        after={
+          <ProfileReviewsDialog
+            onOpenChange={setShowAllOpen}
+            open={showAllOpen}
+            renderReview={renderReview}
+            username={username}
+          />
+        }
+        aria-busy={query.isFetching}
+        rowClassName="media-row--reviews [--profile-row-gap:1rem] gap-[var(--profile-row-gap)] auto-cols-[calc(100%-2rem)] [&_.media-row-track>*]:!w-auto md:[&_.media-row-track]:auto-cols-[calc((100%-var(--profile-row-gap))/2)]"
+        title={t('reviews.title')}
+      >
+        {query.data.items.map(renderReview)}
+      </ProfileHorizontalRow>
+    </>
   )
 }

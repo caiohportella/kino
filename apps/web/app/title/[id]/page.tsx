@@ -723,6 +723,7 @@ function TitleHeader({
   upcomingSeason: ReturnType<typeof getUpcomingSeason>
 }) {
   const { t } = useTranslation()
+  const summary = { posterPath: title.coverImage, title: title.title }
 
   return (
     <section className="relative mb-6 min-h-155 overflow-hidden rounded-md border border-white/10 bg-kino-surface md:min-h-147">
@@ -743,8 +744,8 @@ function TitleHeader({
       <div className="relative z-10 grid min-h-155 content-end gap-5 p-5 md:min-h-147 md:grid-cols-[184px_1fr] md:items-end md:p-6">
         <Poster
           className="mx-auto w-36 border border-white/10 shadow-[0_18px_42px_rgb(0_0_0/0.35)] md:mx-0 md:w-full"
-          src={title.coverImage}
-          title={title.title}
+          src={summary.posterPath}
+          title={summary.title}
         />
         <div className="min-w-0">
           <div className="mb-2 flex flex-wrap justify-center gap-x-3 gap-y-1 md:justify-start text-center text-sm text-kino-muted md:text-left">
@@ -759,7 +760,7 @@ function TitleHeader({
             ) : null}
           </div>
           <h1 className="max-w-4xl text-center text-3xl font-semibold text-kino-text md:text-left md:text-4xl">
-            {title.title}
+            {summary.title}
           </h1>
           {title.genres.length > 0 ? (
             <div className="mt-3 flex flex-wrap justify-center gap-2 md:justify-start">

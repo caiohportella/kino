@@ -121,13 +121,14 @@ export function useCreateReviewMutation() {
       })
     },
     onSettled: (_data, _error, variables) => {
+      const authorProfileId = variables.author.id
       queryClient.invalidateQueries({ queryKey: reviewKeys.title(variables.titleId) })
       queryClient.invalidateQueries({ queryKey: profileReviewKeys.all })
       queryClient.invalidateQueries({ queryKey: activityQueryKeys.all })
       if (viewerId) {
         void invalidateProfileMutation(queryClient, {
           kind: 'review',
-          profileId: viewerId,
+          profileId: authorProfileId,
           visibilityScope: { kind: 'authenticated', userId: viewerId },
         })
       }

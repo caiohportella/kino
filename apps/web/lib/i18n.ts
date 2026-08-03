@@ -129,12 +129,14 @@ function interpolateRich(template: string, options: RichTranslationOptions) {
     if (match.index > lastIndex) {
       parts.push(template.slice(lastIndex, match.index))
     }
-    const value = options[match[1]]
+    const token = match[1]
+    if (!token) continue
+    const value = options[token]
     if (value !== undefined && value !== null) {
       parts.push(
         isValidElement(value)
           ? cloneElement(value, {
-              key: `${match[1]}-${tokenIndex}`,
+              key: `${token}-${tokenIndex}`,
             })
           : (value as ReactNode)
       )

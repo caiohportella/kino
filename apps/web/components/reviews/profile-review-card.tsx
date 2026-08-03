@@ -61,6 +61,7 @@ export function ProfileReviewCard({
         aria-label={t('reviews.openForTitle', { title: displayTitleName })}
         className="focus-ring absolute inset-0 z-10 rounded-md"
         href={href}
+        onClick={(event) => event.stopPropagation()}
       />
       <div className="pointer-events-none relative">
         <Poster src={posterUrl} title={displayTitleName} />
@@ -128,6 +129,7 @@ export function ProfileReviewCard({
           {!review.isViewerReview ? (
             <ReviewLikeButton
               canLike={canLike}
+              aria-pressed={review.likedByViewer}
               likedByViewer={review.likedByViewer}
               likeCount={review.likeCount}
               onAuthRequired={onAuthRequired}
