@@ -13,7 +13,10 @@ import { titlePath, watchlistPath } from '@/lib/routes'
 
 export type ActivityFeedFilter = 'you' | 'following'
 
-export type ActivityFeedReview = Pick<ProfileReview, 'content' | 'id' | 'likeCount' | 'likedByViewer'>
+export type ActivityFeedReview = Pick<
+  ProfileReview,
+  'content' | 'id' | 'likeCount' | 'likedByViewer'
+>
 
 export type ActivityFeedSubject =
   | {

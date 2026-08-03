@@ -38,17 +38,11 @@ export function ReviewLikeButton({
         {pending ? (
           <LoaderCircle aria-hidden="true" className="animate-spin" size={16} />
         ) : (
-          <Heart
-            aria-hidden="true"
-            fill={likedByViewer ? 'currentColor' : 'none'}
-            size={16}
-          />
+          <Heart aria-hidden="true" fill={likedByViewer ? 'currentColor' : 'none'} size={16} />
         )}
         {t(likedByViewer ? 'reviews.unlike' : 'reviews.like')}
       </button>
-      <span className="text-kino-subtle">
-        {t('reviews.likeCount', { count: likeCount })}
-      </span>
+      <span className="text-kino-subtle">{t('reviews.likeCount', { count: likeCount })}</span>
     </div>
   )
 }

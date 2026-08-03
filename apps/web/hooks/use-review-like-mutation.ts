@@ -1,20 +1,20 @@
 'use client'
 
-import type { InfiniteData } from '@tanstack/react-query'
 import {
   activityQueryKeys,
-  profileReviewKeys,
-  reviewKeys,
   type ProfileReview,
   type ProfileReviewsPage,
+  profileReviewKeys,
   type Review,
+  reviewKeys,
   type TitleReviewsPage,
   updateProfileReviewLike,
   updateReviewLike,
 } from '@kino/core'
+import type { InfiniteData } from '@tanstack/react-query'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { invalidateProfileMutation } from '@/lib/profile-invalidation'
 import { updateActivityFeedReviewLike } from '@/lib/activity-feed'
+import { invalidateProfileMutation } from '@/lib/profile-invalidation'
 import { db } from '@/lib/services'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -23,7 +23,10 @@ type ProfileReviewCache = ProfileReviewsPage | InfiniteData<ProfileReviewsPage>
 
 type ReviewLikeMutationScope = { kind: 'title'; titleId: string } | { kind: 'activity' }
 
-function restoreSnapshot(queryClient: ReturnType<typeof useQueryClient>, snapshot: Snapshot | undefined) {
+function restoreSnapshot(
+  queryClient: ReturnType<typeof useQueryClient>,
+  snapshot: Snapshot | undefined
+) {
   for (const [key, value] of snapshot ?? []) {
     queryClient.setQueryData(key, value)
   }

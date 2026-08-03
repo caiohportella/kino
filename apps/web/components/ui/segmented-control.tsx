@@ -16,11 +16,7 @@ export function SegmentedControl<T extends string>({
     <Tabs onValueChange={(nextValue) => onChange(nextValue as T)} value={value}>
       <TabsList>
         {options.map((option) => (
-          <TabsTrigger
-            className={cn(activeClassName)}
-            key={option.value}
-            value={option.value}
-          >
+          <TabsTrigger className={cn(activeClassName)} key={option.value} value={option.value}>
             {option.label}
           </TabsTrigger>
         ))}

@@ -1,15 +1,15 @@
-"use client";
+'use client'
 
-import type { ActivityFeedCard } from "@/lib/activity-feed";
-import Link from "next/link";
-import { Heart } from "lucide-react";
-import { Poster } from "@/components/kino";
-import { RatingStars } from "@/components/rating-stars";
-import { ReviewAuthor } from "@/components/reviews/review-author";
-import { ReviewLikeButton } from "@/components/reviews/review-like-button";
-import { formatLocalizedDate, formatCompactRelativeTime } from "@/lib/date";
-import { useTranslation } from "@/lib/i18n";
-import { normalizeProfileUsername } from "@/lib/profile-routes";
+import { Heart } from 'lucide-react'
+import Link from 'next/link'
+import { Poster } from '@/components/kino'
+import { RatingStars } from '@/components/rating-stars'
+import { ReviewAuthor } from '@/components/reviews/review-author'
+import { ReviewLikeButton } from '@/components/reviews/review-like-button'
+import type { ActivityFeedCard } from '@/lib/activity-feed'
+import { formatCompactRelativeTime, formatLocalizedDate } from '@/lib/date'
+import { useTranslation } from '@/lib/i18n'
+import { normalizeProfileUsername } from '@/lib/profile-routes'
 
 export function ActivityCard({
   activity,
@@ -20,60 +20,50 @@ export function ActivityCard({
   onLikeReview,
   pendingLike,
 }: {
-  activity: ActivityFeedCard;
-  canLikeReview: boolean;
-  locale: string;
+  activity: ActivityFeedCard
+  canLikeReview: boolean
+  locale: string
   localizedTitle?: {
-    title: string;
-    posterUrl: string | null;
-    year: number | null;
-  } | null;
-  onAuthRequired: () => void;
-  onLikeReview: () => void;
-  pendingLike: boolean;
+    title: string
+    posterUrl: string | null
+    year: number | null
+  } | null
+  onAuthRequired: () => void
+  onLikeReview: () => void
+  pendingLike: boolean
 }) {
-  const { t, rt } = useTranslation();
+  const { t, rt } = useTranslation()
   const displayName =
-    activity.actor.displayName?.trim() ||
-    activity.actor.username ||
-    t("reviews.user");
+    activity.actor.displayName?.trim() || activity.actor.username || t('reviews.user')
   const normalizedUsername = activity.actor.username
     ? normalizeProfileUsername(activity.actor.username)
-    : null;
-  const profileHref = normalizedUsername
-    ? `/${encodeURIComponent(normalizedUsername)}`
-    : null;
-  const subjectHref = activity.subject.href;
-  const subjectName = localizedTitle?.title || activity.subject.name;
+    : null
+  const profileHref = normalizedUsername ? `/${encodeURIComponent(normalizedUsername)}` : null
+  const subjectHref = activity.subject.href
+  const subjectName = localizedTitle?.title || activity.subject.name
   const subjectPosterUrl =
-    activity.subject.kind === "title"
+    activity.subject.kind === 'title'
       ? (localizedTitle?.posterUrl ?? activity.subject.posterUrl)
-      : null;
+      : null
   const subjectYear =
-    activity.subject.kind === "title"
-      ? (localizedTitle?.year ?? activity.subject.year)
-      : null;
+    activity.subject.kind === 'title' ? (localizedTitle?.year ?? activity.subject.year) : null
   const activityDate = formatLocalizedDate(activity.occurredAt, locale, {
-    dateStyle: "long",
-  });
+    dateStyle: 'long',
+  })
   const sentenceKey =
-    activity.type === "watchlist_create"
-      ? "activity.createdWatchlist"
-      : activity.type === "watchlist_add"
-        ? "activity.addToWatchlist"
-        : activity.type === "rating"
-          ? "activity.rated"
+    activity.type === 'watchlist_create'
+      ? 'activity.createdWatchlist'
+      : activity.type === 'watchlist_add'
+        ? 'activity.addToWatchlist'
+        : activity.type === 'rating'
+          ? 'activity.rated'
           : activity.review
-            ? "activity.watchedReviewed"
-            : "activity.watched";
+            ? 'activity.watchedReviewed'
+            : 'activity.watched'
 
   return (
     <article className="grid grid-cols-[80px_minmax(0,1fr)] gap-4 rounded-md border border-white/10 bg-white/3 p-4 transition-colors hover:border-white/15 hover:bg-white/4.5 sm:grid-cols-[96px_minmax(0,1fr)] sm:gap-5 sm:p-5">
-      <Link
-        aria-label={subjectName}
-        className="focus-ring block self-start"
-        href={subjectHref}
-      >
+      <Link aria-label={subjectName} className="focus-ring block self-start" href={subjectHref}>
         <Poster
           alt={subjectName}
           className="w-20 shrink-0 sm:w-24"
@@ -115,9 +105,7 @@ export function ActivityCard({
                     {displayName}
                   </Link>
                 ) : (
-                  <span className="font-semibold text-kino-text">
-                    {displayName}
-                  </span>
+                  <span className="font-semibold text-kino-text">{displayName}</span>
                 ),
               })}
             </p>
@@ -139,15 +127,13 @@ export function ActivityCard({
             >
               {subjectName}
             </Link>
-            {subjectYear ? (
-              <span className="text-sm text-kino-muted">{subjectYear}</span>
-            ) : null}
+            {subjectYear ? <span className="text-sm text-kino-muted">{subjectYear}</span> : null}
           </div>
 
           {activity.rating && activity.rating > 0 ? (
             <div className="mt-2">
               <RatingStars
-                label={t("activity.rating")}
+                label={t('activity.rating')}
                 readonly
                 size="xs"
                 value={activity.rating}
@@ -174,7 +160,7 @@ export function ActivityCard({
                   <div className="flex items-center gap-1.5 text-sm text-kino-subtle">
                     <Heart aria-hidden="true" size={16} />
                     <span>
-                      {t("reviews.likeCount", {
+                      {t('reviews.likeCount', {
                         count: activity.review.likeCount,
                       })}
                     </span>
@@ -186,5 +172,5 @@ export function ActivityCard({
         </div>
       </div>
     </article>
-  );
+  )
 }

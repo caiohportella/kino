@@ -1,5 +1,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
+  type Activity,
+  type ActivityFeedInput,
+  type ActivityFeedPage,
+  type ActivityTitle,
+  compareActivityCursor,
+  createActivityCursor,
+  enrichActivityPage,
+  normalizeActivityFeedItems,
+  slugifyActivityTitle,
+} from './activity.ts'
+import {
   type FollowedEpisodeRatingsResponse,
   type FollowedRatingRow,
   type FollowedRatingsPage,
@@ -17,17 +28,6 @@ import {
   type TitleReviewsPage,
   validateReviewContent,
 } from './reviews.ts'
-import {
-  compareActivityCursor,
-  createActivityCursor,
-  enrichActivityPage,
-  normalizeActivityFeedItems,
-  type Activity,
-  type ActivityFeedInput,
-  type ActivityFeedPage,
-  type ActivityTitle,
-  slugifyActivityTitle,
-} from './activity.ts'
 import type {
   EpisodeRating,
   FollowerInfo,
@@ -250,41 +250,48 @@ export class KinoDatabaseService {
         .filter((id): id is string => Boolean(id))
     )
 
-    const feedActorIds = input.includeOwnActivity
-      ? [viewerId, ...followedIds]
-      : [...followedIds]
+    const feedActorIds = input.includeOwnActivity ? [viewerId, ...followedIds] : [...followedIds]
     const allowedActorIds = feedActorIds.filter((id) => !blockedIds.has(id))
     if (allowedActorIds.length === 0) {
       return { items: [], nextCursor: null }
     }
 
-    const [ratingsResult, reviewsResult, diaryResult, watchlistResult, watchlistItemResult] = await Promise.all([
-      this.supabase
-        .from('title_ratings')
-        .select('id, user_id, title_id, rating, watch_type, watched_at, created_at, updated_at, title:titles(*)')
-        .in('user_id', allowedActorIds)
-        .order('created_at', { ascending: false }),
-      this.supabase
-        .from('reviews')
-        .select('id, user_id, title_id, media_type, content, rating, created_at, updated_at, title:titles(*)')
-        .in('user_id', allowedActorIds)
-        .order('created_at', { ascending: false }),
-      this.supabase
-        .from('watch_diary')
-        .select('id, user_id, title_id, watched_at, watch_type, notes, created_at, updated_at, title:titles(*)')
-        .in('user_id', allowedActorIds)
-        .order('created_at', { ascending: false }),
-      this.supabase
-        .from('watchlists')
-        .select('id, user_id, name, description, thumbnail, is_shared, visibility, share_code, created_at, updated_at')
-        .in('user_id', allowedActorIds)
-        .order('created_at', { ascending: false }),
-      this.supabase
-        .from('watchlist_items')
-        .select('id, watchlist_id, title_id, added_by, added_at, title:titles(*)')
-        .in('added_by', allowedActorIds)
-        .order('added_at', { ascending: false }),
-    ])
+    const [ratingsResult, reviewsResult, diaryResult, watchlistResult, watchlistItemResult] =
+      await Promise.all([
+        this.supabase
+          .from('title_ratings')
+          .select(
+            'id, user_id, title_id, rating, watch_type, watched_at, created_at, updated_at, title:titles(*)'
+          )
+          .in('user_id', allowedActorIds)
+          .order('created_at', { ascending: false }),
+        this.supabase
+          .from('reviews')
+          .select(
+            'id, user_id, title_id, media_type, content, rating, created_at, updated_at, title:titles(*)'
+          )
+          .in('user_id', allowedActorIds)
+          .order('created_at', { ascending: false }),
+        this.supabase
+          .from('watch_diary')
+          .select(
+            'id, user_id, title_id, watched_at, watch_type, notes, created_at, updated_at, title:titles(*)'
+          )
+          .in('user_id', allowedActorIds)
+          .order('created_at', { ascending: false }),
+        this.supabase
+          .from('watchlists')
+          .select(
+            'id, user_id, name, description, thumbnail, is_shared, visibility, share_code, created_at, updated_at'
+          )
+          .in('user_id', allowedActorIds)
+          .order('created_at', { ascending: false }),
+        this.supabase
+          .from('watchlist_items')
+          .select('id, watchlist_id, title_id, added_by, added_at, title:titles(*)')
+          .in('added_by', allowedActorIds)
+          .order('added_at', { ascending: false }),
+      ])
 
     if (ratingsResult.error) throw ratingsResult.error
     if (reviewsResult.error) throw reviewsResult.error
@@ -293,7 +300,9 @@ export class KinoDatabaseService {
     if (watchlistItemResult.error) throw watchlistItemResult.error
 
     const reviewRows = (reviewsResult.data ?? []) as unknown as ActivityReviewRow[]
-    const reviewIds = [...new Set(reviewRows.map((row) => row.id).filter((id): id is string => Boolean(id)))]
+    const reviewIds = [
+      ...new Set(reviewRows.map((row) => row.id).filter((id): id is string => Boolean(id))),
+    ]
     const reviewLikeStats = new Map<string, { like_count: number; liked_by_viewer: boolean }>()
     if (reviewIds.length > 0) {
       const { data: reviewLikeRows, error: reviewLikesError } = await this.supabase
@@ -303,7 +312,10 @@ export class KinoDatabaseService {
       if (reviewLikesError) throw reviewLikesError
 
       for (const row of (reviewLikeRows ?? []) as Array<{ review_id: string; user_id: string }>) {
-        const current = reviewLikeStats.get(row.review_id) ?? { like_count: 0, liked_by_viewer: false }
+        const current = reviewLikeStats.get(row.review_id) ?? {
+          like_count: 0,
+          liked_by_viewer: false,
+        }
         reviewLikeStats.set(row.review_id, {
           like_count: current.like_count + 1,
           liked_by_viewer: current.liked_by_viewer || row.user_id === viewerId,
@@ -312,7 +324,10 @@ export class KinoDatabaseService {
     }
 
     const activityItems = [
-      ...this.mapActivityRatings((ratingsResult.data ?? []) as unknown as ActivityRatingRow[], allowedActorIds),
+      ...this.mapActivityRatings(
+        (ratingsResult.data ?? []) as unknown as ActivityRatingRow[],
+        allowedActorIds
+      ),
       ...this.mapActivityReviews(
         reviewRows.map((row) => ({
           ...row,
@@ -320,18 +335,30 @@ export class KinoDatabaseService {
         })),
         allowedActorIds
       ),
-      ...this.mapActivityDiaryEntries((diaryResult.data ?? []) as unknown as ActivityDiaryRow[], allowedActorIds),
-      ...this.mapActivityWatchlistCreates((watchlistResult.data ?? []) as WatchlistRow[], allowedActorIds),
-      ...this.mapActivityWatchlistAdds((watchlistItemResult.data ?? []) as unknown as WatchlistItemRow[], allowedActorIds),
+      ...this.mapActivityDiaryEntries(
+        (diaryResult.data ?? []) as unknown as ActivityDiaryRow[],
+        allowedActorIds
+      ),
+      ...this.mapActivityWatchlistCreates(
+        (watchlistResult.data ?? []) as WatchlistRow[],
+        allowedActorIds
+      ),
+      ...this.mapActivityWatchlistAdds(
+        (watchlistItemResult.data ?? []) as unknown as WatchlistItemRow[],
+        allowedActorIds
+      ),
     ]
 
     const normalized = normalizeActivityFeedItems(activityItems)
     const cursor = input.cursor
-    const filtered = cursor ? normalized.filter((item) => compareActivityCursor(cursor, item) > 0) : normalized
+    const filtered = cursor
+      ? normalized.filter((item) => compareActivityCursor(cursor, item) > 0)
+      : normalized
 
     const pageItems = filtered.slice(0, pageSize)
     const lastItem = pageItems.at(-1)
-    const nextCursor = filtered.length > pageSize && lastItem ? createActivityCursor(lastItem) : null
+    const nextCursor =
+      filtered.length > pageSize && lastItem ? createActivityCursor(lastItem) : null
 
     return { items: pageItems, nextCursor }
   }
@@ -1630,7 +1657,10 @@ export class KinoDatabaseService {
     })
   }
 
-  private mapActivityDiaryEntries(rows: ActivityDiaryRow[], actorIds: readonly string[]): Activity[] {
+  private mapActivityDiaryEntries(
+    rows: ActivityDiaryRow[],
+    actorIds: readonly string[]
+  ): Activity[] {
     return rows.flatMap((row) => {
       if (!actorIds.includes(row.user_id)) return []
       const title = (row as ActivityDiaryRow & { title?: TitleRow | null }).title
@@ -1652,7 +1682,10 @@ export class KinoDatabaseService {
     })
   }
 
-  private mapActivityWatchlistCreates(rows: WatchlistRow[], actorIds: readonly string[]): Activity[] {
+  private mapActivityWatchlistCreates(
+    rows: WatchlistRow[],
+    actorIds: readonly string[]
+  ): Activity[] {
     return rows
       .filter((row) => actorIds.includes(row.user_id))
       .map((row) => ({
@@ -1665,7 +1698,10 @@ export class KinoDatabaseService {
       }))
   }
 
-  private mapActivityWatchlistAdds(rows: WatchlistItemRow[], actorIds: readonly string[]): Activity[] {
+  private mapActivityWatchlistAdds(
+    rows: WatchlistItemRow[],
+    actorIds: readonly string[]
+  ): Activity[] {
     return rows.flatMap((row) => {
       if (!actorIds.includes(row.added_by)) return []
       const title = (row as WatchlistItemRow & { title?: TitleRow | null }).title

@@ -5,10 +5,10 @@ import { activityQueryKeys, enrichActivityPage } from '@kino/core'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import {
-  buildDiaryActivityFeedItems,
-  buildFollowingActivityFeedItems,
   type ActivityFeedCard,
   type ActivityFeedFilter,
+  buildDiaryActivityFeedItems,
+  buildFollowingActivityFeedItems,
 } from '@/lib/activity-feed'
 import { db } from '@/lib/services'
 
@@ -38,11 +38,7 @@ export function useActivityFeed(
             ? db.getProfileReviews(profile.username, { limit: 1_000 })
             : Promise.resolve({ items: [] as ProfileReview[] }),
         ])
-        return buildDiaryActivityFeedItems(
-          profile,
-          diaryEntries,
-          reviews.items as ProfileReview[]
-        )
+        return buildDiaryActivityFeedItems(profile, diaryEntries, reviews.items as ProfileReview[])
       }
 
       const activityItems: Activity[] = []
@@ -66,7 +62,9 @@ export function useActivityFeed(
 
       const actorIds = [...new Set(activityItems.map((item) => item.actorId))]
       const profiles = await db.getUserProfilesByIds(actorIds)
-      const profileMap = Object.fromEntries(profiles.map((profile) => [profile.id, profile] as const))
+      const profileMap = Object.fromEntries(
+        profiles.map((profile) => [profile.id, profile] as const)
+      )
       return buildFollowingActivityFeedItems(enrichActivityPage(activityItems, profileMap))
     },
     enabled: enabled && Boolean(viewerId),

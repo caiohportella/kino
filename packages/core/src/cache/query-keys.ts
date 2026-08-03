@@ -326,9 +326,7 @@ export const activityQueryKeys = {
       input.includeOwnActivity ? 'self-enabled' : 'self-disabled',
       normalizeLocale(input.locale),
       normalizeRegion(input.region),
-      input.cursor
-        ? [input.cursor.createdAt, input.cursor.activityId]
-        : ['head'],
+      input.cursor ? [input.cursor.createdAt, input.cursor.activityId] : ['head'],
       normalizePage(input.pageSize ?? 1),
       input.schemaVersion ?? CACHE_SCHEMA_VERSION,
     ] as const,

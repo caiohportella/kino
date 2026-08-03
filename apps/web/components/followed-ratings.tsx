@@ -38,7 +38,8 @@ export function FollowedTitleRatings({ titleId, enabled }: { titleId: string; en
   const { t } = useTranslation()
   const query = useFollowedTitleRatings(titleId, enabled)
   if (!enabled || (!query.isLoading && !query.data?.items.length)) return null
-  const items = query.data?.items.filter((item): item is FollowedRating => Boolean(item?.user?.id)) ?? []
+  const items =
+    query.data?.items.filter((item): item is FollowedRating => Boolean(item?.user?.id)) ?? []
 
   return (
     <section className="mt-4 border-t border-white/8 pt-4">

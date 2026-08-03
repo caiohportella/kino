@@ -2,13 +2,7 @@
 
 import { Skeleton } from '@/components/ui/skeleton'
 
-export function ActivityFeedSkeleton({
-  count = 5,
-  label,
-}: {
-  count?: number
-  label?: string
-}) {
+export function ActivityFeedSkeleton({ count = 5, label }: { count?: number; label?: string }) {
   return (
     <div aria-busy="true" className="grid gap-3">
       {label ? <span className="sr-only">{label}</span> : null}

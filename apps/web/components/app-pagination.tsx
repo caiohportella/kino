@@ -1,5 +1,5 @@
-import type { ComponentProps, ReactNode } from 'react'
 import { MoreHorizontalIcon } from 'lucide-react'
+import type { ComponentProps, ReactNode } from 'react'
 import {
   Pagination,
   PaginationContent,

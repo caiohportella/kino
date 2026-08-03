@@ -1,26 +1,23 @@
-"use client";
+'use client'
 
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { ActivityCard } from "@/components/activity-feed/ActivityCard";
-import { ActivityFeedSkeleton } from "@/components/activity-feed/ActivityFeedSkeleton";
-import { AppPagination } from "@/components/app-pagination";
-import { EmptyState } from "@/components/kino";
-import { PageHeader } from "@/components/page-header";
-import { ProtectedContentGate } from "@/components/protected-content-gate";
-import { ProtectedEmpty } from "@/components/protected-empty";
-import { Button } from "@/components/ui/button";
-import { SegmentedControl } from "@/components/ui/segmented-control";
-import { useActivityFeed } from "@/hooks/use-activity-feed";
-import { useReviewLikeMutation } from "@/hooks/use-review-like-mutation";
-import {
-  localizedTitleKey,
-  useLocalizedTitles,
-} from "@/lib/use-localized-titles";
-import { useLocale, useTranslation } from "@/lib/i18n";
-import { getTmdb } from "@/lib/services";
-import { useAuthStore } from "@/stores/auth-store";
-import type { ActivityFeedCard, ActivityFeedFilter } from "@/lib/activity-feed";
+import Link from 'next/link'
+import { useEffect, useMemo, useState } from 'react'
+import { ActivityCard } from '@/components/activity-feed/ActivityCard'
+import { ActivityFeedSkeleton } from '@/components/activity-feed/ActivityFeedSkeleton'
+import { AppPagination } from '@/components/app-pagination'
+import { EmptyState } from '@/components/kino'
+import { PageHeader } from '@/components/page-header'
+import { ProtectedContentGate } from '@/components/protected-content-gate'
+import { ProtectedEmpty } from '@/components/protected-empty'
+import { Button } from '@/components/ui/button'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { useActivityFeed } from '@/hooks/use-activity-feed'
+import { useReviewLikeMutation } from '@/hooks/use-review-like-mutation'
+import type { ActivityFeedCard, ActivityFeedFilter } from '@/lib/activity-feed'
+import { useLocale, useTranslation } from '@/lib/i18n'
+import { getTmdb } from '@/lib/services'
+import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
+import { useAuthStore } from '@/stores/auth-store'
 
 function ActivityFeedItem({
   activity,
@@ -29,24 +26,22 @@ function ActivityFeedItem({
   onAuthRequired,
   viewerId,
 }: {
-  activity: ActivityFeedCard;
-  locale: string;
+  activity: ActivityFeedCard
+  locale: string
   localizedTitle: {
-    title: string;
-    posterUrl: string | null;
-    year: number | null;
-  } | null;
-  onAuthRequired: () => void;
-  viewerId: string | null;
+    title: string
+    posterUrl: string | null
+    year: number | null
+  } | null
+  onAuthRequired: () => void
+  viewerId: string | null
 }) {
-  const likeMutation = useReviewLikeMutation({ kind: "activity" });
-  const canLikeReview = Boolean(
-    viewerId && activity.review && activity.actor.id !== viewerId,
-  );
+  const likeMutation = useReviewLikeMutation({ kind: 'activity' })
+  const canLikeReview = Boolean(viewerId && activity.review && activity.actor.id !== viewerId)
   const pendingLike =
     activity.review !== null &&
     likeMutation.isPending &&
-    likeMutation.variables?.reviewId === activity.review.id;
+    likeMutation.variables?.reviewId === activity.review.id
 
   return (
     <ActivityCard
@@ -56,113 +51,96 @@ function ActivityFeedItem({
       localizedTitle={localizedTitle}
       onAuthRequired={onAuthRequired}
       onLikeReview={() => {
-        if (!activity.review) return;
+        if (!activity.review) return
         likeMutation.mutate({
           authorProfileId: activity.actor.id,
           liked: activity.review.likedByViewer,
           reviewId: activity.review.id,
-        });
+        })
       }}
       pendingLike={pendingLike}
     />
-  );
+  )
 }
 
 export default function ActivityPage() {
-  const user = useAuthStore((state) => state.user);
-  const resolution = useAuthStore(
-    (state) => state.resolution ?? { status: "auth-loading" },
-  );
-  const { t } = useTranslation();
-  const { locale, region } = useLocale();
-  const [filter, setFilter] = useState<ActivityFeedFilter>("you");
-  const [page, setPage] = useState(1);
-  const itemsPerPage = 30;
+  const user = useAuthStore((state) => state.user)
+  const resolution = useAuthStore((state) => state.resolution ?? { status: 'auth-loading' })
+  const { t } = useTranslation()
+  const { locale, region } = useLocale()
+  const [filter, setFilter] = useState<ActivityFeedFilter>('you')
+  const [page, setPage] = useState(1)
+  const itemsPerPage = 30
 
-  const viewerId = user?.id ?? null;
-  const feed = useActivityFeed(
-    viewerId,
-    filter,
-    locale,
-    region,
-    Boolean(viewerId),
-  );
-  const totalPages = Math.max(1, Math.ceil(feed.items.length / itemsPerPage));
-  const currentPage = Math.min(page, totalPages);
+  const viewerId = user?.id ?? null
+  const feed = useActivityFeed(viewerId, filter, locale, region, Boolean(viewerId))
+  const totalPages = Math.max(1, Math.ceil(feed.items.length / itemsPerPage))
+  const currentPage = Math.min(page, totalPages)
   const paginatedItems = feed.items.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
-  );
+    currentPage * itemsPerPage
+  )
 
   const localizedTitleRequests = useMemo(
     () =>
       paginatedItems
-        .filter((item) => item.subject.kind === "title")
+        .filter((item) => item.subject.kind === 'title')
         .map((item) => ({
-          tmdbId: item.subject.kind === "title" ? item.subject.tmdbId : 0,
-          type:
-            item.subject.kind === "title" ? item.subject.mediaType : "movie",
+          tmdbId: item.subject.kind === 'title' ? item.subject.tmdbId : 0,
+          type: item.subject.kind === 'title' ? item.subject.mediaType : 'movie',
         })),
-    [paginatedItems],
-  );
-  const localizedTitles = useLocalizedTitles(localizedTitleRequests);
+    [paginatedItems]
+  )
+  const localizedTitles = useLocalizedTitles(localizedTitleRequests)
 
   const pageStatus = feed.isLoading
-    ? "loading"
+    ? 'loading'
     : feed.isError
-      ? "error"
+      ? 'error'
       : feed.items.length === 0
-        ? "empty"
-        : "content";
+        ? 'empty'
+        : 'content'
 
   const feedSubtitleKey =
-    filter === "you"
-      ? "activity.feedSubtitleYou"
-      : "activity.feedSubtitleFollowing";
-  const emptyTitleKey =
-    filter === "you"
-      ? "activity.emptyYouTitle"
-      : "activity.emptyFollowingTitle";
-  const emptyBodyKey =
-    filter === "you" ? "activity.emptyYouBody" : "activity.emptyFollowingBody";
+    filter === 'you' ? 'activity.feedSubtitleYou' : 'activity.feedSubtitleFollowing'
+  const emptyTitleKey = filter === 'you' ? 'activity.emptyYouTitle' : 'activity.emptyFollowingTitle'
+  const emptyBodyKey = filter === 'you' ? 'activity.emptyYouBody' : 'activity.emptyFollowingBody'
 
   const filterOptions = useMemo(
     () => [
-      { label: t("activity.filters.you"), value: "you" as const },
-      { label: t("activity.filters.following"), value: "following" as const },
+      { label: t('activity.filters.you'), value: 'you' as const },
+      { label: t('activity.filters.following'), value: 'following' as const },
     ],
-    [t],
-  );
+    [t]
+  )
 
   useEffect(() => {
-    setPage(1);
-  }, [filter]);
+    void filter
+    setPage(1)
+  }, [filter])
 
   useEffect(() => {
-    setPage((currentPage) => Math.min(currentPage, totalPages));
-  }, [totalPages]);
+    setPage((currentPage) => Math.min(currentPage, totalPages))
+  }, [totalPages])
 
   return (
     <ProtectedContentGate
       authLoadingFallback={
         <div className="content-frame">
-          <ActivityFeedSkeleton count={5} label={t("activity.loading")} />
+          <ActivityFeedSkeleton count={5} label={t('activity.loading')} />
         </div>
       }
       emptyFallback={
         <div className="content-frame">
-          <PageHeader
-            title={t("activity.feedTitle")}
-            body={t(feedSubtitleKey)}
-          />
+          <PageHeader title={t('activity.feedTitle')} body={t(feedSubtitleKey)} />
           <EmptyState
             action={
               <Link href="/search">
-                <Button>{t("search.title")}</Button>
+                <Button>{t('search.title')}</Button>
               </Link>
             }
             body={t(emptyBodyKey)}
-            illustrationLabel={t("emptyStates.diaryIllustration")}
+            illustrationLabel={t('emptyStates.diaryIllustration')}
             title={t(emptyTitleKey)}
             variant="diary"
           />
@@ -171,12 +149,16 @@ export default function ActivityPage() {
       errorFallback={
         <div className="content-frame">
           <PageHeader title={t('activity.feedTitle')} body={t(feedSubtitleKey)} />
-          <EmptyState body={feed.error?.message ?? t('common.tryAgain')} title={t('activity.error')} variant="diary" />
+          <EmptyState
+            body={feed.error?.message ?? t('common.tryAgain')}
+            title={t('activity.error')}
+            variant="diary"
+          />
         </div>
       }
       pageLoadingFallback={
         <div className="content-frame">
-          <ActivityFeedSkeleton count={5} label={t("activity.loading")} />
+          <ActivityFeedSkeleton count={5} label={t('activity.loading')} />
         </div>
       }
       pageStatus={pageStatus}
@@ -184,7 +166,7 @@ export default function ActivityPage() {
       unauthenticatedFallback={<ProtectedEmpty />}
     >
       <div className="content-frame">
-        <PageHeader title={t("activity.feedTitle")} body={t(feedSubtitleKey)} />
+        <PageHeader title={t('activity.feedTitle')} body={t(feedSubtitleKey)} />
 
         <div className="mb-5 flex items-center justify-between gap-3">
           <SegmentedControl
@@ -199,11 +181,11 @@ export default function ActivityPage() {
           <EmptyState
             action={
               <Link href="/search">
-                <Button>{t("search.title")}</Button>
+                <Button>{t('search.title')}</Button>
               </Link>
             }
             body={t(emptyBodyKey)}
-            illustrationLabel={t("emptyStates.diaryIllustration")}
+            illustrationLabel={t('emptyStates.diaryIllustration')}
             title={t(emptyTitleKey)}
             variant="diary"
           />
@@ -211,14 +193,14 @@ export default function ActivityPage() {
           <div className="grid gap-3">
             {paginatedItems.map((activity) => {
               const localized =
-                activity.subject.kind === "title"
+                activity.subject.kind === 'title'
                   ? localizedTitles.data[
                       localizedTitleKey({
                         tmdbId: activity.subject.tmdbId,
                         type: activity.subject.mediaType,
                       })
                     ]
-                  : undefined;
+                  : undefined
 
               return (
                 <ActivityFeedItem
@@ -229,7 +211,7 @@ export default function ActivityPage() {
                     localized
                       ? {
                           title: localized.title,
-                          posterUrl: getTmdb().getImageUrl(localized.posterPath, "w300"),
+                          posterUrl: getTmdb().getImageUrl(localized.posterPath, 'w300'),
                           year: localized.year,
                         }
                       : null
@@ -240,23 +222,23 @@ export default function ActivityPage() {
                   }}
                   viewerId={viewerId}
                 />
-              );
+              )
             })}
 
             <AppPagination
-              ellipsisLabel={t("activity.pagination.morePages")}
-              label={t("activity.pagination.label")}
-              nextText={t("activity.pagination.next")}
+              ellipsisLabel={t('activity.pagination.morePages')}
+              label={t('activity.pagination.label')}
+              nextText={t('activity.pagination.next')}
               onPageChange={setPage}
               page={currentPage}
               pageAriaLabel={(nextPage, currentPage) =>
                 nextPage === currentPage
-                  ? t("activity.pagination.currentPage", { page: nextPage })
-                  : t("activity.pagination.goToPage", { page: nextPage })
+                  ? t('activity.pagination.currentPage', { page: nextPage })
+                  : t('activity.pagination.goToPage', { page: nextPage })
               }
-              previousText={t("activity.pagination.previous")}
+              previousText={t('activity.pagination.previous')}
               summary={(currentPage, total) =>
-                t("activity.pagination.summary", {
+                t('activity.pagination.summary', {
                   currentPage,
                   totalPages: total,
                 })
@@ -267,5 +249,5 @@ export default function ActivityPage() {
         )}
       </div>
     </ProtectedContentGate>
-  );
+  )
 }

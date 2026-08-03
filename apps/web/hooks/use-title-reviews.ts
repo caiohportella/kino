@@ -19,8 +19,8 @@ import {
   updateReviewLike,
 } from '@kino/core'
 import { type InfiniteData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { invalidateProfileMutation } from '@/lib/profile-invalidation'
 import { useReviewLikeMutation as useSharedReviewLikeMutation } from '@/hooks/use-review-like-mutation'
+import { invalidateProfileMutation } from '@/lib/profile-invalidation'
 import { db } from '@/lib/services'
 import { useAuthStore } from '@/stores/auth-store'
 

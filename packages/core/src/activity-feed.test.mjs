@@ -187,17 +187,14 @@ test('deduplicateActivities removes duplicates by activity key', () => {
   const first = { id: 'dup-1', type: 'rating', ...base }
   const second = { id: 'dup-1', type: 'rating', ...base }
 
-  const enriched = enrichActivityPage(
-    [first, second],
-    {
-      'user-1': {
-        id: 'user-1',
-        username: 'alice',
-        display_name: 'Alice',
-        avatar_url: null,
-      },
-    }
-  )
+  const enriched = enrichActivityPage([first, second], {
+    'user-1': {
+      id: 'user-1',
+      username: 'alice',
+      display_name: 'Alice',
+      avatar_url: null,
+    },
+  })
 
   const deduped = deduplicateActivities(enriched)
   assert.equal(deduped.length, 1)

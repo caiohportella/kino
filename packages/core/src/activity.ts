@@ -119,7 +119,12 @@ export function compareActivityCursor(cursor: ActivityCursor, item: Activity): n
  */
 export function getActivityKey(activity: Activity): string {
   const parts = [activity.type, activity.id]
-  if (activity.type === 'rating' || activity.type === 'review' || activity.type === 'watch' || activity.type === 'watchlist_add') {
+  if (
+    activity.type === 'rating' ||
+    activity.type === 'review' ||
+    activity.type === 'watch' ||
+    activity.type === 'watchlist_add'
+  ) {
     parts.push(String(activity.title.id), activity.title.mediaType)
   }
   return parts.join(':')
