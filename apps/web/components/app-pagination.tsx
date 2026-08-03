@@ -1,7 +1,8 @@
+import type { ComponentProps, ReactNode } from 'react'
+import { MoreHorizontalIcon } from 'lucide-react'
 import {
   Pagination,
   PaginationContent,
-  PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
@@ -17,6 +18,11 @@ type AppPaginationProps = {
   onPageChange: (page: number) => void
   className?: string
   label?: string
+  nextText?: string
+  pageAriaLabel?: (page: number, currentPage: number) => string
+  previousText?: string
+  summary?: (currentPage: number, totalPages: number) => ReactNode
+  ellipsisLabel?: string
 }
 
 export function AppPagination({
@@ -25,6 +31,16 @@ export function AppPagination({
   onPageChange,
   className,
   label = 'Pagination',
+  ellipsisLabel = 'More pages',
+  nextText = 'Next',
+  pageAriaLabel = (nextPage, currentPage) =>
+    nextPage === currentPage ? `Page ${nextPage}` : `Go to page ${nextPage}`,
+  previousText = 'Previous',
+  summary = (currentPage, total) => (
+    <>
+      Page {currentPage} of {total}
+    </>
+  ),
 }: AppPaginationProps) {
   if (totalPages <= 1) return null
 
@@ -40,16 +56,16 @@ export function AppPagination({
         className
       )}
     >
-      <p className="text-sm font-medium text-kino-muted">
-        Page {currentPage} of {totalPages}
-      </p>
+      <p className="text-sm font-medium text-kino-muted">{summary(currentPage, totalPages)}</p>
 
       <Pagination aria-label={label} className="sm:mx-0 sm:w-auto">
         <PaginationContent>
           <PaginationItem>
             <PaginationPrevious
               aria-disabled={currentPage === 1}
+              aria-label={previousText}
               href={getPageHref(previousPage)}
+              text={previousText}
               onClick={(event) => {
                 event.preventDefault()
                 if (currentPage > 1) onPageChange(previousPage)
@@ -62,7 +78,7 @@ export function AppPagination({
             typeof token === 'number' ? (
               <PaginationItem key={token}>
                 <PaginationLink
-                  aria-label={token === currentPage ? `Page ${token}` : `Go to page ${token}`}
+                  aria-label={pageAriaLabel(token, currentPage)}
                   href={getPageHref(token)}
                   isActive={token === currentPage}
                   onClick={(event) => {
@@ -75,7 +91,7 @@ export function AppPagination({
               </PaginationItem>
             ) : (
               <PaginationItem key={token}>
-                <PaginationEllipsis />
+                <PaginationEllipsis label={ellipsisLabel} />
               </PaginationItem>
             )
           )}
@@ -83,7 +99,9 @@ export function AppPagination({
           <PaginationItem>
             <PaginationNext
               aria-disabled={currentPage === totalPages}
+              aria-label={nextText}
               href={getPageHref(nextPage)}
+              text={nextText}
               onClick={(event) => {
                 event.preventDefault()
                 if (currentPage < totalPages) onPageChange(nextPage)
@@ -94,6 +112,27 @@ export function AppPagination({
         </PaginationContent>
       </Pagination>
     </div>
+  )
+}
+
+function PaginationEllipsis({
+  className,
+  label = 'More pages',
+  ...props
+}: ComponentProps<'span'> & { label?: string }) {
+  return (
+    <span
+      aria-hidden
+      data-slot="pagination-ellipsis"
+      className={cn(
+        "flex size-8 items-center justify-center [&_svg:not([class*='size-'])]:size-4",
+        className
+      )}
+      {...props}
+    >
+      <MoreHorizontalIcon />
+      <span className="sr-only">{label}</span>
+    </span>
   )
 }
 

@@ -11,6 +11,13 @@ export interface QueryCachePolicy {
   readonly staleTime: number
 }
 
+export const activityCachePolicies = {
+  feed: {
+    staleTime: MINUTE_IN_MILLISECONDS,
+    gcTime: 5 * MINUTE_IN_MILLISECONDS,
+  },
+} as const satisfies Record<string, QueryCachePolicy>
+
 export const profileCachePolicies = {
   usernameResolution: {
     staleTime: 5 * MINUTE_IN_MILLISECONDS,

@@ -2,9 +2,62 @@
   "tabs": {
     "home": "Home",
     "search": "Search",
+    "activity": "Activity",
     "diary": "Diary",
     "watchlists": "Watchlists",
     "profile": "Profile"
+  },
+  "activity": {
+    "did": "did",
+    "rated": "{{user}} rated {{title}} on {{date}}",
+    "reviewed": "reviewed",
+    "watched": "{{user}} watched {{title}} on {{date}}",
+    "rewatched": "rewatched",
+    "addToWatchlist": "{{user}} added {{title}} to a watchlist on {{date}}",
+    "createdWatchlist": "{{user}} created watchlist {{title}} on {{date}}",
+    "openTitle": "open title",
+    "loadMore": "Load more",
+    "end": "You've reached the end of your activity.",
+    "emptyTitle": "No activity yet",
+    "emptyBody": "Your activity feed will show ratings, reviews, watches, and watchlist additions from you and the people you follow.",
+    "error": "Could not load activity.",
+    "feedTitle": "Activity",
+    "feedSubtitle": "What your friends are watching, rating, and reviewing.",
+    "endOfFeed": "You've seen it all",
+    "justNow": "Just now",
+    "minuteAgo": "{{count}} minute ago",
+    "minutesAgo": "{{count}} minutes ago",
+    "hourAgo": "{{count}} hour ago",
+    "hoursAgo": "{{count}} hours ago",
+    "dayAgo": "{{count}} day ago",
+    "daysAgo": "{{count}} days ago",
+    "weekAgo": "{{count}} week ago",
+    "weeksAgo": "{{count}} weeks ago",
+    "monthAgo": "{{count}} month ago",
+    "monthsAgo": "{{count}} months ago",
+    "yearAgo": "{{count}} year ago",
+    "rating": "Rating",
+    "filters": {
+      "you": "You",
+      "following": "Following"
+    },
+    "feedSubtitleYou": "Your watched titles and notes, newest first.",
+    "feedSubtitleFollowing": "Activity from people you follow, newest first.",
+    "emptyYouTitle": "No activity yet",
+    "emptyYouBody": "Start logging watches and reviews to build your own activity feed.",
+    "emptyFollowingTitle": "Nothing from following yet",
+    "emptyFollowingBody": "Follow people to see their watches and reviews here.",
+    "loading": "Loading activity...",
+    "watchedReviewed": "{{user}} watched and reviewed {{title}} on {{date}}",
+    "pagination": {
+      "label": "Activity pages",
+      "summary": "Page {{currentPage}} of {{totalPages}}",
+      "currentPage": "Page {{page}}",
+      "goToPage": "Go to page {{page}}",
+      "previous": "Previous",
+      "next": "Next",
+      "morePages": "More pages"
+    }
   },
   "accountMenu": {
     "open": "Open account menu",
@@ -113,6 +166,7 @@
     "diaryIllustration": "A film reel ready for a new diary entry",
     "searchIllustration": "A film reel searching for a missing title",
     "watchlistIllustration": "A film reel marking a title to watch later",
+    "activityIllustration": "A film reel with social activity dots",
     "missingIllustration": "A film reel with a missing frame"
   },
   "diaryFilters": {
@@ -197,7 +251,11 @@
   "watchlists": {
     "title": "Watchlists",
     "visibility": "Visibility",
-    "visibilityLabels": { "private": "Private", "shared": "Shared", "public": "Public" },
+    "visibilityLabels": {
+      "private": "Private",
+      "shared": "Shared",
+      "public": "Public"
+    },
     "visibilityDescriptions": {
       "private": "Only you can access this watchlist.",
       "shared": "Accessible only through an invitation link or code.",

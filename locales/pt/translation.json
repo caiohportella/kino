@@ -2,9 +2,62 @@
   "tabs": {
     "home": "Início",
     "search": "Buscar",
+    "activity": "Atividade",
     "diary": "Diário",
     "watchlists": "Listas",
     "profile": "Perfil"
+  },
+  "activity": {
+    "did": "fez",
+    "rated": "{{user}} avaliou {{title}} em {{date}}",
+    "reviewed": "avaliado",
+    "watched": "{{user}} assistiu {{title}} em {{date}}",
+    "rewatched": "reassistido",
+    "addToWatchlist": "{{user}} adicionou {{title}} a uma lista em {{date}}",
+    "createdWatchlist": "{{user}} criou a lista {{title}} em {{date}}",
+    "openTitle": "abrir título",
+    "loadMore": "Carregar mais",
+    "end": "Você chegou ao fim da sua atividade.",
+    "emptyTitle": "Nenhuma atividade ainda",
+    "emptyBody": "Seu feed mostrará avaliações, críticas, visualizações e adições a listas da sua conta e das pessoas que você segue.",
+    "error": "Não foi possível carregar a atividade.",
+    "feedTitle": "Atividade",
+    "feedSubtitle": "O que seus amigos estão assistindo, avaliando e criticando.",
+    "endOfFeed": "Você viu tudo",
+    "justNow": "Agora mesmo",
+    "minuteAgo": "{{count}} minuto atrás",
+    "minutesAgo": "{{count}} minutos atrás",
+    "hourAgo": "{{count}} hora atrás",
+    "hoursAgo": "{{count}} horas atrás",
+    "dayAgo": "{{count}} dia atrás",
+    "daysAgo": "{{count}} dias atrás",
+    "weekAgo": "{{count}} semana atrás",
+    "weeksAgo": "{{count}} semanas atrás",
+    "monthAgo": "{{count}} mês atrás",
+    "monthsAgo": "{{count}} meses atrás",
+    "yearAgo": "{{count}} ano atrás",
+    "yearsAgo": "{{count}} anos atrás",
+    "filters": {
+      "you": "Você",
+      "following": "Seguindo"
+    },
+    "feedSubtitleYou": "Seus títulos assistidos e notas, mais recentes primeiro.",
+    "feedSubtitleFollowing": "Atividades de pessoas que você segue, mais recentes primeiro.",
+    "emptyYouTitle": "Nenhuma atividade ainda",
+    "emptyYouBody": "Comece registrando assistidos e críticas para montar seu feed.",
+    "emptyFollowingTitle": "Nada de quem você segue",
+    "emptyFollowingBody": "Siga pessoas para ver aqui os assistidos e críticas delas.",
+    "loading": "Carregando atividade...",
+    "watchedReviewed": "{{user}} assistiu e resenhou {{title}} em {{date}}",
+    "pagination": {
+      "label": "Páginas de atividade",
+      "summary": "Página {{currentPage}} de {{totalPages}}",
+      "currentPage": "Página {{page}}",
+      "goToPage": "Ir para a página {{page}}",
+      "previous": "Anterior",
+      "next": "Próxima",
+      "morePages": "Mais páginas"
+    }
   },
   "accountMenu": {
     "open": "Abrir menu da conta",
@@ -113,6 +166,7 @@
     "diaryIllustration": "Um rolo de filme pronto para uma nova entrada no diário",
     "searchIllustration": "Um rolo de filme procurando um título",
     "watchlistIllustration": "Um rolo de filme marcando um título para assistir depois",
+    "activityIllustration": "Um rolo de filme com pontos de atividade social",
     "missingIllustration": "Um rolo de filme com um quadro ausente"
   },
   "diaryFilters": {
@@ -197,7 +251,11 @@
   "watchlists": {
     "title": "Listas",
     "visibility": "Visibilidade",
-    "visibilityLabels": { "private": "Privada", "shared": "Compartilhada", "public": "Pública" },
+    "visibilityLabels": {
+      "private": "Privada",
+      "shared": "Compartilhada",
+      "public": "Pública"
+    },
     "visibilityDescriptions": {
       "private": "Somente você pode acessar esta lista.",
       "shared": "Acessível apenas por link ou código de convite.",

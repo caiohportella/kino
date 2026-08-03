@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  activityQueryKeys,
   type ProfileReview,
   type ProfileReviewCursor,
   type ProfileReviewsPage,
@@ -129,6 +130,7 @@ export function useProfileReviewMutations(username: string) {
     onSettled: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: profileReviewKeys.profile(username) }),
+        queryClient.invalidateQueries({ queryKey: activityQueryKeys.all }),
         ...(viewerId
           ? [
               invalidateProfileMutation(queryClient, {
@@ -168,6 +170,7 @@ export function useProfileReviewMutations(username: string) {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: profileReviewKeys.profile(username) }),
         queryClient.invalidateQueries({ queryKey: reviewKeys.title(review.titleId) }),
+        queryClient.invalidateQueries({ queryKey: activityQueryKeys.all }),
         ...(viewerId
           ? [
               invalidateProfileMutation(queryClient, {
@@ -211,6 +214,7 @@ export function useProfileReviewMutations(username: string) {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: profileReviewKeys.profile(username) }),
         queryClient.invalidateQueries({ queryKey: reviewKeys.title(review.titleId) }),
+        queryClient.invalidateQueries({ queryKey: activityQueryKeys.all }),
         ...(viewerId
           ? [
               invalidateProfileMutation(queryClient, {

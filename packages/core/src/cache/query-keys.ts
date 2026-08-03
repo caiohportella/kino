@@ -1,3 +1,4 @@
+import type { ActivityCursor } from '../activity.ts'
 import { normalizeLocale, normalizeRegion } from '../localization/locale.ts'
 import type { CacheScope } from '../localization/types.ts'
 import type { MediaType } from '../types.ts'
@@ -132,10 +133,21 @@ export interface WatchlistListQueryInput extends ScopedInput {
   readonly page?: number
 }
 
+export interface ActivityFeedQueryInput {
+  readonly pageSize?: number
+  readonly schemaVersion?: string
+  readonly viewerId: string
+  readonly includeOwnActivity: boolean
+  readonly locale: string
+  readonly region: string
+  readonly cursor?: ActivityCursor
+}
+
 const TITLE_ROOT = [CACHE_SCHEMA_VERSION, 'title'] as const
 const SEARCH_ROOT = [CACHE_SCHEMA_VERSION, 'search'] as const
 const PROFILE_ROOT = [CACHE_SCHEMA_VERSION, 'profile'] as const
 const WATCHLIST_ROOT = [CACHE_SCHEMA_VERSION, 'watchlist'] as const
+const ACTIVITY_ROOT = [CACHE_SCHEMA_VERSION, 'activity'] as const
 
 export const titleQueryKeys = {
   all: TITLE_ROOT,
@@ -300,6 +312,25 @@ export const watchlistQueryKeys = {
       ...scopeSegments(input.scope),
       normalizePage(input.page),
       normalizeFilters(input.filters),
+    ] as const,
+}
+
+export const activityQueryKeys = {
+  all: ACTIVITY_ROOT,
+  feedRoot: () => [...ACTIVITY_ROOT, 'feed'] as const,
+  feed: (input: ActivityFeedQueryInput) =>
+    [
+      ...ACTIVITY_ROOT,
+      'feed',
+      requireIdentifier(input.viewerId, 'viewer id'),
+      input.includeOwnActivity ? 'self-enabled' : 'self-disabled',
+      normalizeLocale(input.locale),
+      normalizeRegion(input.region),
+      input.cursor
+        ? [input.cursor.createdAt, input.cursor.activityId]
+        : ['head'],
+      normalizePage(input.pageSize ?? 1),
+      input.schemaVersion ?? CACHE_SCHEMA_VERSION,
     ] as const,
 }
 

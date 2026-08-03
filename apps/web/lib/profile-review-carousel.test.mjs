@@ -18,14 +18,19 @@ test('profile rows reuse draggable controls without stealing nested keyboard int
   assert.match(source, /role="region"/)
 })
 
-test('profile review row previews mobile overflow and fits exactly two desktop cards from one gap', async () => {
+test('profile review row restores a fixed-width horizontal shelf', async () => {
   const source = await readComponent('../components/reviews/profile-reviews-section.tsx')
 
   assert.match(source, /\[--profile-row-gap:1rem\]/)
   assert.match(source, /gap-\[var\(--profile-row-gap\)\]/)
   assert.match(source, /auto-cols-\[calc\(100%-2rem\)\]/)
-  assert.match(source, /auto-cols-\[calc\(\(100%-var\(--profile-row-gap\)\)\/2\)\]/)
+  assert.match(source, /\[\&_.media-row-track>\*\]:!w-auto/)
+  assert.match(
+    source,
+    /md:\[\&_.media-row-track\]:auto-cols-\[calc\(\(100%-var\(--profile-row-gap\)\)\/2\)\]/
+  )
   assert.match(source, /<ProfileHorizontalRow/)
+  assert.match(source, /aria-busy=\{query\.isFetching\}/)
 })
 
 test('profile row retains a bounded scroll position when its stable children refresh', async () => {
@@ -37,15 +42,15 @@ test('profile row retains a bounded scroll position when its stable children ref
   assert.match(source, /onScroll=/)
 })
 
-test('profile review loading uses two geometry-matched skeleton cards', async () => {
+test('profile review loading avoids a dedicated section skeleton', async () => {
   const section = await readComponent('../components/reviews/profile-reviews-section.tsx')
   const card = await readComponent('../components/reviews/profile-review-card.tsx')
   const skeleton = await readComponent('../components/reviews/profile-review-skeleton.tsx')
   const cardPosterColumn = card.match(/grid-cols-\[(\d+)px_minmax\(0,1fr\)\]/)?.[1]
   const skeletonPosterColumn = skeleton.match(/grid-cols-\[(\d+)px_minmax\(0,1fr\)\]/)?.[1]
 
-  assert.match(section, /Array\.from\(\{ length: 2 \}/)
-  assert.match(section, /<ProfileReviewSkeleton/)
+  assert.doesNotMatch(section, /ProfileReviewSkeleton/)
+  assert.doesNotMatch(section, /Array\.from\(\{ length: 2 \}/)
   assert.match(skeleton, /min-h-56/)
   assert.equal(cardPosterColumn, '76')
   assert.equal(skeletonPosterColumn, cardPosterColumn)

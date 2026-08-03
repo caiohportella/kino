@@ -11,6 +11,7 @@ import type {
   WatchType,
 } from '@kino/core'
 import {
+  activityQueryKeys,
   calculateSeasonRatingSummary,
   formatDate as formatKinoDate,
   formatRuntime,
@@ -319,6 +320,7 @@ export default function TitlePage() {
       queryClient.invalidateQueries({
         queryKey: ['title-stats', title?.id, type],
       })
+      queryClient.invalidateQueries({ queryKey: activityQueryKeys.all })
       if (user?.id) {
         void invalidateProfileMutation(queryClient, {
           kind: 'rating-diary',
@@ -347,6 +349,7 @@ export default function TitlePage() {
         queryKey: ['title-stats', title?.id, type],
       })
       queryClient.invalidateQueries({ queryKey: ['diary', user?.id] })
+      queryClient.invalidateQueries({ queryKey: activityQueryKeys.all })
       if (user?.id) {
         void invalidateProfileMutation(queryClient, {
           kind: 'rating-diary',
@@ -372,6 +375,7 @@ export default function TitlePage() {
         queryKey: ['title-user-data', title?.id, user?.id],
       })
       queryClient.invalidateQueries({ queryKey: ['diary', user?.id] })
+      queryClient.invalidateQueries({ queryKey: activityQueryKeys.all })
       if (user?.id && title) {
         void invalidateProfileMutation(queryClient, {
           kind: 'rating-diary',
@@ -389,23 +393,6 @@ export default function TitlePage() {
     const query = searchParams.toString()
     storeAuthRedirect(`${pathname}${query ? `?${query}` : ''}`)
     router.push('/auth/login')
-  }
-
-  if (rawTitleQuery.isPlaceholderData && rawTitleQuery.data && !('kinoId' in rawTitleQuery.data)) {
-    const summary = rawTitleQuery.data
-    return (
-      <div className="content-frame">
-        <div className="flex items-end gap-4">
-          <Poster
-            className="w-24 shrink-0 sm:w-32"
-            src={getTMDbImageUrl(summary.posterPath, 'w300')}
-            title={summary.title}
-          />
-          <h1 className="pb-4 text-3xl font-black text-kino-text">{summary.title}</h1>
-        </div>
-        <TitleSkeleton label={t('common.loading')} />
-      </div>
-    )
   }
 
   if (titleQuery.isLoading) return <TitleSkeleton label={t('common.loading')} />
@@ -945,6 +932,7 @@ function WatchlistPicker({
             queryKey: ['watchlist-picker', userId, titleId],
           })
           if (userId) queryClient.invalidateQueries({ queryKey: ['watchlists', userId] })
+          queryClient.invalidateQueries({ queryKey: activityQueryKeys.all })
         }}
         open={createOpen}
       />

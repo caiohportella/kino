@@ -1,7 +1,7 @@
 'use client'
 
 import type { WatchType } from '@kino/core'
-import { formatDate, groupDiaryByMonth } from '@kino/core'
+import { activityQueryKeys, formatDate, groupDiaryByMonth } from '@kino/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, MoreHorizontal, RotateCcw, Save, Trash2 } from 'lucide-react'
 import Link from 'next/link'
@@ -345,6 +345,7 @@ function useDiaryEntryActions(userId: string | undefined) {
 
   function refreshRelatedData(entry: DiaryEntry) {
     queryClient.invalidateQueries({ queryKey })
+    queryClient.invalidateQueries({ queryKey: activityQueryKeys.all })
     if (userId) {
       void invalidateProfileMutation(queryClient, {
         kind: 'rating-diary',

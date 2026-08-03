@@ -1,7 +1,7 @@
 'use client'
 
 import { hasAuthenticatedUser } from '@kino/core/auth'
-import { BookOpen, Compass, ListChecks, Menu, Search } from 'lucide-react'
+import { Activity, BookOpen, Compass, ListChecks, Menu, Search } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { type ReactNode, useEffect } from 'react'
@@ -25,6 +25,7 @@ import { useAuthStore } from '@/stores/auth-store'
 const authenticatedNavItems = [
   { href: '/discover', labelKey: 'tabs.home', icon: Compass },
   { href: '/search', labelKey: 'tabs.search', icon: Search },
+  { href: '/activity', labelKey: 'tabs.activity', icon: Activity },
   { href: '/diary', labelKey: 'tabs.diary', icon: BookOpen },
   { href: '/watchlists', labelKey: 'tabs.watchlists', icon: ListChecks },
 ]

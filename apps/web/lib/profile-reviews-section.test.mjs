@@ -91,23 +91,18 @@ test('public web profiles render the Reviews row and use only known-empty review
 })
 
 test('profile review section distinguishes initial states from retained-data states', () => {
-  const pending = sectionSource.indexOf("reviewState.kind === 'pending'")
-  const error = sectionSource.indexOf("reviewState.kind === 'error'")
-  const empty = sectionSource.indexOf("reviewState.kind === 'empty'")
-
-  assert.match(sectionSource, /resolveProfileReviewsQueryState\(query\)/)
-  assert.ok(pending >= 0, 'initial pending state must render review skeletons')
-  assert.ok(error > pending, 'initial error state must follow the pending state')
-  assert.ok(empty > error, 'only a successful empty result may hide the section')
+  assert.match(sectionSource, /if \(query\.isLoading && !query\.data\) return null/)
+  assert.match(sectionSource, /if \(query\.isError && !query\.data\)/)
+  assert.match(sectionSource, /if \(!query\.data\?\.totalCount\) return null/)
   assert.match(sectionSource, /role="alert"/)
   assert.match(sectionSource, /reviews\.loadFailure/)
-  assert.doesNotMatch(sectionSource, /query\.isLoading/)
-  assert.doesNotMatch(sectionSource, /!query\.data\?\.totalCount/)
+  assert.doesNotMatch(sectionSource, /ProfileReviewSkeleton/)
+  assert.doesNotMatch(sectionSource, /resolveProfileReviewsQueryState\(query\)/)
 })
 
 test('profile review refreshes retain cards and expose busy/error state', () => {
   assert.match(sectionSource, /aria-busy=\{query\.isFetching\}/)
   assert.match(sectionSource, /query\.isError \?/)
   assert.doesNotMatch(sectionSource, /if \(query\.isFetching\)/)
-  assert.match(sectionSource, /reviewState\.data\.items\.map/)
+  assert.match(sectionSource, /query\.data\.items\.map/)
 })

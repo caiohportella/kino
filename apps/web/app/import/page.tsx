@@ -2,11 +2,13 @@
 
 import type { ImportTitleItem, MediaType, TMDbTitle } from '@kino/core'
 import {
+  activityQueryKeys,
   chooseBestSearchCandidate,
   parseImportFile,
   transformMovieToTitleDetails,
   transformTVToTitleDetails,
 } from '@kino/core'
+import { useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, CheckCircle2, CloudUpload, RotateCcw, Save, XCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -50,6 +52,7 @@ const emptyState: ImportState = {
 
 export default function ImportPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const resolution = useAuthStore((state) => state.resolution)
   const [state, setState] = useState<ImportState>(emptyState)
   const [loading, setLoading] = useState(false)
@@ -220,6 +223,9 @@ export default function ImportPage() {
         skipped: skippedCount,
         failed: failureCount,
       })
+      if (importedCount > 0) {
+        queryClient.invalidateQueries({ queryKey: activityQueryKeys.all })
+      }
       setError(failureCount > 0 ? `${failureCount} item(s) failed to import.` : null)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Import failed.')

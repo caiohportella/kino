@@ -292,6 +292,16 @@ a {
   gap: 18px;
 }
 
+.media-row--reviews {
+  container-type: inline-size;
+}
+.media-row--reviews .media-row-track {
+  grid-auto-columns: calc((100cqw - 2 * 18px) / 2.2);
+}
+.media-row--reviews .media-row-track > * {
+  width: calc((100cqw - 2 * 18px) / 2.2);
+}
+
 .media-row::-webkit-scrollbar {
   display: none;
 }

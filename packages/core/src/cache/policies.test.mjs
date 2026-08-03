@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { profileCachePolicies } from './policies.ts'
+import { activityCachePolicies, profileCachePolicies } from './policies.ts'
 
 test('defines named cache policies for every progressive profile query boundary', () => {
   assert.deepEqual(Object.keys(profileCachePolicies), [
@@ -29,4 +29,12 @@ test('keeps viewer relationship data and availability on their own refresh caden
   assert.ok(
     profileCachePolicies.availability.staleTime > profileCachePolicies.watchedSeries.staleTime
   )
+})
+
+test('activity feed cache policy keeps items fresh for a short window and retains them briefly', () => {
+  assert.deepEqual(Object.keys(activityCachePolicies), ['feed'])
+  assert.equal(typeof activityCachePolicies.feed.staleTime, 'number')
+  assert.equal(typeof activityCachePolicies.feed.gcTime, 'number')
+  assert.ok(activityCachePolicies.feed.staleTime > 0)
+  assert.ok(activityCachePolicies.feed.gcTime >= activityCachePolicies.feed.staleTime)
 })

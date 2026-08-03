@@ -1,6 +1,6 @@
 'use client'
 
-import { formatDate } from '@kino/core'
+import { activityQueryKeys, formatDate } from '@kino/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Clipboard, Plus } from 'lucide-react'
 import Link from 'next/link'
@@ -102,6 +102,7 @@ export default function WatchlistsPage() {
                   profileId: user!.id,
                   visibilityScope: { kind: 'authenticated', userId: user!.id },
                 }),
+                queryClient.invalidateQueries({ queryKey: activityQueryKeys.all }),
                 queryClient.invalidateQueries({ queryKey: ['public-watchlists'] }),
               ])
             }}
@@ -194,6 +195,7 @@ export default function WatchlistsPage() {
                 profileId: user!.id,
                 visibilityScope: { kind: 'authenticated', userId: user!.id },
               }),
+              queryClient.invalidateQueries({ queryKey: activityQueryKeys.all }),
               queryClient.invalidateQueries({ queryKey: ['public-watchlists'] }),
             ])
           }}

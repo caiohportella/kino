@@ -41,6 +41,14 @@ export default function TabLayout() {
         })}
       </NativeTabs.Trigger>
 
+      <NativeTabs.Trigger name="activity">
+        <Label>{''}</Label>
+        {Platform.select({
+          ios: <Icon sf="bell.fill" />,
+          android: <Icon src={<VectorIcon family={MaterialIcons} name="notifications" />} />,
+        })}
+      </NativeTabs.Trigger>
+
       <NativeTabs.Trigger name="diary">
         <Label>{''}</Label>
         {Platform.select({

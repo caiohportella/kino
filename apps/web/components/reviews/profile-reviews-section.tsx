@@ -1,116 +1,138 @@
-'use client'
+"use client";
+import type { ProfileReview } from "@kino/core";
+import { usePathname, useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { useToast } from "@/components/toast-provider";
+import { Button } from "@/components/ui/button";
+import {
+  useProfileReviewMutations,
+  useProfileReviews,
+} from "@/hooks/use-profile-reviews";
+import { localizedTitleKey, useLocalizedTitles } from "@/lib/use-localized-titles";
+import { storeAuthRedirect } from "@/lib/auth-redirect";
+import { useTranslation } from "@/lib/i18n";
+import { useAuthStore } from "@/stores/auth-store";
+import { ProfileHorizontalRow } from "../profile-horizontal-row";
+import { ProfileReviewCard } from "./profile-review-card";
+import { ProfileReviewSkeleton } from "./profile-review-skeleton";
+import { ProfileReviewsDialog } from "./profile-reviews-dialog";
 
-import type { ProfileReview } from '@kino/core'
-import { usePathname, useRouter } from 'next/navigation'
-import { useState } from 'react'
-import { ProfileHorizontalRow } from '@/components/profile-horizontal-row'
-import { useToast } from '@/components/toast-provider'
-import { Button } from '@/components/ui/button'
-import { useProfileReviewMutations, useProfileReviews } from '@/hooks/use-profile-reviews'
-import { storeAuthRedirect } from '@/lib/auth-redirect'
-import { useTranslation } from '@/lib/i18n'
-import { resolveProfileReviewsQueryState } from '@/lib/profile-review-query-state'
-import { useAuthStore } from '@/stores/auth-store'
-import { ProfileReviewCard } from './profile-review-card'
-import { ProfileReviewSkeleton } from './profile-review-skeleton'
-import { ProfileReviewsDialog } from './profile-reviews-dialog'
+export function ProfileReviewsSection({ username }: { username: string }) {
+  const { t } = useTranslation();
+  const user = useAuthStore((state) => state.user);
+  const pathname = usePathname();
+  const router = useRouter();
+  const toast = useToast();
+  const query = useProfileReviews(username);
+  const mutations = useProfileReviewMutations(username);
+  const [showAllOpen, setShowAllOpen] = useState(false);
 
-const PROFILE_REVIEW_ROW_CLASS_NAME =
-  '[--profile-row-gap:1rem] snap-x snap-mandatory [&_.media-row-track]:w-full [&_.media-row-track]:auto-cols-[calc(100%-2rem)] [&_.media-row-track]:gap-[var(--profile-row-gap)] [&_.media-row-track>*]:!w-auto md:[&_.media-row-track]:auto-cols-[calc((100%-var(--profile-row-gap))/2)]'
+  const localizedTitleRequests = useMemo(
+    () =>
+      (query.data?.items ?? []).map((review) => ({
+        tmdbId: review.title.tmdbId,
+        type: review.title.mediaType,
+      })),
+    [query.data?.items]
+  );
+  const localizedTitles = useLocalizedTitles(localizedTitleRequests);
 
-export function ProfileReviewsSection({
-  username,
-  query: progressiveQuery,
-}: {
-  username: string
-  query?: ReturnType<typeof useProfileReviews>
-}) {
-  const { t } = useTranslation()
-  const user = useAuthStore((state) => state.user)
-  const pathname = usePathname()
-  const router = useRouter()
-  const toast = useToast()
-  const legacyQuery = useProfileReviews(username, !progressiveQuery)
-  const query = legacyQuery.data ? legacyQuery : (progressiveQuery ?? legacyQuery)
-  const mutations = useProfileReviewMutations(username)
-  const [showAllOpen, setShowAllOpen] = useState(false)
-  const reviewState = resolveProfileReviewsQueryState(query)
-
-  if (reviewState.kind === 'pending') {
+  if (query.isLoading) {
     return (
-      <ProfileHorizontalRow
-        aria-busy={true}
-        rowClassName={PROFILE_REVIEW_ROW_CLASS_NAME}
-        title={t('reviews.title')}
-      >
-        {Array.from({ length: 2 }, (_, index) => (
-          <div className="h-full w-full snap-start" key={`profile-review-skeleton-${index}`}>
+      <section aria-label={t("reviews.title")} className="mb-10">
+        <h2 className="mb-4 text-xl font-semibold text-kino-text">
+          {t("reviews.title")}
+        </h2>
+        <div className="flex gap-4.5">
+          <div className="w-[calc(50%-9px)] shrink-0">
             <ProfileReviewSkeleton />
           </div>
-        ))}
-      </ProfileHorizontalRow>
-    )
-  }
-
-  if (reviewState.kind === 'error') {
-    return (
-      <section className="mb-10">
-        <h2 className="mb-4 text-xl font-semibold text-kino-text">{t('reviews.title')}</h2>
-        <p className="text-sm text-red-300" role="alert">
-          {t('reviews.loadFailure')}
-        </p>
+          <div className="w-[calc(50%-9px)] shrink-0">
+            <ProfileReviewSkeleton />
+          </div>
+        </div>
       </section>
-    )
+    );
   }
 
-  if (reviewState.kind === 'empty') return null
+  if (query.isError || !query.data?.totalCount) return null;
 
   const onAuthRequired = () => {
-    storeAuthRedirect(pathname)
-    router.push('/auth/login')
-  }
-  const notifyError = (key: string) => toast.notify({ tone: 'error', title: t(key) })
-  const renderReview = (review: ProfileReview) => (
-    <ProfileReviewCard
-      canLike={Boolean(user)}
-      key={review.id}
-      onAuthRequired={onAuthRequired}
-      onDelete={async () => {
-        try {
-          await mutations.remove.mutateAsync(review)
-          toast.notify({ tone: 'success', title: t('reviews.deleteSuccess') })
-        } catch {
-          notifyError('reviews.deleteFailure')
+    storeAuthRedirect(pathname);
+    router.push("/auth/login");
+  };
+
+  const notifyError = (key: string) =>
+    toast.notify({ tone: "error", title: t(key) });
+
+  const renderReview = (review: ProfileReview) => {
+    const localized =
+      localizedTitles.data[
+        localizedTitleKey({ tmdbId: review.title.tmdbId, type: review.title.mediaType })
+      ];
+
+    return (
+      <ProfileReviewCard
+        canLike={Boolean(user)}
+        key={review.id}
+        localizedTitle={
+          localized
+            ? {
+                title: localized.title,
+                posterUrl: localized.posterPath,
+                year: localized.year,
+              }
+            : null
         }
-      }}
-      onLike={() =>
-        mutations.like.mutate(
-          { review, liked: review.likedByViewer },
-          { onError: () => notifyError('reviews.likeFailure') }
-        )
-      }
-      onUpdate={async (content) => {
-        try {
-          await mutations.update.mutateAsync({ reviewId: review.id, content })
-          toast.notify({ tone: 'success', title: t('reviews.editSuccess') })
-          return true
-        } catch {
-          notifyError('reviews.editFailure')
-          return false
+        onAuthRequired={onAuthRequired}
+        onDelete={async () => {
+          try {
+            await mutations.remove.mutateAsync(review);
+            toast.notify({ tone: "success", title: t("reviews.deleteSuccess") });
+          } catch {
+            notifyError("reviews.deleteFailure");
+          }
+        }}
+        onLike={() =>
+          mutations.like.mutate(
+            { review, liked: review.likedByViewer },
+            { onError: () => notifyError("reviews.likeFailure") },
+          )
         }
-      }}
-      pendingLike={mutations.like.isPending && mutations.like.variables?.review.id === review.id}
-      pendingOwnerAction={mutations.remove.isPending || mutations.update.isPending}
-      review={review}
-    />
-  )
+        onUpdate={async (content) => {
+          try {
+            await mutations.update.mutateAsync({ reviewId: review.id, content });
+            toast.notify({ tone: "success", title: t("reviews.editSuccess") });
+            return true;
+          } catch {
+            notifyError("reviews.editFailure");
+            return false;
+          }
+        }}
+        pendingLike={
+          mutations.like.isPending &&
+          mutations.like.variables?.review.id === review.id
+        }
+        pendingOwnerAction={
+          mutations.remove.isPending || mutations.update.isPending
+        }
+        review={review}
+      />
+    );
+  };
+
+  const hasMore = query.data.totalCount > query.data.items.length;
 
   return (
     <ProfileHorizontalRow
       action={
-        reviewState.data.totalCount > reviewState.data.items.length ? (
-          <Button onClick={() => setShowAllOpen(true)} size="sm" variant="ghost">
-            {t('reviews.showAll')}
+        hasMore ? (
+          <Button
+            onClick={() => setShowAllOpen(true)}
+            size="sm"
+            variant="ghost"
+          >
+            {t("reviews.showAll")}
           </Button>
         ) : null
       }
@@ -122,22 +144,10 @@ export function ProfileReviewsSection({
           username={username}
         />
       }
-      aria-busy={query.isFetching}
-      notice={
-        query.isError ? (
-          <p className="mb-3 text-sm text-red-300" role="status">
-            {t('reviews.loadFailure')}
-          </p>
-        ) : null
-      }
-      rowClassName={PROFILE_REVIEW_ROW_CLASS_NAME}
-      title={t('reviews.title')}
+      rowClassName="media-row--reviews"
+      title={t("reviews.title")}
     >
-      {reviewState.data.items.map((review) => (
-        <div className="h-full w-full snap-start" key={review.id}>
-          {renderReview(review)}
-        </div>
-      ))}
+      {query.data.items.map(renderReview)}
     </ProfileHorizontalRow>
-  )
+  );
 }
