@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FlatList, Image, Modal, Text, TouchableOpacity, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { resolveLocalizedMediaPresentation } from '~/hooks/data/localizedMediaPresentation'
 import { useLocalizedMediaData } from '~/hooks/data/useLocalizedMediaData'
 import { getTMDbService } from '~/services/tmdb'
 import type { WatchedSeries } from '~/types'
@@ -75,10 +76,17 @@ export function WatchedSeriesModal({
             >
               <View className="aspect-[2/3] w-full rounded-lg bg-surface-variant overflow-hidden mb-2">
                 {(() => {
-                  const localizedData = mediaMap[item.tmdb_id]
+                  const localizedData = resolveLocalizedMediaPresentation({
+                    data: mediaMap,
+                    errors: mediaMap.errors,
+                    isError: mediaMap.isError,
+                    missing: mediaMap.missing,
+                    request: { tmdb_id: item.tmdb_id, type: 'tv' },
+                    unknownTitle: t('diary.unknownTitle'),
+                  })
                   const posterUrl = localizedData?.poster_path
                     ? tmdb.getImageUrl(localizedData.poster_path)
-                    : item.cover_image
+                    : null
 
                   if (posterUrl) {
                     return (

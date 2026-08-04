@@ -2,18 +2,22 @@
 
 import type { ImportTitleItem, MediaType, TMDbTitle } from '@kino/core'
 import {
+  activityQueryKeys,
   chooseBestSearchCandidate,
   parseImportFile,
   transformMovieToTitleDetails,
   transformTVToTitleDetails,
 } from '@kino/core'
+import { useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, CheckCircle2, CloudUpload, RotateCcw, Save, XCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { AppPagination } from '@/components/app-pagination'
 import { EmptyState, ProgressBar } from '@/components/kino'
 import { PageHeader } from '@/components/page-header'
+import { ProtectedContentGate } from '@/components/protected-content-gate'
 import { ProtectedEmpty } from '@/components/protected-empty'
+import { ProfileSkeleton } from '@/components/skeletons/page-skeletons'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
@@ -48,7 +52,8 @@ const emptyState: ImportState = {
 
 export default function ImportPage() {
   const router = useRouter()
-  const user = useAuthStore((state) => state.user)
+  const queryClient = useQueryClient()
+  const resolution = useAuthStore((state) => state.resolution)
   const [state, setState] = useState<ImportState>(emptyState)
   const [loading, setLoading] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -62,10 +67,6 @@ export default function ImportPage() {
   const [importSummary, setImportSummary] = useState<ImportSummary | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
-
-  if (!user) {
-    return <ProtectedEmpty />
-  }
 
   async function handleFile(file: File | null) {
     if (!file) return
@@ -222,6 +223,9 @@ export default function ImportPage() {
         skipped: skippedCount,
         failed: failureCount,
       })
+      if (importedCount > 0) {
+        queryClient.invalidateQueries({ queryKey: activityQueryKeys.all })
+      }
       setError(failureCount > 0 ? `${failureCount} item(s) failed to import.` : null)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Import failed.')
@@ -236,142 +240,152 @@ export default function ImportPage() {
   const paginatedItems = state.items.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE)
 
   return (
-    <div className="content-frame">
-      <PageHeader
-        body="Kino parses files locally in the browser, lets you review the mapped rows, then writes only selected items into your account."
-        eyebrow="Import"
-        title="Bring your watch history"
-      />
-
-      <Card className="mb-6 grid gap-5 p-5 md:grid-cols-[1fr_auto] md:items-center">
-        <div>
-          <h2 className="text-lg font-semibold text-kino-text">Letterboxd CSV</h2>
-          <p className="mt-2 text-sm leading-6 text-kino-muted">
-            Choose an export file. You can edit titles, dates, ratings, and inclusion before saving.
-          </p>
-          {state.fileName ? (
-            <p className="mt-2 text-sm font-semibold text-kino-accent">{state.fileName}</p>
-          ) : null}
-        </div>
-        <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-md bg-kino-accent px-4 py-3 text-sm font-semibold text-black">
-          <CloudUpload size={16} />
-          {loading ? 'Parsing...' : 'Choose file'}
-          <input
-            accept=".csv,text/csv"
-            className="sr-only"
-            disabled={loading || importing}
-            onChange={(event) => handleFile(event.target.files?.[0] || null)}
-            type="file"
-          />
-        </label>
-      </Card>
-
-      {state.errors.map((item) => (
-        <p
-          className="mb-2 rounded-md border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200"
-          key={item}
-        >
-          {item}
-        </p>
-      ))}
-      {state.warnings.map((item) => (
-        <p
-          className="mb-2 rounded-md border border-orange-500/40 bg-orange-500/10 px-4 py-3 text-sm text-orange-100"
-          key={item}
-        >
-          {item}
-        </p>
-      ))}
-      {error ? (
-        <p className="mb-2 rounded-md border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-          {error}
-        </p>
-      ) : null}
-
-      {importing ? (
-        <Card className="mb-6 p-5">
-          <div className="mb-3 text-sm font-semibold text-kino-text">
-            Importing {progress.completed} of {progress.total}
-          </div>
-          <ProgressBar value={progress.total ? (progress.completed / progress.total) * 100 : 0} />
-          <div className="mt-3 flex flex-wrap gap-3 text-sm font-medium text-kino-muted">
-            <span>Imported: {progress.imported}</span>
-            <span>Skipped: {progress.skipped}</span>
-            <span>Failed: {progress.failed}</span>
-          </div>
-        </Card>
-      ) : null}
-
-      {importSummary ? (
-        <Card className="mb-6 p-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-kino-text">Import finished</h2>
-              <p className="mt-2 text-sm leading-6 text-kino-muted">
-                Imported: {importSummary.imported} | Skipped: {importSummary.skipped} | Failed:{' '}
-                {importSummary.failed}
-              </p>
-            </div>
-            <Button onClick={() => router.push('/diary')} variant="secondary">
-              View diary
-            </Button>
-          </div>
-        </Card>
-      ) : null}
-
-      {state.items.length === 0 ? (
-        <EmptyState
-          body="Choose an export file above to preview the mapped titles."
-          title="No file selected"
+    <ProtectedContentGate
+      authLoadingFallback={<ProfileSkeleton label="Loading import..." />}
+      emptyFallback={<ProfileSkeleton label="Loading import..." />}
+      errorFallback={<EmptyState body="Please try again." title="Import unavailable" />}
+      pageStatus="content"
+      resolution={resolution}
+      unauthenticatedFallback={<ProtectedEmpty />}
+    >
+      <div className="content-frame">
+        <PageHeader
+          body="Kino parses files locally in the browser, lets you review the mapped rows, then writes only selected items into your account."
+          eyebrow="Import"
+          title="Bring your watch history"
         />
-      ) : (
-        <>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="text-sm font-semibold text-kino-muted">
-              {includedCount} of {state.items.length} items selected
-            </div>
-            <div className="flex gap-3">
-              <Button
-                onClick={() => {
-                  setState(emptyState)
-                  setPage(1)
-                  setError(null)
-                  setImportSummary(null)
-                  setProgress({
-                    completed: 0,
-                    total: 0,
-                    imported: 0,
-                    skipped: 0,
-                    failed: 0,
-                  })
-                }}
-                variant="secondary"
-              >
-                <RotateCcw size={16} />
-                Reset
-              </Button>
-              <Button disabled={importing || includedCount === 0} onClick={handleImport}>
-                <Save size={16} />
-                Import selected
-              </Button>
-            </div>
-          </div>
 
-          <div className="grid gap-3">
-            {paginatedItems.map((item) => (
-              <ImportRow item={item} key={item.id} onChange={updateItem} />
-            ))}
+        <Card className="mb-6 grid gap-5 p-5 md:grid-cols-[1fr_auto] md:items-center">
+          <div>
+            <h2 className="text-lg font-semibold text-kino-text">Letterboxd CSV</h2>
+            <p className="mt-2 text-sm leading-6 text-kino-muted">
+              Choose an export file. You can edit titles, dates, ratings, and inclusion before
+              saving.
+            </p>
+            {state.fileName ? (
+              <p className="mt-2 text-sm font-semibold text-kino-accent">{state.fileName}</p>
+            ) : null}
           </div>
+          <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-md bg-kino-accent px-4 py-3 text-sm font-semibold text-black">
+            <CloudUpload size={16} />
+            {loading ? 'Parsing...' : 'Choose file'}
+            <input
+              accept=".csv,text/csv"
+              className="sr-only"
+              disabled={loading || importing}
+              onChange={(event) => handleFile(event.target.files?.[0] || null)}
+              type="file"
+            />
+          </label>
+        </Card>
 
-          <AppPagination
-            label="Import results pages"
-            onPageChange={setPage}
-            page={page}
-            totalPages={totalPages}
+        {state.errors.map((item) => (
+          <p
+            className="mb-2 rounded-md border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200"
+            key={item}
+          >
+            {item}
+          </p>
+        ))}
+        {state.warnings.map((item) => (
+          <p
+            className="mb-2 rounded-md border border-orange-500/40 bg-orange-500/10 px-4 py-3 text-sm text-orange-100"
+            key={item}
+          >
+            {item}
+          </p>
+        ))}
+        {error ? (
+          <p className="mb-2 rounded-md border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {error}
+          </p>
+        ) : null}
+
+        {importing ? (
+          <Card className="mb-6 p-5">
+            <div className="mb-3 text-sm font-semibold text-kino-text">
+              Importing {progress.completed} of {progress.total}
+            </div>
+            <ProgressBar value={progress.total ? (progress.completed / progress.total) * 100 : 0} />
+            <div className="mt-3 flex flex-wrap gap-3 text-sm font-medium text-kino-muted">
+              <span>Imported: {progress.imported}</span>
+              <span>Skipped: {progress.skipped}</span>
+              <span>Failed: {progress.failed}</span>
+            </div>
+          </Card>
+        ) : null}
+
+        {importSummary ? (
+          <Card className="mb-6 p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-kino-text">Import finished</h2>
+                <p className="mt-2 text-sm leading-6 text-kino-muted">
+                  Imported: {importSummary.imported} | Skipped: {importSummary.skipped} | Failed:{' '}
+                  {importSummary.failed}
+                </p>
+              </div>
+              <Button onClick={() => router.push('/diary')} variant="secondary">
+                View diary
+              </Button>
+            </div>
+          </Card>
+        ) : null}
+
+        {state.items.length === 0 ? (
+          <EmptyState
+            body="Choose an export file above to preview the mapped titles."
+            title="No file selected"
           />
-        </>
-      )}
-    </div>
+        ) : (
+          <>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm font-semibold text-kino-muted">
+                {includedCount} of {state.items.length} items selected
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => {
+                    setState(emptyState)
+                    setPage(1)
+                    setError(null)
+                    setImportSummary(null)
+                    setProgress({
+                      completed: 0,
+                      total: 0,
+                      imported: 0,
+                      skipped: 0,
+                      failed: 0,
+                    })
+                  }}
+                  variant="secondary"
+                >
+                  <RotateCcw size={16} />
+                  Reset
+                </Button>
+                <Button disabled={importing || includedCount === 0} onClick={handleImport}>
+                  <Save size={16} />
+                  Import selected
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid gap-3">
+              {paginatedItems.map((item) => (
+                <ImportRow item={item} key={item.id} onChange={updateItem} />
+              ))}
+            </div>
+
+            <AppPagination
+              label="Import results pages"
+              onPageChange={setPage}
+              page={page}
+              totalPages={totalPages}
+            />
+          </>
+        )}
+      </div>
+    </ProtectedContentGate>
   )
 }
 

@@ -16,14 +16,21 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import placeholderPoster from '@/assets/placeholder-poster.jpg'
 import { useAuth } from '@/hooks/useAuth'
 import { useLanguage } from '@/hooks/useLanguage'
 import { supabase } from '@/utils/supabase'
 import { RatingStars } from '~/components/common/RatingStars'
 import { ScreenHeader } from '~/components/layout/ScreenHeader'
 import { DiaryActionModal } from '~/components/modals/DiaryActionModal'
-import { useTitleDetailsFromTmdb } from '~/hooks/api/useTMDB'
+import {
+  type LocalizedMedia,
+  type LocalizedMediaMap,
+  localizedMediaKey,
+  useLocalizedMediaData,
+} from '~/hooks/data/useLocalizedMediaData'
 import { dbService } from '~/services/database'
+import { getTMDbService } from '~/services/tmdb'
 
 import { UIDiaryEntry } from '~/types'
 
@@ -77,6 +84,9 @@ export default function DiaryScreen() {
       data: grouped[key],
     }))
   }, [entries, language])
+  const localizedEntries = useLocalizedMediaData(
+    useMemo(() => entries.map((entry) => ({ tmdb_id: entry.tmdbId, type: entry.type })), [entries])
+  )
 
   /* Check if user exists before attempting to load diary */
   const loadDiary = useCallback(async () => {
@@ -233,10 +243,18 @@ export default function DiaryScreen() {
     )
   }
 
-  if (loading && !refreshing) {
+  if ((loading || localizedEntries.isPending) && !refreshing) {
     return (
       <View className="flex-1 items-center justify-center bg-primary">
         <ActivityIndicator size="large" color="#1DB954" />
+      </View>
+    )
+  }
+
+  if (localizedEntries.isError) {
+    return (
+      <View className="flex-1 items-center justify-center bg-primary p-4">
+        <Text className="text-text-secondary">{t('common.failed')}</Text>
       </View>
     )
   }
@@ -279,7 +297,11 @@ export default function DiaryScreen() {
               </View>
             )}
             renderItem={({ item }) => (
-              <DiaryEntryCard item={item} onOpenActionModal={openActionModal} />
+              <DiaryEntryCard
+                item={item}
+                localizedData={localizedEntries}
+                onOpenActionModal={openActionModal}
+              />
             )}
           />
         )}
@@ -297,9 +319,11 @@ export default function DiaryScreen() {
 
 function DiaryEntryCard({
   item,
+  localizedData,
   onOpenActionModal,
 }: {
   item: UIDiaryEntry
+  localizedData: LocalizedMediaMap
   onOpenActionModal: (entry: UIDiaryEntry) => void
 }) {
   const router = useRouter()
@@ -307,10 +331,11 @@ function DiaryEntryCard({
   const date = new Date(item.watchedAt)
   const day = format(date, 'd')
 
-  // Fetch localized details dynamically based on current app language
-  const { data: tmdbTitle } = useTitleDetailsFromTmdb(item.tmdbId, item.type)
-  const displayTitle =
-    (item.type === 'movie' ? tmdbTitle?.title : tmdbTitle?.name) || item.titleName
+  const localized = localizedData[localizedMediaKey({ tmdb_id: item.tmdbId, type: item.type })] as
+    | LocalizedMedia
+    | undefined
+  const displayTitle = localized?.title || t('diary.unknownTitle')
+  const localizedPoster = getTMDbService().getImageUrl(localized?.poster_path ?? null, 'w200')
 
   return (
     <TouchableOpacity
@@ -326,11 +351,7 @@ function DiaryEntryCard({
       <View className="flex-1 flex-row items-center">
         {/* Poster */}
         <Image
-          source={
-            item.coverImage
-              ? { uri: item.coverImage }
-              : { uri: 'https://via.placeholder.com/100x150' }
-          }
+          source={localizedPoster ? { uri: localizedPoster } : placeholderPoster}
           className="mr-3 h-14 w-10 rounded-md border border-surface bg-surface"
           resizeMode="cover"
         />

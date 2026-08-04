@@ -32,8 +32,9 @@ import { GroupedAvatar } from '~/components/common/GroupedAvatar'
 import { Skeleton } from '~/components/common/Skeleton'
 import { CreateWatchlistModal } from '~/components/modals/CreateWatchlistModal'
 import { ShareCodeBadge } from '~/components/watchlist/ShareCodeBadge'
+import { resolveLocalizedMediaPresentation } from '~/hooks/data/localizedMediaPresentation'
+import { useLocalizedMediaData } from '~/hooks/data/useLocalizedMediaData'
 import { dbService } from '~/services/database'
-import { getTMDbService } from '~/services/tmdb'
 import type { UserProfile, Watchlist } from '~/types'
 import type { SupabaseTitle, SupabaseWatchlistItem } from '~/types/supabase'
 
@@ -142,6 +143,12 @@ export default function WatchlistDetailScreen() {
       (a, b) => new Date(b.added_at).getTime() - new Date(a.added_at).getTime()
     )
   }, [items])
+  const localizedMedia = useLocalizedMediaData(
+    useMemo(
+      () => sortedItems.map((item) => ({ tmdb_id: item.title.tmdb_id, type: item.title.type })),
+      [sortedItems]
+    )
+  )
 
   const copyProgress = useSharedValue(0)
   const codeOpacity = useSharedValue(1)
@@ -275,7 +282,7 @@ export default function WatchlistDetailScreen() {
     )
   }
 
-  if (loading && !refreshing) {
+  if ((loading && !refreshing) || localizedMedia.isPending) {
     return <Skeleton layout="watchlist-detail" />
   }
 
@@ -405,8 +412,17 @@ export default function WatchlistDetailScreen() {
           />
         }
         renderItem={({ item }) => {
-          const tmdb = getTMDbService()
-          const imageUrl = tmdb.getImageUrl(item.title.cover_image, 'w300')
+          const localized = resolveLocalizedMediaPresentation({
+            data: localizedMedia,
+            errors: localizedMedia.errors,
+            isError: localizedMedia.isError,
+            missing: localizedMedia.missing,
+            request: { tmdb_id: item.title.tmdb_id, type: item.title.type },
+            unknownTitle: t('diary.unknownTitle'),
+          })
+          const imageUrl = localized?.poster_path
+            ? `https://image.tmdb.org/t/p/w300${localized.poster_path}`
+            : null
           const addedBy = item.added_by_user
 
           const handlePress = () => {

@@ -1,4 +1,4 @@
-import type { ImportMoviePayload, ImportTitleItem, ParsedImportResult } from './types'
+import type { ImportMoviePayload, ImportTitleItem, ParsedImportResult } from './types.ts'
 
 type CsvRecord = Record<string, string>
 

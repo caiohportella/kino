@@ -1,13 +1,16 @@
 // Hook for managing follow system operations
-import { useCallback, useEffect, useState } from 'react'
+import { profileQueryKeys } from '@kino/core/cache'
+import { useQueryClient } from '@tanstack/react-query'
+import { useCallback, useState } from 'react'
 import { Alert } from 'react-native'
 import { dbService } from '~/services/database'
 import type { FollowerInfo } from '~/types'
+import type { MobileProfileRelationship } from './profileQueryOptions'
 
 export interface UseFollowSystemReturn {
-  followersCount: number
-  followingCount: number
-  isFollowing: boolean
+  followersCount: number | undefined
+  followingCount: number | undefined
+  isFollowing: boolean | undefined
   handleFollowToggle: () => Promise<void>
   handleOpenUserList: (type: 'followers' | 'following') => Promise<void>
   handleUserListAction: (userId: string) => Promise<void>
@@ -21,11 +24,18 @@ export interface UseFollowSystemReturn {
 
 export function useFollowSystem(
   targetUserId: string | undefined,
-  isOwnProfile: boolean
+  isOwnProfile: boolean,
+  viewerId: string | undefined,
+  relationship: MobileProfileRelationship | undefined,
+  relationshipAvailable: boolean
 ): UseFollowSystemReturn {
-  const [followersCount, setFollowersCount] = useState(0)
-  const [followingCount, setFollowingCount] = useState(0)
-  const [isFollowing, setIsFollowing] = useState(false)
+  const queryClient = useQueryClient()
+  const relationshipKey = targetUserId
+    ? profileQueryKeys.relationship({
+        profileId: targetUserId,
+        viewerId: viewerId || 'anonymous',
+      })
+    : null
 
   // User List Modal State
   const [userListModalVisible, setUserListModalVisible] = useState(false)
@@ -34,46 +44,58 @@ export function useFollowSystem(
   const [userListUsers, setUserListUsers] = useState<FollowerInfo[]>([])
   const [userListLoading, setUserListLoading] = useState(false)
 
-  // Load follow counts and status
-  const loadFollowData = useCallback(async () => {
-    if (!targetUserId) return
+  const updateRelationship = useCallback(
+    (update: (current: MobileProfileRelationship) => MobileProfileRelationship) => {
+      if (!relationshipKey) return
+      queryClient.setQueryData<MobileProfileRelationship>(relationshipKey, (current) =>
+        current ? update(current) : current
+      )
+    },
+    [queryClient, relationshipKey]
+  )
 
-    try {
-      const [followCounts, followStatus] = await Promise.all([
-        dbService.getFollowCounts(targetUserId),
-        !isOwnProfile ? dbService.checkFollowStatus(targetUserId) : Promise.resolve(false),
-      ])
-
-      setFollowersCount(followCounts.followers)
-      setFollowingCount(followCounts.following)
-      setIsFollowing(followStatus)
-    } catch (error) {
-      console.error('Failed to load follow data', error)
-    }
-  }, [targetUserId, isOwnProfile])
-
-  useEffect(() => {
-    loadFollowData()
-  }, [loadFollowData])
+  const invalidateRelationship = useCallback(async () => {
+    if (!relationshipKey) return
+    await queryClient.invalidateQueries({ exact: true, queryKey: relationshipKey })
+  }, [queryClient, relationshipKey])
 
   const handleFollowToggle = useCallback(async () => {
-    if (!targetUserId) return
+    if (!relationshipAvailable) return
+    if (!targetUserId || !viewerId || isOwnProfile || !relationship) return
 
     try {
-      if (isFollowing) {
+      if (relationship?.isFollowing) {
         await dbService.unfollowUser(targetUserId)
-        setIsFollowing(false)
-        setFollowersCount((prev) => Math.max(0, prev - 1))
+        updateRelationship((current) => ({
+          ...current,
+          counts: {
+            ...current.counts,
+            followers: Math.max(0, current.counts.followers - 1),
+          },
+          isFollowing: false,
+        }))
       } else {
         await dbService.followUser(targetUserId)
-        setIsFollowing(true)
-        setFollowersCount((prev) => prev + 1)
+        updateRelationship((current) => ({
+          ...current,
+          counts: { ...current.counts, followers: current.counts.followers + 1 },
+          isFollowing: true,
+        }))
       }
+      await invalidateRelationship()
     } catch (error) {
       console.error('Failed to toggle follow status', error)
       Alert.alert('Error', 'Failed to update follow status')
     }
-  }, [targetUserId, isFollowing])
+  }, [
+    invalidateRelationship,
+    isOwnProfile,
+    relationship,
+    relationshipAvailable,
+    targetUserId,
+    updateRelationship,
+    viewerId,
+  ])
 
   const handleOpenUserList = useCallback(
     async (type: 'followers' | 'following') => {
@@ -106,16 +128,25 @@ export function useFollowSystem(
         if (userListType === 'followers') {
           // Remove follower
           await dbService.removeFollower(userId)
-          setFollowersCount((prev) => Math.max(0, prev - 1))
+          updateRelationship((current) => ({
+            ...current,
+            counts: {
+              ...current.counts,
+              followers: Math.max(0, current.counts.followers - 1),
+            },
+          }))
         } else {
           // Unfollow user
           await dbService.unfollowUser(userId)
-          setFollowingCount((prev) => Math.max(0, prev - 1))
-          // If we just unfollowed the target user from the modal (unlikely context but possible), update isFollowing
-          if (userId === targetUserId) {
-            setIsFollowing(false)
-          }
+          updateRelationship((current) => ({
+            ...current,
+            counts: {
+              ...current.counts,
+              following: Math.max(0, current.counts.following - 1),
+            },
+          }))
         }
+        await invalidateRelationship()
         // Update list
         setUserListUsers((prev) => prev.filter((u) => u.id !== userId))
       } catch (error) {
@@ -123,13 +154,13 @@ export function useFollowSystem(
         Alert.alert('Error', 'Failed to perform action')
       }
     },
-    [userListType, targetUserId]
+    [invalidateRelationship, updateRelationship, userListType]
   )
 
   return {
-    followersCount,
-    followingCount,
-    isFollowing,
+    followersCount: relationshipAvailable ? relationship?.counts.followers : undefined,
+    followingCount: relationshipAvailable ? relationship?.counts.following : undefined,
+    isFollowing: relationshipAvailable ? relationship?.isFollowing : undefined,
     handleFollowToggle,
     handleOpenUserList,
     handleUserListAction,

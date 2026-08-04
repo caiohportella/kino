@@ -22,14 +22,14 @@ import { GlassContainer } from '~/components/ui/GlassContainer'
 export default function LoginScreen() {
   const router = useRouter()
   const { t } = useTranslation()
-  const { user, signInWithEmail, signInWithGoogle, signInWithOtp } = useAuth()
+  const { resolution, signInWithEmail, signInWithGoogle, signInWithOtp } = useAuth()
 
   // Redirect if user is authenticated (e.g. via deep link)
   useEffect(() => {
-    if (user) {
+    if (resolution.status === 'authenticated') {
       router.replace('/(tabs)')
     }
-  }, [router, user])
+  }, [resolution.status, router])
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

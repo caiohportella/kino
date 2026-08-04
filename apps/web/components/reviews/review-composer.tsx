@@ -25,16 +25,10 @@ export function ReviewComposer({
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-kino-muted">
           <span>
-            {t('reviews.reviewedBy')}{' '}
-            <ReviewAuthor author={author} variant="name" />
+            {t('reviews.reviewedBy')} <ReviewAuthor author={author} variant="name" />
           </span>
           {rating ? (
-            <RatingStars
-              label={t('reviews.ratingLabel')}
-              readonly
-              size="xs"
-              value={rating}
-            />
+            <RatingStars label={t('reviews.ratingLabel')} readonly size="xs" value={rating} />
           ) : null}
         </div>
         <textarea

@@ -1,26 +1,30 @@
 'use client'
 
 import {
+  activityQueryKeys,
   insertViewerReview,
   type KinoReviewAuthor,
   type MediaType,
-  profileReviewKeys,
   type ProfileReviewsPage,
+  profileReviewKeys,
+  type Review,
   removeProfileReview,
   removeReview,
   replaceProfileReview,
   replaceReview,
-  type Review,
   reviewKeys,
   type TitleReviewsPage,
-  updateReviewContent,
   updateProfileReviewLike,
+  updateReviewContent,
   updateReviewLike,
 } from '@kino/core'
 import { type InfiniteData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useReviewLikeMutation as useSharedReviewLikeMutation } from '@/hooks/use-review-like-mutation'
+import { invalidateProfileMutation } from '@/lib/profile-invalidation'
 import { db } from '@/lib/services'
+import { useAuthStore } from '@/stores/auth-store'
 
-type Snapshot = Array<[readonly unknown[], unknown]>
+type Snapshot = [readonly unknown[], unknown][]
 type ProfileReviewCache = ProfileReviewsPage | InfiniteData<ProfileReviewsPage>
 
 function restoreSnapshot(
@@ -65,6 +69,7 @@ export function useTitleReviews(titleId: string, enabled = true) {
 
 export function useCreateReviewMutation() {
   const queryClient = useQueryClient()
+  const viewerId = useAuthStore((state) => state.user?.id)
   return useMutation({
     mutationFn: ({
       titleId,
@@ -116,15 +121,24 @@ export function useCreateReviewMutation() {
       })
     },
     onSettled: (_data, _error, variables) => {
+      const authorProfileId = variables.author.id
       queryClient.invalidateQueries({ queryKey: reviewKeys.title(variables.titleId) })
       queryClient.invalidateQueries({ queryKey: profileReviewKeys.all })
-      queryClient.invalidateQueries({ queryKey: ['profile'] })
+      queryClient.invalidateQueries({ queryKey: activityQueryKeys.all })
+      if (viewerId) {
+        void invalidateProfileMutation(queryClient, {
+          kind: 'review',
+          profileId: authorProfileId,
+          visibilityScope: { kind: 'authenticated', userId: viewerId },
+        })
+      }
     },
   })
 }
 
 export function useUpdateReviewMutation(titleId: string) {
   const queryClient = useQueryClient()
+  const viewerId = useAuthStore((state) => state.user?.id)
   return useMutation({
     mutationFn: ({ reviewId, content }: { reviewId: string; content: string }) =>
       db.updateReview(reviewId, content),
@@ -164,12 +178,21 @@ export function useUpdateReviewMutation(titleId: string) {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: reviewKeys.title(titleId) })
       queryClient.invalidateQueries({ queryKey: profileReviewKeys.all })
+      queryClient.invalidateQueries({ queryKey: activityQueryKeys.all })
+      if (viewerId) {
+        void invalidateProfileMutation(queryClient, {
+          kind: 'review',
+          profileId: viewerId,
+          visibilityScope: { kind: 'authenticated', userId: viewerId },
+        })
+      }
     },
   })
 }
 
 export function useDeleteReviewMutation(titleId: string) {
   const queryClient = useQueryClient()
+  const viewerId = useAuthStore((state) => state.user?.id)
   return useMutation({
     mutationFn: (reviewId: string) => db.deleteReview(reviewId),
     onMutate: async (reviewId) => {
@@ -190,37 +213,18 @@ export function useDeleteReviewMutation(titleId: string) {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: reviewKeys.title(titleId) })
       queryClient.invalidateQueries({ queryKey: profileReviewKeys.all })
-      queryClient.invalidateQueries({ queryKey: ['profile'] })
+      queryClient.invalidateQueries({ queryKey: activityQueryKeys.all })
+      if (viewerId) {
+        void invalidateProfileMutation(queryClient, {
+          kind: 'review',
+          profileId: viewerId,
+          visibilityScope: { kind: 'authenticated', userId: viewerId },
+        })
+      }
     },
   })
 }
 
 export function useReviewLikeMutation(titleId: string) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: ({ reviewId, liked }: { reviewId: string; liked: boolean }) =>
-      liked ? db.unlikeReview(reviewId) : db.likeReview(reviewId),
-    onMutate: async ({ reviewId, liked }) => {
-      await Promise.all([
-        queryClient.cancelQueries({ queryKey: reviewKeys.title(titleId) }),
-        queryClient.cancelQueries({ queryKey: profileReviewKeys.all }),
-      ])
-      const previous = [
-        ...queryClient.getQueriesData({ queryKey: reviewKeys.title(titleId) }),
-        ...queryClient.getQueriesData({ queryKey: profileReviewKeys.all }),
-      ]
-      updateTitlePages(queryClient, titleId, (page) => updateReviewLike(page, reviewId, !liked))
-      updateProfileReviewCaches(
-        queryClient,
-        (page) => updateProfileReviewLike(page, reviewId, !liked) ?? page
-      )
-      return { previous }
-    },
-    onError: (_error, _variables, context) =>
-      restoreSnapshot(queryClient, context?.previous as Snapshot | undefined),
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: reviewKeys.title(titleId) })
-      queryClient.invalidateQueries({ queryKey: profileReviewKeys.all })
-    },
-  })
+  return useSharedReviewLikeMutation({ kind: 'title', titleId })
 }

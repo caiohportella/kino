@@ -2,9 +2,62 @@
   "tabs": {
     "home": "Home",
     "search": "Cerca",
+    "activity": "Attività",
     "diary": "Diario",
     "watchlists": "Liste",
     "profile": "Profilo"
+  },
+  "activity": {
+    "did": "ha",
+    "rated": "{{user}} ha valutato {{title}} il {{date}}",
+    "reviewed": "recensito",
+    "watched": "{{user}} ha guardato {{title}} il {{date}}",
+    "rewatched": "rivisto",
+    "addToWatchlist": "{{user}} ha aggiunto {{title}} a una lista il {{date}}",
+    "createdWatchlist": "{{user}} ha creato la lista {{title}} il {{date}}",
+    "openTitle": "apri il titolo",
+    "loadMore": "Carica altro",
+    "end": "Hai raggiunto la fine della tua attività.",
+    "emptyTitle": "Nessun'attività per ora",
+    "emptyBody": "Il tuo feed mostrerà valutazioni, recensioni, visioni e aggiunte a liste dal tuo account e da chi segui.",
+    "error": "Impossibile caricare l'attività.",
+    "feedTitle": "Attività",
+    "feedSubtitle": "Cosa guardano, valutano e recensiscono i tuoi amici.",
+    "endOfFeed": "Hai visto tutto",
+    "justNow": "Proprio ora",
+    "minuteAgo": "{{count}} minuto fa",
+    "minutesAgo": "{{count}} minuti fa",
+    "hourAgo": "{{count}} ora fa",
+    "hoursAgo": "{{count}} ore fa",
+    "dayAgo": "{{count}} giorno fa",
+    "daysAgo": "{{count}} giorni fa",
+    "weekAgo": "{{count}} settimana fa",
+    "weeksAgo": "{{count}} settimane fa",
+    "monthAgo": "{{count}} mese fa",
+    "monthsAgo": "{{count}} mesi fa",
+    "yearAgo": "{{count}} anno fa",
+    "yearsAgo": "{{count}} anni fa",
+    "filters": {
+      "you": "Tu",
+      "following": "Seguiti"
+    },
+    "feedSubtitleYou": "I tuoi titoli visti e le tue note, dal più recente.",
+    "feedSubtitleFollowing": "Le attività delle persone che segui, dalle più recenti.",
+    "emptyYouTitle": "Nessuna attività ancora",
+    "emptyYouBody": "Inizia a registrare visioni e recensioni per costruire il tuo feed.",
+    "emptyFollowingTitle": "Nessuna attività dai seguiti",
+    "emptyFollowingBody": "Segui altre persone per vedere qui visioni e recensioni.",
+    "loading": "Caricamento attività...",
+    "watchedReviewed": "{{user}} ha guardato e recensito {{title}} il {{date}}",
+    "pagination": {
+      "label": "Pagine attività",
+      "summary": "Pagina {{currentPage}} di {{totalPages}}",
+      "currentPage": "Pagina {{page}}",
+      "goToPage": "Vai alla pagina {{page}}",
+      "previous": "Precedente",
+      "next": "Successivo",
+      "morePages": "Altre pagine"
+    }
   },
   "accountMenu": {
     "open": "Apri menu account",
@@ -113,6 +166,7 @@
     "diaryIllustration": "Una bobina pronta per una nuova voce del diario",
     "searchIllustration": "Una bobina alla ricerca di un titolo mancante",
     "watchlistIllustration": "Una bobina che segna un titolo da vedere",
+    "activityIllustration": "Una bobina con punti di attività sociale",
     "missingIllustration": "Una bobina con un fotogramma mancante"
   },
   "diaryFilters": {
@@ -197,7 +251,11 @@
   "watchlists": {
     "title": "Liste",
     "visibility": "Visibilità",
-    "visibilityLabels": { "private": "Privata", "shared": "Condivisa", "public": "Pubblica" },
+    "visibilityLabels": {
+      "private": "Privata",
+      "shared": "Condivisa",
+      "public": "Pubblica"
+    },
     "visibilityDescriptions": {
       "private": "Solo tu puoi accedere a questa lista.",
       "shared": "Accessibile solo tramite link o codice di invito.",

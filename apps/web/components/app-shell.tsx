@@ -1,6 +1,7 @@
 'use client'
 
-import { BookOpen, Compass, ListChecks, Menu, Search } from 'lucide-react'
+import { hasAuthenticatedUser } from '@kino/core/auth'
+import { Activity, BookOpen, Compass, ListChecks, Menu, Search } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { type ReactNode, useEffect } from 'react'
@@ -24,6 +25,7 @@ import { useAuthStore } from '@/stores/auth-store'
 const authenticatedNavItems = [
   { href: '/discover', labelKey: 'tabs.home', icon: Compass },
   { href: '/search', labelKey: 'tabs.search', icon: Search },
+  { href: '/activity', labelKey: 'tabs.activity', icon: Activity },
   { href: '/diary', labelKey: 'tabs.diary', icon: BookOpen },
   { href: '/watchlists', labelKey: 'tabs.watchlists', icon: ListChecks },
 ]
@@ -38,14 +40,13 @@ const publicNavItems = [
 /** Redirects authenticated users from the marketing landing to /discover */
 function LandingRedirect() {
   const router = useRouter()
-  const user = useAuthStore((state) => state.user)
-  const loading = useAuthStore((state) => state.loading)
+  const resolution = useAuthStore((state) => state.resolution)
 
   useEffect(() => {
-    if (!loading && user) {
+    if (hasAuthenticatedUser(resolution)) {
       router.replace('/discover')
     }
-  }, [user, loading, router])
+  }, [resolution, router])
 
   return null
 }
@@ -53,7 +54,7 @@ function LandingRedirect() {
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const user = useAuthStore((state) => state.user)
-  const loading = useAuthStore((state) => state.loading)
+  const resolution = useAuthStore((state) => state.resolution)
   const { t } = useTranslation()
 
   // Auth callback route: render bare
@@ -72,7 +73,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   // While auth resolves, show a loading state
-  if (loading) {
+  if (resolution.status === 'resolving' && !hasAuthenticatedUser(resolution)) {
     return (
       <main className="grid min-h-screen place-items-center bg-kino-bg p-6">
         <HomeSkeleton label={t('common.loading')} />

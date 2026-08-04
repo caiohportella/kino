@@ -11,15 +11,16 @@ import type {
   WatchType,
 } from '@kino/core'
 import {
+  activityQueryKeys,
   calculateSeasonRatingSummary,
   formatDate as formatKinoDate,
   formatRuntime,
   getTMDbImageUrl,
   isCompletedSeriesStatus,
   isFutureDateOnly,
+  toReviewAuthor,
   transformMovieToTitleDetails,
   transformTVToTitleDetails,
-  toReviewAuthor,
 } from '@kino/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { enUS, fr, it, nb, ptBR } from 'date-fns/locale'
@@ -90,14 +91,18 @@ import { WatchlistDialog } from '@/components/watchlist-dialog'
 import { useFollowedEpisodeRatings } from '@/hooks/use-followed-ratings'
 import { storeAuthRedirect } from '@/lib/auth-redirect'
 import { useTranslation } from '@/lib/i18n'
+import { invalidateProfileMutation } from '@/lib/profile-invalidation'
 import { parseResourceSegment, personPath } from '@/lib/routes'
 import { db, getTmdb } from '@/lib/services'
+import { type LocalizedTitleSummary, titleDetailsQueryOptions } from '@/lib/title-queries'
 import { cn } from '@/lib/utils'
 import { publishWatchlistChange } from '@/lib/watchlist-cache-sync'
 import { useAuthStore } from '@/stores/auth-store'
 import { useSettingsStore } from '@/stores/settings-store'
 
 const ANON_TITLE_ID = '00000000-0000-0000-0000-000000000000'
+type WebCanonicalTitleDetails = Omit<TitleDetails, 'id'> &
+  LocalizedTitleSummary & { kinoId: string }
 const EXTERNAL_LOGOS = {
   letterboxd: 'https://a.ltrbxd.com/logos/letterboxd-decal-dots-neg-rgb.svg',
   tmdb: 'https://www.themoviedb.org/assets/2/v4/logos/v2/blue_square_2-d537fb228cf3ded904ef09b136fe3fec72548ebc1fea3fbbd1ad9e36364db38b.svg',
@@ -112,6 +117,20 @@ function parseTmdbDate(value: string) {
 
 function formatDate(value: string) {
   return formatKinoDate(parseTmdbDate(value) || value)
+}
+
+function localeRegion(locale: string) {
+  const regions: Record<string, string> = { en: 'US', fr: 'FR', it: 'IT', no: 'NO', pt: 'BR' }
+  return regions[locale] ?? 'US'
+}
+
+function tmdbPath(url: string | null) {
+  if (!url) return null
+  const marker = '/t/p/'
+  const index = url.indexOf(marker)
+  if (index < 0) return url
+  const pathStart = url.indexOf('/', index + marker.length)
+  return pathStart < 0 ? null : url.slice(pathStart)
 }
 
 function getUpcomingSeason(title: TitleDetails) {
@@ -157,49 +176,72 @@ export default function TitlePage() {
   const [diaryCalendarOpen, setDiaryCalendarOpen] = useState(false)
   const [diaryDate, setDiaryDate] = useState(() => new Date())
 
-  const titleQuery = useQuery({
-    queryKey: ['title-metadata', tmdbId, type, language],
-    queryFn: async () => {
-      const tmdb = getTmdb()
-      tmdb.setLanguage(language)
-      const details =
-        type === 'movie'
-          ? transformMovieToTitleDetails(
-              tmdb,
-              await tmdb.getMovieDetails(tmdbId),
-              await tmdb.getMovieCredits(tmdbId)
-            )
-          : transformTVToTitleDetails(
-              tmdb,
-              await tmdb.getTVDetails(tmdbId),
-              await tmdb.getTVCredits(tmdbId)
-            )
+  const rawTitleQuery = useQuery(
+    titleDetailsQueryOptions<WebCanonicalTitleDetails>(queryClient, {
+      id: tmdbId,
+      locale: language,
+      mediaType: type,
+      region: localeRegion(language),
+      scope: { kind: 'public' },
+      fetchDetails: async () => {
+        const tmdb = getTmdb()
+        tmdb.setLanguage(language)
+        const details =
+          type === 'movie'
+            ? transformMovieToTitleDetails(
+                tmdb,
+                await tmdb.getMovieDetails(tmdbId),
+                await tmdb.getMovieCredits(tmdbId)
+              )
+            : transformTVToTitleDetails(
+                tmdb,
+                await tmdb.getTVDetails(tmdbId),
+                await tmdb.getTVCredits(tmdbId)
+              )
 
-      let id = ANON_TITLE_ID
-      try {
-        id = await db.getOrCreateTitle(details)
-      } catch (error) {
-        if (
-          !(
-            typeof error === 'object' &&
-            error !== null &&
-            'code' in error &&
-            error.code === '42501'
-          )
-        ) {
-          throw error
+        let id = ANON_TITLE_ID
+        try {
+          id = await db.getOrCreateTitle(details)
+        } catch (error) {
+          if (
+            !(
+              typeof error === 'object' &&
+              error !== null &&
+              'code' in error &&
+              error.code === '42501'
+            )
+          ) {
+            throw error
+          }
         }
-      }
 
-      return {
-        ...details,
-        id,
-        averageRating: 0,
-        ratingCount: 0,
-      } satisfies TitleDetails
-    },
-    enabled: Number.isFinite(tmdbId),
-  })
+        const titleDetails = {
+          ...details,
+          id,
+          averageRating: 0,
+          ratingCount: 0,
+        } satisfies TitleDetails
+        const { id: kinoId, ...presentation } = titleDetails
+        return {
+          ...presentation,
+          backdropPath: tmdbPath(titleDetails.backdropImage),
+          id: tmdbId,
+          kinoId,
+          mediaType: type,
+          posterPath: tmdbPath(titleDetails.coverImage),
+        } satisfies WebCanonicalTitleDetails
+      },
+    })
+  )
+  const titleData: TitleDetails | undefined =
+    rawTitleQuery.data && 'kinoId' in rawTitleQuery.data
+      ? { ...rawTitleQuery.data, id: rawTitleQuery.data.kinoId }
+      : undefined
+  const titleQuery = {
+    ...rawTitleQuery,
+    data: titleData,
+    isLoading: rawTitleQuery.isPending || rawTitleQuery.isPlaceholderData,
+  }
 
   const title = titleQuery.data
   const currentProfileQuery = useQuery({
@@ -278,7 +320,15 @@ export default function TitlePage() {
       queryClient.invalidateQueries({
         queryKey: ['title-stats', title?.id, type],
       })
-      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+      queryClient.invalidateQueries({ queryKey: activityQueryKeys.all })
+      if (user?.id) {
+        void invalidateProfileMutation(queryClient, {
+          kind: 'rating-diary',
+          mediaType: type,
+          profileId: user.id,
+          visibilityScope: { kind: 'authenticated', userId: user.id },
+        })
+      }
     },
   })
 
@@ -299,7 +349,15 @@ export default function TitlePage() {
         queryKey: ['title-stats', title?.id, type],
       })
       queryClient.invalidateQueries({ queryKey: ['diary', user?.id] })
-      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+      queryClient.invalidateQueries({ queryKey: activityQueryKeys.all })
+      if (user?.id) {
+        void invalidateProfileMutation(queryClient, {
+          kind: 'rating-diary',
+          mediaType: 'movie',
+          profileId: user.id,
+          visibilityScope: { kind: 'authenticated', userId: user.id },
+        })
+      }
     },
   })
 
@@ -317,7 +375,15 @@ export default function TitlePage() {
         queryKey: ['title-user-data', title?.id, user?.id],
       })
       queryClient.invalidateQueries({ queryKey: ['diary', user?.id] })
-      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+      queryClient.invalidateQueries({ queryKey: activityQueryKeys.all })
+      if (user?.id && title) {
+        void invalidateProfileMutation(queryClient, {
+          kind: 'rating-diary',
+          mediaType: title.type,
+          profileId: user.id,
+          visibilityScope: { kind: 'authenticated', userId: user.id },
+        })
+      }
       setDiaryCalendarOpen(false)
       setDiaryDate(new Date())
     },
@@ -437,7 +503,7 @@ export default function TitlePage() {
       {type === 'movie' && isNowPlayingInBrazil ? (
         <Button
           render={
-            <Link href={ticketsUrl} target="_blank">
+            <Link className="w-full sm:w-auto" href={ticketsUrl} target="_blank">
               <Ticket size={17} />
               {t('title.buyCinemaTickets')}
             </Link>
@@ -458,7 +524,7 @@ export default function TitlePage() {
             <h2 className="text-xl font-semibold text-kino-text">
               {t('title.synopsis', { defaultValue: 'Synopsis' })}
             </h2>
-            <p className="max-w-4xl text-base leading-7 text-kino-text">
+            <p className="max-w-4xl text-left text-base leading-7 text-kino-text">
               {title.synopsis ||
                 t('title.noSynopsis', {
                   defaultValue: 'No synopsis is available.',
@@ -657,6 +723,7 @@ function TitleHeader({
   upcomingSeason: ReturnType<typeof getUpcomingSeason>
 }) {
   const { t } = useTranslation()
+  const summary = { posterPath: title.coverImage, title: title.title }
 
   return (
     <section className="relative mb-6 min-h-155 overflow-hidden rounded-md border border-white/10 bg-kino-surface md:min-h-147">
@@ -676,12 +743,12 @@ function TitleHeader({
 
       <div className="relative z-10 grid min-h-155 content-end gap-5 p-5 md:min-h-147 md:grid-cols-[184px_1fr] md:items-end md:p-6">
         <Poster
-          className="w-36 border border-white/10 shadow-[0_18px_42px_rgb(0_0_0/0.35)] md:w-full"
-          src={title.coverImage}
-          title={title.title}
+          className="mx-auto w-36 border border-white/10 shadow-[0_18px_42px_rgb(0_0_0/0.35)] md:mx-0 md:w-full"
+          src={summary.posterPath}
+          title={summary.title}
         />
         <div className="min-w-0">
-          <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-kino-muted">
+          <div className="mb-2 flex flex-wrap justify-center gap-x-3 gap-y-1 md:justify-start text-center text-sm text-kino-muted md:text-left">
             <span>{title.type === 'tv' ? t('common.tv') : t('common.movie')}</span>
             <span>{title.year || 'TBA'}</span>
             {title.runtime ? <span>{formatRuntime(title.runtime)}</span> : null}
@@ -692,11 +759,11 @@ function TitleHeader({
               </span>
             ) : null}
           </div>
-          <h1 className="max-w-4xl text-3xl font-semibold text-kino-text md:text-4xl">
-            {title.title}
+          <h1 className="max-w-4xl text-center text-3xl font-semibold text-kino-text md:text-left md:text-4xl">
+            {summary.title}
           </h1>
           {title.genres.length > 0 ? (
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap justify-center gap-2 md:justify-start">
               {title.genres.slice(0, 5).map((genre) => (
                 <span
                   className="rounded-md border border-white/10 bg-white/4 px-2.5 py-1 text-xs font-semibold text-kino-muted"
@@ -708,7 +775,7 @@ function TitleHeader({
             </div>
           ) : null}
           {upcomingSeason ? (
-            <div className="mt-4 flex w-fit max-w-full items-center gap-2 rounded-md border border-kino-accent/35 bg-kino-accent/10 px-3 py-2 text-sm font-semibold text-kino-text">
+            <div className="mt-4 flex w-fit max-w-full items-center gap-2 rounded-md border border-kino-accent/35 bg-kino-accent/10 px-3 py-2 text-left text-sm font-semibold text-kino-text">
               <CalendarDays aria-hidden="true" size={16} />
               <span>
                 {t('seasons.newSeasonComing', {
@@ -772,7 +839,13 @@ function WatchlistPicker({
         queryKey: ['title-user-data', titleId, userId],
       })
       queryClient.invalidateQueries({ queryKey: ['watchlists', userId] })
-      queryClient.invalidateQueries({ queryKey: ['profile', userId] })
+      if (userId) {
+        void invalidateProfileMutation(queryClient, {
+          kind: 'watchlist',
+          profileId: userId,
+          visibilityScope: { kind: 'authenticated', userId },
+        })
+      }
       queryClient.invalidateQueries({ queryKey: ['public-watchlists'] })
     },
   })
@@ -860,6 +933,7 @@ function WatchlistPicker({
             queryKey: ['watchlist-picker', userId, titleId],
           })
           if (userId) queryClient.invalidateQueries({ queryKey: ['watchlists', userId] })
+          queryClient.invalidateQueries({ queryKey: activityQueryKeys.all })
         }}
         open={createOpen}
       />
@@ -1292,7 +1366,14 @@ function SeasonEpisodes({
     queryClient.invalidateQueries({
       queryKey: ['title-stats', title.id, title.type],
     })
-    queryClient.invalidateQueries({ queryKey: ['profile', userId] })
+    if (userId) {
+      void invalidateProfileMutation(queryClient, {
+        kind: 'rating-diary',
+        mediaType: 'tv',
+        profileId: userId,
+        visibilityScope: { kind: 'authenticated', userId },
+      })
+    }
   }
 
   function syncSavedRatings(savedRatings: EpisodeRating[]) {

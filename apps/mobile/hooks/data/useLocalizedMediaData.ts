@@ -1,10 +1,24 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useLanguage } from '~/hooks/useLanguage'
-import { getTMDbService } from '~/services/tmdb'
+import { LOCALIZED_TITLE_GC_TIME, LOCALIZED_TITLE_STALE_TIME } from '@kino/core/cache'
+import { LOCALIZED_TITLE_BATCH_SCHEMA_VERSION } from '@kino/core/localization'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMemo } from 'react'
+import {
+  hydrateLocalizedTitleBatch,
+  requestLocalizedTitleBatch,
+} from '~/hooks/data/localizedTitleBatch'
+import { useReadyLanguage } from '~/hooks/useLanguage'
 
 export interface LocalizedMedia {
+  backdrop_path: string | null
   title: string
   poster_path: string | null
+}
+
+export type LocalizedMediaMap = Record<string, LocalizedMedia | undefined> & {
+  readonly errors: Array<{ tmdbId: number; type: 'movie' | 'tv' }>
+  readonly isError: boolean
+  readonly isPending: boolean
+  readonly missing: Array<{ tmdbId: number; type: 'movie' | 'tv' }>
 }
 
 /**
@@ -12,67 +26,57 @@ export interface LocalizedMedia {
  * and poster path from TMDB in the current app language and returns a map.
  */
 export function useLocalizedMediaData(items: { tmdb_id: number; type: 'movie' | 'tv' }[]) {
-  const language = useLanguage()
-  const [mediaMap, setMediaMap] = useState<Record<number, LocalizedMedia>>({})
+  const language = useReadyLanguage()
+  const uniqueItems = useMemo(() => normalizeLocalizedItems(items), [items])
+  const queryClient = useQueryClient()
+  const region = localeRegion(language ?? 'en')
+  const batchQuery = useQuery({
+    enabled: Boolean(language && uniqueItems.length > 0),
+    gcTime: LOCALIZED_TITLE_GC_TIME,
+    queryFn: ({ signal }) =>
+      hydrateLocalizedTitleBatch(
+        queryClient,
+        {
+          schemaVersion: LOCALIZED_TITLE_BATCH_SCHEMA_VERSION,
+          items: uniqueItems.map((item) => ({ tmdbId: item.tmdb_id, type: item.type })),
+          locale: language ?? 'en',
+          region,
+        },
+        requestLocalizedTitleBatch,
+        signal
+      ),
+    queryKey: [
+      'localized-title-batch',
+      LOCALIZED_TITLE_BATCH_SCHEMA_VERSION,
+      language,
+      region,
+      uniqueItems.map(localizedMediaKey).join(','),
+    ],
+    staleTime: LOCALIZED_TITLE_STALE_TIME,
+  })
 
-  useEffect(() => {
-    if (items.length === 0) return
-
-    const tmdb = getTMDbService()
-    tmdb.setLanguage(language)
-
-    let cancelled = false
-
-    const fetchMediaData = async () => {
-      const map: Record<number, LocalizedMedia> = {}
-
-      // Fetch in parallel, batching up to 10 at a time to be gentle
-      const batchSize = 10
-      for (let i = 0; i < items.length; i += batchSize) {
-        const batch = items.slice(i, i + batchSize)
-        const results = await Promise.allSettled(
-          batch.map(async (item) => {
-            if (item.type === 'movie' || !item.type) {
-              const details = await tmdb.getMovieDetails(item.tmdb_id)
-              return {
-                tmdbId: item.tmdb_id,
-                title: details.title,
-                poster_path: details.poster_path,
-              }
-            } else {
-              const details = await tmdb.getTVDetails(item.tmdb_id)
-              return {
-                tmdbId: item.tmdb_id,
-                title: details.name,
-                poster_path: details.poster_path,
-              }
-            }
-          })
-        )
-
-        for (const result of results) {
-          if (result.status === 'fulfilled') {
-            map[result.value.tmdbId] = {
-              title: result.value.title,
-              poster_path: result.value.poster_path,
-            }
-          }
+  return useMemo(() => {
+    const data = Object.fromEntries(
+      (batchQuery.data?.summaries || []).flatMap((summary) => {
+        const item = { tmdb_id: summary.id, type: summary.mediaType }
+        const localized = {
+          backdrop_path: summary.backdropPath,
+          poster_path: summary.posterPath,
+          title: summary.title,
         }
-      }
-
-      if (!cancelled) {
-        setMediaMap(map)
-      }
-    }
-
-    fetchMediaData()
-
-    return () => {
-      cancelled = true
-    }
-  }, [items, language])
-
-  return mediaMap
+        return [
+          [localizedMediaKey(item), localized],
+          [item.tmdb_id, localized],
+        ]
+      })
+    ) as Record<number, LocalizedMedia>
+    return Object.assign(data, {
+      errors: batchQuery.data?.errors || [],
+      isError: batchQuery.isError,
+      isPending: !language || (uniqueItems.length > 0 && batchQuery.isPending),
+      missing: batchQuery.data?.missing || [],
+    }) as unknown as LocalizedMediaMap
+  }, [batchQuery.data, batchQuery.isError, batchQuery.isPending, uniqueItems.length, language])
 }
 
 /**
@@ -80,5 +84,32 @@ export function useLocalizedMediaData(items: { tmdb_id: number; type: 'movie' | 
  */
 export function useLocalizedTitle(tmdbId: number, type: 'movie' | 'tv') {
   const mediaMap = useLocalizedMediaData(useMemo(() => [{ tmdb_id: tmdbId, type }], [tmdbId, type]))
-  return mediaMap[tmdbId] || null
+  return (mediaMap[localizedMediaKey({ tmdb_id: tmdbId, type })] as LocalizedMedia) || null
+}
+
+export function localizedMediaKey(item: { tmdb_id: number; type: 'movie' | 'tv' }) {
+  return `${item.type}:${item.tmdb_id}`
+}
+
+function normalizeLocalizedItems(items: { tmdb_id: number; type: 'movie' | 'tv' }[]) {
+  const uniqueItems = new Map<string, (typeof items)[number]>()
+  for (const item of items) {
+    if (!Number.isSafeInteger(item.tmdb_id) || item.tmdb_id <= 0) continue
+    uniqueItems.set(`${item.type}:${item.tmdb_id}`, item)
+  }
+  return Array.from(uniqueItems.values()).sort((left, right) => {
+    return `${left.type}:${left.tmdb_id}`.localeCompare(`${right.type}:${right.tmdb_id}`)
+  })
+}
+
+function localeRegion(language: string) {
+  return (
+    {
+      en: 'US',
+      fr: 'FR',
+      it: 'IT',
+      no: 'NO',
+      pt: 'BR',
+    }[language] ?? 'US'
+  )
 }

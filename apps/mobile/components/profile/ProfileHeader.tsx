@@ -9,6 +9,7 @@ interface ProfileHeaderProps {
   profile: UserProfile | null
   isOwnProfile: boolean
   isFollowing: boolean
+  relationshipKnown?: boolean
   onSearchPress: () => void
   onSharePress: () => void
   onFollowToggle: () => void
@@ -20,6 +21,7 @@ export function ProfileHeader({
   profile,
   isOwnProfile,
   isFollowing,
+  relationshipKnown = true,
   onSearchPress,
   onSharePress,
   onFollowToggle,
@@ -120,7 +122,7 @@ export function ProfileHeader({
               {profile?.display_name || profile?.username || 'User'}
             </Text>
 
-            {!isOwnProfile && (
+            {!isOwnProfile && relationshipKnown && (
               <TouchableOpacity
                 onPress={onFollowToggle}
                 className="w-8 ml-2 items-center justify-center"
@@ -132,6 +134,7 @@ export function ProfileHeader({
                 />
               </TouchableOpacity>
             )}
+            {!isOwnProfile && !relationshipKnown && <View className="w-8 ml-2" />}
           </View>
 
           {profile?.bio && (

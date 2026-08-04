@@ -66,14 +66,6 @@ function createNextConfig(phase: string): NextConfig {
       NEXT_PUBLIC_VERCEL_URL: envValue('NEXT_PUBLIC_VERCEL_URL', 'VERCEL_URL'),
       NEXT_PUBLIC_APP_SCHEME:
         envValue('NEXT_PUBLIC_APP_SCHEME', 'EXPO_PUBLIC_APP_SCHEME') ?? 'kino',
-      NEXT_PUBLIC_UPSTASH_VECTOR_REST_URL: envValue(
-        'NEXT_PUBLIC_UPSTASH_VECTOR_REST_URL',
-        'EXPO_PUBLIC_UPSTASH_VECTOR_REST_URL'
-      ),
-      NEXT_PUBLIC_UPSTASH_VECTOR_REST_TOKEN: envValue(
-        'NEXT_PUBLIC_UPSTASH_VECTOR_REST_TOKEN',
-        'EXPO_PUBLIC_UPSTASH_VECTOR_REST_TOKEN'
-      ),
     },
     transpilePackages: ['@kino/core'],
   }

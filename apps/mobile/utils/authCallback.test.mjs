@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { getAuthCallbackPayload, sanitizeAuthError } from './authCallback.ts'
+import {
+  createAuthCallbackCompleter,
+  getAuthCallbackPayload,
+  sanitizeAuthError,
+} from './authCallback.ts'
 
 test('parses a PKCE authorization code from the native callback', () => {
   assert.deepEqual(getAuthCallbackPayload('kino://auth/callback?code=short-lived-code'), {
@@ -36,4 +40,68 @@ test('prefers a sanitized provider error', () => {
 
 test('rejects malformed callback URLs', () => {
   assert.throws(() => getAuthCallbackPayload('not a url'), TypeError)
+})
+
+test('exchanges and consumes a duplicate callback code only once', async () => {
+  let exchanges = 0
+  let destinations = 0
+  const completer = createAuthCallbackCompleter({
+    async exchangeCodeForSession(code) {
+      exchanges += 1
+      assert.equal(code, 'short-lived-code')
+      return { error: null }
+    },
+    async setSession() {
+      return { error: null }
+    },
+    async consumeReturnTo() {
+      destinations += 1
+      return '/(tabs)/diary'
+    },
+  })
+
+  const callback = 'kino://auth/callback?code=short-lived-code'
+  const [first, duplicate] = await Promise.all([
+    completer.complete(callback),
+    completer.complete(callback),
+  ])
+  const repeated = await completer.complete(callback)
+
+  assert.equal(first, '/(tabs)/diary')
+  assert.equal(duplicate, '/(tabs)/diary')
+  assert.equal(repeated, '/(tabs)/diary')
+  assert.equal(exchanges, 1)
+  assert.equal(destinations, 1)
+})
+
+test('sets a legacy token session and consumes returnTo once across concurrent and repeated callbacks', async () => {
+  let sessions = 0
+  let destinations = 0
+  const completer = createAuthCallbackCompleter({
+    async exchangeCodeForSession() {
+      return { error: null }
+    },
+    async setSession(tokens) {
+      sessions += 1
+      assert.deepEqual(tokens, { access_token: 'access', refresh_token: 'refresh' })
+      return { error: null }
+    },
+    async consumeReturnTo() {
+      destinations += 1
+      return '/(tabs)/diary'
+    },
+  })
+  const callback = 'kino://auth/callback#access_token=access&refresh_token=refresh'
+
+  const [first, duplicate] = await Promise.all([
+    completer.complete(callback),
+    completer.complete(callback),
+  ])
+  const repeated = await completer.complete(callback)
+
+  assert.equal(first, '/(tabs)/diary')
+  assert.equal(duplicate, '/(tabs)/diary')
+  assert.equal(repeated, '/(tabs)/diary')
+  assert.equal(sessions, 1)
+  assert.equal(destinations, 1)
 })

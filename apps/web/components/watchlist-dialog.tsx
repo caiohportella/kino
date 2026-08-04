@@ -40,10 +40,10 @@ export function WatchlistDialog({
         visibility
       )
       publishWatchlistChange(watchlist.id)
+      void onSaved()
       setName('')
       setDescription('')
       setVisibility('private')
-      onSaved()
       onClose()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t('common.failedToSave'))

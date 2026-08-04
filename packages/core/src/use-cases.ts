@@ -5,7 +5,7 @@ import type {
   TMDbPersonCredit,
   UIDiaryEntry,
   WatchedSeries,
-} from './types'
+} from './types.ts'
 
 export interface NextEpisodeCandidate {
   season: number
