@@ -23,8 +23,8 @@ async function fetchFont(path: URL) {
   return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
 }
 
-function assertSupportedOpenType(data: ArrayBuffer) {
-  const bytes = new Uint8Array(data, 0, Math.min(data.byteLength, 4))
+function assertSupportedOpenType(data: Uint8Array) {
+  const bytes = data.subarray(0, 4)
   const signature = String.fromCharCode(...bytes)
   const isTrueType = bytes[0] === 0 && bytes[1] === 1 && bytes[2] === 0 && bytes[3] === 0
   const isSupported = isTrueType || ['OTTO', 'true', 'typ1', 'wOFF'].includes(signature)
