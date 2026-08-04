@@ -1,5 +1,3 @@
-import { readFile } from 'node:fs/promises'
-
 export const OG_SIZE = { width: 1200, height: 630 }
 
 const FONT_URLS = {
@@ -18,7 +16,9 @@ type OgFont = {
 let fontPromise: Promise<OgFont[]> | undefined
 
 async function fetchFont(path: URL) {
-  const data = await readFile(path)
+  const response = await fetch(path)
+  if (!response.ok) throw new Error(`Unable to load OG font (${response.status})`)
+  const data = new Uint8Array(await response.arrayBuffer())
   assertSupportedOpenType(data)
   return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
 }
