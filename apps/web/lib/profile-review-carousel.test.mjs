@@ -23,9 +23,9 @@ test('profile review row restores a fixed-width horizontal shelf', async () => {
 
   assert.match(source, /\[--profile-row-gap:1rem\]/)
   assert.match(source, /gap-\[var\(--profile-row-gap\)\]/)
-  assert.match(source, /auto-cols-\[calc\(100%-2rem\)\]/)
-  assert.match(source, /\[\&_.media-row-track>\*\]:!w-auto/)
-  assert.match(
+  assert.doesNotMatch(source, /auto-cols-\[calc\(100%-2rem\)\]/)
+  assert.doesNotMatch(source, /\[\&_.media-row-track>\*\]:!w-auto/)
+  assert.doesNotMatch(
     source,
     /md:\[\&_.media-row-track\]:auto-cols-\[calc\(\(100%-var\(--profile-row-gap\)\)\/2\)\]/
   )

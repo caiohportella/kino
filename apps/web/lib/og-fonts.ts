@@ -1,13 +1,11 @@
+import { readFile } from 'node:fs/promises'
+
 export const OG_SIZE = { width: 1200, height: 630 }
 
-// Noto Sans is licensed under the SIL Open Font License 1.1. These versioned,
-// official Google Fonts assets keep binaries out of every Edge function bundle.
 const FONT_URLS = {
-  regular:
-    'https://fonts.gstatic.com/s/notosans/v42/o-0mIpQlx3QUlC5A4PNB6Ryti20_6n1iPHjcz6L1SoM-jCpoiyD9A99d.ttf',
-  bold: 'https://fonts.gstatic.com/s/notosans/v42/o-0mIpQlx3QUlC5A4PNB6Ryti20_6n1iPHjcz6L1SoM-jCpoiyAaBN9d.ttf',
-  blackItalic:
-    'https://fonts.gstatic.com/s/notosans/v42/o-0kIpQlx3QUlC5A4PNr4C5OaxRsfNNlKbCePevHtVtX57DGjDU1QJ4Z6Vc.ttf',
+  regular: new URL('./og-fonts/noto-sans-latin-400-normal.woff', import.meta.url),
+  bold: new URL('./og-fonts/noto-sans-latin-700-normal.woff', import.meta.url),
+  blackItalic: new URL('./og-fonts/noto-sans-latin-900-italic.woff', import.meta.url),
 } as const
 
 type OgFont = {
@@ -19,12 +17,10 @@ type OgFont = {
 
 let fontPromise: Promise<OgFont[]> | undefined
 
-async function fetchFont(url: string) {
-  const response = await fetch(url, { cache: 'force-cache' })
-  if (!response.ok) throw new Error(`Unable to load OG font (${response.status})`)
-  const data = await response.arrayBuffer()
+async function fetchFont(path: URL) {
+  const data = await readFile(path)
   assertSupportedOpenType(data)
-  return data
+  return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
 }
 
 function assertSupportedOpenType(data: ArrayBuffer) {
