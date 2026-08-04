@@ -56,18 +56,18 @@ export function ProfileReviewCard({
   )
 
   return (
-    <article className="group relative grid h-full min-h-56 grid-cols-[76px_minmax(0,1fr)] gap-4 overflow-hidden rounded-md border border-white/10 bg-white/2.5 p-4 transition-colors hover:border-kino-accent/35 hover:bg-white/4">
+    <article className="group relative grid h-full min-h-56 grid-cols-1 gap-4 overflow-hidden rounded-md border border-white/10 bg-white/2.5 p-4 transition-colors hover:border-kino-accent/35 hover:bg-white/4 sm:grid-cols-[76px_minmax(0,1fr)]">
       <Link
         aria-label={t('reviews.openForTitle', { title: displayTitleName })}
         className="focus-ring absolute inset-0 z-10 rounded-md"
         href={href}
         onClick={(event) => event.stopPropagation()}
       />
-      <div className="pointer-events-none relative">
+      <div className="pointer-events-none relative w-24 justify-self-start sm:w-auto">
         <Poster src={posterUrl} title={displayTitleName} />
       </div>
       <div className="relative min-w-0">
-        <div className="pointer-events-none pr-16">
+        <div className="pointer-events-none sm:pr-16">
           <h3 className="wrap-break-word font-semibold text-kino-text">
             {displayTitleName}
             {displayYear ? (

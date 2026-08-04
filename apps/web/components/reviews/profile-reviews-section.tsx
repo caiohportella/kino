@@ -130,7 +130,7 @@ export function ProfileReviewsSection({ username }: { username: string }) {
           />
         }
         aria-busy={query.isFetching}
-        rowClassName="media-row--reviews [--profile-row-gap:1rem] gap-[var(--profile-row-gap)] auto-cols-[calc(100%-2rem)] [&_.media-row-track>*]:!w-auto md:[&_.media-row-track]:auto-cols-[calc((100%-var(--profile-row-gap))/2)]"
+        rowClassName="media-row--reviews [--profile-row-gap:1rem] gap-[var(--profile-row-gap)]"
         title={t('reviews.title')}
       >
         {query.data.items.map(renderReview)}
