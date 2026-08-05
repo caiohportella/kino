@@ -38,8 +38,6 @@ export function FollowedTitleRatings({ titleId, enabled }: { titleId: string; en
   const { t } = useTranslation()
   const query = useFollowedTitleRatings(titleId, enabled)
   if (!enabled || (!query.isLoading && !query.data?.items.length)) return null
-  const items =
-    query.data?.items.filter((item): item is FollowedRating => Boolean(item?.user?.id)) ?? []
 
   return (
     <section className="mt-4 border-t border-white/8 pt-4">
@@ -55,7 +53,7 @@ export function FollowedTitleRatings({ titleId, enabled }: { titleId: string; en
                 <Skeleton className="h-4 w-24" />
               </div>
             ))
-          : items.map((item) => <RatingRow item={item} key={item.user.id} />)}
+          : query.data?.items.map((item) => <RatingRow item={item} key={item.user.id} />)}
       </div>
     </section>
   )
@@ -68,11 +66,10 @@ export function FollowedEpisodeRatingRows({
   items: FollowedRating[]
   totalCount: number
 }) {
-  const visibleItems = items.filter((item): item is FollowedRating => Boolean(item?.user?.id))
-  if (!visibleItems.length) return null
+  if (!items.length) return null
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2">
-      {visibleItems.slice(0, 2).map((item) => (
+      {items.slice(0, 2).map((item) => (
         <RatingRow compact item={item} key={item.user.id} />
       ))}
       {totalCount > 2 ? <span className="text-xs text-kino-muted">+{totalCount - 2}</span> : null}

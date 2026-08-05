@@ -34,6 +34,7 @@ export function ReviewComposer({
         <textarea
           aria-label={t('reviews.writeReview')}
           className="focus-ring mt-3 min-h-24 w-full resize-y rounded-md border border-white/10 bg-black/20 px-3 py-2.5 text-sm leading-6 text-kino-text placeholder:text-kino-muted"
+          data-embla-prevent-drag
           disabled={pending}
           maxLength={REVIEW_MAX_LENGTH}
           onChange={(event) => setContent(event.target.value)}

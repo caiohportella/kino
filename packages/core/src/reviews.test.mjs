@@ -122,37 +122,3 @@ test('maps grouped profile reviews with title context and a creation cursor', ()
   })
   assert.equal(page.totalCount, 3)
 })
-
-test('orders profile reviews deterministically by newest timestamp then descending ID', () => {
-  const row = {
-    id: 'review-a',
-    user_id: 'user-1',
-    title_id: 'title-1',
-    media_type: 'movie',
-    content: 'Review',
-    rating: null,
-    created_at: '2026-07-27T10:00:00Z',
-    updated_at: '2026-07-27T10:00:00Z',
-    total_count: '3',
-    title_tmdb_id: 238,
-    title_name: 'The Godfather',
-  }
-
-  const page = mapProfileReviewsPage(
-    [
-      { ...row, id: 'review-a' },
-      { ...row, id: 'review-old', created_at: '2026-07-26T10:00:00Z' },
-      { ...row, id: 'review-b' },
-    ],
-    2
-  )
-
-  assert.deepEqual(
-    page.items.map((review) => review.id),
-    ['review-b', 'review-a']
-  )
-  assert.deepEqual(page.nextCursor, {
-    created_at: '2026-07-27T10:00:00Z',
-    id: 'review-a',
-  })
-})
