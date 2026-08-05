@@ -1,52 +1,98 @@
-import { useCallback, useRef, useState } from 'react'
-import { SemanticSearchResult, semanticSearch } from '@/services/upstash'
+import { searchQueryKeys } from '@kino/core/cache'
+import {
+  SEARCH_SCHEMA_VERSION_V2,
+  type SearchMediaType,
+  type SearchResponseV2,
+} from '@kino/core/search'
+import { useQuery } from '@tanstack/react-query'
+import { useCallback, useMemo, useState } from 'react'
+import { useReadyLanguage } from '~/hooks/useLanguage'
+import { createSearchGateway } from '~/services/search-gateway'
+import { resolveKinoApiOrigin } from '~/utils/searchGatewayConfig'
 
-export function useUpstashSearch() {
-  const [results, setResults] = useState<SemanticSearchResult[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+const AUTOCOMPLETE_LIMIT = 5
+const FULL_SEARCH_LIMIT = 20
 
-  const search = useCallback((query: string) => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current)
-    }
-
-    if (!query.trim()) {
-      setResults([])
-      return
-    }
-
-    setLoading(true)
-    setError(null)
-
-    // Debounce the search
-    timeoutRef.current = setTimeout(async () => {
-      try {
-        const data = await semanticSearch(query)
-        setResults(data)
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('Semantic search failed'))
-        // Keep previous results or clear? Let's keep them but show error state if needed
-      } finally {
-        setLoading(false)
+export function useUpstashSearch({
+  mediaTypes,
+  mode = 'autocomplete',
+}: {
+  mediaTypes?: readonly SearchMediaType[]
+  mode?: 'autocomplete' | 'full'
+} = {}) {
+  const language = useReadyLanguage()
+  const [query, setQuery] = useState('')
+  const [page, setPage] = useState(1)
+  const region = localeRegion(language ?? 'en')
+  const limit = mode === 'autocomplete' ? AUTOCOMPLETE_LIMIT : FULL_SEARCH_LIMIT
+  const requestPage = mode === 'autocomplete' ? 1 : page
+  const mediaTypesKey = [...(mediaTypes || [])].sort().join(',')
+  const gateway = useMemo(
+    () =>
+      createSearchGateway({
+        origin: resolveKinoApiOrigin(process.env.EXPO_PUBLIC_KINO_API_URL),
+      }),
+    []
+  )
+  const searchQuery = useQuery<SearchResponseV2>({
+    enabled: Boolean(language && query),
+    queryFn: async ({ signal }) => {
+      const response = await gateway.search(
+        {
+          schemaVersion: SEARCH_SCHEMA_VERSION_V2,
+          query,
+          locale: language ?? 'en',
+          region,
+          mediaTypes,
+          page: requestPage,
+          limit,
+        },
+        signal
+      )
+      if (response.schemaVersion !== SEARCH_SCHEMA_VERSION_V2) {
+        throw new Error('Search gateway returned an unexpected schema version')
       }
-    }, 500) // 500ms debounce
-  }, [])
+      return response
+    },
+    queryKey: searchQueryKeys.results({
+      filters: { limit, mediaTypes: mediaTypesKey, mode, schemaVersion: SEARCH_SCHEMA_VERSION_V2 },
+      locale: language ?? 'en',
+      page: requestPage,
+      query,
+      region,
+      scope: { kind: 'public' },
+    }),
+    retry: 1,
+    staleTime: 60_000,
+  })
 
+  const search = useCallback((value: string, nextPage = 1) => {
+    setPage(nextPage)
+    setQuery(value.trim())
+  }, [])
   const clearResults = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current)
-    }
-    setResults([])
-    setLoading(false)
+    setQuery('')
+    setPage(1)
   }, [])
 
   return {
-    results,
-    loading,
-    error,
-    search,
     clearResults,
+    error: searchQuery.error,
+    loading: searchQuery.isFetching,
+    nextPage: searchQuery.data?.nextPage,
+    response: searchQuery.data,
+    search,
   }
+}
+
+function localeRegion(locale: string) {
+  return (
+    {
+      en: 'US',
+      fr: 'FR',
+      it: 'IT',
+      no: 'NO',
+      pt: 'BR',
+    }[locale] ?? 'US'
+  )
 }

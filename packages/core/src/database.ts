@@ -1,5 +1,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
+  type Activity,
+  type ActivityFeedInput,
+  type ActivityFeedPage,
+  type ActivityTitle,
+  compareActivityCursor,
+  createActivityCursor,
+  enrichActivityPage,
+  normalizeActivityFeedItems,
+  slugifyActivityTitle,
+} from './activity.ts'
+import {
   type FollowedEpisodeRatingsResponse,
   type FollowedRatingRow,
   type FollowedRatingsPage,
@@ -16,7 +27,7 @@ import {
   type ReviewRow,
   type TitleReviewsPage,
   validateReviewContent,
-} from './reviews'
+} from './reviews.ts'
 import type {
   EpisodeRating,
   FollowerInfo,
@@ -40,9 +51,9 @@ import type {
   WatchlistItemDetails,
   WatchlistVisibility,
   WatchType,
-} from './types'
-import { findFirstUnwatchedEpisode, getEpisodeKey } from './use-cases'
-import { createWatchlistCoverVersion } from './watchlist-cover'
+} from './types.ts'
+import { findFirstUnwatchedEpisode, getEpisodeKey } from './use-cases.ts'
+import { createWatchlistCoverVersion } from './watchlist-cover.ts'
 
 type SupabaseErrorLike = { code?: string }
 
@@ -141,6 +152,44 @@ interface WatchlistItemRow {
   added_by_user?: Pick<UserProfile, 'id' | 'avatar_url' | 'display_name' | 'username'> | null
 }
 
+interface ActivityRatingRow {
+  id: string
+  user_id: string
+  title_id: string
+  rating: number | string | null
+  watch_type: WatchType
+  watched_at: string
+  created_at: string
+  updated_at: string
+  title?: TitleRow | null
+}
+
+interface ActivityReviewRow {
+  id: string
+  user_id: string
+  title_id: string
+  media_type: MediaType
+  content: string
+  rating: number | string | null
+  created_at: string
+  updated_at: string
+  title?: TitleRow | null
+  like_count?: number | string | null
+  liked_by_viewer?: boolean | null
+}
+
+interface ActivityDiaryRow {
+  id: string
+  user_id: string
+  title_id: string
+  watched_at: string
+  watch_type: WatchType
+  notes: string | null
+  created_at: string
+  updated_at: string
+  title?: TitleRow | null
+}
+
 interface RatingStatsRow {
   average_rating: number | string | null
   total_ratings: number | string | null
@@ -174,6 +223,151 @@ export class KinoDatabaseService {
 
     if (error) throw error
     return (data ?? null) as UserProfile | null
+  }
+
+  async getActivityFeed(input: ActivityFeedInput): Promise<ActivityFeedPage> {
+    const viewerId = input.viewerId.trim()
+    if (!viewerId) {
+      return { items: [], nextCursor: null }
+    }
+
+    const pageSize = Math.max(1, input.pageSize ?? 20)
+    const [followResult, blockedResult] = await Promise.all([
+      this.supabase.from('follows').select('following_id').eq('follower_id', viewerId),
+      this.supabase.from('blocks').select('blocked_id').eq('blocker_id', viewerId),
+    ])
+    if (followResult.error) throw followResult.error
+    if (blockedResult.error) throw blockedResult.error
+
+    const followedIds = new Set(
+      ((followResult.data ?? []) as { following_id: string }[])
+        .map((row) => row.following_id)
+        .filter((id): id is string => Boolean(id))
+    )
+    const blockedIds = new Set(
+      ((blockedResult.data ?? []) as { blocked_id: string }[])
+        .map((row) => row.blocked_id)
+        .filter((id): id is string => Boolean(id))
+    )
+
+    const feedActorIds = input.includeOwnActivity ? [viewerId, ...followedIds] : [...followedIds]
+    const allowedActorIds = feedActorIds.filter((id) => !blockedIds.has(id))
+    if (allowedActorIds.length === 0) {
+      return { items: [], nextCursor: null }
+    }
+
+    const [ratingsResult, reviewsResult, diaryResult, watchlistResult, watchlistItemResult] =
+      await Promise.all([
+        this.supabase
+          .from('title_ratings')
+          .select(
+            'id, user_id, title_id, rating, watch_type, watched_at, created_at, updated_at, title:titles(*)'
+          )
+          .in('user_id', allowedActorIds)
+          .order('created_at', { ascending: false }),
+        this.supabase
+          .from('reviews')
+          .select(
+            'id, user_id, title_id, media_type, content, rating, created_at, updated_at, title:titles(*)'
+          )
+          .in('user_id', allowedActorIds)
+          .order('created_at', { ascending: false }),
+        this.supabase
+          .from('watch_diary')
+          .select(
+            'id, user_id, title_id, watched_at, watch_type, notes, created_at, updated_at, title:titles(*)'
+          )
+          .in('user_id', allowedActorIds)
+          .order('created_at', { ascending: false }),
+        this.supabase
+          .from('watchlists')
+          .select(
+            'id, user_id, name, description, thumbnail, is_shared, visibility, share_code, created_at, updated_at'
+          )
+          .in('user_id', allowedActorIds)
+          .order('created_at', { ascending: false }),
+        this.supabase
+          .from('watchlist_items')
+          .select('id, watchlist_id, title_id, added_by, added_at, title:titles(*)')
+          .in('added_by', allowedActorIds)
+          .order('added_at', { ascending: false }),
+      ])
+
+    if (ratingsResult.error) throw ratingsResult.error
+    if (reviewsResult.error) throw reviewsResult.error
+    if (diaryResult.error) throw diaryResult.error
+    if (watchlistResult.error) throw watchlistResult.error
+    if (watchlistItemResult.error) throw watchlistItemResult.error
+
+    const reviewRows = (reviewsResult.data ?? []) as unknown as ActivityReviewRow[]
+    const reviewIds = [
+      ...new Set(reviewRows.map((row) => row.id).filter((id): id is string => Boolean(id))),
+    ]
+    const reviewLikeStats = new Map<string, { like_count: number; liked_by_viewer: boolean }>()
+    if (reviewIds.length > 0) {
+      const { data: reviewLikeRows, error: reviewLikesError } = await this.supabase
+        .from('review_likes')
+        .select('review_id, user_id')
+        .in('review_id', reviewIds)
+      if (reviewLikesError) throw reviewLikesError
+
+      for (const row of (reviewLikeRows ?? []) as Array<{ review_id: string; user_id: string }>) {
+        const current = reviewLikeStats.get(row.review_id) ?? {
+          like_count: 0,
+          liked_by_viewer: false,
+        }
+        reviewLikeStats.set(row.review_id, {
+          like_count: current.like_count + 1,
+          liked_by_viewer: current.liked_by_viewer || row.user_id === viewerId,
+        })
+      }
+    }
+
+    const activityItems = [
+      ...this.mapActivityRatings(
+        (ratingsResult.data ?? []) as unknown as ActivityRatingRow[],
+        allowedActorIds
+      ),
+      ...this.mapActivityReviews(
+        reviewRows.map((row) => ({
+          ...row,
+          ...reviewLikeStats.get(row.id),
+        })),
+        allowedActorIds
+      ),
+      ...this.mapActivityDiaryEntries(
+        (diaryResult.data ?? []) as unknown as ActivityDiaryRow[],
+        allowedActorIds
+      ),
+      ...this.mapActivityWatchlistCreates(
+        (watchlistResult.data ?? []) as WatchlistRow[],
+        allowedActorIds
+      ),
+      ...this.mapActivityWatchlistAdds(
+        (watchlistItemResult.data ?? []) as unknown as WatchlistItemRow[],
+        allowedActorIds
+      ),
+    ]
+
+    const normalized = normalizeActivityFeedItems(activityItems)
+    const cursor = input.cursor
+    const filtered = cursor
+      ? normalized.filter((item) => compareActivityCursor(cursor, item) > 0)
+      : normalized
+
+    const pageItems = filtered.slice(0, pageSize)
+    const lastItem = pageItems.at(-1)
+    const nextCursor =
+      filtered.length > pageSize && lastItem ? createActivityCursor(lastItem) : null
+
+    return { items: pageItems, nextCursor }
+  }
+
+  async getActivityFeedForUser(
+    input: ActivityFeedInput & { profiles: Record<string, UserProfile> }
+  ): Promise<Activity[]> {
+    const page = await this.getActivityFeed(input)
+    return enrichActivityPage(page.items, input.profiles)
   }
 
   async searchUsers(query: string) {
@@ -1417,12 +1611,141 @@ export class KinoDatabaseService {
     if (error) throw error
   }
 
+  private mapActivityRatings(rows: ActivityRatingRow[], actorIds: readonly string[]): Activity[] {
+    return rows.flatMap((row) => {
+      if (!actorIds.includes(row.user_id)) return []
+      const title = (row as ActivityRatingRow & { title?: TitleRow | null }).title
+      if (!title) return []
+
+      return [
+        {
+          id: row.id,
+          actorId: row.user_id,
+          createdAt: row.created_at,
+          visibility: 'public' as const,
+          type: 'rating' as const,
+          title: this.mapActivityTitle(title),
+          rating: Number(row.rating) || 0,
+        },
+      ]
+    })
+  }
+
+  private mapActivityReviews(rows: ActivityReviewRow[], actorIds: readonly string[]): Activity[] {
+    return rows.flatMap((row) => {
+      if (!actorIds.includes(row.user_id)) return []
+      const title = (row as ActivityReviewRow & { title?: TitleRow | null }).title
+      if (!title) return []
+
+      return [
+        {
+          id: row.id,
+          actorId: row.user_id,
+          createdAt: row.created_at,
+          visibility: 'public' as const,
+          type: 'review' as const,
+          title: this.mapActivityTitle(title),
+          rating: row.rating == null ? null : Number(row.rating),
+          review: {
+            id: row.id,
+            content: row.content,
+            likeCount: toSafeCount(row.like_count),
+            likedByViewer: Boolean(row.liked_by_viewer),
+          },
+        },
+      ]
+    })
+  }
+
+  private mapActivityDiaryEntries(
+    rows: ActivityDiaryRow[],
+    actorIds: readonly string[]
+  ): Activity[] {
+    return rows.flatMap((row) => {
+      if (!actorIds.includes(row.user_id)) return []
+      const title = (row as ActivityDiaryRow & { title?: TitleRow | null }).title
+      if (!title) return []
+
+      return [
+        {
+          id: row.id,
+          actorId: row.user_id,
+          createdAt: row.created_at,
+          visibility: 'public' as const,
+          type: 'watch' as const,
+          title: this.mapActivityTitle(title),
+          watchedAt: row.watched_at,
+          isRewatch: row.watch_type === 'rewatch',
+          rating: null,
+        },
+      ]
+    })
+  }
+
+  private mapActivityWatchlistCreates(
+    rows: WatchlistRow[],
+    actorIds: readonly string[]
+  ): Activity[] {
+    return rows
+      .filter((row) => actorIds.includes(row.user_id))
+      .map((row) => ({
+        id: row.id,
+        actorId: row.user_id,
+        createdAt: row.created_at,
+        visibility: 'public' as const,
+        type: 'watchlist_create' as const,
+        watchlistName: row.name,
+      }))
+  }
+
+  private mapActivityWatchlistAdds(
+    rows: WatchlistItemRow[],
+    actorIds: readonly string[]
+  ): Activity[] {
+    return rows.flatMap((row) => {
+      if (!actorIds.includes(row.added_by)) return []
+      const title = (row as WatchlistItemRow & { title?: TitleRow | null }).title
+      if (!title) return []
+
+      return [
+        {
+          id: row.id,
+          actorId: row.added_by,
+          createdAt: row.added_at,
+          visibility: 'public' as const,
+          type: 'watchlist_add' as const,
+          title: this.mapActivityTitle(title),
+        },
+      ]
+    })
+  }
+
+  private mapActivityTitle(row: TitleRow): ActivityTitle {
+    return {
+      id: row.tmdb_id,
+      mediaType: row.type,
+      name: row.title,
+      slug: slugifyActivityTitle(row.title),
+      year: row.release_year,
+      posterUrl: row.cover_image,
+    }
+  }
+
   private async getProfilesByIds(userIds: string[]) {
     if (userIds.length === 0) return new Map<string, UserProfile>()
 
     const { data, error } = await this.supabase.from('user_profiles').select('*').in('id', userIds)
     if (error) throw error
     return new Map(((data ?? []) as UserProfile[]).map((profile) => [profile.id, profile]))
+  }
+
+  /**
+   * Fetch a batch of user profiles by their IDs. Used to enrich activity feed
+   * items with actor display information.
+   */
+  async getUserProfilesByIds(userIds: string[]): Promise<UserProfile[]> {
+    const profiles = await this.getProfilesByIds(userIds)
+    return Array.from(profiles.values())
   }
 
   private async getFollowList(userId: string, mode: 'followers' | 'following') {

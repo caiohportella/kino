@@ -1,7 +1,7 @@
 'use client'
 
 import type { TMDbPerson, TMDbPersonCredit } from '@kino/core'
-import { formatDate, getDisplayTitle, getKnownForCredits, getReleaseYear } from '@kino/core'
+import { formatDate, getKnownForCredits } from '@kino/core'
 import { useQuery } from '@tanstack/react-query'
 import {
   ArrowLeft,
@@ -14,22 +14,24 @@ import {
   Star,
   UserRound,
 } from 'lucide-react'
-import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   type ExternalLinkProvider,
   ExternalLinksSection,
 } from '@/components/external-links-section'
-import { EmptyState, Poster } from '@/components/kino'
+import { EmptyState } from '@/components/kino'
+import { MediaCard } from '@/components/media-card'
 import { ShareButton } from '@/components/share-button'
 import { PersonSkeleton } from '@/components/skeletons/page-skeletons'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useTranslation } from '@/lib/i18n'
+import { resolveLocalizedTitlePresentation } from '@/lib/localized-title-presentation'
 import { getPersonImagePaths } from '@/lib/person-visuals'
-import { parseResourceSegment, personPath, titlePath } from '@/lib/routes'
+import { parseResourceSegment, personPath } from '@/lib/routes'
 import { getTmdb } from '@/lib/services'
+import { useLocalizedTitles } from '@/lib/use-localized-titles'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/stores/settings-store'
 
@@ -55,6 +57,12 @@ export default function PersonPage() {
     () => getKnownForCredits(personQuery.data?.combined_credits, 24),
     [personQuery.data?.combined_credits]
   )
+  const localizedTitles = useLocalizedTitles(
+    knownFor.map((credit) => ({
+      tmdbId: credit.id,
+      type: credit.media_type === 'tv' ? 'tv' : 'movie',
+    }))
+  )
 
   if (!validPersonId) {
     return (
@@ -67,7 +75,8 @@ export default function PersonPage() {
     )
   }
 
-  if (personQuery.isLoading) return <PersonSkeleton label="Loading person..." />
+  if (personQuery.isLoading || localizedTitles.isPending)
+    return <PersonSkeleton label="Loading person..." />
 
   if (personQuery.error || !personQuery.data) {
     return (
@@ -154,7 +163,18 @@ export default function PersonPage() {
           {knownFor.length > 0 ? (
             <div className="poster-grid">
               {knownFor.map((credit) => (
-                <PersonCreditCard credit={credit} key={`${credit.media_type}-${credit.id}`} />
+                <PersonCreditCard
+                  credit={credit}
+                  key={`${credit.media_type}-${credit.id}`}
+                  localizedTitle={resolveLocalizedTitlePresentation({
+                    ...localizedTitles,
+                    request: {
+                      tmdbId: credit.id,
+                      type: credit.media_type === 'tv' ? 'tv' : 'movie',
+                    },
+                    unknownTitle: t('diary.unknownTitle'),
+                  })}
+                />
               ))}
             </div>
           ) : (
@@ -170,30 +190,32 @@ export default function PersonPage() {
   )
 }
 
-function PersonCreditCard({ credit }: { credit: TMDbPersonCredit }) {
-  const tmdb = getTmdb()
-  const title = getDisplayTitle(credit)
+function PersonCreditCard({
+  credit,
+  localizedTitle,
+}: {
+  credit: TMDbPersonCredit
+  localizedTitle: {
+    posterPath: string | null
+    title: string
+  }
+}) {
   const type = credit.media_type === 'tv' ? 'tv' : 'movie'
-  const year = getReleaseYear(credit)
-  const poster = tmdb.getImageUrl(credit.poster_path, 'w300')
   const role = credit.character || credit.job
 
   return (
-    <Link className="group grid min-w-0 gap-3 focus-ring" href={titlePath(credit.id, title, type)}>
-      <Poster className="w-full rounded-md" src={poster} title={title} />
-      <div className="min-w-0">
-        <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-kino-text group-hover:text-kino-accent">
-          {title}
-        </h3>
-        <div className="mt-1 flex items-center justify-between gap-2 text-xs text-kino-muted">
-          <span className="min-w-0 truncate">
-            {year || 'TBA'} - {type === 'tv' ? 'Series' : 'Movie'}
-          </span>
-          <span>{credit.vote_average ? credit.vote_average.toFixed(1) : 'New'}</span>
-        </div>
-        {role ? <p className="mt-1 truncate text-xs text-kino-subtle">{role}</p> : null}
-      </div>
-    </Link>
+    <div className="min-w-0">
+      <MediaCard
+        item={{
+          ...credit,
+          media_type: type,
+          name: type === 'tv' ? localizedTitle.title : credit.name,
+          poster_path: localizedTitle.posterPath,
+          title: type === 'movie' ? localizedTitle.title : credit.title,
+        }}
+      />
+      {role ? <p className="mt-1 truncate text-xs text-kino-subtle">{role}</p> : null}
+    </div>
   )
 }
 

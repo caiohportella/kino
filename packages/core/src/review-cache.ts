@@ -1,4 +1,4 @@
-import type { ProfileReview, ProfileReviewsPage, Review, TitleReviewsPage } from './reviews'
+import type { ProfileReview, ProfileReviewsPage, Review, TitleReviewsPage } from './reviews.ts'
 
 export function insertViewerReview(
   page: TitleReviewsPage | undefined,

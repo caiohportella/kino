@@ -4,7 +4,7 @@ import DateTimePicker from '@react-native-community/datetimepicker'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Stack } from 'expo-router'
+import { Stack, useRouter } from 'expo-router'
 import { useMemo, useState } from 'react'
 import {
   ActivityIndicator,
@@ -20,6 +20,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { useAuth } from '@/hooks/useAuth'
+import { ProtectedContentGate } from '~/components/auth/ProtectedContentGate'
+import { Skeleton } from '~/components/common/Skeleton'
+import { UnauthenticatedView } from '~/components/profile/UnauthenticatedView'
 import { dbService } from '~/services/database'
 import { getTMDbService } from '~/services/tmdb'
 import type { ImportSource, ImportTitleItem, ParsedImportResult } from '~/types/imports'
@@ -43,7 +46,8 @@ const EMPTY_STATE: ImportState = {
 }
 
 export default function ImportHistoryScreen() {
-  const { user } = useAuth()
+  const { user, resolution } = useAuth()
+  const router = useRouter()
 
   const [state, setState] = useState<ImportState>(EMPTY_STATE)
   const [loading, setLoading] = useState(false)
@@ -300,250 +304,263 @@ export default function ImportHistoryScreen() {
   }, [allItems, page])
 
   return (
-    <SafeAreaView className="flex-1 bg-primary">
-      <Stack.Screen
-        options={{
-          title: 'Import History',
-          headerTitleAlign: 'center',
-          headerStyle: { backgroundColor: '#121212' },
-          headerTintColor: '#fff',
-          headerShadowVisible: false,
-        }}
-      />
+    <ProtectedContentGate
+      authLoadingFallback={<Skeleton layout="profile" />}
+      emptyFallback={<Skeleton layout="profile" />}
+      errorFallback={
+        <View className="flex-1 items-center justify-center bg-primary">
+          <Text className="text-text-primary">Import unavailable.</Text>
+        </View>
+      }
+      pageStatus="content"
+      resolution={resolution}
+      unauthenticatedFallback={<UnauthenticatedView onLoginPress={() => router.push('/login')} />}
+    >
+      <SafeAreaView className="flex-1 bg-primary">
+        <Stack.Screen
+          options={{
+            title: 'Import History',
+            headerTitleAlign: 'center',
+            headerStyle: { backgroundColor: '#121212' },
+            headerTintColor: '#fff',
+            headerShadowVisible: false,
+          }}
+        />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-      >
-        <FlatList
-          data={paginatedItems}
-          keyExtractor={(item) => item.id}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingBottom: 120 }}
-          ListHeaderComponent={
-            <View className="px-4 pt-4">
-              <LinearGradient
-                colors={['#1DB954', '#0F6F35', '#121212']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                className="rounded-3xl p-5 overflow-hidden"
-              >
-                <View className="flex-row items-center justify-between">
-                  <View className="flex-1 pr-3">
-                    <Text className="text-white text-2xl font-black tracking-tight">
-                      Import your history
-                    </Text>
-                    <Text className="text-white/85 mt-2 text-sm leading-5">
-                      Upload a Letterboxd CSV. Kino parses the file locally, lets you review the
-                      preview, and then writes the mapped data to your account.
-                    </Text>
-                  </View>
-                  <Ionicons name="cloud-upload-outline" size={36} color="#fff" />
-                </View>
-              </LinearGradient>
-
-              <View className="mt-4 rounded-2xl border border-white/5 bg-surface p-4">
-                <Text className="text-xs font-bold uppercase tracking-[0.2em] text-text-secondary">
-                  Privacy
-                </Text>
-                <Text className="mt-2 text-sm leading-5 text-text-secondary">
-                  Your export is processed on this device before anything is saved to Kino. We do
-                  not connect to Letterboxd directly, so you keep control of the file you upload.
-                </Text>
-              </View>
-
-              <View className="mt-4">
-                <Text className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-text-secondary">
-                  Choose a source
-                </Text>
-                <View className="space-y-3">
-                  <SourceCard
-                    title="Letterboxd export"
-                    body="Upload the CSV export from Letterboxd. Kino imports watch dates, ratings, and rewatch flags."
-                    icon="film-outline"
-                    onPress={() => handlePickFile('letterboxd')}
-                    buttonLabel={state.source === 'letterboxd' ? 'Replace file' : 'Upload file'}
-                  />
-                </View>
-              </View>
-
-              <View className="mt-4 rounded-2xl border border-white/5 bg-surface p-4">
-                <View className="flex-row items-center justify-between">
-                  <View>
-                    <Text className="text-base font-bold text-text-primary">Preview</Text>
-                    <Text className="text-sm text-text-secondary">
-                      Review the mapped items before saving them.
-                    </Text>
-                  </View>
-                  {hasItems ? (
-                    <Text className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
-                      {summary.included} ready
-                    </Text>
-                  ) : null}
-                </View>
-
-                {state.errors.length > 0 ? (
-                  <View className="mt-4 rounded-xl border border-red-500/40 bg-red-500/10 p-3">
-                    <Text className="text-sm font-bold text-red-400">Fix these first</Text>
-                    {state.errors.map((error) => (
-                      <Text key={error} className="mt-1 text-sm text-red-300">
-                        {error}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          className="flex-1"
+        >
+          <FlatList
+            data={paginatedItems}
+            keyExtractor={(item) => item.id}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingBottom: 120 }}
+            ListHeaderComponent={
+              <View className="px-4 pt-4">
+                <LinearGradient
+                  colors={['#1DB954', '#0F6F35', '#121212']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  className="rounded-3xl p-5 overflow-hidden"
+                >
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-1 pr-3">
+                      <Text className="text-white text-2xl font-black tracking-tight">
+                        Import your history
                       </Text>
-                    ))}
-                  </View>
-                ) : null}
-
-                {state.warnings.length > 0 ? (
-                  <View className="mt-4 rounded-xl border border-orange-500/40 bg-orange-500/10 p-3">
-                    <Text className="text-sm font-bold text-orange-300">Warnings</Text>
-                    {state.warnings.map((warning) => (
-                      <Text key={warning} className="mt-1 text-sm text-orange-200">
-                        {warning}
+                      <Text className="text-white/85 mt-2 text-sm leading-5">
+                        Upload a Letterboxd CSV. Kino parses the file locally, lets you review the
+                        preview, and then writes the mapped data to your account.
                       </Text>
-                    ))}
+                    </View>
+                    <Ionicons name="cloud-upload-outline" size={36} color="#fff" />
                   </View>
-                ) : null}
+                </LinearGradient>
 
-                {!hasItems ? (
-                  <View className="mt-4 items-center rounded-2xl border border-dashed border-white/10 py-8">
-                    <Ionicons name="cloud-upload-outline" size={28} color="#666" />
-                    <Text className="mt-3 text-base font-semibold text-text-primary">
-                      No file selected yet
-                    </Text>
-                    <Text className="mt-1 px-6 text-center text-sm text-text-secondary">
-                      Upload a Letterboxd CSV to preview the import.
-                    </Text>
-                  </View>
-                ) : (
-                  <View className="mt-4 flex-row flex-wrap gap-2">
-                    <StatChip label="Items" value={summary.total} />
-                    <StatChip label="Included" value={summary.included} />
-                    <StatChip label="Movies" value={summary.movies} />
-                    <StatChip label="Series" value={summary.series} />
-                    <StatChip label="Needs review" value={summary.withIssues} tone="warning" />
-                  </View>
-                )}
-
-                {state.fileName ? (
-                  <View className="mt-4 rounded-xl bg-primary/70 px-3 py-2">
-                    <Text className="text-xs font-semibold uppercase tracking-[0.2em] text-text-secondary">
-                      Selected file
-                    </Text>
-                    <Text className="mt-1 text-sm text-text-primary">{state.fileName}</Text>
-                  </View>
-                ) : null}
-              </View>
-            </View>
-          }
-          ListEmptyComponent={null}
-          renderItem={({ item }) => (
-            <ImportRowCard
-              item={item}
-              onChange={updateItem}
-              onDatePress={setDatePickerId}
-              datePickerId={datePickerId}
-              onToggleInclude={(include) => updateItem(item.id, { include })}
-            />
-          )}
-          ListFooterComponent={
-            <View className="px-4 pt-4">
-              {datePickerId
-                ? (() => {
-                    const current = state.items.find((entry) => entry.id === datePickerId)
-                    if (!current) return null
-                    return (
-                      <View className="mb-4 rounded-2xl border border-white/5 bg-surface p-3">
-                        <Text className="mb-2 text-sm font-semibold text-text-primary">
-                          Adjust watched date
-                        </Text>
-                        <DateTimePicker
-                          value={new Date(current.watchedAt)}
-                          mode="date"
-                          display="default"
-                          onChange={(_, date) => {
-                            if (date) {
-                              updateItem(current.id, { watchedAt: date.toISOString() })
-                            }
-                            setDatePickerId(null)
-                          }}
-                        />
-                      </View>
-                    )
-                  })()
-                : null}
-
-              {importing ? (
-                <View className="rounded-2xl border border-white/5 bg-surface p-4">
-                  <Text className="text-base font-semibold text-text-primary">Importing...</Text>
-                  <Text className="mt-1 text-sm text-text-secondary">
-                    {progress.completed} of {progress.total} processed
+                <View className="mt-4 rounded-2xl border border-white/5 bg-surface p-4">
+                  <Text className="text-xs font-bold uppercase tracking-[0.2em] text-text-secondary">
+                    Privacy
                   </Text>
-                  <Text className="mt-2 text-xs font-medium text-text-secondary">
-                    Imported: {progress.imported} | Skipped: {progress.skipped} | Failed:{' '}
-                    {progress.failed}
+                  <Text className="mt-2 text-sm leading-5 text-text-secondary">
+                    Your export is processed on this device before anything is saved to Kino. We do
+                    not connect to Letterboxd directly, so you keep control of the file you upload.
                   </Text>
-                  <View className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
-                    <View
-                      className="h-full rounded-full bg-accent"
-                      style={{
-                        width: `${progress.total === 0 ? 0 : (progress.completed / progress.total) * 100}%`,
-                      }}
+                </View>
+
+                <View className="mt-4">
+                  <Text className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-text-secondary">
+                    Choose a source
+                  </Text>
+                  <View className="space-y-3">
+                    <SourceCard
+                      title="Letterboxd export"
+                      body="Upload the CSV export from Letterboxd. Kino imports watch dates, ratings, and rewatch flags."
+                      icon="film-outline"
+                      onPress={() => handlePickFile('letterboxd')}
+                      buttonLabel={state.source === 'letterboxd' ? 'Replace file' : 'Upload file'}
                     />
                   </View>
                 </View>
-              ) : null}
 
-              {/* Pagination Controls */}
-              {totalPages > 1 && (
-                <View className="mb-4 flex-row items-center justify-between rounded-2xl border border-white/5 bg-surface p-3">
+                <View className="mt-4 rounded-2xl border border-white/5 bg-surface p-4">
+                  <View className="flex-row items-center justify-between">
+                    <View>
+                      <Text className="text-base font-bold text-text-primary">Preview</Text>
+                      <Text className="text-sm text-text-secondary">
+                        Review the mapped items before saving them.
+                      </Text>
+                    </View>
+                    {hasItems ? (
+                      <Text className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+                        {summary.included} ready
+                      </Text>
+                    ) : null}
+                  </View>
+
+                  {state.errors.length > 0 ? (
+                    <View className="mt-4 rounded-xl border border-red-500/40 bg-red-500/10 p-3">
+                      <Text className="text-sm font-bold text-red-400">Fix these first</Text>
+                      {state.errors.map((error) => (
+                        <Text key={error} className="mt-1 text-sm text-red-300">
+                          {error}
+                        </Text>
+                      ))}
+                    </View>
+                  ) : null}
+
+                  {state.warnings.length > 0 ? (
+                    <View className="mt-4 rounded-xl border border-orange-500/40 bg-orange-500/10 p-3">
+                      <Text className="text-sm font-bold text-orange-300">Warnings</Text>
+                      {state.warnings.map((warning) => (
+                        <Text key={warning} className="mt-1 text-sm text-orange-200">
+                          {warning}
+                        </Text>
+                      ))}
+                    </View>
+                  ) : null}
+
+                  {!hasItems ? (
+                    <View className="mt-4 items-center rounded-2xl border border-dashed border-white/10 py-8">
+                      <Ionicons name="cloud-upload-outline" size={28} color="#666" />
+                      <Text className="mt-3 text-base font-semibold text-text-primary">
+                        No file selected yet
+                      </Text>
+                      <Text className="mt-1 px-6 text-center text-sm text-text-secondary">
+                        Upload a Letterboxd CSV to preview the import.
+                      </Text>
+                    </View>
+                  ) : (
+                    <View className="mt-4 flex-row flex-wrap gap-2">
+                      <StatChip label="Items" value={summary.total} />
+                      <StatChip label="Included" value={summary.included} />
+                      <StatChip label="Movies" value={summary.movies} />
+                      <StatChip label="Series" value={summary.series} />
+                      <StatChip label="Needs review" value={summary.withIssues} tone="warning" />
+                    </View>
+                  )}
+
+                  {state.fileName ? (
+                    <View className="mt-4 rounded-xl bg-primary/70 px-3 py-2">
+                      <Text className="text-xs font-semibold uppercase tracking-[0.2em] text-text-secondary">
+                        Selected file
+                      </Text>
+                      <Text className="mt-1 text-sm text-text-primary">{state.fileName}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+            }
+            ListEmptyComponent={null}
+            renderItem={({ item }) => (
+              <ImportRowCard
+                item={item}
+                onChange={updateItem}
+                onDatePress={setDatePickerId}
+                datePickerId={datePickerId}
+                onToggleInclude={(include) => updateItem(item.id, { include })}
+              />
+            )}
+            ListFooterComponent={
+              <View className="px-4 pt-4">
+                {datePickerId
+                  ? (() => {
+                      const current = state.items.find((entry) => entry.id === datePickerId)
+                      if (!current) return null
+                      return (
+                        <View className="mb-4 rounded-2xl border border-white/5 bg-surface p-3">
+                          <Text className="mb-2 text-sm font-semibold text-text-primary">
+                            Adjust watched date
+                          </Text>
+                          <DateTimePicker
+                            value={new Date(current.watchedAt)}
+                            mode="date"
+                            display="default"
+                            onChange={(_, date) => {
+                              if (date) {
+                                updateItem(current.id, { watchedAt: date.toISOString() })
+                              }
+                              setDatePickerId(null)
+                            }}
+                          />
+                        </View>
+                      )
+                    })()
+                  : null}
+
+                {importing ? (
+                  <View className="rounded-2xl border border-white/5 bg-surface p-4">
+                    <Text className="text-base font-semibold text-text-primary">Importing...</Text>
+                    <Text className="mt-1 text-sm text-text-secondary">
+                      {progress.completed} of {progress.total} processed
+                    </Text>
+                    <Text className="mt-2 text-xs font-medium text-text-secondary">
+                      Imported: {progress.imported} | Skipped: {progress.skipped} | Failed:{' '}
+                      {progress.failed}
+                    </Text>
+                    <View className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                      <View
+                        className="h-full rounded-full bg-accent"
+                        style={{
+                          width: `${progress.total === 0 ? 0 : (progress.completed / progress.total) * 100}%`,
+                        }}
+                      />
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <View className="mb-4 flex-row items-center justify-between rounded-2xl border border-white/5 bg-surface p-3">
+                    <TouchableOpacity
+                      className={`rounded-xl px-4 py-2 ${page === 1 ? 'opacity-40' : 'bg-white/5'}`}
+                      onPress={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                    >
+                      <Text className="text-sm font-semibold text-text-primary">Previous</Text>
+                    </TouchableOpacity>
+
+                    <Text className="text-sm text-text-secondary font-medium">
+                      Page {page} of {totalPages}
+                    </Text>
+
+                    <TouchableOpacity
+                      className={`rounded-xl px-4 py-2 ${page === totalPages ? 'opacity-40' : 'bg-white/5'}`}
+                      onPress={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                    >
+                      <Text className="text-sm font-semibold text-text-primary">Next</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                <View className="mt-4 flex-row gap-3">
                   <TouchableOpacity
-                    className={`rounded-xl px-4 py-2 ${page === 1 ? 'opacity-40' : 'bg-white/5'}`}
-                    onPress={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
+                    className="flex-1 items-center rounded-2xl border border-white/10 bg-surface px-4 py-4"
+                    onPress={handleReset}
+                    disabled={loading || importing}
                   >
-                    <Text className="text-sm font-semibold text-text-primary">Previous</Text>
+                    <Text className="font-semibold text-text-primary">Start over</Text>
                   </TouchableOpacity>
 
-                  <Text className="text-sm text-text-secondary font-medium">
-                    Page {page} of {totalPages}
-                  </Text>
-
                   <TouchableOpacity
-                    className={`rounded-xl px-4 py-2 ${page === totalPages ? 'opacity-40' : 'bg-white/5'}`}
-                    onPress={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
+                    className="flex-1 items-center rounded-2xl bg-accent px-4 py-4"
+                    onPress={handleImport}
+                    disabled={loading || importing || !hasItems}
                   >
-                    <Text className="text-sm font-semibold text-text-primary">Next</Text>
+                    {loading || importing ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text className="font-semibold text-white">Import into Kino</Text>
+                    )}
                   </TouchableOpacity>
                 </View>
-              )}
-
-              <View className="mt-4 flex-row gap-3">
-                <TouchableOpacity
-                  className="flex-1 items-center rounded-2xl border border-white/10 bg-surface px-4 py-4"
-                  onPress={handleReset}
-                  disabled={loading || importing}
-                >
-                  <Text className="font-semibold text-text-primary">Start over</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  className="flex-1 items-center rounded-2xl bg-accent px-4 py-4"
-                  onPress={handleImport}
-                  disabled={loading || importing || !hasItems}
-                >
-                  {loading || importing ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text className="font-semibold text-white">Import into Kino</Text>
-                  )}
-                </TouchableOpacity>
               </View>
-            </View>
-          }
-        />
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+            }
+          />
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </ProtectedContentGate>
   )
 }
 

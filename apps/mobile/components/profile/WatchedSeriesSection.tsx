@@ -3,7 +3,11 @@ import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native'
 import placeholderPoster from '@/assets/placeholder-poster.jpg'
-import { useLocalizedMediaData } from '~/hooks/data/useLocalizedMediaData'
+import {
+  type LocalizedMedia,
+  localizedMediaKey,
+  useLocalizedMediaData,
+} from '~/hooks/data/useLocalizedMediaData'
 import { getTMDbService } from '~/services/tmdb'
 import { OscarBadge } from '../common/OscarBadge'
 
@@ -91,7 +95,13 @@ export function WatchedSeriesSection({ series, onSeriesPress, onLongPress, onVie
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4">
-            {keepWatchingSeries.slice(0, 10).map((item) => renderSeriesItem(item))}
+            {localizedData.isError ? (
+              <Text className="text-text-secondary text-sm">{t('common.failed')}</Text>
+            ) : localizedData.isPending ? (
+              renderSkeletons(keepWatchingSeries.length)
+            ) : (
+              keepWatchingSeries.slice(0, 10).map((item) => renderSeriesItem(item))
+            )}
           </ScrollView>
         </View>
       ) : null}
@@ -110,7 +120,13 @@ export function WatchedSeriesSection({ series, onSeriesPress, onLongPress, onVie
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4">
-            {watchedSeries.slice(0, 10).map((item) => renderSeriesItem(item))}
+            {localizedData.isError ? (
+              <Text className="text-text-secondary text-sm">{t('common.failed')}</Text>
+            ) : localizedData.isPending ? (
+              renderSkeletons(watchedSeries.length)
+            ) : (
+              watchedSeries.slice(0, 10).map((item) => renderSeriesItem(item))
+            )}
           </ScrollView>
         </View>
       ) : null}
@@ -124,6 +140,9 @@ export function WatchedSeriesSection({ series, onSeriesPress, onLongPress, onVie
   )
 
   function renderSeriesItem(item: WatchedSeries) {
+    const localized = localizedData[localizedMediaKey({ tmdb_id: item.tmdb_id, type: 'tv' })] as
+      | LocalizedMedia
+      | undefined
     return (
       <TouchableOpacity
         key={item.id}
@@ -134,11 +153,9 @@ export function WatchedSeriesSection({ series, onSeriesPress, onLongPress, onVie
         <View className="relative">
           <Image
             source={
-              localizedData[item.tmdb_id]?.poster_path
-                ? { uri: tmdb.getImageUrl(localizedData[item.tmdb_id].poster_path, 'w300') || '' }
-                : item.cover_image
-                  ? { uri: item.cover_image }
-                  : placeholderPoster
+              localized?.poster_path
+                ? { uri: tmdb.getImageUrl(localized.poster_path, 'w300') || '' }
+                : placeholderPoster
             }
             className="w-24 h-36 rounded-lg bg-surface"
             resizeMode="cover"
@@ -148,5 +165,11 @@ export function WatchedSeriesSection({ series, onSeriesPress, onLongPress, onVie
         </View>
       </TouchableOpacity>
     )
+  }
+
+  function renderSkeletons(count: number) {
+    return Array.from({ length: Math.min(count, 5) }, (_, index) => (
+      <View key={`series-skeleton-${index}`} className="mr-3 h-36 w-24 rounded-lg bg-surface" />
+    ))
   }
 }

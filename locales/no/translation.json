@@ -2,9 +2,62 @@
   "tabs": {
     "home": "Hjem",
     "search": "Søk",
+    "activity": "Aktivitet",
     "diary": "Dagbok",
     "watchlists": "Lister",
     "profile": "Profil"
+  },
+  "activity": {
+    "did": "gjorde",
+    "rated": "{{user}} vurderte {{title}} den {{date}}",
+    "reviewed": "vurdert",
+    "watched": "{{user}} så {{title}} den {{date}}",
+    "rewatched": "satt på nytt",
+    "addToWatchlist": "{{user}} la til {{title}} i en liste den {{date}}",
+    "createdWatchlist": "{{user}} opprettet listen {{title}} den {{date}}",
+    "openTitle": "åpne tittel",
+    "loadMore": "Last mer",
+    "end": "Du har nådd slutten av aktiviteten din.",
+    "emptyTitle": "Ingen aktivitet ennå",
+    "emptyBody": "Aktivitetsstrømmen din vil vise vurderinger, anmeldelser, visninger og listenlegginger fra kontoen din og fra de du følger.",
+    "error": "Kunne ikke laste aktiviteten.",
+    "feedTitle": "Aktivitet",
+    "feedSubtitle": "Hva folk du følger ser på, rangerer og anmelder.",
+    "endOfFeed": "Du har sett alt",
+    "justNow": "Nettopp nå",
+    "minuteAgo": "{{count}} minutt siden",
+    "minutesAgo": "{{count}} minutter siden",
+    "hourAgo": "{{count}} time siden",
+    "hoursAgo": "{{count}} timer siden",
+    "dayAgo": "{{count}} dag siden",
+    "daysAgo": "{{count}} dager siden",
+    "weekAgo": "{{count}} uke siden",
+    "weeksAgo": "{{count}} uker siden",
+    "monthAgo": "{{count}} måned siden",
+    "monthsAgo": "{{count}} måneder siden",
+    "yearAgo": "{{count}} år siden",
+    "yearsAgo": "{{count}} år siden",
+    "filters": {
+      "you": "Deg",
+      "following": "Følger"
+    },
+    "feedSubtitleYou": "Titler du har sett og notater, nyeste først.",
+    "feedSubtitleFollowing": "Aktivitet fra personer du følger, nyeste først.",
+    "emptyYouTitle": "Ingen aktivitet ennå",
+    "emptyYouBody": "Begynn å registrere visninger og anmeldelser for å bygge aktivitetsfeeden din.",
+    "emptyFollowingTitle": "Ingen aktivitet fra følgerne dine",
+    "emptyFollowingBody": "Følg folk for å se visninger og anmeldelser her.",
+    "loading": "Laster aktivitet...",
+    "watchedReviewed": "{{user}} så og anmeldte {{title}} den {{date}}",
+    "pagination": {
+      "label": "Aktivitetssider",
+      "summary": "Side {{currentPage}} av {{totalPages}}",
+      "currentPage": "Side {{page}}",
+      "goToPage": "Gå til side {{page}}",
+      "previous": "Forrige",
+      "next": "Neste",
+      "morePages": "Flere sider"
+    }
   },
   "accountMenu": {
     "open": "Åpne kontomeny",
@@ -113,6 +166,7 @@
     "diaryIllustration": "En filmrull klar for en ny dagbokoppføring",
     "searchIllustration": "En filmrull som leter etter en manglende tittel",
     "watchlistIllustration": "En filmrull som markerer en tittel for senere",
+    "activityIllustration": "En filmrull med sosialaktivitetsboller",
     "missingIllustration": "En filmrull med en manglende ramme"
   },
   "diaryFilters": {
@@ -197,7 +251,11 @@
   "watchlists": {
     "title": "Lister",
     "visibility": "Synlighet",
-    "visibilityLabels": { "private": "Privat", "shared": "Delt", "public": "Offentlig" },
+    "visibilityLabels": {
+      "private": "Privat",
+      "shared": "Delt",
+      "public": "Offentlig"
+    },
     "visibilityDescriptions": {
       "private": "Bare du har tilgang til denne listen.",
       "shared": "Kun tilgjengelig via invitasjonslenke eller kode.",

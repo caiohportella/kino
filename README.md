@@ -300,14 +300,7 @@ EXPO_PUBLIC_WEB_URL=
 EXPO_PUBLIC_AUTH_REDIRECT_URL=
 
 EXPO_PUBLIC_APP_SCHEME=
-```
-
-Optional:
-
-```env
-EXPO_PUBLIC_UPSTASH_VECTOR_REST_URL=
-
-EXPO_PUBLIC_UPSTASH_VECTOR_REST_TOKEN=
+EXPO_PUBLIC_KINO_API_URL=
 ```
 
 ---
@@ -330,11 +323,10 @@ Required variables:
 EXPO_PUBLIC_SUPABASE_URL=
 EXPO_PUBLIC_SUPABASE_ANON_KEY=
 EXPO_PUBLIC_TMDB_API_KEY=
-EXPO_PUBLIC_UPSTASH_VECTOR_REST_URL=
-EXPO_PUBLIC_UPSTASH_VECTOR_REST_TOKEN=
 EXPO_PUBLIC_WEB_URL=https://kino.vercel.app
 EXPO_PUBLIC_AUTH_REDIRECT_URL=https://kino.vercel.app/auth/callback
 EXPO_PUBLIC_APP_SCHEME=kino
+EXPO_PUBLIC_KINO_API_URL=https://kino.vercel.app
 ```
 
 Notes:
@@ -342,6 +334,10 @@ Notes:
 -  `EXPO_PUBLIC_WEB_URL` should point to your web origin.
 -  `EXPO_PUBLIC_AUTH_REDIRECT_URL` can override the default `/auth/callback` redirect.
 -  `EXPO_PUBLIC_APP_SCHEME` controls the native deep-link scheme.
+-  `EXPO_PUBLIC_KINO_API_URL` is the public Kino API origin used by mobile search. Production
+   builds require a deployed HTTPS origin and reject localhost.
+-  On a physical device, `localhost` refers to the device itself. For local development, use a
+   reachable LAN address, tunnel, or deployed preview origin.
 -  Google OAuth on mobile requires an Expo development/standalone build; Expo Go does not provide
    a stable custom-scheme callback. See [docs/authentication.md](docs/authentication.md) for the
    Supabase allowlist, Google client, callback, and rebuild requirements.

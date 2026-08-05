@@ -1,5 +1,4 @@
 import type { Review } from '@kino/core'
-import { Heart } from 'lucide-react'
 import { useState } from 'react'
 import { RatingStars } from '@/components/rating-stars'
 import {
@@ -12,11 +11,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
-import { useTranslation } from '@/lib/i18n'
-import { cn } from '@/lib/utils'
+import { formatLocalizedDate } from '@/lib/date'
+import { useLocale, useTranslation } from '@/lib/i18n'
 import { ReviewAuthor } from './review-author'
 import { ReviewEditor } from './review-editor'
+import { ReviewLikeButton } from './review-like-button'
 import { ReviewOwnerActions } from './review-owner-actions'
 
 export function ReviewCard({
@@ -39,19 +38,19 @@ export function ReviewCard({
   onUpdate: (content: string) => Promise<boolean>
 }) {
   const { t } = useTranslation()
+  const { locale } = useLocale()
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const edited = review.updatedAt !== review.createdAt
 
   return (
-    <article className="flex items-start gap-3 border-t border-white/8 py-5 first:border-t-0 first:pt-0">
+    <article className="grid grid-cols-[40px_minmax(0,1fr)] items-start gap-3 border-t border-white/8 py-5 first:border-t-0 first:pt-0">
       <ReviewAuthor author={review.author} size="lg" />
       <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-kino-muted">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-kino-muted">
             <span>
-              {t('reviews.reviewedBy')}{' '}
-              <ReviewAuthor author={review.author} variant="name" />
+              {t('reviews.reviewedBy')} <ReviewAuthor author={review.author} variant="name" />
             </span>
             {review.rating ? (
               <RatingStars
@@ -63,19 +62,19 @@ export function ReviewCard({
             ) : null}
           </div>
           {review.isViewerReview ? (
-            <ReviewOwnerActions
-              disabled={pendingOwnerAction}
-              onDelete={() => setConfirmDelete(true)}
-              onEdit={() => setEditing(true)}
-            />
+            <div className="shrink-0">
+              <ReviewOwnerActions
+                disabled={pendingOwnerAction}
+                onDelete={() => setConfirmDelete(true)}
+                onEdit={() => setEditing(true)}
+              />
+            </div>
           ) : null}
         </div>
 
         <p className="mt-1 text-xs text-kino-subtle">
           {edited ? `${t('reviews.edited')} · ` : ''}
-          {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(
-            new Date(review.updatedAt)
-          )}
+          {formatLocalizedDate(review.updatedAt, locale)}
         </p>
 
         <div className="mt-3">
@@ -91,34 +90,22 @@ export function ReviewCard({
               pending={pendingOwnerAction}
             />
           ) : (
-            <p className="max-w-[70ch] whitespace-pre-wrap text-sm leading-7 text-kino-text">
+            <p className="w-full wrap-break-word whitespace-pre-wrap text-sm leading-7 text-kino-text">
               {review.content}
             </p>
           )}
         </div>
 
         {!review.isViewerReview ? (
-          <div className="mt-3 flex items-center gap-2 text-sm">
-            <button
-              aria-pressed={review.likedByViewer}
-              className={cn(
-                'focus-ring inline-flex items-center gap-1.5 rounded-md px-1 py-1 font-medium transition-colors',
-                review.likedByViewer ? 'text-kino-accent' : 'text-kino-muted hover:text-kino-text'
-              )}
-              disabled={pendingLike}
-              onClick={() => (canLike ? onLike() : onAuthRequired())}
-              type="button"
-            >
-              <Heart
-                aria-hidden="true"
-                fill={review.likedByViewer ? 'currentColor' : 'none'}
-                size={16}
-              />
-              {t(review.likedByViewer ? 'reviews.unlike' : 'reviews.like')}
-            </button>
-            <span className="text-kino-subtle">
-              {t('reviews.likeCount', { count: review.likeCount })}
-            </span>
+          <div className="mt-3">
+            <ReviewLikeButton
+              canLike={canLike}
+              likedByViewer={review.likedByViewer}
+              likeCount={review.likeCount}
+              onAuthRequired={onAuthRequired}
+              onLike={onLike}
+              pending={pendingLike}
+            />
           </div>
         ) : null}
       </div>

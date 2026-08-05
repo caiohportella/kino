@@ -1,14 +1,18 @@
+import type { SearchResponse, SearchResultV1, SearchResultV2 } from '@kino/core/search'
+import { useRouter } from 'expo-router'
 import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   LayoutAnimation,
+  ScrollView,
   Text,
+  TouchableOpacity,
   useWindowDimensions,
   View,
 } from 'react-native'
-import { useSearch } from '@/hooks/useSearch'
 import { useUpstashSearch } from '@/hooks/useUpstashSearch'
 import { TitleCard } from '~/components/common/TitleCard'
 import { EmptyState } from '~/components/EmptyState'
@@ -21,6 +25,7 @@ import {
 import { SearchBar } from '~/components/search/SearchBar'
 import { getTMDbService } from '~/services/tmdb'
 import type { TMDbGenre, TMDbTitle } from '~/types'
+import { mobilePersonDepartment, toMobileSearchTitle } from '~/utils/searchPresentation'
 
 // Helper to get decade start year
 function getDecadeStart(decade: string) {
@@ -61,18 +66,26 @@ function getDecadeEnd(decade: string) {
 
 export default function SearchScreen() {
   const { t } = useTranslation()
+  const router = useRouter()
+  const [submittedQuery, setSubmittedQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filters, setFilters] = useState<FilterState>(defaultFilterState)
+  const semanticMediaTypes =
+    filters?.mediaType === 'movie'
+      ? (['movie'] as const)
+      : filters?.mediaType === 'tv'
+        ? (['series'] as const)
+        : undefined
   const {
-    results: tmdbResults,
-    loading: tmdbLoading,
-    search: tmdbSearch,
-    clearResults: clearTmdbResults,
-  } = useSearch()
-  const {
-    results: semanticResults,
+    response: semanticResponse,
     loading: semanticLoading,
     search: semanticSearch,
     clearResults: clearSemanticResults,
-  } = useUpstashSearch()
+    nextPage,
+  } = useUpstashSearch({
+    mediaTypes: semanticMediaTypes,
+    mode: submittedQuery ? 'full' : 'autocomplete',
+  })
   const { width } = useWindowDimensions()
 
   // Responsive Grid
@@ -82,20 +95,17 @@ export default function SearchScreen() {
   const [genres, setGenres] = useState<TMDbGenre[]>([])
 
   // Advanced Filter state
-  const [filters, setFilters] = useState<FilterState>(defaultFilterState)
-  const [selectedThemes, _setSelectedThemes] = useState<string[]>([]) // Keep this for now
 
   const [discoveryResults, setDiscoveryResults] = useState<TMDbTitle[]>([])
   const [loading, setLoading] = useState(false)
 
   // Search state
-  const [searchQuery, setSearchQuery] = useState('')
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false)
 
   const tmdb = getTMDbService()
 
-  const isHybridSearchActive = searchQuery.length > 0 || selectedThemes.length > 0
-  const isGlobalLoading = loading || tmdbLoading || semanticLoading
+  const isHybridSearchActive = searchQuery.length > 0
+  const isGlobalLoading = loading || semanticLoading
   // Check if any filter is active
   const hasActiveFilters =
     filters.mediaType !== 'all' ||
@@ -130,27 +140,13 @@ export default function SearchScreen() {
       // 1. Semantic Search (Text OR Themes active)
       if (isHybridSearchActive) {
         // Construct semantic query
-        const genreNames = genres.filter((g) => filters.genres.includes(g.id)).map((g) => g.name)
-
-        let constructedQuery = searchQuery
-
-        // Append context to the query
-        if (selectedThemes.length > 0) {
-          constructedQuery += ` ${selectedThemes.join(' ')}`
-        }
-        if (genreNames.length > 0) {
-          constructedQuery += ` ${genreNames.join(' ')}`
-        }
-
-        // Fire both searches for robust results
-        semanticSearch(constructedQuery)
-        tmdbSearch(searchQuery) // TMDb keyword search is separate
+        // The gateway owns semantic retrieval and its TMDB fallback.
+        semanticSearch(searchQuery)
       }
       // 2. Standard Discovery (Filters Active)
       else if (hasActiveFilters) {
         setLoading(true)
         clearSemanticResults()
-        clearTmdbResults()
         try {
           const commonParams: Record<string, string> = {
             sort_by: 'popularity.desc',
@@ -231,7 +227,6 @@ export default function SearchScreen() {
       else {
         setLoading(true)
         clearSemanticResults()
-        clearTmdbResults()
         try {
           // Load popular from all types
           const data = await tmdb.getTrending('all', 'week')
@@ -252,32 +247,28 @@ export default function SearchScreen() {
   }, [
     searchQuery,
     filters,
-    selectedThemes,
     isHybridSearchActive,
-    genres,
     clearSemanticResults,
-    clearTmdbResults,
     hasActiveFilters, // Fire both searches for robust results
     semanticSearch,
     tmdb.discoverMedia,
     tmdb.getTrending,
-    tmdbSearch,
   ])
 
   // Handlers
   const handleSearchInput = (text: string) => {
+    setSubmittedQuery('')
     setSearchQuery(text)
+    if (text.trim()) setFilters(resetDiscoveryOnlyFilters)
+  }
+  const handleSearchSubmit = (text: string) => {
+    setSubmittedQuery(text)
+    setSearchQuery(text)
+    setFilters(resetDiscoveryOnlyFilters)
   }
 
   // Determine what to show
-  const rawResults = isHybridSearchActive
-    ? semanticResults.length > 0
-      ? semanticResults
-      : tmdbResults
-    : discoveryResults
-
-  // Local filtering for Keyword searches (semantic/tmdb) where backend parameters weren't used
-  const activeResults = rawResults.filter((item) => {
+  const activeResults = discoveryResults.filter((item) => {
     // Media Type filter
     if (filters.mediaType !== 'all' && item.media_type !== filters.mediaType) return false
 
@@ -304,6 +295,7 @@ export default function SearchScreen() {
 
       <SearchBar
         onSearch={handleSearchInput}
+        onSubmitSearch={handleSearchSubmit}
         onFilterPress={() => setIsFilterModalVisible(true)}
         filterActive={hasActiveFilters}
       />
@@ -319,11 +311,21 @@ export default function SearchScreen() {
 
       {/* Results Grid */}
       <View className="flex-1">
-        {isGlobalLoading && activeResults.length === 0 ? (
+        {isGlobalLoading &&
+        (isHybridSearchActive ? !semanticResponse : activeResults.length === 0) ? (
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator size="large" color="#1DB954" />
             <Text className="text-zinc-500 mt-4 font-medium">{t('search.loading')}</Text>
           </View>
+        ) : isHybridSearchActive ? (
+          <SemanticGroups
+            mode={submittedQuery ? 'full' : 'autocomplete'}
+            nextPage={nextPage}
+            onNextPage={() => nextPage && semanticSearch(searchQuery, nextPage)}
+            response={semanticResponse}
+            router={router}
+            t={t}
+          />
         ) : (
           <FlatList
             key={numColumns} // Force re-render on column change
@@ -360,4 +362,111 @@ export default function SearchScreen() {
       </View>
     </View>
   )
+}
+
+function SemanticGroups({
+  mode,
+  nextPage,
+  onNextPage,
+  response,
+  router,
+  t,
+}: {
+  mode: 'autocomplete' | 'full'
+  nextPage?: number
+  onNextPage: () => void
+  response?: SearchResponse
+  router: ReturnType<typeof useRouter>
+  t: ReturnType<typeof useTranslation>['t']
+}) {
+  if (!response?.results.length) {
+    return (
+      <EmptyState
+        title={t('search.noResults')}
+        description={t('search.noResultsHint')}
+        image={require('../../assets/illustrations/search-not-found.png')}
+        className="mt-20"
+      />
+    )
+  }
+  const labels = {
+    movies: t('search.movies'),
+    series: t('search.tvShows'),
+    people: t('search.people'),
+    users: t('search.users'),
+  }
+  return (
+    <ScrollView contentContainerStyle={{ gap: 24, padding: 16, paddingBottom: 100 }}>
+      {response.groups.map((group) =>
+        group.results.length ? (
+          <View key={group.type} className="gap-3">
+            <Text className="text-xl font-bold text-text-primary">{labels[group.type]}</Text>
+            <View className="flex-row flex-wrap gap-3">
+              {group.results.map((result) =>
+                group.type === 'movies' || group.type === 'series' ? (
+                  <View className="w-[120px]" key={result.entity.id}>
+                    <TitleCard title={toMobileSearchTitle(result)} />
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    className="w-full flex-row items-center gap-3 rounded-lg bg-surface-variant p-3"
+                    key={result.entity.id}
+                    onPress={() => router.push(gatewayRoute(result) as never)}
+                  >
+                    {result.entity.imageUrl ? (
+                      <Image
+                        className="h-12 w-12 rounded-full"
+                        source={{ uri: result.entity.imageUrl }}
+                      />
+                    ) : (
+                      <View className="h-12 w-12 rounded-full bg-white/10" />
+                    )}
+                    <View className="flex-1">
+                      <Text className="font-semibold text-text-primary">{result.entity.title}</Text>
+                      {result.entity.entityType === 'person' ? (
+                        <Text className="text-sm text-text-secondary">
+                          {mobilePersonDepartment(result.entity.department, {
+                            acting: t('person.department.Acting'),
+                            art: t('person.department.Art'),
+                            camera: t('person.department.Camera'),
+                            costumeAndMakeUp: t('person.department.Costume & Make-Up'),
+                            creator: t('person.department.Creator'),
+                            crew: t('person.department.Crew'),
+                            directing: t('person.department.Directing'),
+                            editing: t('person.department.Editing'),
+                            fallback: t('person.department.Person'),
+                            lighting: t('person.department.Lighting'),
+                            production: t('person.department.Production'),
+                            sound: t('person.department.Sound'),
+                            visualEffects: t('person.department.Visual Effects'),
+                            writing: t('person.department.Writing'),
+                          })}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </TouchableOpacity>
+                )
+              )}
+            </View>
+          </View>
+        ) : null
+      )}
+      {mode === 'full' && nextPage ? (
+        <TouchableOpacity className="items-center rounded-lg bg-accent p-3" onPress={onNextPage}>
+          <Text className="font-bold text-black">→</Text>
+        </TouchableOpacity>
+      ) : null}
+    </ScrollView>
+  )
+}
+
+function resetDiscoveryOnlyFilters(current: FilterState): FilterState {
+  return { ...defaultFilterState, mediaType: current.mediaType }
+}
+
+function gatewayRoute({ entity }: SearchResultV1 | SearchResultV2) {
+  if (entity.route) return entity.route
+  if (entity.entityType === 'person') return `/person/${entity.tmdbId || entity.id}`
+  if (entity.entityType === 'user') return `/${entity.id}`
+  return `/title/${entity.tmdbId}?type=${entity.entityType === 'series' ? 'tv' : 'movie'}`
 }

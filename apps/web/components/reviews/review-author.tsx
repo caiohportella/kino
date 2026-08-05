@@ -32,9 +32,7 @@ export function ReviewAuthor({
       name
     ) : (
       <Avatar size={size}>
-        {author.avatarUrl ? (
-          <AvatarImage alt={name} src={author.avatarUrl} />
-        ) : null}
+        {author.avatarUrl ? <AvatarImage alt={name} src={author.avatarUrl} /> : null}
         <AvatarFallback aria-hidden="true">{initials || '?'}</AvatarFallback>
       </Avatar>
     )

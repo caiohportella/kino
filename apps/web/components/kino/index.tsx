@@ -140,9 +140,7 @@ export function Poster({
   children?: ReactNode
 }) {
   return (
-    <div
-      className={cn('relative aspect-2/3 w-full overflow-hidden rounded bg-white/6', className)}
-    >
+    <div className={cn('relative aspect-2/3 w-full overflow-hidden rounded bg-white/6', className)}>
       {src ? (
         <img alt={alt || title} className="h-full w-full object-cover" loading="lazy" src={src} />
       ) : (

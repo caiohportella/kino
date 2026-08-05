@@ -27,8 +27,10 @@ import { useFollowedTitleRatings } from '~/hooks/data/useFollowedRatings'
 import { useTheaterStatus } from '~/hooks/data/useTheaterStatus'
 import { getOscarNominationsLegacy, useOscarData } from '~/services/awards'
 import { dbService } from '~/services/database'
+import { getTMDbService } from '~/services/tmdb'
 import type { MediaType } from '~/types'
 import { shareNativeResource } from '~/utils/native-share'
+import { buildTitleIdentityMetadata } from '~/utils/titleResponsiveLayout'
 
 export default function TitleDetailScreen() {
   const { id, type } = useLocalSearchParams<{ id: string; type: MediaType }>()
@@ -161,6 +163,31 @@ export default function TitleDetailScreen() {
     }
   }
 
+  if (metaQuery.isPlaceholderData && metaQuery.summary) {
+    const summaryPoster = getTMDbService().getImageUrl(metaQuery.summary.posterPath, 'w300')
+    return (
+      <View className="flex-1 bg-primary">
+        <View className="flex-row items-end gap-4 px-4 pt-16">
+          {summaryPoster ? (
+            <Image
+              source={{ uri: summaryPoster }}
+              className="h-36 w-24 rounded-lg"
+              resizeMode="cover"
+            />
+          ) : (
+            <View className="h-36 w-24 rounded-lg bg-surface" />
+          )}
+          <Text className="flex-1 pb-4 text-2xl font-bold text-text-primary">
+            {metaQuery.summary.title}
+          </Text>
+        </View>
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#1DB954" />
+        </View>
+      </View>
+    )
+  }
+
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-primary">
@@ -179,6 +206,11 @@ export default function TitleDetailScreen() {
       </View>
     )
   }
+
+  const identityMetadata = buildTitleIdentityMetadata({
+    genres: title.genres,
+    year: title.year,
+  })
 
   return (
     <>
@@ -204,27 +236,27 @@ export default function TitleDetailScreen() {
           <View className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-primary to-transparent" />
         </View>
 
-        <View className="-mt-12 mb-6 flex-row items-end px-4">
+        <View className="-mt-12 mb-6 items-center px-4">
           {title.coverImage && (
             <Image
               source={{ uri: title.coverImage }}
-              className="mr-4 h-36 w-24 rounded-lg border-2 border-white shadow-md"
+              className="mb-4 h-36 w-24 rounded-lg border-2 border-white shadow-md"
               resizeMode="cover"
             />
           )}
-          <View className="flex-1 pb-2">
-            <Text className="text-2xl font-bold text-text-primary" numberOfLines={2}>
-              {title.title}
-            </Text>
-            <Text className="font-medium text-text-secondary">
-              {title.year} •{' '}
-              {title.genres
-                .slice(0, 2)
-                .map((g) => g.name)
-                .join(', ')}
-            </Text>
+          <View className="w-full items-center pb-2">
+            <Text className="text-center text-2xl font-bold text-text-primary">{title.title}</Text>
+            {identityMetadata.length > 0 ? (
+              <View className="mt-1 flex-row flex-wrap justify-center gap-x-2 gap-y-1">
+                {identityMetadata.map((item) => (
+                  <Text className="font-medium text-text-secondary" key={item.key}>
+                    {item.label}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
             {title.type === 'tv' && isCompletedSeriesStatus(title.status) ? (
-              <View className="mt-2 self-start rounded-full border border-accent/20 bg-accent/10 px-3 py-1.5">
+              <View className="mt-2 self-center rounded-full border border-accent/20 bg-accent/10 px-3 py-1.5">
                 <Text className="text-[10px] font-bold uppercase tracking-wide text-[#1DB954]">
                   {t('profile.completed')}
                 </Text>
@@ -283,7 +315,7 @@ export default function TitleDetailScreen() {
           {/* Get Tickets Button */}
           {isInTheaters && (
             <TouchableOpacity
-              className="mb-6 flex-row items-center justify-center rounded-xl bg-accent px-4 py-4 shadow-lg shadow-accent/20"
+              className="mb-6 w-full flex-row items-center justify-center rounded-xl bg-accent px-4 py-4 shadow-lg shadow-accent/20"
               onPress={() => {
                 const searchUrl = `https://www.ingresso.com.br/busca/resultado?q=${encodeURIComponent(title.title ?? '')}`
                 Linking.openURL(searchUrl)
@@ -304,8 +336,10 @@ export default function TitleDetailScreen() {
           )}
 
           {/* Synopsis */}
-          <View className="mb-6">
-            <Text className="text-base leading-6 text-text-primary">{title.synopsis}</Text>
+          <View className="mb-6 items-start">
+            <Text className="text-left text-base leading-6 text-text-primary">
+              {title.synopsis}
+            </Text>
           </View>
 
           {/* Oscar Nominations Section */}

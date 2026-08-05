@@ -7,6 +7,7 @@ import type {
   PointerEvent as ReactPointerEvent,
 } from 'react'
 import { useRef, useState } from 'react'
+import { shouldStartMediaRowDrag } from '@/lib/media-row-interactions'
 import { cn } from '@/lib/utils'
 
 export function MediaRow({
@@ -61,7 +62,7 @@ function useDraggableScroll<T extends HTMLElement>() {
     ref,
     isDragging,
     onPointerDown(event: ReactPointerEvent<T>) {
-      if (event.pointerType !== 'mouse' || event.button !== 0) return
+      if (!shouldStartMediaRowDrag(event)) return
       const element = ref.current
       if (!element) return
 

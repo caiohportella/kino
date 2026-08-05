@@ -1,0 +1,292 @@
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import test from 'node:test'
+import { profileQueryKeys } from '@kino/core/cache'
+import {
+  profileIdentityQueryOptions,
+  profileRatingsQueryOptions,
+  profileRelationshipQueryOptions,
+  profileReviewsQueryOptions,
+  profileStatisticsQueryOptions,
+  profileUsernameResolutionQueryOptions,
+  profileWatchedMoviesQueryOptions,
+  profileWatchedSeriesQueryOptions,
+  profileWatchlistsQueryOptions,
+} from './profile-query-options.ts'
+
+const scope = { kind: 'authenticated', userId: 'viewer-a' }
+const profileId = 'profile-a'
+
+test('keeps the app query port structurally independent from the concrete database service', () => {
+  const source = readFileSync(new URL('./profile-query-options.ts', import.meta.url), 'utf8')
+
+  assert.doesNotMatch(source, /KinoDatabaseService/)
+})
+
+function createService() {
+  const canonicalCalls = []
+  return {
+    canonicalCalls,
+    getAverageSeasonRatingsForTitles: async (id, titleIds) => ({ [id]: titleIds.length }),
+    getFollowCounts: async () => ({ followers: 4, following: 3 }),
+    getFollowRelationship: async () => ({
+      isFollowedBy: false,
+      isFollowing: true,
+      isMutual: false,
+    }),
+    getProfileReviewsByProfileId: async (id) => ({
+      items: [],
+      nextCursor: null,
+      totalCount: id.length,
+    }),
+    getPublicProfileStatsByProfileId: async (id) => {
+      canonicalCalls.push(['statistics', id])
+      return {
+        diaryEntries: 3,
+        moviesWatched: 2,
+        reviews: 1,
+        seriesWatched: 1,
+      }
+    },
+    getPublicWatchlists: async () => [],
+    getUserProfile: async (id) => ({ id }),
+    getUserProfileByUsername: async (username) => ({ id: profileId, username }),
+    getWatchedMovies: async () => [],
+    getWatchedSeries: async () => [],
+  }
+}
+
+test('resolves usernames in a short-lived route cache before canonical profile queries begin', async () => {
+  const options = profileUsernameResolutionQueryOptions({
+    service: createService(),
+    username: '  Ada  ',
+  })
+
+  assert.deepEqual(options.queryKey, profileQueryKeys.usernameResolution('ada'))
+  assert.equal((await options.queryFn()).id, profileId)
+  assert.equal(options.staleTime, 5 * 60 * 1000)
+})
+
+test('keeps identity and every content section scoped to the canonical profile id', async () => {
+  const service = createService()
+  const identity = profileIdentityQueryOptions({ profileId, service, visibilityScope: scope })
+  const movies = profileWatchedMoviesQueryOptions({ profileId, service, visibilityScope: scope })
+  const series = profileWatchedSeriesQueryOptions({ profileId, service, visibilityScope: scope })
+  const watchlists = profileWatchlistsQueryOptions({ profileId, service, visibilityScope: scope })
+  const reviews = profileReviewsQueryOptions({
+    profileId,
+    service,
+    visibilityScope: scope,
+  })
+  const ratings = profileRatingsQueryOptions({
+    profileId,
+    service,
+    titleIds: ['series-b', 'series-a'],
+    visibilityScope: scope,
+  })
+
+  assert.deepEqual(
+    identity.queryKey,
+    profileQueryKeys.identity({ profileId, visibilityScope: scope })
+  )
+  assert.deepEqual(
+    movies.queryKey,
+    profileQueryKeys.watchedMovies({ profileId, visibilityScope: scope })
+  )
+  assert.deepEqual(
+    series.queryKey,
+    profileQueryKeys.watchedSeries({ profileId, visibilityScope: scope })
+  )
+  assert.deepEqual(
+    watchlists.queryKey,
+    profileQueryKeys.watchlists({ profileId, visibilityScope: scope })
+  )
+  assert.deepEqual(
+    reviews.queryKey,
+    profileQueryKeys.reviews({ profileId, visibilityScope: scope })
+  )
+  assert.deepEqual(
+    ratings.queryKey,
+    profileQueryKeys.ratings({
+      filters: { titleIds: ['series-a', 'series-b'] },
+      profileId,
+      visibilityScope: scope,
+    })
+  )
+  assert.equal((await reviews.queryFn()).totalCount, profileId.length)
+  assert.deepEqual(await identity.queryFn(), { id: profileId })
+})
+
+test('starts relationship work from a canonical route id without waiting for unrelated profile sections', async () => {
+  const relationshipCalls = []
+  const service = {
+    ...createService(),
+    getFollowRelationship: async (...args) => {
+      relationshipCalls.push(args)
+      return { isFollowedBy: false, isFollowing: true, isMutual: false }
+    },
+  }
+  const enabled = profileRelationshipQueryOptions({
+    profileId,
+    service,
+    viewerId: 'viewer-a',
+  })
+  const disabled = profileRelationshipQueryOptions({
+    profileId,
+    service: createService(),
+    viewerId: undefined,
+  })
+
+  assert.equal(enabled.enabled, true)
+  assert.equal(disabled.enabled, false)
+  assert.deepEqual(
+    enabled.queryKey,
+    profileQueryKeys.relationship({ profileId, viewerId: 'viewer-a' })
+  )
+  assert.equal((await enabled.queryFn()).isFollowing, true)
+  assert.deepEqual(relationshipCalls, [[profileId]])
+})
+
+test('preserves successful section data while a refreshed section is pending or fails', async () => {
+  const options = profileStatisticsQueryOptions({
+    profileId,
+    service: createService(),
+    visibilityScope: scope,
+  })
+
+  assert.deepEqual(
+    options.placeholderData(
+      { counts: { followers: 4, following: 3 }, publicStats: null },
+      { queryKey: options.queryKey }
+    ),
+    { counts: { followers: 4, following: 3 }, publicStats: null }
+  )
+  assert.deepEqual(await options.queryFn(), {
+    counts: { followers: 4, following: 3 },
+    publicStats: { diaryEntries: 3, moviesWatched: 2, reviews: 1, seriesWatched: 1 },
+  })
+})
+
+test('never retains section data from a different canonical profile owner', () => {
+  const service = createService()
+  const options = profileWatchedMoviesQueryOptions({
+    profileId: 'profile-b',
+    service,
+    visibilityScope: scope,
+  })
+
+  assert.equal(
+    options.placeholderData([{ id: 'movie-a' }], {
+      queryKey: profileQueryKeys.watchedMovies({
+        profileId: 'profile-a',
+        visibilityScope: scope,
+      }),
+    }),
+    undefined
+  )
+})
+
+test('never retains same-profile content when visibility changes from authenticated to public', () => {
+  const service = createService()
+  const options = profileWatchedMoviesQueryOptions({
+    profileId,
+    service,
+    visibilityScope: { kind: 'public' },
+  })
+
+  assert.equal(
+    options.placeholderData([{ id: 'private-movie' }], {
+      queryKey: profileQueryKeys.watchedMovies({
+        profileId,
+        visibilityScope: { kind: 'authenticated', userId: 'viewer-a' },
+      }),
+    }),
+    undefined
+  )
+})
+
+test('never retains same-profile identity, statistics, or ratings across account scopes', () => {
+  const service = createService()
+  const nextScope = { kind: 'authenticated', userId: 'viewer-b' }
+  const previousScope = { kind: 'authenticated', userId: 'viewer-a' }
+  const cases = [
+    {
+      options: profileIdentityQueryOptions({ profileId, service, visibilityScope: nextScope }),
+      previousData: { id: profileId },
+      previousKey: profileQueryKeys.identity({ profileId, visibilityScope: previousScope }),
+    },
+    {
+      options: profileStatisticsQueryOptions({
+        profileId,
+        service,
+        visibilityScope: nextScope,
+      }),
+      previousData: { counts: { followers: 1, following: 2 }, publicStats: null },
+      previousKey: profileQueryKeys.statistics({ profileId, visibilityScope: previousScope }),
+    },
+    {
+      options: profileRatingsQueryOptions({
+        profileId,
+        service,
+        titleIds: ['series-a'],
+        visibilityScope: nextScope,
+      }),
+      previousData: { 'series-a': 4 },
+      previousKey: profileQueryKeys.ratings({
+        filters: { titleIds: ['series-a'] },
+        profileId,
+        visibilityScope: previousScope,
+      }),
+    },
+  ]
+
+  for (const item of cases) {
+    assert.equal(
+      item.options.placeholderData(item.previousData, { queryKey: item.previousKey }),
+      undefined
+    )
+  }
+})
+
+test('never retains relationship data when the authenticated viewer owner changes', () => {
+  const service = createService()
+  const options = profileRelationshipQueryOptions({
+    profileId,
+    service,
+    viewerId: 'viewer-b',
+  })
+
+  assert.equal(
+    options.placeholderData(
+      { isFollowedBy: false, isFollowing: true, isMutual: false },
+      {
+        queryKey: profileQueryKeys.relationship({ profileId, viewerId: 'viewer-a' }),
+      }
+    ),
+    undefined
+  )
+})
+
+test('passes a sorted mutable title-id copy to the real ratings service signature', async () => {
+  const originalTitleIds = Object.freeze(['series-b', 'series-a'])
+  let receivedTitleIds
+  const service = {
+    ...createService(),
+    getAverageSeasonRatingsForTitles: async (_id, titleIds) => {
+      receivedTitleIds = titleIds
+      titleIds.push('service-can-mutate-this-copy')
+      return {}
+    },
+  }
+  const options = profileRatingsQueryOptions({
+    profileId,
+    service,
+    titleIds: originalTitleIds,
+    visibilityScope: scope,
+  })
+
+  await options.queryFn()
+
+  assert.deepEqual(originalTitleIds, ['series-b', 'series-a'])
+  assert.deepEqual(receivedTitleIds, ['series-a', 'series-b', 'service-can-mutate-this-copy'])
+})

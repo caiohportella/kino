@@ -2,6 +2,7 @@
   "extends": "@kino/config/tsconfig/expo",
   "compilerOptions": {
     "baseUrl": ".",
+    "lib": ["DOM", "ES2022"],
     "paths": {
       "@/*": ["./*"],
       "~/*": ["./*"],

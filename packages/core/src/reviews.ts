@@ -1,4 +1,4 @@
-import type { MediaType, UserProfile } from './types'
+import type { MediaType, UserProfile } from './types.ts'
 
 export const REVIEW_MAX_LENGTH = 2000
 export const REVIEW_PREVIEW_LIMIT = 6
@@ -23,9 +23,7 @@ export function toReviewAuthor(
   }
 }
 
-export function getReviewAuthorLabel(
-  author: Pick<KinoReviewAuthor, 'displayName' | 'username'>
-) {
+export function getReviewAuthorLabel(author: Pick<KinoReviewAuthor, 'displayName' | 'username'>) {
   return author.displayName?.trim() || author.username || null
 }
 
@@ -218,12 +216,13 @@ export const profileReviewKeys = {
     ['profile-reviews', username, cursor] as const,
 }
 
-export function mapProfileReviewsPage(
-  rows: ProfileReviewRow[],
-  limit: number
-): ProfileReviewsPage {
+export function mapProfileReviewsPage(rows: ProfileReviewRow[], limit: number): ProfileReviewsPage {
   const safeLimit = Math.max(1, limit)
-  const pageRows = rows.slice(0, safeLimit)
+  const orderedRows = [...rows].sort(
+    (left, right) =>
+      right.created_at.localeCompare(left.created_at) || right.id.localeCompare(left.id)
+  )
+  const pageRows = orderedRows.slice(0, safeLimit)
   const last = pageRows.at(-1)
 
   return {
@@ -240,9 +239,7 @@ export function mapProfileReviewsPage(
       },
     })),
     nextCursor:
-      rows.length > safeLimit && last
-        ? { created_at: last.created_at, id: last.id }
-        : null,
+      orderedRows.length > safeLimit && last ? { created_at: last.created_at, id: last.id } : null,
     totalCount: toSafeCount(rows[0]?.total_count),
   }
 }
