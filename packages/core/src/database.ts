@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   type FollowedEpisodeRatingsResponse,
   type FollowedRatingRow,
@@ -16,7 +16,8 @@ import {
   type ReviewRow,
   type TitleReviewsPage,
   validateReviewContent,
-} from './reviews'
+  FollowedRating,
+} from "./reviews";
 import type {
   EpisodeRating,
   FollowerInfo,
@@ -40,385 +41,468 @@ import type {
   WatchlistItemDetails,
   WatchlistVisibility,
   WatchType,
-} from './types'
-import { findFirstUnwatchedEpisode, getEpisodeKey } from './use-cases'
-import { createWatchlistCoverVersion } from './watchlist-cover'
+} from "./types";
+import { findFirstUnwatchedEpisode, getEpisodeKey } from "./use-cases";
+import { createWatchlistCoverVersion } from "./watchlist-cover";
 
-type SupabaseErrorLike = { code?: string }
+type SupabaseErrorLike = { code?: string };
 
 function toSafeCount(value: unknown) {
-  const count = Number(value)
-  return Number.isFinite(count) && count >= 0 ? count : 0
+  const count = Number(value);
+  return Number.isFinite(count) && count >= 0 ? count : 0;
+}
+
+function isFollowedRating(value: unknown): value is FollowedRating {
+  if (!value || typeof value !== "object") return false;
+
+  const item = value as Partial<FollowedRating>;
+
+  return Boolean(
+    item.user &&
+    typeof item.user === "object" &&
+    typeof item.user.id === "string" &&
+    item.user.id.length > 0 &&
+    typeof item.rating === "number",
+  );
 }
 
 function unwrapRpcRow<Row>(data: unknown): Row {
-  const row = Array.isArray(data) ? data[0] : data
-  if (!row || typeof row !== 'object') throw new Error('Review RPC returned no row')
-  return row as Row
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || typeof row !== "object")
+    throw new Error("Review RPC returned no row");
+  return row as Row;
 }
 
 interface TitleRow {
-  id: string
-  tmdb_id: number
-  type: MediaType
-  title: string
-  synopsis: string | null
-  cover_image: string | null
-  backdrop_image: string | null
-  release_year: number
-  genres: TMDbGenre[] | null
-  cast: TMDbCast[] | null
-  director: TMDbCast | null
-  runtime: number | null
-  total_seasons: number | null
-  total_episodes: number | null
-  seasons_metadata?: SeasonMetadata[] | null
+  id: string;
+  tmdb_id: number;
+  type: MediaType;
+  title: string;
+  synopsis: string | null;
+  cover_image: string | null;
+  backdrop_image: string | null;
+  release_year: number;
+  genres: TMDbGenre[] | null;
+  cast: TMDbCast[] | null;
+  director: TMDbCast | null;
+  runtime: number | null;
+  total_seasons: number | null;
+  total_episodes: number | null;
+  seasons_metadata?: SeasonMetadata[] | null;
 }
 
 interface TitleRatingRow {
-  id: string
-  user_id: string
-  title_id: string
-  rating: number | null
-  watch_type: WatchType
-  watched_at: string
-  notes?: string | null
-  created_at: string
-  updated_at: string
-  title?: TitleRow | null
+  id: string;
+  user_id: string;
+  title_id: string;
+  rating: number | null;
+  watch_type: WatchType;
+  watched_at: string;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+  title?: TitleRow | null;
 }
 
 interface EpisodeRatingRow {
-  id: string
-  user_id: string
-  title_id: string
-  season_number: number
-  episode_number: number
-  rating: number | null
-  watch_type: WatchType
-  watched_at: string
-  notes?: string | null
-  created_at: string
-  updated_at: string
-  title?: TitleRow | null
+  id: string;
+  user_id: string;
+  title_id: string;
+  season_number: number;
+  episode_number: number;
+  rating: number | null;
+  watch_type: WatchType;
+  watched_at: string;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+  title?: TitleRow | null;
 }
 
 interface WatchDiaryRow {
-  id: string
-  user_id: string
-  title_id: string
-  watched_at: string
-  watch_type: WatchType
-  notes: string | null
-  created_at: string
-  updated_at: string
+  id: string;
+  user_id: string;
+  title_id: string;
+  watched_at: string;
+  watch_type: WatchType;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
   titles?: Pick<
     TitleRow,
-    'title' | 'release_year' | 'cover_image' | 'tmdb_id' | 'type' | 'genres' | 'runtime'
-  > | null
+    | "title"
+    | "release_year"
+    | "cover_image"
+    | "tmdb_id"
+    | "type"
+    | "genres"
+    | "runtime"
+  > | null;
 }
 
 interface WatchlistRow {
-  id: string
-  user_id: string
-  name: string
-  description: string | null
-  thumbnail: string | null
-  is_shared: boolean
-  visibility: WatchlistVisibility
-  share_code: string | null
-  created_at: string
-  updated_at: string
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  thumbnail: string | null;
+  is_shared: boolean;
+  visibility: WatchlistVisibility;
+  share_code: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface WatchlistItemRow {
-  id: string
-  watchlist_id: string
-  title_id: string
-  added_by: string
-  added_at: string
-  title?: TitleRow | null
-  added_by_user?: Pick<UserProfile, 'id' | 'avatar_url' | 'display_name' | 'username'> | null
+  id: string;
+  watchlist_id: string;
+  title_id: string;
+  added_by: string;
+  added_at: string;
+  title?: TitleRow | null;
+  added_by_user?: Pick<
+    UserProfile,
+    "id" | "avatar_url" | "display_name" | "username"
+  > | null;
 }
 
 interface RatingStatsRow {
-  average_rating: number | string | null
-  total_ratings: number | string | null
-  star_breakdown: Record<number, number> | null
+  average_rating: number | string | null;
+  total_ratings: number | string | null;
+  star_breakdown: Record<number, number> | null;
 }
 
 export class KinoDatabaseService {
-  private readonly supabase: SupabaseClient
+  private readonly supabase: SupabaseClient;
 
   constructor(supabase: SupabaseClient) {
-    this.supabase = supabase
+    this.supabase = supabase;
   }
 
   async getUserProfile(userId: string) {
     const { data, error } = await this.supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle()
+      .from("user_profiles")
+      .select("*")
+      .eq("id", userId)
+      .maybeSingle();
 
-    if (error) throw error
-    return (data ?? null) as UserProfile | null
+    if (error) throw error;
+    return (data ?? null) as UserProfile | null;
   }
 
   async getUserProfileByUsername(username: string) {
     const { data, error } = await this.supabase
-      .from('user_profiles')
-      .select('*')
-      .ilike('username', username.trim())
-      .maybeSingle()
+      .from("user_profiles")
+      .select("*")
+      .ilike("username", username.trim())
+      .maybeSingle();
 
-    if (error) throw error
-    return (data ?? null) as UserProfile | null
+    if (error) throw error;
+    return (data ?? null) as UserProfile | null;
   }
 
   async searchUsers(query: string) {
-    const trimmedQuery = query.trim()
-    if (trimmedQuery.length < 2) return []
+    const trimmedQuery = query.trim();
+    if (trimmedQuery.length < 2) return [];
 
-    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-    const filters = [`username.ilike.%${trimmedQuery}%`, `display_name.ilike.%${trimmedQuery}%`]
-    if (uuidPattern.test(trimmedQuery)) filters.push(`id.eq.${trimmedQuery}`)
+    const uuidPattern =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const filters = [
+      `username.ilike.%${trimmedQuery}%`,
+      `display_name.ilike.%${trimmedQuery}%`,
+    ];
+    if (uuidPattern.test(trimmedQuery)) filters.push(`id.eq.${trimmedQuery}`);
 
     const { data, error } = await this.supabase
-      .from('user_profiles')
-      .select('*')
-      .or(filters.join(','))
-      .limit(20)
+      .from("user_profiles")
+      .select("*")
+      .or(filters.join(","))
+      .limit(20);
 
-    if (error) throw error
-    return (data ?? []) as UserProfile[]
+    if (error) throw error;
+    return (data ?? []) as UserProfile[];
   }
 
   async updateUserProfile(userId: string, updates: Partial<UserProfile>) {
     const { data, error } = await this.supabase
-      .from('user_profiles')
+      .from("user_profiles")
       .upsert({ id: userId, ...updates })
       .select()
-      .single()
+      .single();
 
-    if (error) throw error
-    return data as UserProfile
+    if (error) throw error;
+    return data as UserProfile;
   }
 
-  async createReview(titleId: string, mediaType: MediaType, content: string): Promise<Review> {
-    const userId = await this.getRequiredUserId()
-    const { data, error } = await this.supabase.rpc('create_review', {
+  async createReview(
+    titleId: string,
+    mediaType: MediaType,
+    content: string,
+  ): Promise<Review> {
+    const userId = await this.getRequiredUserId();
+    const { data, error } = await this.supabase.rpc("create_review", {
       p_user_id: userId,
       p_title_id: titleId,
       p_media_type: mediaType,
       p_content: validateReviewContent(content),
       p_rating: null,
-    })
-    if (error) throw error
-    return mapReviewRow(unwrapRpcRow<ReviewRow>(data))
+    });
+    if (error) throw error;
+    return mapReviewRow(unwrapRpcRow<ReviewRow>(data));
   }
 
   async updateReview(reviewId: string, content: string): Promise<Review> {
-    const userId = await this.getRequiredUserId()
-    const { data, error } = await this.supabase.rpc('update_review', {
+    const userId = await this.getRequiredUserId();
+    const { data, error } = await this.supabase.rpc("update_review", {
       p_review_id: reviewId,
       p_user_id: userId,
       p_content: validateReviewContent(content),
       p_rating: null,
-    })
-    if (error) throw error
-    return mapReviewRow(unwrapRpcRow<ReviewRow>(data))
+    });
+    if (error) throw error;
+    return mapReviewRow(unwrapRpcRow<ReviewRow>(data));
   }
 
   async deleteReview(reviewId: string) {
-    const userId = await this.getRequiredUserId()
-    const { error } = await this.supabase.rpc('delete_review', {
+    const userId = await this.getRequiredUserId();
+    const { error } = await this.supabase.rpc("delete_review", {
       p_review_id: reviewId,
       p_user_id: userId,
-    })
-    if (error) throw error
+    });
+    if (error) throw error;
   }
 
   async likeReview(reviewId: string) {
-    const { error } = await this.supabase.rpc('like_review', { p_review_id: reviewId })
-    if (error) throw error
+    const { error } = await this.supabase.rpc("like_review", {
+      p_review_id: reviewId,
+    });
+    if (error) throw error;
   }
 
   async unlikeReview(reviewId: string) {
-    const { error } = await this.supabase.rpc('unlike_review', { p_review_id: reviewId })
-    if (error) throw error
+    const { error } = await this.supabase.rpc("unlike_review", {
+      p_review_id: reviewId,
+    });
+    if (error) throw error;
   }
 
   async getTitleReviews(
     titleId: string,
     limit = REVIEW_PREVIEW_LIMIT,
-    cursor: ReviewCursor | null = null
+    cursor: ReviewCursor | null = null,
   ): Promise<TitleReviewsPage> {
-    const viewerId = await this.getUserId()
-    const { data, error } = await this.supabase.rpc('get_title_reviews', {
+    const viewerId = await this.getUserId();
+    const { data, error } = await this.supabase.rpc("get_title_reviews", {
       p_title_id: titleId,
       p_viewer_id: viewerId,
       p_limit: limit,
       p_cursor: cursor,
-    })
-    if (error) throw error
-    return mapTitleReviewsPage((data ?? []) as ReviewRow[], limit)
+    });
+    if (error) throw error;
+    return mapTitleReviewsPage((data ?? []) as ReviewRow[], limit);
   }
 
   async getProfileReviews(
     username: string,
-    { limit = REVIEW_PREVIEW_LIMIT, cursor = null }: ProfileReviewOptions = {}
+    { limit = REVIEW_PREVIEW_LIMIT, cursor = null }: ProfileReviewOptions = {},
   ): Promise<ProfileReviewsPage> {
-    const { data, error } = await this.supabase.rpc('get_profile_reviews', {
+    const { data, error } = await this.supabase.rpc("get_profile_reviews", {
       profile_username: username.trim(),
       page_limit: limit,
       cursor_created_at: cursor?.created_at ?? null,
       cursor_id: cursor?.id ?? null,
-    })
-    if (error) throw error
-    return mapProfileReviewsPage((data ?? []) as ProfileReviewRow[], limit)
+    });
+    if (error) throw error;
+    return mapProfileReviewsPage((data ?? []) as ProfileReviewRow[], limit);
   }
 
-  async getFollowedTitleRatings(titleId: string, limit = 6): Promise<FollowedRatingsPage> {
-    const { data, error } = await this.supabase.rpc('get_followed_title_ratings', {
-      p_title_id: titleId,
-      p_limit: limit,
-    })
-    if (error) throw error
-    return mapFollowedRatings((data ?? []) as FollowedRatingRow[])
+  async getFollowedTitleRatings(
+    titleId: string,
+    limit = 6,
+  ): Promise<FollowedRatingsPage> {
+    const { data, error } = await this.supabase.rpc(
+      "get_followed_title_ratings",
+      {
+        p_title_id: titleId,
+        p_limit: limit,
+      },
+    );
+    if (error) throw error;
+    return mapFollowedRatings((data ?? []) as FollowedRatingRow[]);
   }
 
   async getFollowedEpisodeRatings(
     titleId: string,
     seasonNumber: number,
-    perEpisodeLimit = 3
+    perEpisodeLimit = 3,
   ): Promise<FollowedEpisodeRatingsResponse> {
-    const { data, error } = await this.supabase.rpc('get_followed_episode_ratings', {
-      p_title_id: titleId,
-      p_season_number: seasonNumber,
-      p_per_episode_limit: perEpisodeLimit,
-    })
-    if (error) throw error
-    const response = (data ?? {}) as Partial<FollowedEpisodeRatingsResponse>
+    const { data, error } = await this.supabase.rpc(
+      "get_followed_episode_ratings",
+      {
+        p_title_id: titleId,
+        p_season_number: seasonNumber,
+        p_per_episode_limit: perEpisodeLimit,
+      },
+    );
+
+    if (error) throw error;
+
+    const raw = data as {
+      episodes?: Record<string, unknown[]>;
+      totals?: Record<string, number>;
+    } | null;
+
+    const episodes = Object.fromEntries(
+      Object.entries(raw?.episodes ?? {}).map(([episodeNumber, items]) => [
+        episodeNumber,
+        Array.isArray(items) ? items.filter(isFollowedRating) : [],
+      ]),
+    );
+
+    const totals = Object.fromEntries(
+      Object.entries(raw?.totals ?? {}).map(([episodeNumber, total]) => [
+        episodeNumber,
+        toSafeCount(total),
+      ]),
+    );
+
     return {
-      episodes: response.episodes ?? {},
-      totals: response.totals ?? {},
-    }
+      episodes,
+      totals,
+    };
   }
 
   async uploadAvatar(file: File, userId: string) {
-    const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
-    const filePath = `${userId}/${Date.now()}.${extension}`
-    const { error } = await this.supabase.storage.from('avatars').upload(filePath, file, {
-      contentType: file.type || `image/${extension}`,
-      upsert: true,
-    })
+    const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const filePath = `${userId}/${Date.now()}.${extension}`;
+    const { error } = await this.supabase.storage
+      .from("avatars")
+      .upload(filePath, file, {
+        contentType: file.type || `image/${extension}`,
+        upsert: true,
+      });
 
-    if (error) throw error
-    return this.supabase.storage.from('avatars').getPublicUrl(filePath).data.publicUrl
+    if (error) throw error;
+    return this.supabase.storage.from("avatars").getPublicUrl(filePath).data
+      .publicUrl;
   }
 
   async getWatchedMovies(userId: string) {
     const [ratingsResult, diaryResult] = await Promise.all([
       this.supabase
-        .from('title_ratings')
-        .select('*, title:titles(*)')
-        .eq('user_id', userId)
-        .order('watched_at', { ascending: false }),
+        .from("title_ratings")
+        .select("*, title:titles(*)")
+        .eq("user_id", userId)
+        .order("watched_at", { ascending: false }),
       this.supabase
-        .from('watch_diary')
-        .select('title_id, watched_at')
-        .eq('user_id', userId)
-        .order('watched_at', { ascending: false }),
-    ])
+        .from("watch_diary")
+        .select("title_id, watched_at")
+        .eq("user_id", userId)
+        .order("watched_at", { ascending: false }),
+    ]);
 
-    if (ratingsResult.error) throw ratingsResult.error
-    if (diaryResult.error) throw diaryResult.error
-    const rows = (ratingsResult.data ?? []) as TitleRatingRow[]
-    const latestDiaryWatchByTitle = new Map<string, string>()
+    if (ratingsResult.error) throw ratingsResult.error;
+    if (diaryResult.error) throw diaryResult.error;
+    const rows = (ratingsResult.data ?? []) as TitleRatingRow[];
+    const latestDiaryWatchByTitle = new Map<string, string>();
     for (const entry of diaryResult.data ?? []) {
       if (!latestDiaryWatchByTitle.has(entry.title_id)) {
-        latestDiaryWatchByTitle.set(entry.title_id, entry.watched_at)
+        latestDiaryWatchByTitle.set(entry.title_id, entry.watched_at);
       }
     }
 
     return rows
-      .filter((row): row is TitleRatingRow & { title: TitleRow } => row.title?.type === 'movie')
+      .filter(
+        (row): row is TitleRatingRow & { title: TitleRow } =>
+          row.title?.type === "movie",
+      )
       .map((row) => ({
         ...this.mapPersistedTitle(row.title),
-        type: 'movie' as const,
+        type: "movie" as const,
         rating: row.rating ?? 0,
         watched_at: latestDiaryWatchByTitle.get(row.title_id) ?? row.watched_at,
         user_rating_id: row.id,
       }))
-      .sort((left, right) => Date.parse(right.watched_at) - Date.parse(left.watched_at))
+      .sort(
+        (left, right) =>
+          Date.parse(right.watched_at) - Date.parse(left.watched_at),
+      );
   }
 
   async getWatchedSeries(userId: string) {
     const { data, error } = await this.supabase
-      .from('episode_ratings')
-      .select('*, title:titles(*)')
-      .eq('user_id', userId)
-      .order('watched_at', { ascending: false })
-      .order('season_number', { ascending: false })
-      .order('episode_number', { ascending: false })
-      .limit(10000)
+      .from("episode_ratings")
+      .select("*, title:titles(*)")
+      .eq("user_id", userId)
+      .order("watched_at", { ascending: false })
+      .order("season_number", { ascending: false })
+      .order("episode_number", { ascending: false })
+      .limit(10000);
 
-    if (error) throw error
-    const rows = (data ?? []) as EpisodeRatingRow[]
+    if (error) throw error;
+    const rows = (data ?? []) as EpisodeRatingRow[];
     const byTitle = new Map<
       string,
       WatchedSeries & {
-        watchedEpisodeKeys: Set<string>
+        watchedEpisodeKeys: Set<string>;
       }
-    >()
+    >();
 
     for (const row of rows) {
-      if (!row.title || row.title.type !== 'tv') continue
-      const existing = byTitle.get(row.title.id)
-      const key = getEpisodeKey(row.season_number, row.episode_number)
-      const title = this.mapPersistedTitle(row.title)
+      if (!row.title || row.title.type !== "tv") continue;
+      const existing = byTitle.get(row.title.id);
+      const key = getEpisodeKey(row.season_number, row.episode_number);
+      const title = this.mapPersistedTitle(row.title);
 
       if (!existing) {
         byTitle.set(row.title.id, {
           ...title,
-          type: 'tv',
+          type: "tv",
           watched_episode_count: 0,
           latest_rating: row.rating,
           latest_watched_at: row.watched_at,
-          last_episode: { season: row.season_number, episode: row.episode_number },
+          last_episode: {
+            season: row.season_number,
+            episode: row.episode_number,
+          },
           next_episode: null,
           is_series_completed: false,
           watchedEpisodeKeys: new Set([key]),
-        })
-        continue
+        });
+        continue;
       }
 
-      existing.watchedEpisodeKeys.add(key)
+      existing.watchedEpisodeKeys.add(key);
       if (new Date(row.watched_at) > new Date(existing.latest_watched_at)) {
-        existing.latest_rating = row.rating
-        existing.latest_watched_at = row.watched_at
-        existing.last_episode = { season: row.season_number, episode: row.episode_number }
+        existing.latest_rating = row.rating;
+        existing.latest_watched_at = row.watched_at;
+        existing.last_episode = {
+          season: row.season_number,
+          episode: row.episode_number,
+        };
       }
     }
 
     return Array.from(byTitle.values()).map((series) => {
-      const watchedCount = series.watchedEpisodeKeys.size
-      const totalEpisodes = series.total_episodes || 0
+      const watchedCount = series.watchedEpisodeKeys.size;
+      const totalEpisodes = series.total_episodes || 0;
       const firstUnwatchedEpisode = findFirstUnwatchedEpisode(
         series.seasons_metadata,
-        series.watchedEpisodeKeys
-      )
+        series.watchedEpisodeKeys,
+      );
       const hasSeasonMetadata = Boolean(
         series.seasons_metadata?.some(
-          (season) => season.season_number > 0 && season.episode_count > 0
-        )
-      )
+          (season) => season.season_number > 0 && season.episode_count > 0,
+        ),
+      );
       const completed =
         totalEpisodes > 0 &&
-        (hasSeasonMetadata ? !firstUnwatchedEpisode : watchedCount >= totalEpisodes)
-      const nextEpisode = completed ? null : firstUnwatchedEpisode
-      const { watchedEpisodeKeys: _watchedEpisodeKeys, ...cleanSeries } = series
+        (hasSeasonMetadata
+          ? !firstUnwatchedEpisode
+          : watchedCount >= totalEpisodes);
+      const nextEpisode = completed ? null : firstUnwatchedEpisode;
+      const { watchedEpisodeKeys: _watchedEpisodeKeys, ...cleanSeries } =
+        series;
 
       return {
         ...cleanSeries,
@@ -426,35 +510,40 @@ export class KinoDatabaseService {
         watched_episode_keys: Array.from(series.watchedEpisodeKeys),
         next_episode: nextEpisode,
         is_series_completed: completed,
-      }
-    })
+      };
+    });
   }
 
   async getPublicProfileStatsByUsername(username: string) {
-    const { data, error } = await this.supabase.rpc('get_public_profile_og_data', {
-      profile_username: username,
-    })
-    if (error) throw error
-    const row = Array.isArray(data) ? data[0] : data
-    if (!row) return null
+    const { data, error } = await this.supabase.rpc(
+      "get_public_profile_og_data",
+      {
+        profile_username: username,
+      },
+    );
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) return null;
     return {
       diaryEntries: toSafeCount(row.diary_entries),
       moviesWatched: toSafeCount(row.movies_watched),
       reviews: toSafeCount(row.review_count),
       seriesWatched: toSafeCount(row.series_watched),
-    }
+    };
   }
 
   async getDiaryEntries(userId: string, limit?: number) {
-    const pageSize = 1000
-    const maxRows = limit ?? Number.POSITIVE_INFINITY
-    const rows: WatchDiaryRow[] = []
+    const pageSize = 1000;
+    const maxRows = limit ?? Number.POSITIVE_INFINITY;
+    const rows: WatchDiaryRow[] = [];
 
     for (let offset = 0; rows.length < maxRows; offset += pageSize) {
-      const remaining = maxRows - rows.length
-      const fetchSize = Number.isFinite(remaining) ? Math.min(pageSize, remaining) : pageSize
+      const remaining = maxRows - rows.length;
+      const fetchSize = Number.isFinite(remaining)
+        ? Math.min(pageSize, remaining)
+        : pageSize;
       const { data, error } = await this.supabase
-        .from('watch_diary')
+        .from("watch_diary")
         .select(
           `
           id,
@@ -474,64 +563,85 @@ export class KinoDatabaseService {
             genres,
             runtime
           )
-        `
+        `,
         )
-        .eq('user_id', userId)
-        .order('watched_at', { ascending: false })
-        .range(offset, offset + fetchSize - 1)
+        .eq("user_id", userId)
+        .order("watched_at", { ascending: false })
+        .range(offset, offset + fetchSize - 1);
 
-      if (error) throw error
+      if (error) throw error;
 
       const pageRows = (
         (data ?? []) as unknown as Array<
-          Omit<WatchDiaryRow, 'titles'> & {
-            titles?: WatchDiaryRow['titles'] | WatchDiaryRow['titles'][]
+          Omit<WatchDiaryRow, "titles"> & {
+            titles?: WatchDiaryRow["titles"] | WatchDiaryRow["titles"][];
           }
         >
       ).map<WatchDiaryRow>((entry) => ({
         ...entry,
-        titles: Array.isArray(entry.titles) ? (entry.titles[0] ?? null) : (entry.titles ?? null),
-      }))
+        titles: Array.isArray(entry.titles)
+          ? (entry.titles[0] ?? null)
+          : (entry.titles ?? null),
+      }));
 
-      rows.push(...pageRows)
-      if (pageRows.length < fetchSize) break
+      rows.push(...pageRows);
+      if (pageRows.length < fetchSize) break;
     }
 
     const movieTitleIds = rows
-      .filter((entry) => entry.titles?.type === 'movie')
-      .map((entry) => entry.title_id)
+      .filter((entry) => entry.titles?.type === "movie")
+      .map((entry) => entry.title_id);
     const tvTitleIds = rows
-      .filter((entry) => entry.titles?.type === 'tv')
-      .map((entry) => entry.title_id)
-    const ratings: Record<string, number> = {}
+      .filter((entry) => entry.titles?.type === "tv")
+      .map((entry) => entry.title_id);
+    const ratings: Record<string, number> = {};
 
     if (movieTitleIds.length > 0) {
       const { data: movieRatings, error: ratingsError } = await this.supabase
-        .from('title_ratings')
-        .select('title_id, rating')
-        .eq('user_id', userId)
-        .in('title_id', movieTitleIds)
+        .from("title_ratings")
+        .select("title_id, rating")
+        .eq("user_id", userId)
+        .in("title_id", movieTitleIds);
 
-      if (ratingsError) throw ratingsError
-      for (const row of (movieRatings ?? []) as Pick<TitleRatingRow, 'title_id' | 'rating'>[]) {
-        ratings[row.title_id] = row.rating ?? 0
+      if (ratingsError) throw ratingsError;
+      for (const row of (movieRatings ?? []) as Pick<
+        TitleRatingRow,
+        "title_id" | "rating"
+      >[]) {
+        ratings[row.title_id] = row.rating ?? 0;
       }
     }
 
     if (tvTitleIds.length > 0) {
-      Object.assign(ratings, await this.getAverageSeasonRatingsForTitles(userId, tvTitleIds))
+      Object.assign(
+        ratings,
+        await this.getAverageSeasonRatingsForTitles(userId, tvTitleIds),
+      );
     }
 
-    const allTitleIds = Array.from(new Set(rows.map((entry) => entry.title_id)))
-    const communityStats: Record<string, { total: number; count: number; users: Set<string> }> = {}
-    const addCommunityRating = (titleId: string, rating: number | null, ratingUserId: string) => {
-      if (!rating || rating <= 0) return
-      const stats = communityStats[titleId] ?? { total: 0, count: 0, users: new Set<string>() }
-      stats.total += rating
-      stats.count += 1
-      stats.users.add(ratingUserId)
-      communityStats[titleId] = stats
-    }
+    const allTitleIds = Array.from(
+      new Set(rows.map((entry) => entry.title_id)),
+    );
+    const communityStats: Record<
+      string,
+      { total: number; count: number; users: Set<string> }
+    > = {};
+    const addCommunityRating = (
+      titleId: string,
+      rating: number | null,
+      ratingUserId: string,
+    ) => {
+      if (!rating || rating <= 0) return;
+      const stats = communityStats[titleId] ?? {
+        total: 0,
+        count: 0,
+        users: new Set<string>(),
+      };
+      stats.total += rating;
+      stats.count += 1;
+      stats.users.add(ratingUserId);
+      communityStats[titleId] = stats;
+    };
 
     if (allTitleIds.length > 0) {
       const [
@@ -539,39 +649,39 @@ export class KinoDatabaseService {
         { data: communityEpisodeRatings, error: episodeStatsError },
       ] = await Promise.all([
         this.supabase
-          .from('title_ratings')
-          .select('title_id, user_id, rating')
-          .in('title_id', allTitleIds),
+          .from("title_ratings")
+          .select("title_id, user_id, rating")
+          .in("title_id", allTitleIds),
         this.supabase
-          .from('episode_ratings')
-          .select('title_id, user_id, rating')
-          .in('title_id', allTitleIds),
-      ])
-      if (movieStatsError) throw movieStatsError
-      if (episodeStatsError) throw episodeStatsError
+          .from("episode_ratings")
+          .select("title_id, user_id, rating")
+          .in("title_id", allTitleIds),
+      ]);
+      if (movieStatsError) throw movieStatsError;
+      if (episodeStatsError) throw episodeStatsError;
 
       for (const row of (communityMovieRatings ?? []) as Pick<
         TitleRatingRow,
-        'title_id' | 'user_id' | 'rating'
+        "title_id" | "user_id" | "rating"
       >[]) {
-        addCommunityRating(row.title_id, row.rating, row.user_id)
+        addCommunityRating(row.title_id, row.rating, row.user_id);
       }
       for (const row of (communityEpisodeRatings ?? []) as Pick<
         EpisodeRatingRow,
-        'title_id' | 'user_id' | 'rating'
+        "title_id" | "user_id" | "rating"
       >[]) {
-        addCommunityRating(row.title_id, row.rating, row.user_id)
+        addCommunityRating(row.title_id, row.rating, row.user_id);
       }
     }
 
     return rows.map<UIDiaryEntry>((entry) => {
-      const stats = communityStats[entry.title_id]
+      const stats = communityStats[entry.title_id];
       return {
         id: entry.id,
         titleId: entry.title_id,
         tmdbId: entry.titles?.tmdb_id ?? 0,
-        type: entry.titles?.type ?? 'movie',
-        titleName: entry.titles?.title || 'Unknown title',
+        type: entry.titles?.type ?? "movie",
+        titleName: entry.titles?.title || "Unknown title",
         releaseYear: entry.titles?.release_year ?? 0,
         coverImage: entry.titles?.cover_image ?? null,
         genres: entry.titles?.genres ?? [],
@@ -584,69 +694,80 @@ export class KinoDatabaseService {
         ratingCount: stats?.users.size ?? 0,
         createdAt: entry.created_at,
         updatedAt: entry.updated_at,
-      }
-    })
+      };
+    });
   }
 
   async getAverageSeasonRatingsForTitles(userId: string, titleIds: string[]) {
-    if (titleIds.length === 0) return {}
+    if (titleIds.length === 0) return {};
 
     const { data, error } = await this.supabase
-      .from('episode_ratings')
-      .select('title_id, season_number, rating')
-      .eq('user_id', userId)
-      .in('title_id', titleIds)
-      .gt('rating', 0)
+      .from("episode_ratings")
+      .select("title_id, season_number, rating")
+      .eq("user_id", userId)
+      .in("title_id", titleIds)
+      .gt("rating", 0);
 
-    if (error) throw error
-    const rows = (data ?? []) as Pick<EpisodeRatingRow, 'title_id' | 'season_number' | 'rating'>[]
-    const byTitleAndSeason: Record<string, Record<number, { total: number; count: number }>> = {}
+    if (error) throw error;
+    const rows = (data ?? []) as Pick<
+      EpisodeRatingRow,
+      "title_id" | "season_number" | "rating"
+    >[];
+    const byTitleAndSeason: Record<
+      string,
+      Record<number, { total: number; count: number }>
+    > = {};
 
     for (const row of rows) {
-      if (row.rating === null) continue
-      let seasons = byTitleAndSeason[row.title_id]
+      if (row.rating === null) continue;
+      let seasons = byTitleAndSeason[row.title_id];
       if (!seasons) {
-        seasons = {}
-        byTitleAndSeason[row.title_id] = seasons
+        seasons = {};
+        byTitleAndSeason[row.title_id] = seasons;
       }
-      let bucket = seasons[row.season_number]
+      let bucket = seasons[row.season_number];
       if (!bucket) {
-        bucket = { total: 0, count: 0 }
-        seasons[row.season_number] = bucket
+        bucket = { total: 0, count: 0 };
+        seasons[row.season_number] = bucket;
       }
-      bucket.total += row.rating
-      bucket.count += 1
+      bucket.total += row.rating;
+      bucket.count += 1;
     }
 
-    const averages: Record<string, number> = {}
+    const averages: Record<string, number> = {};
     for (const [titleId, seasons] of Object.entries(byTitleAndSeason)) {
-      const seasonAverages = Object.values(seasons).map((season) => season.total / season.count)
+      const seasonAverages = Object.values(seasons).map(
+        (season) => season.total / season.count,
+      );
       averages[titleId] =
-        seasonAverages.reduce((total, value) => total + value, 0) / seasonAverages.length
+        seasonAverages.reduce((total, value) => total + value, 0) /
+        seasonAverages.length;
     }
 
-    return averages
+    return averages;
   }
 
-  async getOrCreateTitle(title: Omit<TitleDetails, 'averageRating' | 'ratingCount'>) {
+  async getOrCreateTitle(
+    title: Omit<TitleDetails, "averageRating" | "ratingCount">,
+  ) {
     const { data: existing, error: fetchError } = await this.supabase
-      .from('titles')
-      .select('id')
-      .eq('tmdb_id', title.tmdbId)
-      .maybeSingle()
+      .from("titles")
+      .select("id")
+      .eq("tmdb_id", title.tmdbId)
+      .maybeSingle();
 
-    if (fetchError) throw fetchError
-    const existingRow = existing as { id: string } | null
+    if (fetchError) throw fetchError;
+    const existingRow = existing as { id: string } | null;
     const seasonsMetadata =
       title.seasons?.map((season) => ({
         season_number: season.season_number,
         episode_count: season.episode_count,
         air_date: season.air_date,
-      })) || []
+      })) || [];
 
     if (existingRow) {
       await this.supabase
-        .from('titles')
+        .from("titles")
         .update({
           cover_image: title.coverImage,
           backdrop_image: title.backdropImage,
@@ -654,12 +775,12 @@ export class KinoDatabaseService {
           total_episodes: title.totalEpisodes,
           seasons_metadata: seasonsMetadata,
         })
-        .eq('id', existingRow.id)
-      return existingRow.id
+        .eq("id", existingRow.id);
+      return existingRow.id;
     }
 
     const { data, error } = await this.supabase
-      .from('titles')
+      .from("titles")
       .insert({
         tmdb_id: title.tmdbId,
         type: title.type,
@@ -676,33 +797,33 @@ export class KinoDatabaseService {
         total_episodes: title.totalEpisodes,
         seasons_metadata: seasonsMetadata,
       })
-      .select('id')
-      .single()
+      .select("id")
+      .single();
 
     if (error) {
-      if ((error as SupabaseErrorLike).code === '23505') {
+      if ((error as SupabaseErrorLike).code === "23505") {
         const { data: retry, error: retryError } = await this.supabase
-          .from('titles')
-          .select('id')
-          .eq('tmdb_id', title.tmdbId)
-          .single()
-        if (retryError) throw retryError
-        return (retry as { id: string }).id
+          .from("titles")
+          .select("id")
+          .eq("tmdb_id", title.tmdbId)
+          .single();
+        if (retryError) throw retryError;
+        return (retry as { id: string }).id;
       }
-      throw error
+      throw error;
     }
 
-    return (data as { id: string }).id
+    return (data as { id: string }).id;
   }
 
   async getTitleByTmdbId(tmdbId: number) {
     const { data, error } = await this.supabase
-      .from('titles')
-      .select('*')
-      .eq('tmdb_id', tmdbId)
-      .maybeSingle()
-    if (error) throw error
-    return data ? this.mapTitleToDetails(data as TitleRow) : null
+      .from("titles")
+      .select("*")
+      .eq("tmdb_id", tmdbId)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? this.mapTitleToDetails(data as TitleRow) : null;
   }
 
   async rateTitle(
@@ -710,44 +831,46 @@ export class KinoDatabaseService {
     rating: number,
     watchType: WatchType,
     watchedAt: Date,
-    notes?: string
+    notes?: string,
   ) {
-    const user = await this.getRequiredUserId()
+    const user = await this.getRequiredUserId();
     const { data: existing } = await this.supabase
-      .from('title_ratings')
-      .select('id')
-      .eq('user_id', user)
-      .eq('title_id', titleId)
-      .maybeSingle()
+      .from("title_ratings")
+      .select("id")
+      .eq("user_id", user)
+      .eq("title_id", titleId)
+      .maybeSingle();
 
     const payload = {
       rating,
       watch_type: watchType,
       watched_at: watchedAt.toISOString(),
       notes,
-    }
+    };
 
     const query = existing
       ? this.supabase
-          .from('title_ratings')
+          .from("title_ratings")
           .update(payload)
-          .eq('id', (existing as { id: string }).id)
-      : this.supabase.from('title_ratings').insert({ ...payload, user_id: user, title_id: titleId })
+          .eq("id", (existing as { id: string }).id)
+      : this.supabase
+          .from("title_ratings")
+          .insert({ ...payload, user_id: user, title_id: titleId });
 
-    const { data, error } = await query.select().single()
-    if (error) throw error
-    return this.mapRating(data as TitleRatingRow)
+    const { data, error } = await query.select().single();
+    if (error) throw error;
+    return this.mapRating(data as TitleRatingRow);
   }
 
   async deleteTitleRating(titleId: string) {
-    const user = await this.getRequiredUserId()
+    const user = await this.getRequiredUserId();
     const { error } = await this.supabase
-      .from('title_ratings')
+      .from("title_ratings")
       .delete()
-      .eq('user_id', user)
-      .eq('title_id', titleId)
+      .eq("user_id", user)
+      .eq("title_id", titleId);
 
-    if (error) throw error
+    if (error) throw error;
   }
 
   async rateEpisode(
@@ -757,54 +880,58 @@ export class KinoDatabaseService {
     rating: number | null,
     watchType: WatchType,
     watchedAt: Date,
-    notes?: string
+    notes?: string,
   ) {
-    const user = await this.getRequiredUserId()
+    const user = await this.getRequiredUserId();
     const { data: existing } = await this.supabase
-      .from('episode_ratings')
-      .select('id')
-      .eq('user_id', user)
-      .eq('title_id', titleId)
-      .eq('season_number', seasonNumber)
-      .eq('episode_number', episodeNumber)
-      .maybeSingle()
+      .from("episode_ratings")
+      .select("id")
+      .eq("user_id", user)
+      .eq("title_id", titleId)
+      .eq("season_number", seasonNumber)
+      .eq("episode_number", episodeNumber)
+      .maybeSingle();
 
     const payload = {
       rating,
       watch_type: watchType,
       watched_at: watchedAt.toISOString(),
       notes,
-    }
+    };
 
     const query = existing
       ? this.supabase
-          .from('episode_ratings')
+          .from("episode_ratings")
           .update(payload)
-          .eq('id', (existing as { id: string }).id)
-      : this.supabase.from('episode_ratings').insert({
+          .eq("id", (existing as { id: string }).id)
+      : this.supabase.from("episode_ratings").insert({
           ...payload,
           user_id: user,
           title_id: titleId,
           season_number: seasonNumber,
           episode_number: episodeNumber,
-        })
+        });
 
-    const { data, error } = await query.select().single()
-    if (error) throw error
-    return this.mapEpisodeRating(data as EpisodeRatingRow)
+    const { data, error } = await query.select().single();
+    if (error) throw error;
+    return this.mapEpisodeRating(data as EpisodeRatingRow);
   }
 
-  async removeEpisodeRating(titleId: string, seasonNumber: number, episodeNumber: number) {
-    const user = await this.getRequiredUserId()
+  async removeEpisodeRating(
+    titleId: string,
+    seasonNumber: number,
+    episodeNumber: number,
+  ) {
+    const user = await this.getRequiredUserId();
     const { error } = await this.supabase
-      .from('episode_ratings')
+      .from("episode_ratings")
       .delete()
-      .eq('user_id', user)
-      .eq('title_id', titleId)
-      .eq('season_number', seasonNumber)
-      .eq('episode_number', episodeNumber)
+      .eq("user_id", user)
+      .eq("title_id", titleId)
+      .eq("season_number", seasonNumber)
+      .eq("episode_number", episodeNumber);
 
-    if (error) throw error
+    if (error) throw error;
   }
 
   async markSeasonEpisodesAsWatched(
@@ -813,30 +940,30 @@ export class KinoDatabaseService {
     episodes: Array<{ episode_number: number }>,
     watchType: WatchType,
     watchedAt = new Date(),
-    rating: number | null = null
+    rating: number | null = null,
   ) {
-    if (episodes.length === 0) return []
+    if (episodes.length === 0) return [];
 
-    const user = await this.getRequiredUserId()
+    const user = await this.getRequiredUserId();
     const existingByEpisode = new Map<
       number,
-      Pick<EpisodeRatingRow, 'rating' | 'watch_type' | 'watched_at'>
-    >()
+      Pick<EpisodeRatingRow, "rating" | "watch_type" | "watched_at">
+    >();
 
     if (rating === null) {
       const { data: existing, error: existingError } = await this.supabase
-        .from('episode_ratings')
-        .select('episode_number, rating, watch_type, watched_at')
-        .eq('user_id', user)
-        .eq('title_id', titleId)
-        .eq('season_number', seasonNumber)
+        .from("episode_ratings")
+        .select("episode_number, rating, watch_type, watched_at")
+        .eq("user_id", user)
+        .eq("title_id", titleId)
+        .eq("season_number", seasonNumber);
 
-      if (existingError) throw existingError
+      if (existingError) throw existingError;
       for (const row of (existing ?? []) as Pick<
         EpisodeRatingRow,
-        'episode_number' | 'rating' | 'watch_type' | 'watched_at'
+        "episode_number" | "rating" | "watch_type" | "watched_at"
       >[]) {
-        existingByEpisode.set(row.episode_number, row)
+        existingByEpisode.set(row.episode_number, row);
       }
     }
 
@@ -845,97 +972,116 @@ export class KinoDatabaseService {
       title_id: titleId,
       season_number: seasonNumber,
       episode_number: episode.episode_number,
-      rating: rating ?? existingByEpisode.get(episode.episode_number)?.rating ?? null,
-      watch_type: existingByEpisode.get(episode.episode_number)?.watch_type ?? watchType,
+      rating:
+        rating ?? existingByEpisode.get(episode.episode_number)?.rating ?? null,
+      watch_type:
+        existingByEpisode.get(episode.episode_number)?.watch_type ?? watchType,
       watched_at:
-        existingByEpisode.get(episode.episode_number)?.watched_at ?? watchedAt.toISOString(),
-    }))
+        existingByEpisode.get(episode.episode_number)?.watched_at ??
+        watchedAt.toISOString(),
+    }));
 
     const { data, error } = await this.supabase
-      .from('episode_ratings')
-      .upsert(payload, { onConflict: 'user_id,title_id,season_number,episode_number' })
-      .select()
+      .from("episode_ratings")
+      .upsert(payload, {
+        onConflict: "user_id,title_id,season_number,episode_number",
+      })
+      .select();
 
-    if (error) throw error
-    return ((data ?? []) as EpisodeRatingRow[]).map((row) => this.mapEpisodeRating(row))
+    if (error) throw error;
+    return ((data ?? []) as EpisodeRatingRow[]).map((row) =>
+      this.mapEpisodeRating(row),
+    );
   }
 
   async removeSeasonEpisodesWatched(titleId: string, seasonNumber: number) {
-    const user = await this.getRequiredUserId()
+    const user = await this.getRequiredUserId();
     const { error } = await this.supabase
-      .from('episode_ratings')
+      .from("episode_ratings")
       .delete()
-      .eq('user_id', user)
-      .eq('title_id', titleId)
-      .eq('season_number', seasonNumber)
+      .eq("user_id", user)
+      .eq("title_id", titleId)
+      .eq("season_number", seasonNumber);
 
-    if (error) throw error
+    if (error) throw error;
   }
 
   async getUserRating(titleId: string) {
-    const user = await this.getUserId()
-    if (!user) return null
+    const user = await this.getUserId();
+    if (!user) return null;
 
     const { data, error } = await this.supabase
-      .from('title_ratings')
-      .select('*')
-      .eq('user_id', user)
-      .eq('title_id', titleId)
-      .order('watched_at', { ascending: false })
+      .from("title_ratings")
+      .select("*")
+      .eq("user_id", user)
+      .eq("title_id", titleId)
+      .order("watched_at", { ascending: false })
       .limit(1)
-      .maybeSingle()
+      .maybeSingle();
 
-    if (error) throw error
-    return data ? this.mapRating(data as TitleRatingRow) : null
+    if (error) throw error;
+    return data ? this.mapRating(data as TitleRatingRow) : null;
   }
 
   async getUserSeasonRatings(titleId: string, seasonNumber: number) {
-    const user = await this.getUserId()
-    if (!user) return []
+    const user = await this.getUserId();
+    if (!user) return [];
 
     const { data, error } = await this.supabase
-      .from('episode_ratings')
-      .select('*')
-      .eq('user_id', user)
-      .eq('title_id', titleId)
-      .eq('season_number', seasonNumber)
+      .from("episode_ratings")
+      .select("*")
+      .eq("user_id", user)
+      .eq("title_id", titleId)
+      .eq("season_number", seasonNumber);
 
-    if (error) throw error
-    return ((data ?? []) as EpisodeRatingRow[]).map((row) => this.mapEpisodeRating(row))
+    if (error) throw error;
+    return ((data ?? []) as EpisodeRatingRow[]).map((row) =>
+      this.mapEpisodeRating(row),
+    );
   }
 
   async getUserTitleEpisodeRatings(titleId: string) {
-    const user = await this.getUserId()
-    if (!user) return []
+    const user = await this.getUserId();
+    if (!user) return [];
 
     const { data, error } = await this.supabase
-      .from('episode_ratings')
-      .select('*')
-      .eq('user_id', user)
-      .eq('title_id', titleId)
+      .from("episode_ratings")
+      .select("*")
+      .eq("user_id", user)
+      .eq("title_id", titleId);
 
-    if (error) throw error
-    return ((data ?? []) as EpisodeRatingRow[]).map((row) => this.mapEpisodeRating(row))
+    if (error) throw error;
+    return ((data ?? []) as EpisodeRatingRow[]).map((row) =>
+      this.mapEpisodeRating(row),
+    );
   }
 
   async getTitleRatingStats(titleId: string, type: MediaType) {
-    const rpcName = type === 'tv' ? 'get_series_rating_stats' : 'get_title_rating_stats'
-    const { data, error } = await this.supabase.rpc(rpcName, { p_title_id: titleId })
-    if (error) throw error
-    const rows = (data ?? []) as RatingStatsRow[]
+    const rpcName =
+      type === "tv" ? "get_series_rating_stats" : "get_title_rating_stats";
+    const { data, error } = await this.supabase.rpc(rpcName, {
+      p_title_id: titleId,
+    });
+    if (error) throw error;
+    const rows = (data ?? []) as RatingStatsRow[];
     return this.mapStats(
       rows[0] ?? {
         average_rating: 0,
         total_ratings: 0,
         star_breakdown: {},
-      }
-    )
+      },
+    );
   }
 
-  async addWatchDiaryEntry(titleId: string, watchedAt: Date, watchType: WatchType, notes?: string) {
-    const user = await this.getRequiredUserId()
+  async addWatchDiaryEntry(
+    titleId: string,
+    watchedAt: Date,
+    watchType: WatchType,
+    notes?: string,
+  ) {
+    const user = await this.getRequiredUserId();
     const { data, error } = await this.supabase
-      .from('watch_diary')
+      .from("watch_diary")
       .insert({
         user_id: user,
         title_id: titleId,
@@ -944,412 +1090,457 @@ export class KinoDatabaseService {
         notes,
       })
       .select()
-      .single()
+      .single();
 
-    if (error) throw error
-    return this.mapWatchDiaryEntry(data as WatchDiaryRow)
+    if (error) throw error;
+    return this.mapWatchDiaryEntry(data as WatchDiaryRow);
   }
 
   async updateWatchDiaryEntry(
     entryId: string,
-    updates: { watchedAt?: Date; notes?: string; watchType?: WatchType }
+    updates: { watchedAt?: Date; notes?: string; watchType?: WatchType },
   ) {
-    const user = await this.getRequiredUserId()
-    const payload: Record<string, string | undefined> = {}
-    if (updates.watchedAt) payload.watched_at = updates.watchedAt.toISOString()
-    if (updates.notes !== undefined) payload.notes = updates.notes
-    if (updates.watchType) payload.watch_type = updates.watchType
+    const user = await this.getRequiredUserId();
+    const payload: Record<string, string | undefined> = {};
+    if (updates.watchedAt) payload.watched_at = updates.watchedAt.toISOString();
+    if (updates.notes !== undefined) payload.notes = updates.notes;
+    if (updates.watchType) payload.watch_type = updates.watchType;
 
     const { data, error } = await this.supabase
-      .from('watch_diary')
+      .from("watch_diary")
       .update(payload)
-      .eq('id', entryId)
-      .eq('user_id', user)
+      .eq("id", entryId)
+      .eq("user_id", user)
       .select()
-      .single()
+      .single();
 
-    if (error) throw error
-    return this.mapWatchDiaryEntry(data as WatchDiaryRow)
+    if (error) throw error;
+    return this.mapWatchDiaryEntry(data as WatchDiaryRow);
   }
 
   async deleteWatchDiaryEntry(entryId: string) {
-    const user = await this.getRequiredUserId()
+    const user = await this.getRequiredUserId();
     const { error } = await this.supabase
-      .from('watch_diary')
+      .from("watch_diary")
       .delete()
-      .eq('id', entryId)
-      .eq('user_id', user)
-    if (error) throw error
+      .eq("id", entryId)
+      .eq("user_id", user);
+    if (error) throw error;
   }
 
   async getLastWatchEntry(titleId: string) {
-    const user = await this.getUserId()
-    if (!user) return null
+    const user = await this.getUserId();
+    if (!user) return null;
     const { data, error } = await this.supabase
-      .from('watch_diary')
-      .select('*')
-      .eq('user_id', user)
-      .eq('title_id', titleId)
-      .order('watched_at', { ascending: false })
+      .from("watch_diary")
+      .select("*")
+      .eq("user_id", user)
+      .eq("title_id", titleId)
+      .order("watched_at", { ascending: false })
       .limit(1)
-      .maybeSingle()
+      .maybeSingle();
 
-    if (error) throw error
-    return data ? this.mapWatchDiaryEntry(data as WatchDiaryRow) : null
+    if (error) throw error;
+    return data ? this.mapWatchDiaryEntry(data as WatchDiaryRow) : null;
   }
 
   async createWatchlist(
     name: string,
     description?: string,
     thumbnail?: string,
-    visibility: WatchlistVisibility = 'private'
+    visibility: WatchlistVisibility = "private",
   ) {
-    const user = await this.getRequiredUserId()
+    const user = await this.getRequiredUserId();
     const { data, error } = await this.supabase
-      .from('watchlists')
+      .from("watchlists")
       .insert({
         user_id: user,
         name,
         description,
         thumbnail,
         visibility,
-        is_shared: visibility === 'shared',
-        share_code: visibility === 'shared' ? this.createShareCode() : null,
+        is_shared: visibility === "shared",
+        share_code: visibility === "shared" ? this.createShareCode() : null,
       })
       .select()
-      .single()
+      .single();
 
-    if (error) throw error
-    return this.mapWatchlist(data as WatchlistRow)
+    if (error) throw error;
+    return this.mapWatchlist(data as WatchlistRow);
   }
 
   async updateWatchlist(watchlistId: string, updates: Partial<Watchlist>) {
     const { data, error } = await this.supabase
-      .from('watchlists')
+      .from("watchlists")
       .update({
         name: updates.name,
         description: updates.description,
         thumbnail: updates.thumbnail,
         visibility: updates.visibility,
       })
-      .eq('id', watchlistId)
+      .eq("id", watchlistId)
       .select()
-      .single()
+      .single();
 
-    if (error) throw error
-    return this.mapWatchlist(data as WatchlistRow)
+    if (error) throw error;
+    return this.mapWatchlist(data as WatchlistRow);
   }
 
-  async setWatchlistVisibility(watchlistId: string, visibility: WatchlistVisibility) {
+  async setWatchlistVisibility(
+    watchlistId: string,
+    visibility: WatchlistVisibility,
+  ) {
     const { data, error } = await this.supabase
-      .from('watchlists')
+      .from("watchlists")
       .update({
         visibility,
-        is_shared: visibility === 'shared',
-        share_code: visibility === 'shared' ? this.createShareCode() : null,
+        is_shared: visibility === "shared",
+        share_code: visibility === "shared" ? this.createShareCode() : null,
       })
-      .eq('id', watchlistId)
+      .eq("id", watchlistId)
       .select()
-      .single()
+      .single();
 
-    if (error) throw error
-    return this.mapWatchlist(data as WatchlistRow)
+    if (error) throw error;
+    return this.mapWatchlist(data as WatchlistRow);
   }
 
   async deleteWatchlist(watchlistId: string) {
-    const { error } = await this.supabase.from('watchlists').delete().eq('id', watchlistId)
-    if (error) throw error
+    const { error } = await this.supabase
+      .from("watchlists")
+      .delete()
+      .eq("id", watchlistId);
+    if (error) throw error;
   }
 
   async getWatchlist(watchlistId: string) {
     const { data, error } = await this.supabase
-      .from('watchlists')
-      .select('*')
-      .eq('id', watchlistId)
-      .maybeSingle()
-    if (error) throw error
-    return data ? this.mapWatchlist(data as WatchlistRow) : null
+      .from("watchlists")
+      .select("*")
+      .eq("id", watchlistId)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? this.mapWatchlist(data as WatchlistRow) : null;
   }
 
   async getWatchlistAccess(watchlistId: string) {
-    const userId = await this.getUserId()
-    const watchlist = await this.getWatchlist(watchlistId)
-    if (!watchlist) return { canEdit: false, isOwner: false }
-    const isOwner = Boolean(userId && watchlist.userId === userId)
-    if (!userId || isOwner) return { canEdit: isOwner, isOwner }
+    const userId = await this.getUserId();
+    const watchlist = await this.getWatchlist(watchlistId);
+    if (!watchlist) return { canEdit: false, isOwner: false };
+    const isOwner = Boolean(userId && watchlist.userId === userId);
+    if (!userId || isOwner) return { canEdit: isOwner, isOwner };
     const { data, error } = await this.supabase
-      .from('watchlist_collaborators')
-      .select('can_edit')
-      .eq('watchlist_id', watchlistId)
-      .eq('user_id', userId)
-      .maybeSingle()
-    if (error) throw error
-    return { canEdit: Boolean(data?.can_edit), isOwner: false }
+      .from("watchlist_collaborators")
+      .select("can_edit")
+      .eq("watchlist_id", watchlistId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw error;
+    return { canEdit: Boolean(data?.can_edit), isOwner: false };
   }
 
   async getPublicWatchlists(userId: string): Promise<PublicWatchlistSummary[]> {
     const { data, error } = await this.supabase
-      .from('watchlists')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('visibility', 'public')
-      .order('updated_at', { ascending: false })
-    if (error) throw error
+      .from("watchlists")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("visibility", "public")
+      .order("updated_at", { ascending: false });
+    if (error) throw error;
 
     return Promise.all(
       ((data ?? []) as WatchlistRow[]).map(async (row) => {
         const { data: items, error: itemsError } = await this.supabase
-          .from('watchlist_items')
-          .select('id,title_id,added_at,title:titles(cover_image)')
-          .eq('watchlist_id', row.id)
-          .order('added_at', { ascending: false })
-          .order('id', { ascending: true })
-        if (itemsError) throw itemsError
+          .from("watchlist_items")
+          .select("id,title_id,added_at,title:titles(cover_image)")
+          .eq("watchlist_id", row.id)
+          .order("added_at", { ascending: false })
+          .order("id", { ascending: true });
+        if (itemsError) throw itemsError;
         const coverInputs = (items ?? []).map((item) => {
-          const title = item.title as unknown as { cover_image: string | null } | null
+          const title = item.title as unknown as {
+            cover_image: string | null;
+          } | null;
           return {
             addedAt: item.added_at,
             itemId: item.id,
             posterPath: title?.cover_image ?? null,
             titleId: item.title_id,
-          }
-        })
+          };
+        });
         const covers = coverInputs
           .map((item) => item.posterPath)
-          .filter((cover): cover is string => Boolean(cover))
+          .filter((cover): cover is string => Boolean(cover));
         return {
           ...this.mapWatchlist(row),
           coverImages: covers.slice(0, 6),
-          coverVersion: createWatchlistCoverVersion(row.updated_at, row.visibility, coverInputs),
+          coverVersion: createWatchlistCoverVersion(
+            row.updated_at,
+            row.visibility,
+            coverInputs,
+          ),
           titleCount: items?.length || 0,
-        }
-      })
-    )
+        };
+      }),
+    );
   }
 
   async getUserWatchlists() {
-    const user = await this.getRequiredUserId()
-    const [{ data: owned, error: ownedError }, { data: shared, error: sharedError }] =
-      await Promise.all([
-        this.supabase.from('watchlists').select('id').eq('user_id', user),
-        this.supabase.from('watchlist_collaborators').select('watchlist_id').eq('user_id', user),
-      ])
+    const user = await this.getRequiredUserId();
+    const [
+      { data: owned, error: ownedError },
+      { data: shared, error: sharedError },
+    ] = await Promise.all([
+      this.supabase.from("watchlists").select("id").eq("user_id", user),
+      this.supabase
+        .from("watchlist_collaborators")
+        .select("watchlist_id")
+        .eq("user_id", user),
+    ]);
 
-    if (ownedError) throw ownedError
-    if (sharedError) throw sharedError
+    if (ownedError) throw ownedError;
+    if (sharedError) throw sharedError;
 
-    const ownedIds = ((owned ?? []) as { id: string }[]).map((row) => row.id)
-    const sharedIds = ((shared ?? []) as { watchlist_id: string }[]).map((row) => row.watchlist_id)
-    const allIds = [...new Set([...ownedIds, ...sharedIds])]
-    if (allIds.length === 0) return []
+    const ownedIds = ((owned ?? []) as { id: string }[]).map((row) => row.id);
+    const sharedIds = ((shared ?? []) as { watchlist_id: string }[]).map(
+      (row) => row.watchlist_id,
+    );
+    const allIds = [...new Set([...ownedIds, ...sharedIds])];
+    if (allIds.length === 0) return [];
 
     const { data, error } = await this.supabase
-      .from('watchlists')
-      .select('*')
-      .in('id', allIds)
-      .order('updated_at', { ascending: false })
+      .from("watchlists")
+      .select("*")
+      .in("id", allIds)
+      .order("updated_at", { ascending: false });
 
-    if (error) throw error
-    return ((data ?? []) as WatchlistRow[]).map((row) => this.mapWatchlist(row))
+    if (error) throw error;
+    return ((data ?? []) as WatchlistRow[]).map((row) =>
+      this.mapWatchlist(row),
+    );
   }
 
   async getWatchlistItems(watchlistId: string) {
     const { data, error } = await this.supabase
-      .from('watchlist_items')
-      .select('*, title:titles(*)')
-      .eq('watchlist_id', watchlistId)
+      .from("watchlist_items")
+      .select("*, title:titles(*)")
+      .eq("watchlist_id", watchlistId);
 
-    if (error) throw error
-    const rows = (data ?? []) as WatchlistItemRow[]
-    const userIds = [...new Set(rows.map((item) => item.added_by).filter(Boolean))]
-    const profiles = await this.getProfilesByIds(userIds)
+    if (error) throw error;
+    const rows = (data ?? []) as WatchlistItemRow[];
+    const userIds = [
+      ...new Set(rows.map((item) => item.added_by).filter(Boolean)),
+    ];
+    const profiles = await this.getProfilesByIds(userIds);
 
     return rows
-      .filter((row): row is WatchlistItemRow & { title: TitleRow } => Boolean(row.title))
-      .sort((left, right) => new Date(right.added_at).getTime() - new Date(left.added_at).getTime())
+      .filter((row): row is WatchlistItemRow & { title: TitleRow } =>
+        Boolean(row.title),
+      )
+      .sort(
+        (left, right) =>
+          new Date(right.added_at).getTime() -
+          new Date(left.added_at).getTime(),
+      )
       .map<WatchlistItemDetails>((row) => ({
         ...this.mapWatchlistItem(row),
         title: this.mapPersistedTitle(row.title),
         addedByUser: profiles.get(row.added_by),
-      }))
+      }));
   }
 
   async addToWatchlist(watchlistId: string, titleId: string) {
-    const user = await this.getRequiredUserId()
+    const user = await this.getRequiredUserId();
     const { data, error } = await this.supabase
-      .from('watchlist_items')
+      .from("watchlist_items")
       .insert({ watchlist_id: watchlistId, title_id: titleId, added_by: user })
       .select()
-      .single()
+      .single();
 
-    if (error) throw error
-    return this.mapWatchlistItem(data as WatchlistItemRow)
+    if (error) throw error;
+    return this.mapWatchlistItem(data as WatchlistItemRow);
   }
 
   async removeFromWatchlist(watchlistId: string, titleId: string) {
-    await this.getRequiredUserId()
+    await this.getRequiredUserId();
     const { error } = await this.supabase
-      .from('watchlist_items')
+      .from("watchlist_items")
       .delete()
-      .eq('watchlist_id', watchlistId)
-      .eq('title_id', titleId)
-    if (error) throw error
+      .eq("watchlist_id", watchlistId)
+      .eq("title_id", titleId);
+    if (error) throw error;
   }
 
   async getWatchlistTitleContributors(titleId: string) {
-    const watchlists = await this.getUserWatchlists()
-    if (watchlists.length === 0) return []
+    const watchlists = await this.getUserWatchlists();
+    if (watchlists.length === 0) return [];
 
     const { data, error } = await this.supabase
-      .from('watchlist_items')
-      .select('watchlist_id, added_by')
-      .eq('title_id', titleId)
+      .from("watchlist_items")
+      .select("watchlist_id, added_by")
+      .eq("title_id", titleId)
       .in(
-        'watchlist_id',
-        watchlists.map((watchlist) => watchlist.id)
-      )
+        "watchlist_id",
+        watchlists.map((watchlist) => watchlist.id),
+      );
 
-    if (error) throw error
-    return (data ?? []) as Array<{ watchlist_id: string; added_by: string }>
+    if (error) throw error;
+    return (data ?? []) as Array<{ watchlist_id: string; added_by: string }>;
   }
 
   async getWatchlistsContainingTitle(titleId: string) {
-    const user = await this.getUserId()
-    if (!user) return []
-    const watchlists = await this.getUserWatchlists()
-    if (watchlists.length === 0) return []
+    const user = await this.getUserId();
+    if (!user) return [];
+    const watchlists = await this.getUserWatchlists();
+    if (watchlists.length === 0) return [];
 
-    return (await this.getWatchlistTitleContributors(titleId)).map((row) => row.watchlist_id)
+    return (await this.getWatchlistTitleContributors(titleId)).map(
+      (row) => row.watchlist_id,
+    );
   }
 
   async isTitleWatchlisted(titleId: string) {
-    return (await this.getWatchlistsContainingTitle(titleId)).length > 0
+    return (await this.getWatchlistsContainingTitle(titleId)).length > 0;
   }
 
   async getWatchlistCollaborators(watchlistId: string) {
     const { data, error } = await this.supabase
-      .from('watchlist_collaborators')
-      .select('user_id')
-      .eq('watchlist_id', watchlistId)
+      .from("watchlist_collaborators")
+      .select("user_id")
+      .eq("watchlist_id", watchlistId);
 
-    if (error) throw error
-    const ids = ((data ?? []) as { user_id: string }[]).map((row) => row.user_id)
-    return Array.from((await this.getProfilesByIds(ids)).values())
+    if (error) throw error;
+    const ids = ((data ?? []) as { user_id: string }[]).map(
+      (row) => row.user_id,
+    );
+    return Array.from((await this.getProfilesByIds(ids)).values());
   }
 
   async joinWatchlistByCode(code: string) {
-    const { data, error } = await this.supabase.rpc('join_watchlist', {
+    const { data, error } = await this.supabase.rpc("join_watchlist", {
       p_share_code: code.trim().toUpperCase(),
-    })
-    if (error) throw error
-    return this.mapWatchlist(data as WatchlistRow)
+    });
+    if (error) throw error;
+    return this.mapWatchlist(data as WatchlistRow);
   }
 
   async getSharedWatchlistByCode(code: string) {
-    const { data, error } = await this.supabase.rpc('get_shared_watchlist_by_code', {
-      p_share_code: code.trim().toUpperCase(),
-    })
-    if (error) throw error
-    if (!data) return null
-    const payload = data as { watchlist: WatchlistRow; items: WatchlistItemRow[] }
+    const { data, error } = await this.supabase.rpc(
+      "get_shared_watchlist_by_code",
+      {
+        p_share_code: code.trim().toUpperCase(),
+      },
+    );
+    if (error) throw error;
+    if (!data) return null;
+    const payload = data as {
+      watchlist: WatchlistRow;
+      items: WatchlistItemRow[];
+    };
     return {
       watchlist: this.mapWatchlist(payload.watchlist),
       items: payload.items
-        .filter((row): row is WatchlistItemRow & { title: TitleRow } => Boolean(row.title))
+        .filter((row): row is WatchlistItemRow & { title: TitleRow } =>
+          Boolean(row.title),
+        )
         .map<WatchlistItemDetails>((row) => ({
           ...this.mapWatchlistItem(row),
           title: this.mapPersistedTitle(row.title),
         })),
-    }
+    };
   }
 
   async leaveWatchlist(watchlistId: string) {
-    const { error } = await this.supabase.rpc('leave_watchlist', { p_watchlist_id: watchlistId })
-    if (error) throw error
+    const { error } = await this.supabase.rpc("leave_watchlist", {
+      p_watchlist_id: watchlistId,
+    });
+    if (error) throw error;
   }
 
   async followUser(targetUserId: string) {
-    const user = await this.getRequiredUserId()
+    const user = await this.getRequiredUserId();
     const { data, error } = await this.supabase
-      .from('follows')
+      .from("follows")
       .insert({ follower_id: user, following_id: targetUserId })
-      .select('created_at')
-      .single()
-    if (error) throw error
-    return (data as { created_at: string }).created_at
+      .select("created_at")
+      .single();
+    if (error) throw error;
+    return (data as { created_at: string }).created_at;
   }
 
   async unfollowUser(targetUserId: string) {
-    const user = await this.getRequiredUserId()
+    const user = await this.getRequiredUserId();
     const { error } = await this.supabase
-      .from('follows')
+      .from("follows")
       .delete()
-      .eq('follower_id', user)
-      .eq('following_id', targetUserId)
-    if (error) throw error
+      .eq("follower_id", user)
+      .eq("following_id", targetUserId);
+    if (error) throw error;
   }
 
   async removeFollower(followerId: string) {
-    const user = await this.getRequiredUserId()
+    const user = await this.getRequiredUserId();
     const { error } = await this.supabase
-      .from('follows')
+      .from("follows")
       .delete()
-      .eq('follower_id', followerId)
-      .eq('following_id', user)
+      .eq("follower_id", followerId)
+      .eq("following_id", user);
 
-    if (error) throw error
+    if (error) throw error;
   }
 
   async checkFollowStatus(targetUserId: string) {
-    const user = await this.getUserId()
-    if (!user) return false
+    const user = await this.getUserId();
+    if (!user) return false;
     const { data, error } = await this.supabase
-      .from('follows')
-      .select('created_at')
-      .eq('follower_id', user)
-      .eq('following_id', targetUserId)
-      .maybeSingle()
-    if (error) throw error
-    return Boolean(data)
+      .from("follows")
+      .select("created_at")
+      .eq("follower_id", user)
+      .eq("following_id", targetUserId)
+      .maybeSingle();
+    if (error) throw error;
+    return Boolean(data);
   }
 
   async getFollowRelationship(targetUserId: string) {
-    const user = await this.getUserId()
+    const user = await this.getUserId();
     if (!user || user === targetUserId) {
-      return { isFollowing: false, isFollowedBy: false, isMutual: false }
+      return { isFollowing: false, isFollowedBy: false, isMutual: false };
     }
     const [
       { data: following, error: followingError },
       { data: followedBy, error: followedByError },
     ] = await Promise.all([
       this.supabase
-        .from('follows')
-        .select('created_at')
-        .eq('follower_id', user)
-        .eq('following_id', targetUserId)
+        .from("follows")
+        .select("created_at")
+        .eq("follower_id", user)
+        .eq("following_id", targetUserId)
         .maybeSingle(),
       this.supabase
-        .from('follows')
-        .select('created_at')
-        .eq('follower_id', targetUserId)
-        .eq('following_id', user)
+        .from("follows")
+        .select("created_at")
+        .eq("follower_id", targetUserId)
+        .eq("following_id", user)
         .maybeSingle(),
-    ])
-    if (followingError) throw followingError
-    if (followedByError) throw followedByError
-    const isMutual = Boolean(following && followedBy)
+    ]);
+    if (followingError) throw followingError;
+    if (followedByError) throw followedByError;
+    const isMutual = Boolean(following && followedBy);
     const timestamps = [following?.created_at, followedBy?.created_at].filter(
-      (value): value is string => Boolean(value)
-    )
+      (value): value is string => Boolean(value),
+    );
     return {
       isFollowing: Boolean(following),
       isFollowedBy: Boolean(followedBy),
       isMutual,
       mutualSince:
         isMutual && timestamps.length === 2
-          ? timestamps.sort((left, right) => Date.parse(right) - Date.parse(left))[0]
+          ? timestamps.sort(
+              (left, right) => Date.parse(right) - Date.parse(left),
+            )[0]
           : undefined,
-    }
+    };
   }
 
   async getFollowCounts(userId: string) {
@@ -1358,137 +1549,147 @@ export class KinoDatabaseService {
       { count: following, error: followingError },
     ] = await Promise.all([
       this.supabase
-        .from('follows')
-        .select('follower_id', { count: 'exact', head: true })
-        .eq('following_id', userId),
+        .from("follows")
+        .select("follower_id", { count: "exact", head: true })
+        .eq("following_id", userId),
       this.supabase
-        .from('follows')
-        .select('following_id', { count: 'exact', head: true })
-        .eq('follower_id', userId),
-    ])
+        .from("follows")
+        .select("following_id", { count: "exact", head: true })
+        .eq("follower_id", userId),
+    ]);
 
-    if (followersError) throw followersError
-    if (followingError) throw followingError
-    return { followers: followers || 0, following: following || 0 }
+    if (followersError) throw followersError;
+    if (followingError) throw followingError;
+    return { followers: followers || 0, following: following || 0 };
   }
 
   async getFollowers(userId: string) {
-    return this.getFollowList(userId, 'followers')
+    return this.getFollowList(userId, "followers");
   }
 
   async getFollowing(userId: string) {
-    return this.getFollowList(userId, 'following')
+    return this.getFollowList(userId, "following");
   }
 
   async removeMediaHistory(titleId: string, type: MediaType) {
-    const user = await this.getRequiredUserId()
+    const user = await this.getRequiredUserId();
     const { error: diaryError } = await this.supabase
-      .from('watch_diary')
+      .from("watch_diary")
       .delete()
-      .eq('user_id', user)
-      .eq('title_id', titleId)
-    if (diaryError) throw diaryError
+      .eq("user_id", user)
+      .eq("title_id", titleId);
+    if (diaryError) throw diaryError;
 
-    const table = type === 'movie' ? 'title_ratings' : 'episode_ratings'
+    const table = type === "movie" ? "title_ratings" : "episode_ratings";
     const { error } = await this.supabase
       .from(table)
       .delete()
-      .eq('user_id', user)
-      .eq('title_id', titleId)
-    if (error) throw error
+      .eq("user_id", user)
+      .eq("title_id", titleId);
+    if (error) throw error;
   }
 
   async deleteUserData() {
-    const user = await this.getRequiredUserId()
+    const user = await this.getRequiredUserId();
     const operations = [
-      this.supabase.from('watch_diary').delete().eq('user_id', user),
-      this.supabase.from('episode_ratings').delete().eq('user_id', user),
-      this.supabase.from('title_ratings').delete().eq('user_id', user),
-      this.supabase.from('watchlist_collaborators').delete().eq('user_id', user),
-      this.supabase.from('watchlists').delete().eq('user_id', user),
-    ]
-    const results = await Promise.all(operations)
-    const failed = results.find((result) => result.error)
-    if (failed?.error) throw failed.error
+      this.supabase.from("watch_diary").delete().eq("user_id", user),
+      this.supabase.from("episode_ratings").delete().eq("user_id", user),
+      this.supabase.from("title_ratings").delete().eq("user_id", user),
+      this.supabase
+        .from("watchlist_collaborators")
+        .delete()
+        .eq("user_id", user),
+      this.supabase.from("watchlists").delete().eq("user_id", user),
+    ];
+    const results = await Promise.all(operations);
+    const failed = results.find((result) => result.error);
+    if (failed?.error) throw failed.error;
   }
 
   async deleteUserAccount() {
-    const { error } = await this.supabase.rpc('delete_user')
-    if (error) throw error
+    const { error } = await this.supabase.rpc("delete_user");
+    if (error) throw error;
   }
 
   private async getProfilesByIds(userIds: string[]) {
-    if (userIds.length === 0) return new Map<string, UserProfile>()
+    if (userIds.length === 0) return new Map<string, UserProfile>();
 
-    const { data, error } = await this.supabase.from('user_profiles').select('*').in('id', userIds)
-    if (error) throw error
-    return new Map(((data ?? []) as UserProfile[]).map((profile) => [profile.id, profile]))
+    const { data, error } = await this.supabase
+      .from("user_profiles")
+      .select("*")
+      .in("id", userIds);
+    if (error) throw error;
+    return new Map(
+      ((data ?? []) as UserProfile[]).map((profile) => [profile.id, profile]),
+    );
   }
 
-  private async getFollowList(userId: string, mode: 'followers' | 'following') {
-    const idColumn = mode === 'followers' ? 'follower_id' : 'following_id'
-    const matchColumn = mode === 'followers' ? 'following_id' : 'follower_id'
+  private async getFollowList(userId: string, mode: "followers" | "following") {
+    const idColumn = mode === "followers" ? "follower_id" : "following_id";
+    const matchColumn = mode === "followers" ? "following_id" : "follower_id";
     const { data, error } = await this.supabase
-      .from('follows')
+      .from("follows")
       .select(`${idColumn}, created_at`)
-      .eq(matchColumn, userId)
+      .eq(matchColumn, userId);
 
-    if (error) throw error
+    if (error) throw error;
     const rows = (data ?? []) as {
-      follower_id?: string
-      following_id?: string
-      created_at: string
-    }[]
-    const ids = rows.map((row) => row[idColumn]).filter((id): id is string => Boolean(id))
-    const profiles = await this.getProfilesByIds(ids)
-    const viewerId = await this.getUserId()
-    const viewerFollowing = new Map<string, string>()
-    const viewerFollowers = new Map<string, string>()
+      follower_id?: string;
+      following_id?: string;
+      created_at: string;
+    }[];
+    const ids = rows
+      .map((row) => row[idColumn])
+      .filter((id): id is string => Boolean(id));
+    const profiles = await this.getProfilesByIds(ids);
+    const viewerId = await this.getUserId();
+    const viewerFollowing = new Map<string, string>();
+    const viewerFollowers = new Map<string, string>();
 
     if (viewerId && ids.length > 0) {
       const [followingResult, followersResult] = await Promise.all([
         this.supabase
-          .from('follows')
-          .select('following_id, created_at')
-          .eq('follower_id', viewerId)
-          .in('following_id', ids),
+          .from("follows")
+          .select("following_id, created_at")
+          .eq("follower_id", viewerId)
+          .in("following_id", ids),
         this.supabase
-          .from('follows')
-          .select('follower_id, created_at')
-          .eq('following_id', viewerId)
-          .in('follower_id', ids),
-      ])
-      if (followingResult.error) throw followingResult.error
-      if (followersResult.error) throw followersResult.error
+          .from("follows")
+          .select("follower_id, created_at")
+          .eq("following_id", viewerId)
+          .in("follower_id", ids),
+      ]);
+      if (followingResult.error) throw followingResult.error;
+      if (followersResult.error) throw followersResult.error;
 
       for (const follow of (followingResult.data ?? []) as {
-        following_id: string
-        created_at: string
+        following_id: string;
+        created_at: string;
       }[]) {
-        viewerFollowing.set(follow.following_id, follow.created_at)
+        viewerFollowing.set(follow.following_id, follow.created_at);
       }
       for (const follow of (followersResult.data ?? []) as {
-        follower_id: string
-        created_at: string
+        follower_id: string;
+        created_at: string;
       }[]) {
-        viewerFollowers.set(follow.follower_id, follow.created_at)
+        viewerFollowers.set(follow.follower_id, follow.created_at);
       }
     }
 
     return rows
       .map<FollowerInfo | null>((row) => {
-        const id = row[idColumn]
-        if (!id) return null
-        const profile = profiles.get(id)
-        const followingAt = viewerFollowing.get(id)
-        const followedByAt = viewerFollowers.get(id)
+        const id = row[idColumn];
+        if (!id) return null;
+        const profile = profiles.get(id);
+        const followingAt = viewerFollowing.get(id);
+        const followedByAt = viewerFollowers.get(id);
         const mutualSince =
           followingAt && followedByAt
             ? [followingAt, followedByAt].sort(
-                (left, right) => Date.parse(right) - Date.parse(left)
+                (left, right) => Date.parse(right) - Date.parse(left),
               )[0]
-            : undefined
-        if (!profile) return null
+            : undefined;
+        if (!profile) return null;
         return {
           ...profile,
           followedAt: row.created_at,
@@ -1497,22 +1698,22 @@ export class KinoDatabaseService {
           isFollowedBy: Boolean(followedByAt),
           isMutual: Boolean(mutualSince),
           mutualSince,
-        }
+        };
       })
-      .filter((profile): profile is FollowerInfo => profile !== null)
+      .filter((profile): profile is FollowerInfo => profile !== null);
   }
 
   private async getUserId() {
     const {
       data: { user },
-    } = await this.supabase.auth.getUser()
-    return user?.id ?? null
+    } = await this.supabase.auth.getUser();
+    return user?.id ?? null;
   }
 
   private async getRequiredUserId() {
-    const user = await this.getUserId()
-    if (!user) throw new Error('User not authenticated')
-    return user
+    const user = await this.getUserId();
+    if (!user) throw new Error("User not authenticated");
+    return user;
   }
 
   private mapPersistedTitle(row: TitleRow): PersistedTitle {
@@ -1532,7 +1733,7 @@ export class KinoDatabaseService {
       total_seasons: row.total_seasons,
       total_episodes: row.total_episodes,
       seasons_metadata: row.seasons_metadata,
-    }
+    };
   }
 
   private mapTitleToDetails(row: TitleRow): TitleDetails {
@@ -1541,7 +1742,7 @@ export class KinoDatabaseService {
       tmdbId: row.tmdb_id,
       type: row.type,
       title: row.title,
-      synopsis: row.synopsis || '',
+      synopsis: row.synopsis || "",
       coverImage: row.cover_image,
       backdropImage: row.backdrop_image,
       year: row.release_year,
@@ -1553,7 +1754,7 @@ export class KinoDatabaseService {
       runtime: row.runtime || undefined,
       totalSeasons: row.total_seasons || undefined,
       totalEpisodes: row.total_episodes || undefined,
-    }
+    };
   }
 
   private mapRating(row: TitleRatingRow): UserRating {
@@ -1566,7 +1767,7 @@ export class KinoDatabaseService {
       watchedAt: new Date(row.watched_at),
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
-    }
+    };
   }
 
   private mapEpisodeRating(row: EpisodeRatingRow): EpisodeRating {
@@ -1581,7 +1782,7 @@ export class KinoDatabaseService {
       watchedAt: new Date(row.watched_at),
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
-    }
+    };
   }
 
   private mapWatchDiaryEntry(row: WatchDiaryRow): WatchDiaryEntry {
@@ -1594,7 +1795,7 @@ export class KinoDatabaseService {
       notes: row.notes ?? undefined,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
-    }
+    };
   }
 
   private mapWatchlist(row: WatchlistRow): Watchlist {
@@ -1604,12 +1805,13 @@ export class KinoDatabaseService {
       name: row.name,
       description: row.description || undefined,
       thumbnail: row.thumbnail || undefined,
-      visibility: row.visibility || (row.is_shared ? 'shared' : 'private'),
-      isShared: (row.visibility || (row.is_shared ? 'shared' : 'private')) === 'shared',
+      visibility: row.visibility || (row.is_shared ? "shared" : "private"),
+      isShared:
+        (row.visibility || (row.is_shared ? "shared" : "private")) === "shared",
       shareCode: row.share_code || undefined,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
-    }
+    };
   }
 
   private mapWatchlistItem(row: WatchlistItemRow): WatchlistItem {
@@ -1619,7 +1821,7 @@ export class KinoDatabaseService {
       titleId: row.title_id,
       addedAt: new Date(row.added_at),
       addedBy: row.added_by,
-    }
+    };
   }
 
   private mapStats(row: RatingStatsRow): TitleRatingStats {
@@ -1627,11 +1829,14 @@ export class KinoDatabaseService {
       averageRating: Number(row.average_rating) || 0,
       totalRatings: Number(row.total_ratings) || 0,
       starBreakdown: row.star_breakdown || {},
-    }
+    };
   }
 
   private createShareCode() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-    return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    return Array.from(
+      { length: 8 },
+      () => chars[Math.floor(Math.random() * chars.length)],
+    ).join("");
   }
 }

@@ -23,9 +23,7 @@ export function toReviewAuthor(
   }
 }
 
-export function getReviewAuthorLabel(
-  author: Pick<KinoReviewAuthor, 'displayName' | 'username'>
-) {
+export function getReviewAuthorLabel(author: Pick<KinoReviewAuthor, 'displayName' | 'username'>) {
   return author.displayName?.trim() || author.username || null
 }
 
@@ -218,10 +216,7 @@ export const profileReviewKeys = {
     ['profile-reviews', username, cursor] as const,
 }
 
-export function mapProfileReviewsPage(
-  rows: ProfileReviewRow[],
-  limit: number
-): ProfileReviewsPage {
+export function mapProfileReviewsPage(rows: ProfileReviewRow[], limit: number): ProfileReviewsPage {
   const safeLimit = Math.max(1, limit)
   const pageRows = rows.slice(0, safeLimit)
   const last = pageRows.at(-1)
@@ -240,9 +235,7 @@ export function mapProfileReviewsPage(
       },
     })),
     nextCursor:
-      rows.length > safeLimit && last
-        ? { created_at: last.created_at, id: last.id }
-        : null,
+      rows.length > safeLimit && last ? { created_at: last.created_at, id: last.id } : null,
     totalCount: toSafeCount(rows[0]?.total_count),
   }
 }

@@ -1,10 +1,10 @@
 'use client'
 
 import {
-  profileReviewKeys,
   type ProfileReview,
   type ProfileReviewCursor,
   type ProfileReviewsPage,
+  profileReviewKeys,
   removeProfileReview,
   removeReview,
   replaceProfileReview,
@@ -25,7 +25,7 @@ import { db } from '@/lib/services'
 
 const PROFILE_REVIEW_PREVIEW_LIMIT = 6
 const PROFILE_REVIEW_PAGE_LIMIT = 20
-type Snapshot = Array<[readonly unknown[], unknown]>
+type Snapshot = [readonly unknown[], unknown][]
 type ProfileReviewCache = ProfileReviewsPage | InfiniteData<ProfileReviewsPage>
 
 function restore(queryClient: ReturnType<typeof useQueryClient>, snapshot: Snapshot | undefined) {

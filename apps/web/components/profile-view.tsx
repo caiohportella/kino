@@ -44,8 +44,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useTranslation } from '@/lib/i18n'
 import { useProfileReviews } from '@/hooks/use-profile-reviews'
+import { useTranslation } from '@/lib/i18n'
 import { normalizeProfileWatchlistCard } from '@/lib/profile-watchlist-card'
 import { titlePath, watchlistCoverPath, watchlistPath } from '@/lib/routes'
 import { db, getTmdb } from '@/lib/services'

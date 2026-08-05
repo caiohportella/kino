@@ -25,25 +25,20 @@ export function ReviewComposer({
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-kino-muted">
           <span>
-            {t('reviews.reviewedBy')}{' '}
-            <ReviewAuthor author={author} variant="name" />
+            {t('reviews.reviewedBy')} <ReviewAuthor author={author} variant="name" />
           </span>
           {rating ? (
-            <RatingStars
-              label={t('reviews.ratingLabel')}
-              readonly
-              size="xs"
-              value={rating}
-            />
+            <RatingStars label={t('reviews.ratingLabel')} readonly size="xs" value={rating} />
           ) : null}
         </div>
         <textarea
-          aria-label={t('reviews.writeReview')}
+          aria-label={t("reviews.writeReview")}
           className="focus-ring mt-3 min-h-24 w-full resize-y rounded-md border border-white/10 bg-black/20 px-3 py-2.5 text-sm leading-6 text-kino-text placeholder:text-kino-muted"
+          data-embla-prevent-drag
           disabled={pending}
           maxLength={REVIEW_MAX_LENGTH}
           onChange={(event) => setContent(event.target.value)}
-          placeholder={t('reviews.composer.placeholder')}
+          placeholder={t("reviews.composer.placeholder")}
           value={content}
         />
         <div className="mt-2 flex items-center justify-between gap-3">

@@ -1,18 +1,23 @@
-import type { MediaType, PublicUserSummary, Review } from '@kino/core'
-import { useToast } from '@/components/toast-provider'
-import { Card } from '@/components/ui/card'
+import { Card } from "@/components/ui/card";
+import { useToast } from "@/components/toast-provider";
+import type { MediaType, PublicUserSummary, Review } from "@kino/core";
+import { useTranslation } from "@/lib/i18n";
+
+import { ReviewCard } from "./review-card";
+import { ReviewComposer } from "./review-composer";
+import { ReviewsCarousel, ReviewsCarouselSlide } from "./reviews-carousel";
+import { ReviewsDialog } from "./reviews-dialog";
+import { ReviewSkeleton } from "./review-skeleton";
+
 import {
   useCreateReviewMutation,
   useDeleteReviewMutation,
   useReviewLikeMutation,
   useTitleReviews,
   useUpdateReviewMutation,
-} from '@/hooks/use-title-reviews'
-import { useTranslation } from '@/lib/i18n'
-import { ReviewCard } from './review-card'
-import { ReviewComposer } from './review-composer'
-import { ReviewSkeleton } from './review-skeleton'
-import { ReviewsDialog } from './reviews-dialog'
+} from "@/hooks/use-title-reviews";
+
+const EMPTY_TITLE_ID = "00000000-0000-0000-0000-000000000000";
 
 export function ReviewsSection({
   author,
@@ -23,24 +28,35 @@ export function ReviewsSection({
   titleId,
   viewerAuthenticated = false,
 }: {
-  author: PublicUserSummary | null
-  authorLoading?: boolean
-  currentRating: number | null
-  mediaType: MediaType
-  onAuthRequired: () => void
-  titleId: string
-  viewerAuthenticated?: boolean
+  author: PublicUserSummary | null;
+  authorLoading?: boolean;
+  currentRating: number | null;
+  mediaType: MediaType;
+  onAuthRequired: () => void;
+  titleId: string;
+  viewerAuthenticated?: boolean;
 }) {
-  const { t } = useTranslation()
-  const toast = useToast()
-  const query = useTitleReviews(titleId, titleId !== '00000000-0000-0000-0000-000000000000')
-  const create = useCreateReviewMutation()
-  const update = useUpdateReviewMutation(titleId)
-  const remove = useDeleteReviewMutation(titleId)
-  const like = useReviewLikeMutation(titleId)
-  const viewerReview = query.data?.items.find((review) => review.isViewerReview)
+  const { t } = useTranslation();
+  const toast = useToast();
 
-  const notifyError = (key: string) => toast.notify({ tone: 'error', title: t(key) })
+  const query = useTitleReviews(titleId, titleId !== EMPTY_TITLE_ID);
+
+  const create = useCreateReviewMutation();
+  const update = useUpdateReviewMutation(titleId);
+  const remove = useDeleteReviewMutation(titleId);
+  const like = useReviewLikeMutation(titleId);
+
+  const reviews = query.data?.items ?? [];
+
+  const viewerReview = reviews.find((review) => review.isViewerReview);
+
+  const notifyError = (key: string) => {
+    toast.notify({
+      tone: "error",
+      title: t(key),
+    });
+  };
+
   const renderReview = (review: Review) => (
     <ReviewCard
       canLike={Boolean(author)}
@@ -48,38 +64,61 @@ export function ReviewsSection({
       onAuthRequired={onAuthRequired}
       onDelete={async () => {
         try {
-          await remove.mutateAsync(review.id)
-          toast.notify({ tone: 'success', title: t('reviews.deleteSuccess') })
+          await remove.mutateAsync(review.id);
+
+          toast.notify({
+            tone: "success",
+            title: t("reviews.deleteSuccess"),
+          });
         } catch {
-          notifyError('reviews.deleteFailure')
+          notifyError("reviews.deleteFailure");
         }
       }}
-      onLike={() =>
+      onLike={() => {
         like.mutate(
-          { reviewId: review.id, liked: review.likedByViewer },
-          { onError: () => notifyError('reviews.likeFailure') }
-        )
-      }
+          {
+            reviewId: review.id,
+            liked: review.likedByViewer,
+          },
+          {
+            onError: () => notifyError("reviews.likeFailure"),
+          },
+        );
+      }}
       onUpdate={async (content) => {
         try {
-          await update.mutateAsync({ reviewId: review.id, content })
-          toast.notify({ tone: 'success', title: t('reviews.editSuccess') })
-          return true
+          await update.mutateAsync({
+            reviewId: review.id,
+            content,
+          });
+
+          toast.notify({
+            tone: "success",
+            title: t("reviews.editSuccess"),
+          });
+
+          return true;
         } catch {
-          notifyError('reviews.editFailure')
-          return false
+          notifyError("reviews.editFailure");
+          return false;
         }
       }}
       pendingLike={like.isPending && like.variables?.reviewId === review.id}
-      pendingOwnerAction={remove.isPending || update.isPending}
+      pendingOwnerAction={
+        (remove.isPending && remove.variables === review.id) ||
+        (update.isPending && update.variables?.reviewId === review.id)
+      }
       review={review}
     />
-  )
+  );
 
   return (
-    <Card className="p-5 md:p-6">
+    <Card className="min-w-0 p-5 md:p-6">
       <div className="mb-5 flex items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold text-kino-text">{t('reviews.title')}</h2>
+        <h2 className="text-xl font-semibold text-kino-text">
+          {t("reviews.title")}
+        </h2>
+
         <ReviewsDialog
           renderReview={renderReview}
           titleId={titleId}
@@ -87,26 +126,50 @@ export function ReviewsSection({
         />
       </div>
 
-      {query.isLoading || authorLoading ? <ReviewSkeleton /> : null}
+      {query.isLoading || authorLoading ? (
+        <ReviewsCarousel>
+          <ReviewsCarouselSlide>
+            <ReviewSkeleton />
+          </ReviewsCarouselSlide>
+
+          <ReviewsCarouselSlide>
+            <ReviewSkeleton />
+          </ReviewsCarouselSlide>
+        </ReviewsCarousel>
+      ) : null}
+
       {query.isError ? (
-        <p className="text-sm text-red-300">{t('reviews.loadFailure')}</p>
+        <p className="text-sm text-red-300">{t("reviews.loadFailure")}</p>
       ) : null}
 
       {!query.isLoading && !authorLoading && !viewerReview && author ? (
-        <div className="grid gap-3">
+        <div className="mb-5 grid gap-3 rounded-md border border-white/10 bg-white/[0.025] p-4">
           {!query.data?.totalCount ? (
-            <p className="text-sm text-kino-muted">{t('reviews.empty.authenticated')}</p>
+            <p className="text-sm text-kino-muted">
+              {t("reviews.empty.authenticated")}
+            </p>
           ) : null}
+
           <ReviewComposer
             author={author}
             onPublish={async (content) => {
               try {
-                await create.mutateAsync({ titleId, mediaType, content, author })
-                toast.notify({ tone: 'success', title: t('reviews.publishSuccess') })
-                return true
+                await create.mutateAsync({
+                  titleId,
+                  mediaType,
+                  content,
+                  author,
+                });
+
+                toast.notify({
+                  tone: "success",
+                  title: t("reviews.publishSuccess"),
+                });
+
+                return true;
               } catch {
-                notifyError('reviews.publishFailure')
-                return false
+                notifyError("reviews.publishFailure");
+                return false;
               }
             }}
             pending={create.isPending}
@@ -125,14 +188,23 @@ export function ReviewsSection({
           onClick={onAuthRequired}
           type="button"
         >
-          {t('reviews.empty.anonymous')}
+          {t("reviews.empty.anonymous")}
         </button>
       ) : null}
+
       {!query.isLoading && !authorLoading && viewerAuthenticated && !author ? (
-        <p className="text-sm text-red-300">{t('reviews.loadFailure')}</p>
+        <p className="text-sm text-red-300">{t("reviews.loadFailure")}</p>
       ) : null}
 
-      {query.data?.items.map(renderReview)}
+      {!query.isLoading && reviews.length > 0 ? (
+        <ReviewsCarousel>
+          {reviews.map((review) => (
+            <ReviewsCarouselSlide key={review.id}>
+              {renderReview(review)}
+            </ReviewsCarouselSlide>
+          ))}
+        </ReviewsCarousel>
+      ) : null}
     </Card>
-  )
+  );
 }

@@ -1,11 +1,12 @@
+import Link from "next/link";
+
+import { TrendingCarousel } from "@/components/carousel/trending-carousel";
 import { EmptyState } from "@/components/kino";
 import { MediaSection } from "@/components/media-section";
 import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
-import Link from "next/link";
-import { TrendingCarousel } from "@/components/carousel/trending-carousel";
-import { getDiscoverData } from "@/lib/server-tmdb";
 import { getRequestLanguage, getTranslations } from "@/lib/server-localization";
+import { getDiscoverData } from "@/lib/server-tmdb";
 import { cn } from "@/lib/utils";
 
 export default async function DiscoverPage() {
@@ -21,7 +22,9 @@ export default async function DiscoverPage() {
 
         <section className="mb-10">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-kino-text">{t("home.trending")}</h2>
+            <h2 className="text-xl font-semibold text-kino-text">
+              {t("home.trending")}
+            </h2>
           </div>
           <TrendingCarousel items={data.trending} />
         </section>

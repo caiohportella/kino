@@ -44,14 +44,13 @@ export function ReviewCard({
   const edited = review.updatedAt !== review.createdAt
 
   return (
-    <article className="flex items-start gap-3 border-t border-white/8 py-5 first:border-t-0 first:pt-0">
+    <article className="flex h-full min-h-52 min-w-0 select-text items-start gap-3 rounded-md border border-white/10 bg-kino-surface p-4 sm:p-5">
       <ReviewAuthor author={review.author} size="lg" />
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-kino-muted">
             <span>
-              {t('reviews.reviewedBy')}{' '}
-              <ReviewAuthor author={review.author} variant="name" />
+              {t('reviews.reviewedBy')} <ReviewAuthor author={review.author} variant="name" />
             </span>
             {review.rating ? (
               <RatingStars

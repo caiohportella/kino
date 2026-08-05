@@ -2,9 +2,11 @@ import { cn } from "@/lib/utils";
 
 export function CarouselArrow({
   direction,
+  disabled,
   onClick,
 }: {
   direction: "prev" | "next";
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -13,7 +15,9 @@ export function CarouselArrow({
       className={cn(
         "absolute top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/30 text-white opacity-0 backdrop-blur-md transition-all duration-200 hover:bg-black/50 group-hover/carousel:opacity-100 focus-visible:opacity-100",
         direction === "prev" ? "left-4" : "right-4",
+        disabled && "pointer-events-none opacity-0!",
       )}
+      disabled={disabled}
       onClick={(event) => {
         event.preventDefault();
         onClick();

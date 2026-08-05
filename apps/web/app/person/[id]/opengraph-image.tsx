@@ -5,7 +5,7 @@ import { safeImageData } from '@/lib/og-images'
 import { parseResourceSegment } from '@/lib/routes'
 import { getPersonSeoData } from '@/lib/server-tmdb'
 
-export const runtime = 'edge'
+export const runtime = 'nodejs'
 export const size = OG_SIZE
 export const contentType = 'image/png'
 export const alt = 'Kino person preview'

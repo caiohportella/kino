@@ -4,23 +4,23 @@ import {
   insertViewerReview,
   type KinoReviewAuthor,
   type MediaType,
-  profileReviewKeys,
   type ProfileReviewsPage,
+  profileReviewKeys,
+  type Review,
   removeProfileReview,
   removeReview,
   replaceProfileReview,
   replaceReview,
-  type Review,
   reviewKeys,
   type TitleReviewsPage,
-  updateReviewContent,
   updateProfileReviewLike,
+  updateReviewContent,
   updateReviewLike,
 } from '@kino/core'
 import { type InfiniteData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { db } from '@/lib/services'
 
-type Snapshot = Array<[readonly unknown[], unknown]>
+type Snapshot = [readonly unknown[], unknown][]
 type ProfileReviewCache = ProfileReviewsPage | InfiniteData<ProfileReviewsPage>
 
 function restoreSnapshot(
