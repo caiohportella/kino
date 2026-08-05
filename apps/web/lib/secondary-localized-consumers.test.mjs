@@ -4,7 +4,6 @@ import test from 'node:test'
 
 for (const relativePath of [
   '../app/watchlists/shared/[code]/page.tsx',
-  '../components/title-context.tsx',
   '../app/person/[id]/page.tsx',
   '../components/banner-picker-dialog.tsx',
 ]) {
@@ -43,4 +42,15 @@ test('non-title web consumers do not create localization fan-out', async () => {
 test('web import provider details remain a write-path rather than rendered title images', async () => {
   const source = await readFile(new URL('../app/import/page.tsx', import.meta.url), 'utf8')
   assert.doesNotMatch(source, /poster_path|backdrop_path|cover_image/)
+})
+
+test('title context renders already-normalized TMDB context without starting localization fan-out', async () => {
+  const source = await readFile(new URL('../components/title-context.tsx', import.meta.url), 'utf8')
+
+  assert.match(source, /TitleContextData/)
+  assert.match(source, /franchiseTitles/)
+  assert.match(source, /recommendations/)
+  assert.match(source, /<MediaCard/)
+  assert.doesNotMatch(source, /useLocalizedTitles/)
+  assert.doesNotMatch(source, /getMovieDetails|getTVDetails/)
 })
