@@ -17,6 +17,10 @@ export interface TMDbTitle {
   media_type?: MediaType
 }
 
+export interface CarouselTitle extends TMDbTitle {
+  paletteColor?: string
+}
+
 export interface TMDbExternalIds {
   imdb_id: string | null
   facebook_id?: string | null

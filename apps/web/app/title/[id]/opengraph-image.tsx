@@ -6,7 +6,7 @@ import { parseResourceSegment } from '@/lib/routes'
 import { getTitlePresentation } from '@/lib/seo'
 import { getTitleSeoDataBySegment } from '@/lib/server-tmdb'
 
-export const runtime = 'edge'
+export const runtime = 'nodejs'
 export const size = OG_SIZE
 export const contentType = OG_CONTENT_TYPE
 export const alt = 'Kino title preview'

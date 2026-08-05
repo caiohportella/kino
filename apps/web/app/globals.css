@@ -192,6 +192,22 @@ a {
   box-shadow: 0 2px 10px rgb(0 0 0 / 0.16);
 }
 
+@keyframes carousel-progress {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.animate-carousel-progress {
+  animation-name: carousel-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
 @keyframes kino-toast-in {
   from {
     opacity: 0;

@@ -12,13 +12,22 @@ test('web media cards keep the locale-ready list source stable and hydrate summa
   assert.doesNotMatch(source, /useLocalizedTitles/)
 })
 
-for (const relativePath of ['../app/discover/page.tsx', '../app/search/page.tsx']) {
-  test(`${relativePath} waits for locale readiness before enabling TMDB queries`, async () => {
-    const source = await readFile(new URL(relativePath, import.meta.url), 'utf8')
-    assert.match(source, /localeStatus/)
-    assert.match(source, /enabled:/)
-  })
-}
+test('web Discover resolves request language before loading localized server data', async () => {
+  const source = await readFile(new URL('../app/discover/page.tsx', import.meta.url), 'utf8')
+
+  assert.match(source, /getRequestLanguage/)
+  assert.match(source, /getTranslations/)
+  assert.match(source, /getDiscoverData\(language\)/)
+  assert.doesNotMatch(source, /localeStatus/)
+  assert.doesNotMatch(source, /useQuery/)
+})
+
+test('web Search waits for locale readiness before enabling TMDB queries', async () => {
+  const source = await readFile(new URL('../app/search/page.tsx', import.meta.url), 'utf8')
+
+  assert.match(source, /localeStatus/)
+  assert.match(source, /enabled:/)
+})
 
 test('web diary waits for all localized summaries before showing title presentation', async () => {
   const source = await readFile(new URL('../app/diary/page.tsx', import.meta.url), 'utf8')
