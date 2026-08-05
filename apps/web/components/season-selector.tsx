@@ -34,7 +34,24 @@ export function SeasonSelector({
     <Tabs onValueChange={(nextValue) => onSeasonChange(Number(nextValue))} value={String(value)}>
       <TabsList
         aria-label={label}
-        className="max-w-full gap-2 flex-nowrap justify-start overflow-x-auto rounded-none bg-transparent p-0 scrollbar-none [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-x-visible"
+        className="
+          flex
+          max-w-full
+          flex-row
+          flex-nowrap
+          justify-start
+          gap-2
+          overflow-x-auto
+          overflow-y-hidden
+          rounded-none
+          bg-transparent
+          p-0
+          scrollbar-none
+          touch-pan-x
+          [&::-webkit-scrollbar]:hidden
+          sm:flex-wrap
+          sm:overflow-visible
+        "
         ref={listRef}
       >
         {seasons.map((season) => {
@@ -42,7 +59,24 @@ export function SeasonSelector({
 
           return (
             <TabsTrigger
-              className="shrink-0 rounded-full border border-white/10 bg-white/4 px-4 text-kino-muted hover:border-white/20 hover:text-kino-text focus-visible:border-kino-accent focus-visible:ring-kino-accent/40 data-active:border-kino-accent data-active:bg-kino-accent data-active:text-black!"
+              className="
+                h-9
+                shrink-0
+                whitespace-nowrap
+                rounded-full
+                border
+                border-white/10
+                bg-white/4
+                px-4
+                text-kino-muted
+                hover:border-white/20
+                hover:text-kino-text
+                focus-visible:border-kino-accent
+                focus-visible:ring-kino-accent/40
+                data-active:border-kino-accent
+                data-active:bg-kino-accent
+                data-active:text-black!
+              "
               key={season.season_number}
               ref={isActive ? activeTriggerRef : undefined}
               value={String(season.season_number)}

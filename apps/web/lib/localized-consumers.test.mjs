@@ -56,15 +56,24 @@ test('web localized list hydration never fans out into per-card TMDB detail requ
   assert.match(source, /queryKey:\s*\[\s*'localized-title-batch'/)
 })
 
-test('web title detail query consumes canonical options and its compatible summary placeholder', async () => {
-  const source = await readFile(new URL('../app/title/[id]/page.tsx', import.meta.url), 'utf8')
-  assert.match(source, /titleDetailsQueryOptions/)
-  assert.match(source, /mediaType:\s*type/)
-  assert.match(source, /region:/)
-  assert.match(source, /scope:/)
-  assert.match(source, /titleQuery\.isLoading/)
-  assert.match(source, /summary\.posterPath/)
-  assert.match(source, /summary\.title/)
+test('web title data waits for canonical title metadata before enabling dependent queries', async () => {
+  const source = await readFile(
+    new URL('../hooks/title/use-title-data.ts', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /queryKey:\s*\['title-metadata',\s*tmdbId,\s*type,\s*language\]/)
+  assert.match(source, /transformMovieToTitleDetails/)
+  assert.match(source, /transformTVToTitleDetails/)
+  assert.match(source, /enabled:\s*Number\.isFinite\(tmdbId\)/)
+
+  assert.match(source, /queryKey:\s*\['title-user-data',\s*title\?\.id,\s*userId\]/)
+  assert.match(source, /enabled:\s*Boolean\(title && userId\)/)
+
+  assert.match(source, /queryKey:\s*\['title-stats',\s*title\?\.id,\s*type\]/)
+  assert.match(source, /enabled:\s*Boolean\(title\?\.id && title\.id !== ANON_TITLE_ID\)/)
+
+  assert.match(source, /queryKey:\s*\['title-context',\s*tmdbId,\s*type,\s*language\]/)
 })
 
 test('web media rows delegate every title intent to the canonical MediaCard boundary', async () => {
