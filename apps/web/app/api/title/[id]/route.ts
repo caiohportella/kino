@@ -7,7 +7,7 @@ import { safeImageData } from '@/lib/og-images'
 import { getTitlePresentation } from '@/lib/seo'
 import { getTitleSeoData } from '@/lib/server-tmdb'
 
-export const runtime = 'edge'
+export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
