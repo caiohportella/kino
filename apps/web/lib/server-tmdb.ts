@@ -79,36 +79,23 @@ export function getPersonVisuals(person: Awaited<ReturnType<typeof getPersonSeoD
   }
 }
 
-export const getDiscoverData = cache(async (language = "en") => {
-  const tmdb = createTmdb(language);
+export const getDiscoverData = cache(async (language = 'en') => {
+  const tmdb = createTmdb(language)
 
-  const [
-    trending,
-    popularMovies,
-    popularTV,
-    nowPlaying,
-    topRated,
-    upcoming,
-  ] = await Promise.all([
-    tmdb.getTrending("all", "week"),
+  const [trending, popularMovies, popularTV, nowPlaying, topRated, upcoming] = await Promise.all([
+    tmdb.getTrending('all', 'week'),
     tmdb.getPopularMovies(),
     tmdb.getPopularTV(),
     tmdb.getNowPlayingMovies(),
     tmdb.getTopRatedMovies(),
     tmdb.getUpcomingMovies(),
-  ]);
+  ])
 
-
-  const [
-    enrichedTrending,
-    enrichedPopularMovies,
-    enrichedPopularTV,
-  ] = await Promise.all([
+  const [enrichedTrending, enrichedPopularMovies, enrichedPopularTV] = await Promise.all([
     enrichTitlesWithPalette(trending),
     enrichTitlesWithPalette(popularMovies),
     enrichTitlesWithPalette(popularTV),
-  ]);
-
+  ])
 
   return {
     trending: enrichedTrending,
@@ -117,5 +104,5 @@ export const getDiscoverData = cache(async (language = "en") => {
     nowPlaying,
     topRated,
     upcoming,
-  };
-});
+  }
+})
