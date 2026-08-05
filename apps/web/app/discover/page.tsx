@@ -1,69 +1,51 @@
-'use client'
+import Link from 'next/link'
 
-import { useQuery } from '@tanstack/react-query'
+import { TrendingCarousel } from '@/components/carousel/trending-carousel'
 import { EmptyState } from '@/components/kino'
 import { MediaSection } from '@/components/media-section'
 import { PageHeader } from '@/components/page-header'
-import { HomeSkeleton } from '@/components/skeletons/page-skeletons'
-import { Button } from '@/components/ui/button'
-import { useTranslation } from '@/lib/i18n'
-import { getTmdb } from '@/lib/services'
-import { useSettingsStore } from '@/stores/settings-store'
+import { buttonVariants } from '@/components/ui/button'
+import { getRequestLanguage, getTranslations } from '@/lib/server-localization'
+import { getDiscoverData } from '@/lib/server-tmdb'
+import { cn } from '@/lib/utils'
 
-export default function DiscoverPage() {
-  const language = useSettingsStore((state) => state.language)
-  const localeStatus = useSettingsStore((state) => state.localeStatus)
-  const { t } = useTranslation()
-  const query = useQuery({
-    queryKey: ['discover', language],
-    queryFn: async () => {
-      const tmdb = getTmdb()
-      tmdb.setLanguage(language)
-      const [trending, popularMovies, popularTV, topRated, nowPlaying, upcoming] =
-        await Promise.all([
-          tmdb.getTrending('all', 'week'),
-          tmdb.getPopularMovies(),
-          tmdb.getPopularTV(),
-          tmdb.getTopRatedMovies(),
-          tmdb.getNowPlayingMovies(),
-          tmdb.getUpcomingMovies(),
-        ])
+export default async function DiscoverPage() {
+  const language = await getRequestLanguage()
+  const t = await getTranslations(language)
 
-      return { trending, popularMovies, popularTV, topRated, nowPlaying, upcoming }
-    },
-    enabled: localeStatus !== 'resolving',
-  })
+  try {
+    const data = await getDiscoverData(language)
 
-  if (localeStatus === 'resolving' || query.isLoading) {
-    return <HomeSkeleton label={t('common.loading')} />
-  }
+    return (
+      <div className="content-frame">
+        <PageHeader title={t('tabs.home')} />
 
-  if (query.error || !query.data) {
+        <section className="mb-10">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-kino-text">{t('home.trending')}</h2>
+          </div>
+          <TrendingCarousel items={data.trending} />
+        </section>
+        <MediaSection items={data.popularMovies} title={t('home.popularMovies')} />
+        <MediaSection items={data.popularTV} title={t('home.popularTV')} />
+        <MediaSection items={data.nowPlaying} title={t('home.newReleases')} />
+        <MediaSection items={data.topRated} title={t('home.topRated')} />
+        <MediaSection items={data.upcoming} title={t('home.comingSoon')} />
+      </div>
+    )
+  } catch (error) {
     return (
       <EmptyState
         action={
-          <Button onClick={() => query.refetch()} variant="secondary">
+          <Link className={cn(buttonVariants({ variant: 'secondary' }))} href="/discover">
             {t('common.tryAgain')}
-          </Button>
+          </Link>
         }
-        body={query.error instanceof Error ? query.error.message : 'TMDB did not respond.'}
+        body={error instanceof Error ? error.message : 'TMDB did not respond.'}
         illustrationLabel={t('emptyStates.missingIllustration')}
         title={t('common.failed')}
         variant="missing"
       />
     )
   }
-
-  return (
-    <div className="content-frame">
-      <PageHeader title={t('tabs.home')} />
-
-      <MediaSection items={query.data.trending} title={t('home.trending')} />
-      <MediaSection items={query.data.popularMovies} title={t('home.popularMovies')} />
-      <MediaSection items={query.data.popularTV} title={t('home.popularTV')} />
-      <MediaSection items={query.data.nowPlaying} title={t('home.newReleases')} />
-      <MediaSection items={query.data.topRated} title={t('home.topRated')} />
-      <MediaSection items={query.data.upcoming} title={t('home.comingSoon')} />
-    </div>
-  )
 }

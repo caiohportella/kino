@@ -1,9 +1,10 @@
-import type { MediaType } from '@kino/core'
+import type { MediaType, TMDbTitle } from '@kino/core'
 import { TMDbService, transformMovieToTitleDetails, transformTVToTitleDetails } from '@kino/core'
 import { cache } from 'react'
 import { getPersonImagePaths } from '@/lib/person-visuals'
 import { slugify } from '@/lib/routes'
 import { decodeHtmlEntities } from '@/lib/text'
+import { enrichTitlesWithPalette } from './enrich-titles-palette'
 
 function createTmdb(language: string) {
   const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY
@@ -77,3 +78,31 @@ export function getPersonVisuals(person: Awaited<ReturnType<typeof getPersonSeoD
     portrait: tmdb.getImageUrl(paths.portraitPath, 'w500'),
   }
 }
+
+export const getDiscoverData = cache(async (language = 'en') => {
+  const tmdb = createTmdb(language)
+
+  const [trending, popularMovies, popularTV, nowPlaying, topRated, upcoming] = await Promise.all([
+    tmdb.getTrending('all', 'week'),
+    tmdb.getPopularMovies(),
+    tmdb.getPopularTV(),
+    tmdb.getNowPlayingMovies(),
+    tmdb.getTopRatedMovies(),
+    tmdb.getUpcomingMovies(),
+  ])
+
+  const [enrichedTrending, enrichedPopularMovies, enrichedPopularTV] = await Promise.all([
+    enrichTitlesWithPalette(trending),
+    enrichTitlesWithPalette(popularMovies),
+    enrichTitlesWithPalette(popularTV),
+  ])
+
+  return {
+    trending: enrichedTrending,
+    popularMovies: enrichedPopularMovies,
+    popularTV: enrichedPopularTV,
+    nowPlaying,
+    topRated,
+    upcoming,
+  }
+})
