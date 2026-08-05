@@ -14,6 +14,7 @@ export interface TMDbTitle {
   vote_count: number
   genre_ids: number[]
   media_type?: MediaType
+  palette_color?: string
 }
 
 export interface TMDbExternalIds {

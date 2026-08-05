@@ -5,6 +5,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./*"],
+      "@locales/*": ["../../locales/*"],
       "@kino/core": ["../../packages/core/src"],
       "@kino/core/*": ["../../packages/core/src/*"]
     }

@@ -51,6 +51,15 @@ function envValue(...names: string[]) {
 function createNextConfig(phase: string): NextConfig {
   return {
     distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next',
+    images: {
+      remotePatterns: [
+        {
+          protocol: 'https',
+          hostname: 'image.tmdb.org',
+          pathname: '/t/p/**',
+        },
+      ],
+    },
     env: {
       NEXT_PUBLIC_SUPABASE_URL: envValue('NEXT_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_URL'),
       NEXT_PUBLIC_SUPABASE_ANON_KEY: envValue(
