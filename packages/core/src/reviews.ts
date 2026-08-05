@@ -1,4 +1,4 @@
-import type { MediaType, UserProfile } from './types.ts'
+import type { MediaType, UserProfile } from './types'
 
 export const REVIEW_MAX_LENGTH = 2000
 export const REVIEW_PREVIEW_LIMIT = 6
@@ -218,11 +218,7 @@ export const profileReviewKeys = {
 
 export function mapProfileReviewsPage(rows: ProfileReviewRow[], limit: number): ProfileReviewsPage {
   const safeLimit = Math.max(1, limit)
-  const orderedRows = [...rows].sort(
-    (left, right) =>
-      right.created_at.localeCompare(left.created_at) || right.id.localeCompare(left.id)
-  )
-  const pageRows = orderedRows.slice(0, safeLimit)
+  const pageRows = rows.slice(0, safeLimit)
   const last = pageRows.at(-1)
 
   return {
@@ -239,7 +235,7 @@ export function mapProfileReviewsPage(rows: ProfileReviewRow[], limit: number): 
       },
     })),
     nextCursor:
-      orderedRows.length > safeLimit && last ? { created_at: last.created_at, id: last.id } : null,
+      rows.length > safeLimit && last ? { created_at: last.created_at, id: last.id } : null,
     totalCount: toSafeCount(rows[0]?.total_count),
   }
 }

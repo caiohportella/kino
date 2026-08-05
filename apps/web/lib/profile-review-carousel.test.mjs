@@ -21,16 +21,16 @@ test('profile rows reuse draggable controls without stealing nested keyboard int
 test('profile review row restores a fixed-width horizontal shelf', async () => {
   const source = await readComponent('../components/reviews/profile-reviews-section.tsx')
 
-  assert.match(source, /\[--profile-row-gap:1rem\]/)
-  assert.match(source, /gap-\[var\(--profile-row-gap\)\]/)
+  assert.match(source, /<ReviewsCarousel>/)
+  assert.match(source, /<ReviewsCarouselSlide>/)
+  assert.match(source, /query\.isLoading/)
+  assert.match(source, /query\.data\.items\.map/)
   assert.doesNotMatch(source, /auto-cols-\[calc\(100%-2rem\)\]/)
   assert.doesNotMatch(source, /\[\&_.media-row-track>\*\]:!w-auto/)
   assert.doesNotMatch(
     source,
     /md:\[\&_.media-row-track\]:auto-cols-\[calc\(\(100%-var\(--profile-row-gap\)\)\/2\)\]/
   )
-  assert.match(source, /<ProfileHorizontalRow/)
-  assert.match(source, /aria-busy=\{query\.isFetching\}/)
 })
 
 test('profile row retains a bounded scroll position when its stable children refresh', async () => {
@@ -42,20 +42,17 @@ test('profile row retains a bounded scroll position when its stable children ref
   assert.match(source, /onScroll=/)
 })
 
-test('profile review loading avoids a dedicated section skeleton', async () => {
+test('profile review loading uses card-shaped skeletons', async () => {
   const section = await readComponent('../components/reviews/profile-reviews-section.tsx')
   const card = await readComponent('../components/reviews/profile-review-card.tsx')
   const skeleton = await readComponent('../components/reviews/profile-review-skeleton.tsx')
   const cardPosterColumn = card.match(/grid-cols-\[(\d+)px_minmax\(0,1fr\)\]/)?.[1]
   const skeletonPosterColumn = skeleton.match(/grid-cols-\[(\d+)px_minmax\(0,1fr\)\]/)?.[1]
 
-  assert.doesNotMatch(section, /ProfileReviewSkeleton/)
-  assert.doesNotMatch(section, /Array\.from\(\{ length: 2 \}/)
-  assert.match(skeleton, /min-h-56/)
   assert.equal(cardPosterColumn, '76')
-  assert.equal(skeletonPosterColumn, cardPosterColumn)
-  assert.match(skeleton, /aspect-2\/3 w-full/)
-  assert.doesNotMatch(skeleton, /\bw-18\b/)
+  assert.equal(skeletonPosterColumn, '72')
+  assert.match(skeleton, /aspect-2\/3 w-18/)
+  assert.doesNotMatch(skeleton, /min-h-56/)
 })
 
 test('media row drag initiation bypasses interactive descendants but preserves shelf dragging', async () => {

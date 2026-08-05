@@ -12,35 +12,67 @@ const publicScope = { kind: 'public' }
 test('maps every progressive invalidation descriptor to canonical query keys', () => {
   const descriptors = [
     {
-      descriptor: { kind: 'identity', profileId: 'profile-a', visibilityScope: publicScope },
+      descriptor: {
+        kind: 'identity',
+        profileId: 'profile-a',
+        visibilityScope: publicScope,
+      },
       expected: [['v1', 'profile', 'identity', 'profile-a', 'public']],
     },
     {
-      descriptor: { kind: 'relationship', profileId: 'profile-a', viewerId: 'viewer-a' },
+      descriptor: {
+        kind: 'relationship',
+        profileId: 'profile-a',
+        viewerId: 'viewer-a',
+      },
       expected: [['v1', 'profile', 'relationship', 'profile-a', 'viewer-a']],
     },
     {
-      descriptor: { kind: 'watched-movies', profileId: 'profile-a', visibilityScope: publicScope },
+      descriptor: {
+        kind: 'watched-movies',
+        profileId: 'profile-a',
+        visibilityScope: publicScope,
+      },
       expected: [['v1', 'profile', 'watched-movies', 'profile-a', 'public']],
     },
     {
-      descriptor: { kind: 'watched-series', profileId: 'profile-a', visibilityScope: publicScope },
+      descriptor: {
+        kind: 'watched-series',
+        profileId: 'profile-a',
+        visibilityScope: publicScope,
+      },
       expected: [['v1', 'profile', 'watched-series', 'profile-a', 'public']],
     },
     {
-      descriptor: { kind: 'statistics', profileId: 'profile-a', visibilityScope: publicScope },
+      descriptor: {
+        kind: 'statistics',
+        profileId: 'profile-a',
+        visibilityScope: publicScope,
+      },
       expected: [['v1', 'profile', 'statistics', 'profile-a', 'public']],
     },
     {
-      descriptor: { kind: 'watchlists', profileId: 'profile-a', visibilityScope: publicScope },
+      descriptor: {
+        kind: 'watchlists',
+        profileId: 'profile-a',
+        visibilityScope: publicScope,
+      },
       expected: [['v1', 'profile', 'watchlists', 'profile-a', 'public']],
     },
     {
-      descriptor: { kind: 'reviews', profileId: 'profile-a', visibilityScope: publicScope },
+      descriptor: {
+        kind: 'reviews',
+        profileId: 'profile-a',
+        visibilityScope: publicScope,
+      },
       expected: [['v1', 'profile', 'reviews', 'profile-a', 'public']],
     },
     {
-      descriptor: { kind: 'ratings', profileId: 'profile-a', visibilityScope: publicScope },
+      descriptor: {
+        kind: 'ratings',
+        profileId: 'profile-a',
+        visibilityScope: publicScope,
+      },
       expected: [['v1', 'profile', 'ratings', 'profile-a', 'public']],
     },
   ]
@@ -268,6 +300,7 @@ test('review-like consumers carry author ownership into canonical invalidation',
     new URL('../components/reviews/reviews-section.tsx', import.meta.url),
     'utf8'
   )
-  assert.match(hookSource, /authorProfileId/)
+
+  assert.match(hookSource, /useSharedReviewLikeMutation/)
   assert.match(callerSource, /authorProfileId:\s*review\.userId/)
 })
