@@ -43,7 +43,6 @@ test('profile row retains a bounded scroll position when its stable children ref
 })
 
 test('profile review loading uses card-shaped skeletons', async () => {
-  const section = await readComponent('../components/reviews/profile-reviews-section.tsx')
   const card = await readComponent('../components/reviews/profile-review-card.tsx')
   const skeleton = await readComponent('../components/reviews/profile-review-skeleton.tsx')
   const cardPosterColumn = card.match(/grid-cols-\[(\d+)px_minmax\(0,1fr\)\]/)?.[1]

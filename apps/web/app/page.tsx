@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { redirect } from 'next/navigation'
 import { PublicLanding } from '@/components/public-landing'
 import {
   absoluteUrl,
@@ -7,6 +8,7 @@ import {
   SITE_DESCRIPTION,
   SITE_NAME,
 } from '@/lib/seo'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = {
   alternates: {
@@ -30,9 +32,19 @@ export const metadata: Metadata = {
   },
 }
 
-export default function HomePage() {
+export default async function HomePage() {
   const websiteJsonLd = JSON.stringify(buildWebsiteSchema()).replace(/</g, '\\u003c')
   const appJsonLd = JSON.stringify(buildSoftwareApplicationSchema()).replace(/</g, '\\u003c')
+
+  const supabase = await createServerSupabaseClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (user) {
+    redirect('/discover')
+  }
 
   return (
     <>
