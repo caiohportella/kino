@@ -105,6 +105,15 @@ export interface FollowedEpisodeRatingsResponse {
   totals: Record<string, number>
 }
 
+export type FollowedEpisodeRatingRpcRow = {
+  avatarUrl?: string | null
+  displayName?: string | null
+  rating?: number | null
+  userId?: string | null
+  username?: string | null
+  watchedAt?: string | null
+}
+
 export interface ReviewRow {
   id: string
   user_id: string

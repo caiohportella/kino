@@ -1,8 +1,8 @@
 'use client'
 
 import { KinoDatabaseService, TMDbService } from '@kino/core'
+import { supabase } from '@/lib/supabase/client'
 import { createProfileQueryService } from './profile-query-service'
-import { supabase } from './supabase'
 
 let tmdbService: TMDbService | null = null
 
