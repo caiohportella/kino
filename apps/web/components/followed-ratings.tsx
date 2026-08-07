@@ -66,10 +66,11 @@ export function FollowedEpisodeRatingRows({
   items: FollowedRating[]
   totalCount: number
 }) {
-  if (!items.length) return null
+  const validItems = items.filter((item) => item?.user?.id)
+  if (!validItems.length) return null
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2">
-      {items.slice(0, 2).map((item) => (
+      {validItems.slice(0, 2).map((item) => (
         <RatingRow compact item={item} key={item.user.id} />
       ))}
       {totalCount > 2 ? <span className="text-xs text-kino-muted">+{totalCount - 2}</span> : null}

@@ -101,7 +101,7 @@ export function TitleActions({
             setWatchlistOpen(true)
           }}
         >
-          <BookmarkPlus size={17} />
+          <BookmarkPlus fill={isWatchlisted ? 'currentColor' : 'none'} size={17} />
 
           <span>{isWatchlisted ? t('title.watchlisted') : t('title.watchlist')}</span>
         </Button>
@@ -114,7 +114,7 @@ export function TitleActions({
             onClick={() => diaryMutation.mutate(undefined)}
             variant="secondary"
           >
-            <CalendarCheck size={17} />
+            <CalendarCheck fill="currentColor" size={17} />
             <span>{t('title.removeHistory')}</span>
           </Button>
         ) : (

@@ -313,15 +313,15 @@ export default function SettingsPage() {
 
             <Card className="grid gap-3 p-5">
               <h2 className="text-lg font-semibold text-kino-text">
-                {t('settings.importHistoryTitle')}
+                {t('importFlow.settingsTitle')}
               </h2>
               <p className="text-sm leading-6 text-kino-muted">
-                {t('settings.importHistorySubtitle')}
+                {t('importFlow.settingsSubtitle')}
               </p>
               <Link href="/import">
                 <Button variant="secondary">
                   <CloudUpload size={16} />
-                  {t('settings.import')}
+                  {t('importFlow.settingsButton')}
                 </Button>
               </Link>
             </Card>

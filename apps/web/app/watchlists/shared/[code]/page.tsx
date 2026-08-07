@@ -27,7 +27,7 @@ export default function SharedWatchlistPage() {
     }))
   )
 
-  if (query.isLoading || localizedTitles.isPending)
+  if (query.isPending || localizedTitles.isPending)
     return <WatchlistsSkeleton detail label={t('watchlists.loadingWatchlist')} />
   if (!query.data) {
     return (
@@ -54,6 +54,18 @@ export default function SharedWatchlistPage() {
               request: { tmdbId: item.title.tmdb_id, type: item.title.type },
               unknownTitle: t('diary.unknownTitle'),
             })
+            if (localizedTitle.status !== 'ready') {
+              return (
+                <article className="grid min-w-0 content-start gap-3" key={item.id}>
+                  <div className="grid aspect-2/3 place-items-center rounded-lg border border-white/10 bg-kino-surface px-4 text-center text-xs font-semibold text-kino-muted">
+                    {t('watchlists.titleUnavailable')}
+                  </div>
+                  <h2 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-kino-muted">
+                    {t('watchlists.titleUnavailable')}
+                  </h2>
+                </article>
+              )
+            }
             return (
               <Link
                 className="grid min-w-0 content-start gap-3"

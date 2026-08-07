@@ -482,7 +482,10 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
     (data) => data.items.length === 0
   )
   const ratingsState =
-    seriesIds.length === 0 && seriesState.phase === 'empty'
+    seriesIds.length === 0 &&
+    seriesState.phase !== 'initial-pending' &&
+    seriesState.phase !== 'paused' &&
+    seriesState.phase !== 'failed'
       ? ({ data: {}, phase: 'empty' } as const)
       : toSliceState(seriesRatingQuery, targetUserId, (data) => Object.keys(data).length === 0)
   const movies = sliceData(moviesState, [])
@@ -1018,7 +1021,7 @@ function SeriesRatingStat({
         icon={Star}
         label={t('profile.avgSeriesRating')}
         onClick={() => setOpen(true)}
-        value={ratedCount > 0 ? averageRating.toFixed(1) : '—'}
+        value={ratedCount > 0 ? averageRating.toFixed(1) : '0.0'}
       />
       <SeriesRatingDialog
         averageRating={averageRating}

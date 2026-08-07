@@ -27,6 +27,7 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
 import { ModalDialog as Dialog } from '@/components/ui/modal-dialog'
+import { Skeleton } from '@/components/ui/skeleton'
 import { ShareCodeDisplay } from '@/components/watchlist-sharing'
 import { WatchlistVisibilitySelector } from '@/components/watchlist-visibility-selector'
 import { useTranslation } from '@/lib/i18n'
@@ -204,7 +205,9 @@ export default function WatchlistDetailPage() {
     },
   })
 
-  if (query.isLoading) return <WatchlistsSkeleton detail label={t('watchlists.loadingWatchlist')} />
+  if (query.isPending || localizedTitles.isPending) {
+    return <WatchlistsSkeleton detail label={t('watchlists.loadingWatchlist')} />
+  }
 
   if (!query.data?.watchlist) {
     return (
@@ -275,7 +278,7 @@ export default function WatchlistDetailPage() {
         title={watchlist.name}
       />
 
-      {participants.length > 0 ? (
+      {watchlist.visibility === 'shared' && participants.length > 0 ? (
         <Card className="mb-6 w-full min-w-0 max-w-full flex-row flex-wrap items-center gap-3 p-4">
           <span className="text-sm font-semibold text-kino-muted">
             {t('watchlists.participants')}
@@ -398,6 +401,27 @@ function WatchlistTitleCard({
     request: { tmdbId: item.title.tmdb_id, type: item.title.type },
     unknownTitle: t('diary.unknownTitle'),
   })
+  if (localizedTitles.isPending) {
+    return (
+      <div aria-busy="true" className="grid min-w-0 content-start gap-3">
+        <Skeleton className="aspect-2/3 w-full rounded-lg" />
+        <Skeleton className="h-10 w-4/5" />
+        <Skeleton className="h-3 w-3/5" />
+      </div>
+    )
+  }
+  if (localized.status !== 'ready') {
+    return (
+      <article className="grid min-w-0 content-start gap-3">
+        <div className="grid aspect-2/3 place-items-center rounded-lg border border-white/10 bg-kino-surface px-4 text-center text-xs font-semibold text-kino-muted">
+          {t('watchlists.titleUnavailable')}
+        </div>
+        <h2 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-kino-muted">
+          {t('watchlists.titleUnavailable')}
+        </h2>
+      </article>
+    )
+  }
   const displayTitle = localized.title
   const poster = getTmdb().getImageUrl(localized.posterPath, 'w300')
   const profile = item.addedByUser || {
@@ -413,7 +437,7 @@ function WatchlistTitleCard({
         <Link
           aria-label={displayTitle}
           className="focus-ring block rounded-lg"
-          href={titlePath(item.title.tmdb_id, item.title.title, item.title.type)}
+          href={titlePath(item.title.tmdb_id, displayTitle, item.title.type)}
         >
           <Poster className="rounded-lg shadow-soft" src={poster} title={displayTitle} />
         </Link>

@@ -23,6 +23,7 @@ import { Card } from '@/components/ui/card'
 import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useTranslation } from '@/lib/i18n'
 import { db, getTmdb } from '@/lib/services'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -51,6 +52,7 @@ const emptyState: ImportState = {
 }
 
 export default function ImportPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const queryClient = useQueryClient()
   const resolution = useAuthStore((state) => state.resolution)
@@ -84,7 +86,11 @@ export default function ImportPage() {
       })
       setPage(1)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not parse that file.')
+      setError(
+        caught instanceof Error
+          ? translateImportMessage(caught.message, t)
+          : t('importFlow.parseFailed')
+      )
     } finally {
       setLoading(false)
     }
@@ -100,7 +106,7 @@ export default function ImportPage() {
   async function handleImport() {
     const included = state.items.filter((item) => item.include)
     if (included.length === 0) {
-      setError('Choose at least one item to import.')
+      setError(t('importFlow.chooseItems'))
       return
     }
 
@@ -144,7 +150,7 @@ export default function ImportPage() {
           if (existingDiaryEntry) {
             updateItem(item.id, {
               importStatus: 'skipped',
-              importError: 'Already exists in your diary.',
+              importError: t('importFlow.alreadyInDiary'),
             })
             skippedCount += 1
           } else if (
@@ -152,7 +158,8 @@ export default function ImportPage() {
             !item.tvEpisodes ||
             item.tvEpisodes.length === 0
           ) {
-            if (item.rating === null) throw new Error(`"${item.title}" needs a rating.`)
+            if (item.rating === null)
+              throw new Error(t('importFlow.ratingRequired', { title: item.title }))
             const watchedAt = new Date(item.watchedAt)
             await db.rateTitle(
               resolvedTitle.titleId,
@@ -176,7 +183,8 @@ export default function ImportPage() {
             const episodes = item.tvEpisodes || []
             for (const episode of episodes) {
               const rating = episode.rating ?? item.rating
-              if (rating === null) throw new Error(`"${item.title}" needs ratings before import.`)
+              if (rating === null)
+                throw new Error(t('importFlow.ratingsRequired', { title: item.title }))
               await db.rateEpisode(
                 resolvedTitle.titleId,
                 episode.seasonNumber,
@@ -201,7 +209,10 @@ export default function ImportPage() {
           }
         } catch (caught) {
           console.error(`[Import] Web item import failed for: ${item.title}`, caught)
-          const errorMsg = caught instanceof Error ? caught.message : 'Import failed'
+          const errorMsg =
+            caught instanceof Error
+              ? translateImportMessage(caught.message, t)
+              : t('importFlow.importFailed')
           updateItem(item.id, {
             importStatus: 'failed',
             importError: errorMsg,
@@ -226,9 +237,13 @@ export default function ImportPage() {
       if (importedCount > 0) {
         queryClient.invalidateQueries({ queryKey: activityQueryKeys.all })
       }
-      setError(failureCount > 0 ? `${failureCount} item(s) failed to import.` : null)
+      setError(failureCount > 0 ? t('importFlow.itemsFailed', { count: failureCount }) : null)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Import failed.')
+      setError(
+        caught instanceof Error
+          ? translateImportMessage(caught.message, t)
+          : t('importFlow.importFailed')
+      )
     } finally {
       setImporting(false)
     }
@@ -241,26 +256,25 @@ export default function ImportPage() {
 
   return (
     <ProtectedContentGate
-      authLoadingFallback={<ProfileSkeleton label="Loading import..." />}
-      emptyFallback={<ProfileSkeleton label="Loading import..." />}
-      errorFallback={<EmptyState body="Please try again." title="Import unavailable" />}
+      authLoadingFallback={<ProfileSkeleton label={t('importFlow.loading')} />}
+      emptyFallback={<ProfileSkeleton label={t('importFlow.loading')} />}
+      errorFallback={<EmptyState body={t('common.tryAgain')} title={t('importFlow.unavailable')} />}
       pageStatus="content"
       resolution={resolution}
       unauthenticatedFallback={<ProtectedEmpty />}
     >
       <div className="content-frame">
         <PageHeader
-          body="Kino parses files locally in the browser, lets you review the mapped rows, then writes only selected items into your account."
-          eyebrow="Import"
-          title="Bring your watch history"
+          body={t('importFlow.description')}
+          eyebrow={t('importFlow.eyebrow')}
+          title={t('importFlow.title')}
         />
 
         <Card className="mb-6 grid gap-5 p-5 md:grid-cols-[1fr_auto] md:items-center">
           <div>
-            <h2 className="text-lg font-semibold text-kino-text">Letterboxd CSV</h2>
+            <h2 className="text-lg font-semibold text-kino-text">{t('importFlow.letterboxd')}</h2>
             <p className="mt-2 text-sm leading-6 text-kino-muted">
-              Choose an export file. You can edit titles, dates, ratings, and inclusion before
-              saving.
+              {t('importFlow.letterboxdDescription')}
             </p>
             {state.fileName ? (
               <p className="mt-2 text-sm font-semibold text-kino-accent">{state.fileName}</p>
@@ -268,7 +282,7 @@ export default function ImportPage() {
           </div>
           <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-md bg-kino-accent px-4 py-3 text-sm font-semibold text-black">
             <CloudUpload size={16} />
-            {loading ? 'Parsing...' : 'Choose file'}
+            {loading ? t('importFlow.parsing') : t('importFlow.chooseFile')}
             <input
               accept=".csv,text/csv"
               className="sr-only"
@@ -284,7 +298,7 @@ export default function ImportPage() {
             className="mb-2 rounded-md border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200"
             key={item}
           >
-            {item}
+            {translateImportMessage(item, t)}
           </p>
         ))}
         {state.warnings.map((item) => (
@@ -292,7 +306,7 @@ export default function ImportPage() {
             className="mb-2 rounded-md border border-orange-500/40 bg-orange-500/10 px-4 py-3 text-sm text-orange-100"
             key={item}
           >
-            {item}
+            {translateImportMessage(item, t)}
           </p>
         ))}
         {error ? (
@@ -304,13 +318,13 @@ export default function ImportPage() {
         {importing ? (
           <Card className="mb-6 p-5">
             <div className="mb-3 text-sm font-semibold text-kino-text">
-              Importing {progress.completed} of {progress.total}
+              {t('importFlow.progress', { completed: progress.completed, total: progress.total })}
             </div>
             <ProgressBar value={progress.total ? (progress.completed / progress.total) * 100 : 0} />
             <div className="mt-3 flex flex-wrap gap-3 text-sm font-medium text-kino-muted">
-              <span>Imported: {progress.imported}</span>
-              <span>Skipped: {progress.skipped}</span>
-              <span>Failed: {progress.failed}</span>
+              <span>{t('importFlow.importedCount', { count: progress.imported })}</span>
+              <span>{t('importFlow.skippedCount', { count: progress.skipped })}</span>
+              <span>{t('importFlow.failedCount', { count: progress.failed })}</span>
             </div>
           </Card>
         ) : null}
@@ -319,29 +333,32 @@ export default function ImportPage() {
           <Card className="mb-6 p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-kino-text">Import finished</h2>
+                <h2 className="text-lg font-semibold text-kino-text">{t('importFlow.finished')}</h2>
                 <p className="mt-2 text-sm leading-6 text-kino-muted">
-                  Imported: {importSummary.imported} | Skipped: {importSummary.skipped} | Failed:{' '}
-                  {importSummary.failed}
+                  {t('importFlow.summary', {
+                    imported: importSummary.imported,
+                    skipped: importSummary.skipped,
+                    failed: importSummary.failed,
+                  })}
                 </p>
               </div>
               <Button onClick={() => router.push('/diary')} variant="secondary">
-                View diary
+                {t('importFlow.viewDiary')}
               </Button>
             </div>
           </Card>
         ) : null}
 
         {state.items.length === 0 ? (
-          <EmptyState
-            body="Choose an export file above to preview the mapped titles."
-            title="No file selected"
-          />
+          <EmptyState body={t('importFlow.noFileBody')} title={t('importFlow.noFile')} />
         ) : (
           <>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div className="text-sm font-semibold text-kino-muted">
-                {includedCount} of {state.items.length} items selected
+                {t('importFlow.selectedCount', {
+                  selected: includedCount,
+                  total: state.items.length,
+                })}
               </div>
               <div className="flex gap-3">
                 <Button
@@ -361,11 +378,11 @@ export default function ImportPage() {
                   variant="secondary"
                 >
                   <RotateCcw size={16} />
-                  Reset
+                  {t('importFlow.reset')}
                 </Button>
                 <Button disabled={importing || includedCount === 0} onClick={handleImport}>
                   <Save size={16} />
-                  Import selected
+                  {t('importFlow.importSelected')}
                 </Button>
               </div>
             </div>
@@ -377,7 +394,7 @@ export default function ImportPage() {
             </div>
 
             <AppPagination
-              label="Import results pages"
+              label={t('importFlow.resultsPages')}
               onPageChange={setPage}
               page={page}
               totalPages={totalPages}
@@ -396,6 +413,7 @@ function ImportRow({
   item: ImportTitleItem
   onChange: (id: string, updates: Partial<ImportTitleItem>) => void
 }) {
+  const { t } = useTranslation()
   let cardBorderColor = ''
   let cardBgColor = item.include ? '' : 'opacity-60'
 
@@ -419,39 +437,39 @@ function ImportRow({
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-semibold text-kino-text">{item.title}</h2>
             <span className="rounded-md bg-white/6 px-2 py-1 text-xs font-semibold text-kino-muted">
-              {item.mediaType === 'movie' ? 'Movie' : 'Series'}
+              {item.mediaType === 'movie' ? t('importFlow.movie') : t('importFlow.series')}
             </span>
             <span className="rounded-md bg-white/6 px-2 py-1 text-xs font-semibold text-kino-muted">
-              {item.sourceLabel}
+              {t('importFlow.letterboxd')}
             </span>
             {item.importStatus === 'success' && (
               <span className="flex items-center gap-1 text-xs font-semibold text-green-400">
-                <CheckCircle2 size={14} /> Imported
+                <CheckCircle2 size={14} /> {t('importFlow.statusImported')}
               </span>
             )}
             {item.importStatus === 'failed' && (
               <span className="flex items-center gap-1 text-xs font-semibold text-red-400">
-                <XCircle size={14} /> Failed
+                <XCircle size={14} /> {t('importFlow.statusFailed')}
               </span>
             )}
             {item.importStatus === 'skipped' && (
               <span className="flex items-center gap-1 text-xs font-semibold text-orange-300">
-                <AlertTriangle size={14} /> Skipped (Already exists)
+                <AlertTriangle size={14} /> {t('importFlow.statusSkipped')}
               </span>
             )}
             {item.importStatus === 'processing' && (
               <span className="flex items-center gap-1 text-xs font-semibold text-kino-accent">
-                <Skeleton className="size-3.5 rounded-full" /> Processing
+                <Skeleton className="size-3.5 rounded-full" /> {t('importFlow.processing')}
               </span>
             )}
           </div>
           {item.importStatus === 'failed' ? (
             <p className="mt-2 text-sm text-red-300 font-medium">
-              {item.importError || `Could not find "${item.title}" in TMDB.`}
+              {item.importError || t('importFlow.notFound', { title: item.title })}
             </p>
           ) : item.importStatus === 'skipped' ? (
             <p className="mt-2 text-sm font-medium text-orange-200">
-              {item.importError || 'Already exists in your diary.'}
+              {item.importError || t('importFlow.alreadyInDiary')}
             </p>
           ) : item.issue ? (
             <p className="mt-2 text-sm text-orange-200">{item.issue}</p>
@@ -474,22 +492,22 @@ function ImportRow({
             />
           )}
           {item.importStatus === 'success'
-            ? 'Saved'
+            ? t('importFlow.saved')
             : item.importStatus === 'skipped'
-              ? 'Skipped'
-              : 'Include'}
+              ? t('importFlow.skipped')
+              : t('importFlow.include')}
         </label>
       </div>
 
       <div className="grid gap-4 md:grid-cols-[1.2fr_160px_160px]">
         <Field
-          label="Title"
+          label={t('importFlow.titleField')}
           onChange={(event) => onChange(item.id, { title: event.target.value })}
           value={item.title}
           disabled={isLocked}
         />
         <Field
-          label="Watched date"
+          label={t('importFlow.watchedDate')}
           onChange={(event) =>
             onChange(item.id, {
               watchedAt: new Date(event.target.value).toISOString(),
@@ -500,7 +518,7 @@ function ImportRow({
           disabled={isLocked}
         />
         <Field
-          label="Rating"
+          label={t('importFlow.rating')}
           max={5}
           min={0}
           onChange={(event) =>
@@ -522,14 +540,14 @@ function ImportRow({
           }
         }}
         options={[
-          { label: 'First time', value: 'first-time' },
-          { label: 'Rewatch', value: 'rewatch' },
+          { label: t('importFlow.firstTime'), value: 'first-time' },
+          { label: t('importFlow.rewatch'), value: 'rewatch' },
         ]}
         value={item.watchType}
       />
 
       <TextArea
-        label="Notes"
+        label={t('importFlow.notes')}
         onChange={(event) => onChange(item.id, { notes: event.target.value })}
         value={item.notes || ''}
         disabled={isLocked}
@@ -546,6 +564,31 @@ function cleanSearchTitle(title: string): string {
     .replace(/[^a-zA-Z0-9\s]/g, ' ') // remove special chars
     .replace(/\s+/g, ' ') // normalize whitespace
     .trim()
+}
+
+function translateImportMessage(
+  message: string,
+  t: (key: string, options?: Record<string, string | number>) => string
+) {
+  if (message === 'Unsupported file format. Upload a Letterboxd .csv export.') {
+    return t('importFlow.unsupported')
+  }
+  if (message === 'The Letterboxd export is empty.') return t('importFlow.emptyExport')
+  if (message === 'No Letterboxd rows could be parsed.') return t('importFlow.noRows')
+  if (message === 'Skipped a Letterboxd row without a title.') return t('importFlow.skippedRow')
+  if (message === 'Import failed' || message === 'Import failed.')
+    return t('importFlow.importFailed')
+
+  const missingTitle = message.match(/^Could not find "(.+)" in TMDB\.$/)
+  if (missingTitle?.[1]) return t('importFlow.notFound', { title: missingTitle[1] })
+
+  const missingRating = message.match(/^"(.+)" needs a rating\.$/)
+  if (missingRating?.[1]) return t('importFlow.ratingRequired', { title: missingRating[1] })
+
+  const missingRatings = message.match(/^"(.+)" needs ratings before import\.$/)
+  if (missingRatings?.[1]) return t('importFlow.ratingsRequired', { title: missingRatings[1] })
+
+  return message
 }
 
 function stripLeadingArticles(title: string): string {

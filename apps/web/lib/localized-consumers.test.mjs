@@ -17,9 +17,18 @@ test('web Discover resolves request language before loading localized server dat
 
   assert.match(source, /getRequestLanguage/)
   assert.match(source, /getTranslations/)
-  assert.match(source, /getDiscoverData\(language\)/)
+  assert.match(source, /getDiscoverData\(language, getRegionForLanguage\(language\)\)/)
   assert.doesNotMatch(source, /localeStatus/)
   assert.doesNotMatch(source, /useQuery/)
+})
+
+test('web locale hydration bridges client persistence to server-rendered Discover', async () => {
+  const settings = await readFile(new URL('../stores/settings-store.ts', import.meta.url), 'utf8')
+  const providers = await readFile(new URL('../app/providers.tsx', import.meta.url), 'utf8')
+
+  assert.match(settings, /kino-language=/)
+  assert.match(settings, /persistLanguageCookie/)
+  assert.match(providers, /router\.refresh\(\)/)
 })
 
 test('web Search waits for locale readiness before enabling TMDB queries', async () => {

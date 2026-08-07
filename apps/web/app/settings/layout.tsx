@@ -1,29 +1,12 @@
-import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
-import { absoluteUrl, SITE_DESCRIPTION, SITE_NAME } from '@/lib/seo'
+import { localizedRouteMetadata } from '@/lib/server-metadata'
 
-export const metadata: Metadata = {
-  title: 'Settings',
-  description: 'Edit your Kino profile, language, and account settings.',
-  alternates: {
-    canonical: absoluteUrl('/settings'),
-  },
-  robots: {
-    index: false,
-    follow: false,
-  },
-  openGraph: {
-    description: SITE_DESCRIPTION,
-    siteName: SITE_NAME,
-    title: 'Settings | Kino',
-    type: 'website',
-    url: absoluteUrl('/settings'),
-  },
-  twitter: {
-    card: 'summary_large_image',
-    description: SITE_DESCRIPTION,
-    title: 'Settings | Kino',
-  },
+export async function generateMetadata() {
+  return localizedRouteMetadata({
+    canonicalPath: '/settings',
+    descriptionKey: 'metadata.settingsDescription',
+    titleKey: 'metadata.settingsTitle',
+  })
 }
 
 export default function SettingsLayout({ children }: { children: ReactNode }) {

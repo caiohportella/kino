@@ -1,58 +1,55 @@
 import type { Metadata, Viewport } from 'next'
 import type { ReactNode } from 'react'
 import './globals.css'
-import { Nunito_Sans } from 'next/font/google'
 import { AppShell } from '@/components/app-shell'
-import { absoluteUrl, getSiteOrigin, SITE_DESCRIPTION, SITE_NAME, socialImage } from '@/lib/seo'
+import { absoluteUrl, getSiteOrigin, SITE_NAME, socialImage } from '@/lib/seo'
+import { getServerMetadataContext } from '@/lib/server-metadata'
 import { cn } from '@/lib/utils'
 import { Providers } from './providers'
 
-const nunitoSans = Nunito_Sans({ subsets: ['latin'], variable: '--font-sans' })
-
-export const metadata: Metadata = {
-  metadataBase: new URL(getSiteOrigin()),
-  title: {
-    default: 'Kino',
-    template: '%s | Kino',
-  },
-  description: SITE_DESCRIPTION,
-  applicationName: SITE_NAME,
-  alternates: {
-    canonical: absoluteUrl('/'),
-  },
-  openGraph: {
-    description: SITE_DESCRIPTION,
-    images: [
-      socialImage('/opengraph-image', 'Kino — discover, track, and share movies and series'),
-    ],
-    siteName: SITE_NAME,
-    title: SITE_NAME,
-    type: 'website',
-    url: absoluteUrl('/'),
-  },
-  twitter: {
-    card: 'summary_large_image',
-    description: SITE_DESCRIPTION,
-    images: [
-      socialImage('/opengraph-image', 'Kino — discover, track, and share movies and series'),
-    ],
-    title: SITE_NAME,
-  },
-  manifest: '/manifest.webmanifest',
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'black-translucent',
-    title: SITE_NAME,
-  },
-  icons: {
-    icon: [
-      { url: '/favicon.ico', sizes: 'any' },
-      { url: '/icons/icon-192.png', type: 'image/png', sizes: '192x192' },
-      { url: '/icons/icon-512.png', type: 'image/png', sizes: '512x512' },
-    ],
-    shortcut: '/favicon.ico',
-    apple: [{ url: '/apple-touch-icon.png', type: 'image/png', sizes: '192x192' }],
-  },
+export async function generateMetadata(): Promise<Metadata> {
+  const { locale, t } = await getServerMetadataContext()
+  const description = t('metadata.siteDescription')
+  return {
+    metadataBase: new URL(getSiteOrigin()),
+    title: {
+      default: 'Kino',
+      template: '%s | Kino',
+    },
+    description,
+    applicationName: SITE_NAME,
+    alternates: { canonical: absoluteUrl('/') },
+    openGraph: {
+      description,
+      locale,
+      images: [socialImage('/opengraph-image', description)],
+      siteName: SITE_NAME,
+      title: SITE_NAME,
+      type: 'website',
+      url: absoluteUrl('/'),
+    },
+    twitter: {
+      card: 'summary_large_image',
+      description,
+      images: [socialImage('/opengraph-image', description)],
+      title: SITE_NAME,
+    },
+    manifest: '/manifest.webmanifest',
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: 'black-translucent',
+      title: SITE_NAME,
+    },
+    icons: {
+      icon: [
+        { url: '/favicon.ico', sizes: 'any' },
+        { url: '/icons/icon-192.png', type: 'image/png', sizes: '192x192' },
+        { url: '/icons/icon-512.png', type: 'image/png', sizes: '512x512' },
+      ],
+      shortcut: '/favicon.ico',
+      apple: [{ url: '/apple-touch-icon.png', type: 'image/png', sizes: '192x192' }],
+    },
+  }
 }
 
 export const viewport: Viewport = {
@@ -61,9 +58,11 @@ export const viewport: Viewport = {
   initialScale: 1,
 }
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const { language } = await getServerMetadataContext()
+
   return (
-    <html lang="en" suppressHydrationWarning className={cn('font-sans', nunitoSans.variable)}>
+    <html lang={language} suppressHydrationWarning className={cn('font-sans')}>
       <body>
         <Providers>
           <AppShell>{children}</AppShell>

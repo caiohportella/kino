@@ -1,6 +1,7 @@
 'use client'
 
 import { QueryClientProvider } from '@tanstack/react-query'
+import { useRouter } from 'next/navigation'
 import { type ReactNode, useEffect, useState } from 'react'
 import { ServiceWorkerRegister } from '@/components/service-worker-register'
 import { HomeSkeleton } from '@/components/skeletons/page-skeletons'
@@ -15,11 +16,18 @@ export function Providers({ children }: { children: ReactNode }) {
   const hydrateLanguage = useSettingsStore((state) => state.hydrateLanguage)
   const language = useSettingsStore((state) => state.language)
   const localeStatus = useSettingsStore((state) => state.localeStatus)
+  const router = useRouter()
 
   useEffect(() => initialize(), [initialize])
   useEffect(() => {
-    void hydrateLanguage()
-  }, [hydrateLanguage])
+    let active = true
+    void hydrateLanguage().then(() => {
+      if (active) router.refresh()
+    })
+    return () => {
+      active = false
+    }
+  }, [hydrateLanguage, router])
   useEffect(() => {
     document.documentElement.lang = language
   }, [language])

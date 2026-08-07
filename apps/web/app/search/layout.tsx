@@ -1,25 +1,12 @@
-import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
-import { absoluteUrl, SITE_NAME } from '@/lib/seo'
+import { localizedRouteMetadata } from '@/lib/server-metadata'
 
-export const metadata: Metadata = {
-  title: 'Search',
-  description: 'Search movies and TV series by title, genre, and rating in Kino.',
-  alternates: {
-    canonical: absoluteUrl('/search'),
-  },
-  openGraph: {
-    description: 'Search movies and TV series by title, genre, and rating in Kino.',
-    siteName: SITE_NAME,
-    title: 'Search | Kino',
-    type: 'website',
-    url: absoluteUrl('/search'),
-  },
-  twitter: {
-    card: 'summary_large_image',
-    description: 'Search movies and TV series by title, genre, and rating in Kino.',
-    title: 'Search | Kino',
-  },
+export async function generateMetadata() {
+  return localizedRouteMetadata({
+    canonicalPath: '/search',
+    descriptionKey: 'metadata.searchDescription',
+    titleKey: 'metadata.searchTitle',
+  })
 }
 
 export default function SearchLayout({ children }: { children: ReactNode }) {

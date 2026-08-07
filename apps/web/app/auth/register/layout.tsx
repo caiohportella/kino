@@ -1,14 +1,12 @@
-import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
-import { SITE_DESCRIPTION } from '@/lib/seo'
+import { localizedRouteMetadata } from '@/lib/server-metadata'
 
-export const metadata: Metadata = {
-  title: 'Create account',
-  description: SITE_DESCRIPTION,
-  robots: {
-    index: false,
-    follow: false,
-  },
+export async function generateMetadata() {
+  return localizedRouteMetadata({
+    canonicalPath: '/auth/register',
+    descriptionKey: 'metadata.siteDescription',
+    titleKey: 'metadata.registerTitle',
+  })
 }
 
 export default function RegisterLayout({ children }: { children: ReactNode }) {

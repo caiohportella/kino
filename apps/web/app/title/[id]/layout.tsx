@@ -2,15 +2,8 @@ import type { Metadata } from 'next'
 import { permanentRedirect } from 'next/navigation'
 import { cache, type ReactNode } from 'react'
 import { isCanonicalResourceSegment, parseResourceSegment, titlePath } from '@/lib/routes'
-import {
-  absoluteUrl,
-  buildTitleDescription,
-  buildTitleSchema,
-  getTitlePresentation,
-  SITE_DESCRIPTION,
-  SITE_NAME,
-  socialImage,
-} from '@/lib/seo'
+import { absoluteUrl, buildTitleSchema, getTitlePresentation, socialImage } from '@/lib/seo'
+import { getServerMetadataContext, pageMetadata } from '@/lib/server-metadata'
 import { getTitleSeoDataBySegment } from '@/lib/server-tmdb'
 import { socialMetadataText } from '@/lib/text'
 
@@ -20,22 +13,29 @@ export async function generateMetadata({
   params: Promise<{ id: string }>
 }): Promise<Metadata> {
   const { id } = await params
+  const { language, locale, t } = await getServerMetadataContext()
   const segment = parseResourceSegment(id)
   const tmdbId = segment.id
 
   if (!Number.isFinite(tmdbId) || tmdbId <= 0) {
     return {
-      title: 'Title not found',
-      description: SITE_DESCRIPTION,
-      robots: { index: false, follow: false },
+      ...pageMetadata({
+        canonical: absoluteUrl(`/title/${id}`),
+        description: t('metadata.siteDescription'),
+        index: false,
+        locale,
+        title: t('metadata.titleNotFound'),
+      }),
     }
   }
 
   try {
-    const details = await getTitleSeoDataBySegment(tmdbId, segment.slug, 'en')
+    const details = await getTitleSeoDataBySegment(tmdbId, segment.slug, language)
     const presentation = getTitlePresentation(details)
     const pageTitle = socialMetadataText(presentation.title)
-    const description = socialMetadataText(buildTitleDescription(details))
+    const description = socialMetadataText(
+      details.synopsis || t('metadata.titleDescription', { title: pageTitle })
+    )
     const canonicalPath = titlePath(tmdbId, details.title, details.type)
     const canonical = absoluteUrl(canonicalPath)
     const canonicalRoute = canonicalPath.split('?')[0]
@@ -44,56 +44,23 @@ export async function generateMetadata({
       `${pageTitle} on Kino`
     )
 
-    return {
-      title: pageTitle,
+    return pageMetadata({
+      canonical,
       description,
-      alternates: {
-        canonical,
-      },
-      openGraph: {
-        description,
-        images: [image],
-        siteName: SITE_NAME,
-        title: pageTitle,
-        type: 'website',
-        url: canonical,
-      },
-      robots: {
-        index: true,
-        follow: true,
-      },
-      twitter: {
-        card: 'summary_large_image',
-        description,
-        images: [image],
-        title: pageTitle,
-      },
-    }
+      image,
+      index: true,
+      locale,
+      title: pageTitle,
+    })
   } catch {
-    const fallbackTitle = `Title ${tmdbId}`
-    return {
+    const fallbackTitle = t('metadata.titleNotFound')
+    return pageMetadata({
+      canonical: absoluteUrl(`/title/${tmdbId}`),
+      description: t('metadata.siteDescription'),
+      index: false,
+      locale,
       title: fallbackTitle,
-      description: SITE_DESCRIPTION,
-      alternates: {
-        canonical: absoluteUrl(`/title/${tmdbId}`),
-      },
-      robots: {
-        index: false,
-        follow: false,
-      },
-      openGraph: {
-        description: SITE_DESCRIPTION,
-        siteName: SITE_NAME,
-        title: fallbackTitle,
-        type: 'website',
-        url: absoluteUrl(`/title/${tmdbId}`),
-      },
-      twitter: {
-        card: 'summary_large_image',
-        description: SITE_DESCRIPTION,
-        title: fallbackTitle,
-      },
-    }
+    })
   }
 }
 

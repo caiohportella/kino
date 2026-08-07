@@ -1,5 +1,7 @@
 'use client'
 
+import { useQuery } from '@tanstack/react-query'
+import { CalendarDays } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { ActivityCard } from '@/components/activity-feed/ActivityCard'
@@ -9,13 +11,21 @@ import { EmptyState } from '@/components/kino'
 import { PageHeader } from '@/components/page-header'
 import { ProtectedContentGate } from '@/components/protected-content-gate'
 import { ProtectedEmpty } from '@/components/protected-empty'
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarGroup,
+  AvatarGroupCount,
+  AvatarImage,
+} from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { useActivityFeed } from '@/hooks/use-activity-feed'
 import { useReviewLikeMutation } from '@/hooks/use-review-like-mutation'
 import type { ActivityFeedCard, ActivityFeedFilter } from '@/lib/activity-feed'
+import { formatLocalizedDate, formatLocalizedRelativeTime } from '@/lib/date'
 import { useLocale, useTranslation } from '@/lib/i18n'
-import { getTmdb } from '@/lib/services'
+import { db, getTmdb } from '@/lib/services'
 import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -73,7 +83,13 @@ export default function ActivityPage() {
   const itemsPerPage = 30
 
   const viewerId = user?.id ?? null
+  const viewerProfile = useQuery({
+    queryKey: ['activity-profile', viewerId],
+    queryFn: () => db.getUserProfile(viewerId!),
+    enabled: Boolean(viewerId),
+  })
   const feed = useActivityFeed(viewerId, filter, locale, region, Boolean(viewerId))
+  const followingFeed = useActivityFeed(viewerId, 'following', locale, region, Boolean(viewerId))
   const totalPages = Math.max(1, Math.ceil(feed.items.length / itemsPerPage))
   const currentPage = Math.min(page, totalPages)
   const paginatedItems = feed.items.slice(
@@ -93,25 +109,102 @@ export default function ActivityPage() {
   )
   const localizedTitles = useLocalizedTitles(localizedTitleRequests)
 
-  const pageStatus = feed.isLoading
-    ? 'loading'
-    : feed.isError
-      ? 'error'
-      : feed.items.length === 0
-        ? 'empty'
-        : 'content'
+  const groupedItems = useMemo(() => {
+    const groups: {
+      dateKey: string
+      dateLabel: string
+      relativeLabel: string
+      items: typeof paginatedItems
+    }[] = []
+
+    for (const item of paginatedItems) {
+      const occurred = new Date(item.occurredAt)
+      const dateKey = occurred.toDateString()
+      const last = groups[groups.length - 1]
+
+      if (last && last.dateKey === dateKey) {
+        last.items.push(item)
+        continue
+      }
+
+      groups.push({
+        dateKey,
+        dateLabel: formatLocalizedDate(item.occurredAt, locale, { dateStyle: 'long' }),
+        relativeLabel: formatLocalizedRelativeTime(item.occurredAt, t),
+        items: [item],
+      })
+    }
+
+    return groups
+  }, [paginatedItems, locale, t])
+
+  const pageStatus =
+    feed.isLoading || localizedTitles.isPending
+      ? 'loading'
+      : feed.isError || localizedTitles.isError
+        ? 'error'
+        : feed.items.length === 0
+          ? 'empty'
+          : 'content'
 
   const feedSubtitleKey =
     filter === 'you' ? 'activity.feedSubtitleYou' : 'activity.feedSubtitleFollowing'
   const emptyTitleKey = filter === 'you' ? 'activity.emptyYouTitle' : 'activity.emptyFollowingTitle'
   const emptyBodyKey = filter === 'you' ? 'activity.emptyYouBody' : 'activity.emptyFollowingBody'
+  const followingActors = useMemo(() => {
+    const uniqueActors = new Map<string, ActivityFeedCard['actor']>()
+    for (const activity of followingFeed.items) {
+      uniqueActors.set(activity.actor.id, activity.actor)
+    }
+    return Array.from(uniqueActors.values())
+  }, [followingFeed.items])
 
   const filterOptions = useMemo(
     () => [
-      { label: t('activity.filters.you'), value: 'you' as const },
-      { label: t('activity.filters.following'), value: 'following' as const },
+      {
+        label: (
+          <span className="inline-flex items-center gap-2">
+            <Avatar aria-hidden="true" className="size-5" size="sm">
+              <AvatarImage
+                src={viewerProfile.data?.avatar_url || user?.user_metadata?.avatar_url}
+              />
+              <AvatarFallback className="bg-kino-surface text-kino-text">
+                {t('activity.filters.you').slice(0, 1)}
+              </AvatarFallback>
+            </Avatar>
+            <span>{t('activity.filters.you')}</span>
+          </span>
+        ),
+        value: 'you' as const,
+      },
+      {
+        label: (
+          <span className="inline-flex items-center gap-2">
+            {followingActors.length > 0 ? (
+              <AvatarGroup aria-hidden="true" className="-space-x-1.5">
+                {followingActors.slice(0, 3).map((actor) => (
+                  <Avatar className="size-5" key={actor.id} size="sm">
+                    <AvatarImage alt="" src={actor.avatarUrl || undefined} />
+                    <AvatarFallback className="bg-kino-surface text-kino-text">
+                      {(actor.displayName || actor.username || '?').slice(0, 1)}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+
+                {followingActors.length >= 4 ? (
+                  <AvatarGroupCount className="size-5 text-[10px]">
+                    +{followingActors.length - 3}
+                  </AvatarGroupCount>
+                ) : null}
+              </AvatarGroup>
+            ) : null}
+            <span>{t('activity.filters.following')}</span>
+          </span>
+        ),
+        value: 'following' as const,
+      },
     ],
-    [t]
+    [followingActors, t, user?.user_metadata?.avatar_url, viewerProfile.data?.avatar_url]
   )
 
   useEffect(() => {
@@ -190,40 +283,51 @@ export default function ActivityPage() {
             variant="diary"
           />
         ) : (
-          <div className="grid gap-3">
-            {paginatedItems.map((activity) => {
-              const localized =
-                activity.subject.kind === 'title'
-                  ? localizedTitles.data[
-                      localizedTitleKey({
-                        tmdbId: activity.subject.tmdbId,
-                        type: activity.subject.mediaType,
-                      })
-                    ]
-                  : undefined
+          <div className="grid gap-6">
+            {groupedItems.map((group) => (
+              <div className="grid gap-3" key={group.dateKey}>
+                <div className="flex items-center gap-2 text-xs font-medium text-kino-subtle">
+                  <CalendarDays aria-hidden="true" size={13} />
+                  <span>{group.dateLabel}</span>
+                </div>
 
-              return (
-                <ActivityFeedItem
-                  activity={activity}
-                  key={activity.id}
-                  locale={locale}
-                  localizedTitle={
-                    localized
-                      ? {
-                          title: localized.title,
-                          posterUrl: getTmdb().getImageUrl(localized.posterPath, 'w300'),
-                          year: localized.year,
+                <div className="grid gap-3">
+                  {group.items.map((activity) => {
+                    const localized =
+                      activity.subject.kind === 'title'
+                        ? localizedTitles.data[
+                            localizedTitleKey({
+                              tmdbId: activity.subject.tmdbId,
+                              type: activity.subject.mediaType,
+                            })
+                          ]
+                        : undefined
+
+                    return (
+                      <ActivityFeedItem
+                        activity={activity}
+                        key={activity.id}
+                        locale={locale}
+                        localizedTitle={
+                          localized
+                            ? {
+                                title: localized.title,
+                                posterUrl: getTmdb().getImageUrl(localized.posterPath, 'w300'),
+                                year: localized.year,
+                              }
+                            : null
                         }
-                      : null
-                  }
-                  onAuthRequired={() => {
-                    // ProtectedContentGate prevents unauthenticated rendering, but keep
-                    // the callback for the shared like button contract.
-                  }}
-                  viewerId={viewerId}
-                />
-              )
-            })}
+                        onAuthRequired={() => {
+                          // ProtectedContentGate prevents unauthenticated rendering, but keep
+                          // the callback for the shared like button contract.
+                        }}
+                        viewerId={viewerId}
+                      />
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
 
             <AppPagination
               ellipsisLabel={t('activity.pagination.morePages')}

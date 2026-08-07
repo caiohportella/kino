@@ -6,21 +6,31 @@ import type {
   ReactNode,
   PointerEvent as ReactPointerEvent,
 } from 'react'
-import { useRef, useState } from 'react'
+import { type RefObject, useRef, useState } from 'react'
 import { shouldStartMediaRowDrag } from '@/lib/media-row-interactions'
+import { useHorizontalOverflow } from '@/lib/use-horizontal-overflow'
 import { cn } from '@/lib/utils'
 
 export function MediaRow({
   children,
   className,
+  overflowAware = false,
   ...props
-}: ComponentPropsWithoutRef<'div'> & { children: ReactNode }) {
-  const dragScroll = useDraggableScroll<HTMLDivElement>()
+}: ComponentPropsWithoutRef<'div'> & { children: ReactNode; overflowAware?: boolean }) {
+  const viewportRef = useRef<HTMLDivElement | null>(null)
+  const hasOverflow = useHorizontalOverflow(viewportRef, overflowAware)
+  const dragScroll = useDraggableScroll(viewportRef, !overflowAware || hasOverflow)
+  const accessibilityProps =
+    overflowAware && !hasOverflow
+      ? { 'aria-label': undefined, role: undefined, tabIndex: undefined }
+      : {}
 
   return (
     <div
       {...props}
+      {...accessibilityProps}
       className={cn('media-row w-full min-w-0 max-w-full', className)}
+      data-overflow={overflowAware ? String(hasOverflow) : undefined}
       data-dragging={dragScroll.isDragging ? 'true' : 'false'}
       onClickCapture={dragScroll.onClickCapture}
       onPointerCancel={dragScroll.onPointerCancel}
@@ -34,8 +44,7 @@ export function MediaRow({
   )
 }
 
-function useDraggableScroll<T extends HTMLElement>() {
-  const ref = useRef<T | null>(null)
+function useDraggableScroll<T extends HTMLElement>(ref: RefObject<T | null>, enabled: boolean) {
   const dragState = useRef({
     pointerId: -1,
     startX: 0,
@@ -62,6 +71,7 @@ function useDraggableScroll<T extends HTMLElement>() {
     ref,
     isDragging,
     onPointerDown(event: ReactPointerEvent<T>) {
+      if (!enabled) return
       if (!shouldStartMediaRowDrag(event)) return
       const element = ref.current
       if (!element) return

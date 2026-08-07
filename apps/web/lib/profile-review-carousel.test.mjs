@@ -43,7 +43,6 @@ test('profile row retains a bounded scroll position when its stable children ref
 })
 
 test('profile review loading uses card-shaped skeletons', async () => {
-  const section = await readComponent('../components/reviews/profile-reviews-section.tsx')
   const card = await readComponent('../components/reviews/profile-review-card.tsx')
   const skeleton = await readComponent('../components/reviews/profile-review-skeleton.tsx')
   const cardPosterColumn = card.match(/grid-cols-\[(\d+)px_minmax\(0,1fr\)\]/)?.[1]
@@ -53,6 +52,16 @@ test('profile review loading uses card-shaped skeletons', async () => {
   assert.equal(skeletonPosterColumn, '72')
   assert.match(skeleton, /aspect-2\/3 w-18/)
   assert.doesNotMatch(skeleton, /min-h-56/)
+})
+
+test('all profile reviews use the standard heading and a vertical modal list', async () => {
+  const dialog = await readComponent('../components/reviews/profile-reviews-dialog.tsx')
+
+  assert.match(dialog, /DisplayTitle/)
+  assert.match(dialog, /text-2xl font-black italic tracking-normal sm:text-3xl/)
+  assert.match(dialog, /max-h-\[72vh\] overflow-y-auto/)
+  assert.match(dialog, /<div className="grid gap-4">\{reviews\.map\(renderReview\)\}<\/div>/)
+  assert.doesNotMatch(dialog, /md:grid-cols-2/)
 })
 
 test('media row drag initiation bypasses interactive descendants but preserves shelf dragging', async () => {

@@ -23,6 +23,7 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       hydrateLanguage: async () => {
         const resolution = await settingsLocaleReadiness.hydrate()
+        persistLanguageCookie(resolution.locale as KinoLanguage)
         useSettingsStore.setState({
           language: resolution.locale as KinoLanguage,
           localeError: resolution.error,
@@ -34,6 +35,7 @@ export const useSettingsStore = create<SettingsState>()(
       localeStatus: 'resolving',
       setLanguage: (language) => {
         settingsLocaleReadiness.setLocale(language)
+        persistLanguageCookie(language)
         set({ language, localeError: null, localeStatus: 'ready' })
       },
     }),
@@ -44,6 +46,11 @@ export const useSettingsStore = create<SettingsState>()(
     }
   )
 )
+
+function persistLanguageCookie(language: KinoLanguage) {
+  if (typeof document === 'undefined') return
+  document.cookie = `kino-language=${encodeURIComponent(language)}; Path=/; Max-Age=31536000; SameSite=Lax`
+}
 
 const settingsLocaleReadiness = createWebLocaleReadiness({
   applyLocale: () => {},

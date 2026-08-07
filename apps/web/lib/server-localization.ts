@@ -44,7 +44,7 @@ export async function getRequestLanguage(): Promise<KinoLanguage> {
 export async function getTranslations(language: KinoLanguage) {
   const dictionary = dictionaries[language] ?? dictionaries.en
 
-  return function translate(key: string): string {
+  return function translate(key: string, options: Record<string, string | number> = {}): string {
     const parts = key.split('.')
 
     let value: unknown = dictionary
@@ -57,6 +57,9 @@ export async function getTranslations(language: KinoLanguage) {
       value = (value as Record<string, unknown>)[part]
     }
 
-    return typeof value === 'string' ? value : key
+    if (typeof value !== 'string') return key
+    return value.replace(/\{\{\s*(\w+)\s*\}\}/g, (_match, token: string) =>
+      options[token] === undefined ? '' : String(options[token])
+    )
   }
 }

@@ -1,7 +1,8 @@
 'use client'
 
 import useEmblaCarousel from 'embla-carousel-react'
-import type { ReactNode } from 'react'
+import { type ReactNode, useEffect, useRef } from 'react'
+import { useHorizontalOverflow } from '@/lib/use-horizontal-overflow'
 
 type ReviewsCarouselProps = {
   children: ReactNode
@@ -9,19 +10,32 @@ type ReviewsCarouselProps = {
 }
 
 export function ReviewsCarousel({ children, className = '' }: ReviewsCarouselProps) {
-  const [emblaRef] = useEmblaCarousel({
+  const viewportRef = useRef<HTMLDivElement | null>(null)
+  const hasOverflow = useHorizontalOverflow(viewportRef)
+  const overflowRef = useRef(hasOverflow)
+  overflowRef.current = hasOverflow
+  const [emblaRef, emblaApi] = useEmblaCarousel({
     align: 'start',
     containScroll: 'trimSnaps',
     dragFree: false,
     loop: false,
     skipSnaps: false,
     slidesToScroll: 1,
+    watchDrag: () => overflowRef.current,
   })
+
+  useEffect(() => {
+    if (emblaApi && overflowRef.current === hasOverflow) emblaApi.reInit()
+  }, [emblaApi, hasOverflow])
 
   return (
     <div
-      className={`min-w-0 cursor-grab overflow-hidden active:cursor-grabbing ${className}`}
-      ref={emblaRef}
+      className={`min-w-0 overflow-hidden ${hasOverflow ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'} ${className}`}
+      data-overflow={String(hasOverflow)}
+      ref={(node) => {
+        viewportRef.current = node
+        emblaRef(node)
+      }}
     >
       <div className="-ml-4 flex touch-pan-y items-stretch">{children}</div>
     </div>

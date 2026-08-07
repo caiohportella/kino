@@ -6,7 +6,7 @@ import { MediaSection } from '@/components/media-section'
 import { PageHeader } from '@/components/page-header'
 import { buttonVariants } from '@/components/ui/button'
 import { getRequestLanguage, getTranslations } from '@/lib/server-localization'
-import { getDiscoverData } from '@/lib/server-tmdb'
+import { getDiscoverData, getRegionForLanguage } from '@/lib/server-tmdb'
 import { cn } from '@/lib/utils'
 
 export default async function DiscoverPage() {
@@ -14,7 +14,7 @@ export default async function DiscoverPage() {
   const t = await getTranslations(language)
 
   try {
-    const data = await getDiscoverData(language)
+    const data = await getDiscoverData(language, getRegionForLanguage(language))
 
     return (
       <div className="content-frame">

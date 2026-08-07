@@ -411,9 +411,9 @@ function SeasonEpisodes({
                   {t('seasons.unmarkSeasonWatched')}
                 </Button>
               )
-            ) : (
+            ) : watchableEpisodes.length > 0 ? (
               <Button
-                disabled={seasonWatchedMutation.isPending || watchableEpisodes.length === 0}
+                disabled={seasonWatchedMutation.isPending}
                 onClick={() => {
                   if (!userCanRate) {
                     onAuthRequired()
@@ -426,8 +426,8 @@ function SeasonEpisodes({
                 <CheckCircle2 size={16} />
                 {t('modals.markWatched')}
               </Button>
-            )}
-            {!fullSeasonWatched ? (
+            ) : null}
+            {!fullSeasonWatched && watchableEpisodes.length > 0 ? (
               <Button
                 disabled={watchableEpisodes.length === 0}
                 onClick={() => {
@@ -524,7 +524,7 @@ function SeasonEpisodes({
                     }
                   />
                 </div>
-                <div className="flex items-center gap-2 md:justify-end">
+                <div className="flex w-full items-center justify-between gap-2 md:w-auto md:min-w-48">
                   {isWatched ? (
                     <button
                       aria-label={`Edit rating for episode ${episode.episode_number}`}
@@ -593,17 +593,13 @@ function SeasonEpisodes({
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
-                  ) : (
+                  ) : isUnaired ? null : (
                     <Tooltip>
                       <TooltipTrigger
                         render={
                           <Button
                             aria-label={watchLabel}
-                            className={cn(
-                              'text-kino-muted hover:text-kino-text',
-                              isUnaired && 'cursor-not-allowed opacity-50'
-                            )}
-                            disabled={isUnaired}
+                            className="text-kino-muted hover:text-kino-text"
                             onClick={() => {
                               if (!userCanRate) {
                                 onAuthRequired()

@@ -336,6 +336,13 @@ a {
   cursor: grabbing;
 }
 
+.media-row[data-overflow="false"] {
+  overflow-x: hidden;
+  cursor: default;
+  touch-action: auto;
+  user-select: auto;
+}
+
 .media-row-track > * {
   width: 156px;
   min-width: 0;

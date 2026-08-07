@@ -29,6 +29,23 @@ test('owned and shared watchlist title grids avoid persisted poster presentation
   }
 })
 
+test('watchlist title cards separate metadata loading from unavailable content', async () => {
+  for (const relativePath of [
+    '../app/watchlists/[id]/page.tsx',
+    '../app/watchlists/shared/[code]/page.tsx',
+  ]) {
+    const source = await readFile(new URL(relativePath, import.meta.url), 'utf8')
+    assert.match(source, /localizedTitles\.isPending/)
+    assert.match(source, /titleUnavailable/)
+    assert.match(source, /status !== 'ready'/)
+  }
+})
+
+test('owned watchlist participants stay hidden unless the list is shared', async () => {
+  const source = await readFile(new URL('../app/watchlists/[id]/page.tsx', import.meta.url), 'utf8')
+  assert.match(source, /watchlist\.visibility === 'shared' && participants\.length > 0/)
+})
+
 test('non-title web consumers do not create localization fan-out', async () => {
   for (const relativePath of [
     '../app/watchlists/page.tsx',

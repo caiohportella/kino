@@ -53,6 +53,19 @@ export function HomeSkeleton({ label = 'Loading' }: { label?: string }) {
   )
 }
 
+export function DiscoverSkeleton({ label = 'Loading' }: { label?: string }) {
+  return (
+    <div aria-busy="true" className="content-frame grid gap-10" role="status">
+      <ScreenReaderLoading label={label} />
+      <HeadingSkeleton />
+      <SectionSkeleton titleWidth="w-32" />
+      <SectionSkeleton titleWidth="w-44" />
+      <SectionSkeleton titleWidth="w-40" />
+      <SectionSkeleton titleWidth="w-36" />
+    </div>
+  )
+}
+
 export function TitleSkeleton({ label = 'Loading' }: { label?: string }) {
   return (
     <div aria-busy="true" className="content-frame grid gap-8" role="status">
@@ -180,11 +193,31 @@ export function WatchlistsSkeleton({
           <Skeleton className="h-10 w-28" />
         </div>
       ) : null}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 6 }, (_, index) => (
-          <Skeleton className="h-36 w-full" key={index} />
-        ))}
-      </div>
+      {detail ? <WatchlistTitleGridSkeleton /> : <WatchlistSummaryGridSkeleton />}
+    </div>
+  )
+}
+
+function WatchlistSummaryGridSkeleton() {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {Array.from({ length: 6 }, (_, index) => (
+        <Skeleton className="h-36 w-full" key={index} />
+      ))}
+    </div>
+  )
+}
+
+function WatchlistTitleGridSkeleton() {
+  return (
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-x-5 gap-y-10 sm:grid-cols-[repeat(auto-fill,minmax(168px,1fr))]">
+      {Array.from({ length: 6 }, (_, index) => (
+        <div className="grid min-w-0 content-start gap-3" key={index}>
+          <Skeleton className="aspect-2/3 w-full rounded-lg" />
+          <Skeleton className="h-10 w-4/5" />
+          <Skeleton className="h-3 w-3/5" />
+        </div>
+      ))}
     </div>
   )
 }
@@ -217,6 +250,17 @@ export function SettingsSkeleton({ label = 'Loading' }: { label?: string }) {
         ))}
       </div>
       <Skeleton className="h-32 w-full" />
+    </div>
+  )
+}
+
+export function ImportSkeleton({ label = 'Loading' }: { label?: string }) {
+  return (
+    <div aria-busy="true" className="content-frame grid gap-6" role="status">
+      <ScreenReaderLoading label={label} />
+      <HeadingSkeleton />
+      <Skeleton className="h-32 w-full" />
+      <Skeleton className="h-56 w-full" />
     </div>
   )
 }

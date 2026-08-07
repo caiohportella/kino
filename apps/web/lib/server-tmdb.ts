@@ -16,6 +16,18 @@ function createTmdb(language: string) {
   return tmdb
 }
 
+export function getRegionForLanguage(language: string) {
+  return (
+    {
+      en: 'US',
+      fr: 'FR',
+      it: 'IT',
+      no: 'NO',
+      pt: 'BR',
+    }[language] ?? 'US'
+  )
+}
+
 export const getTitleSeoData = cache(async (tmdbId: number, type: MediaType, language = 'en') => {
   const tmdb = createTmdb(language)
   const details =
@@ -79,30 +91,44 @@ export function getPersonVisuals(person: Awaited<ReturnType<typeof getPersonSeoD
   }
 }
 
-export const getDiscoverData = cache(async (language = 'en') => {
-  const tmdb = createTmdb(language)
+export const getDiscoverData = cache(
+  async (language = 'en', region = getRegionForLanguage(language)) => {
+    const tmdb = createTmdb(language)
 
-  const [trending, popularMovies, popularTV, nowPlaying, topRated, upcoming] = await Promise.all([
-    tmdb.getTrending('all', 'week'),
-    tmdb.getPopularMovies(),
-    tmdb.getPopularTV(),
-    tmdb.getNowPlayingMovies(),
-    tmdb.getTopRatedMovies(),
-    tmdb.getUpcomingMovies(),
-  ])
+    const [trending, popularMovies, popularTV, nowPlaying, topRated, upcoming] = await Promise.all([
+      tmdb.getTrending('all', 'week'),
+      tmdb.getPopularMovies(),
+      tmdb.getPopularTV(),
+      tmdb.getNowPlayingMovies(region, tmdbLanguage(language)),
+      tmdb.getTopRatedMovies(),
+      tmdb.getUpcomingMovies(),
+    ])
 
-  const [enrichedTrending, enrichedPopularMovies, enrichedPopularTV] = await Promise.all([
-    enrichTitlesWithPalette(trending),
-    enrichTitlesWithPalette(popularMovies),
-    enrichTitlesWithPalette(popularTV),
-  ])
+    const [enrichedTrending, enrichedPopularMovies, enrichedPopularTV] = await Promise.all([
+      enrichTitlesWithPalette(trending),
+      enrichTitlesWithPalette(popularMovies),
+      enrichTitlesWithPalette(popularTV),
+    ])
 
-  return {
-    trending: enrichedTrending,
-    popularMovies: enrichedPopularMovies,
-    popularTV: enrichedPopularTV,
-    nowPlaying,
-    topRated,
-    upcoming,
+    return {
+      trending: enrichedTrending,
+      popularMovies: enrichedPopularMovies,
+      popularTV: enrichedPopularTV,
+      nowPlaying,
+      topRated,
+      upcoming,
+    }
   }
-})
+)
+
+function tmdbLanguage(language: string) {
+  return (
+    {
+      en: 'en-US',
+      fr: 'fr-FR',
+      it: 'it-IT',
+      no: 'no-NO',
+      pt: 'pt-BR',
+    }[language] ?? 'en-US'
+  )
+}

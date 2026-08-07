@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import type { Ref } from 'react'
 import { Poster } from '@/components/kino'
+import { useTranslation } from '@/lib/i18n'
 import { titlePath } from '@/lib/routes'
 import { prefetchTitleSummary } from '@/lib/title-prefetch'
 import { seedTitleSummary } from '@/lib/title-queries'
@@ -26,6 +27,7 @@ export function MediaCard({
   role?: string
 }) {
   const queryClient = useQueryClient()
+  const { t } = useTranslation()
   const language = useSettingsStore((state) => state.language)
   const localeStatus = useSettingsStore((state) => state.localeStatus)
   const title = getDisplayTitle(item)
@@ -78,9 +80,10 @@ export function MediaCard({
         </h3>
         <div className="mt-1 flex items-center justify-between gap-2 text-xs text-kino-muted">
           <span className="min-w-0 truncate">
-            {year || 'TBA'} - {type === 'tv' ? 'Series' : 'Movie'}
+            {year || t('profile.releaseYearUnknown')} -{' '}
+            {type === 'tv' ? t('common.tv') : t('common.movie')}
           </span>
-          <span>{item.vote_average ? item.vote_average.toFixed(1) : 'New'}</span>
+          <span>{item.vote_average ? item.vote_average.toFixed(1) : t('common.new')}</span>
         </div>
       </div>
     </Link>

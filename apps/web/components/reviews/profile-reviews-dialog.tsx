@@ -1,4 +1,5 @@
 import type { ProfileReview } from '@kino/core'
+import { DisplayTitle } from '@/components/display-title'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -30,17 +31,19 @@ export function ProfileReviewsDialog({
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="max-w-5xl">
         <DialogHeader>
-          <DialogTitle>{t('reviews.latest')}</DialogTitle>
+          <DialogTitle className="text-2xl font-black italic tracking-normal sm:text-3xl">
+            <DisplayTitle title={t('reviews.latest')} />
+          </DialogTitle>
           <DialogDescription>{t('reviews.showAllDescription')}</DialogDescription>
         </DialogHeader>
         <div className="max-h-[72vh] overflow-y-auto pr-1">
           {query.isLoading ? (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4">
               <ProfileReviewSkeleton />
               <ProfileReviewSkeleton />
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">{reviews.map(renderReview)}</div>
+            <div className="grid gap-4">{reviews.map(renderReview)}</div>
           )}
           {query.hasNextPage ? (
             <div className="mt-5 flex justify-center">

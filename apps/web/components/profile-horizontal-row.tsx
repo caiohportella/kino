@@ -52,6 +52,7 @@ export function ProfileHorizontalRow({
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
     if (isInteractiveMediaRowTarget(event.target)) return
+    if (event.currentTarget.scrollWidth <= event.currentTarget.clientWidth + 1) return
 
     event.preventDefault()
     const direction = event.key === 'ArrowRight' ? 1 : -1
@@ -79,6 +80,7 @@ export function ProfileHorizontalRow({
           data-profile-horizontal-row=""
           onKeyDown={onKeyDown}
           onScroll={onScroll}
+          overflowAware
           role="region"
           tabIndex={0}
         >

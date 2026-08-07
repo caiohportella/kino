@@ -7,7 +7,7 @@ import { RatingStars } from '@/components/rating-stars'
 import { ReviewAuthor } from '@/components/reviews/review-author'
 import { ReviewLikeButton } from '@/components/reviews/review-like-button'
 import type { ActivityFeedCard } from '@/lib/activity-feed'
-import { formatCompactRelativeTime, formatLocalizedDate } from '@/lib/date'
+import { formatLocalizedDate } from '@/lib/date'
 import { useTranslation } from '@/lib/i18n'
 import { normalizeProfileUsername } from '@/lib/profile-routes'
 
@@ -47,19 +47,23 @@ export function ActivityCard({
       : null
   const subjectYear =
     activity.subject.kind === 'title' ? (localizedTitle?.year ?? activity.subject.year) : null
-  const activityDate = formatLocalizedDate(activity.occurredAt, locale, {
-    dateStyle: 'long',
-  })
+  const activityTypeKeys: Partial<Record<typeof activity.type, string>> = {
+    watchlist_create: 'activity.createdWatchlist',
+    watchlist_add: 'activity.addToWatchlist',
+  }
+
+  const activityKindKeys: Partial<Record<NonNullable<typeof activity.activityKind>, string>> = {
+    watched_and_reviewed: 'activity.watchedReviewed',
+    watched_and_rated: 'activity.watchedAndRated',
+    rated_and_reviewed: 'activity.ratedAndReviewed',
+    rated: 'activity.rated',
+    reviewed: 'activity.reviewedTitle',
+  }
+
   const sentenceKey =
-    activity.type === 'watchlist_create'
-      ? 'activity.createdWatchlist'
-      : activity.type === 'watchlist_add'
-        ? 'activity.addToWatchlist'
-        : activity.type === 'rating'
-          ? 'activity.rated'
-          : activity.review
-            ? 'activity.watchedReviewed'
-            : 'activity.watched'
+    activityTypeKeys[activity.type] ??
+    (activity.activityKind ? activityKindKeys[activity.activityKind] : undefined) ??
+    (activity.review ? 'activity.watchedReviewed' : 'activity.watched')
 
   return (
     <article className="grid grid-cols-[80px_minmax(0,1fr)] gap-4 rounded-md border border-white/10 bg-white/3 p-4 transition-colors hover:border-white/15 hover:bg-white/4.5 sm:grid-cols-[96px_minmax(0,1fr)] sm:gap-5 sm:p-5">
@@ -79,15 +83,6 @@ export function ActivityCard({
 
             <p className="min-w-0 text-sm leading-6 text-kino-muted">
               {rt(sentenceKey, {
-                date: (
-                  <time
-                    className="whitespace-nowrap text-kino-muted"
-                    dateTime={activity.occurredAt}
-                  >
-                    {activityDate}
-                  </time>
-                ),
-
                 title: (
                   <Link
                     className="font-semibold text-kino-text underline-offset-4 hover:text-kino-accent hover:underline"
@@ -110,13 +105,6 @@ export function ActivityCard({
               })}
             </p>
           </div>
-          <time
-            className="shrink-0 whitespace-nowrap text-xs text-kino-subtle"
-            dateTime={activity.occurredAt}
-            title={activityDate}
-          >
-            {formatCompactRelativeTime(activity.occurredAt, locale)}
-          </time>
         </div>
 
         <div className="mt-3 min-w-0">

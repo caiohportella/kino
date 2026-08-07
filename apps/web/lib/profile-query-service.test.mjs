@@ -52,3 +52,41 @@ test('returns empty canonical slices when the profile has no legacy username', a
   })
   assert.equal(await service.getPublicProfileStatsByProfileId('profile-a'), null)
 })
+
+test('applies released episode availability before exposing watched series progress', async () => {
+  const database = {
+    getWatchedSeries: async () => [
+      {
+        id: 'series-1',
+        tmdb_id: 1,
+        type: 'tv',
+        title: 'Series',
+        synopsis: null,
+        cover_image: null,
+        backdrop_image: null,
+        release_year: 2020,
+        genres: [],
+        cast: [],
+        total_episodes: 2,
+        watched_episode_count: 1,
+        latest_rating: null,
+        latest_watched_at: '2026-07-01T00:00:00.000Z',
+        last_episode: { season: 1, episode: 1 },
+        next_episode: { season: 1, episode: 2, air_date: '2026-07-13' },
+        is_series_completed: false,
+        watched_episode_keys: ['1-1'],
+      },
+    ],
+  }
+  const service = createProfileQueryService(database, {
+    getEpisodeAvailability: async () => [
+      { season_number: 1, episode_number: 1, air_date: '2026-07-01' },
+      { season_number: 1, episode_number: 2, air_date: '2027-01-01' },
+    ],
+  })
+
+  const [series] = await service.getWatchedSeries('profile-a')
+  assert.equal(series.next_episode, null)
+  assert.equal(series.is_caught_up, true)
+  assert.equal(series.total_episodes, 1)
+})

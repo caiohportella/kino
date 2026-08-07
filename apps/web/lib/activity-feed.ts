@@ -9,6 +9,7 @@ import type {
   UserProfile,
 } from '@kino/core'
 import { toReviewAuthor } from '@kino/core'
+import { type ActivityKind, getActivityKind } from '@/lib/activity-presentation'
 import { titlePath, watchlistPath } from '@/lib/routes'
 
 export type ActivityFeedFilter = 'you' | 'following'
@@ -37,6 +38,7 @@ export type ActivityFeedSubject =
 
 export type ActivityFeedCard = {
   readonly actor: PublicUserSummary
+  readonly activityKind: ActivityKind | null
   readonly id: string
   readonly rating: number | null
   readonly review: ActivityFeedReview | null
@@ -86,6 +88,9 @@ export function buildDiaryActivityFeedItems(
       const review = reviewByTitleId.get(entry.titleId) ?? null
       return {
         actor,
+        activityKind: review
+          ? 'watched_and_reviewed'
+          : getActivityKind('watch', entry.rating ?? null),
         id: entry.id,
         occurredAt: entry.watchedAt,
         rating: entry.rating ?? null,
@@ -112,11 +117,14 @@ export function buildDiaryActivityFeedItems(
 
 export function buildFollowingActivityFeedItems(items: readonly EnrichedActivity[]) {
   const reviewByActivityKey = new Map<string, Extract<EnrichedActivity, { type: 'review' }>>()
+  const ratingByActivityKey = new Map<string, Extract<EnrichedActivity, { type: 'rating' }>>()
   const watchedActivityKeys = new Set<string>()
 
   for (const item of items) {
     if (item.type === 'review') {
       reviewByActivityKey.set(createActivityKey(item.actor.id, item.title.id), item)
+    } else if (item.type === 'rating') {
+      ratingByActivityKey.set(createActivityKey(item.actor.id, item.title.id), item)
     } else if (item.type === 'watch') {
       watchedActivityKeys.add(createActivityKey(item.actor.id, item.title.id))
     }
@@ -129,6 +137,7 @@ export function buildFollowingActivityFeedItems(items: readonly EnrichedActivity
           const review = reviewByActivityKey.get(createActivityKey(item.actor.id, item.title.id))
           return {
             actor: item.actor,
+            activityKind: review ? 'watched_and_reviewed' : getActivityKind('watch', item.rating),
             id: item.id,
             occurredAt: item.watchedAt,
             rating: item.rating,
@@ -153,11 +162,14 @@ export function buildFollowingActivityFeedItems(items: readonly EnrichedActivity
         case 'review': {
           if (watchedActivityKeys.has(createActivityKey(item.actor.id, item.title.id))) return null
 
+          const rating = ratingByActivityKey.get(createActivityKey(item.actor.id, item.title.id))
+
           return {
             actor: item.actor,
+            activityKind: rating ? 'rated_and_reviewed' : getActivityKind('review', item.rating),
             id: item.id,
-            occurredAt: item.createdAt,
-            rating: item.rating,
+            occurredAt: rating ? latestTimestamp(item.createdAt, rating.createdAt) : item.createdAt,
+            rating: rating?.rating ?? item.rating,
             review: {
               content: item.review.content,
               id: item.review.id,
@@ -175,8 +187,11 @@ export function buildFollowingActivityFeedItems(items: readonly EnrichedActivity
           }
         }
         case 'rating':
+          if (reviewByActivityKey.has(createActivityKey(item.actor.id, item.title.id))) return null
+
           return {
             actor: item.actor,
+            activityKind: getActivityKind('rating', item.rating),
             id: item.id,
             occurredAt: item.createdAt,
             rating: item.rating,
@@ -193,6 +208,7 @@ export function buildFollowingActivityFeedItems(items: readonly EnrichedActivity
         case 'watchlist_create':
           return {
             actor: item.actor,
+            activityKind: null,
             id: item.id,
             occurredAt: item.createdAt,
             rating: null,
@@ -203,6 +219,7 @@ export function buildFollowingActivityFeedItems(items: readonly EnrichedActivity
         case 'watchlist_add':
           return {
             actor: item.actor,
+            activityKind: null,
             id: item.id,
             occurredAt: item.createdAt,
             rating: null,
@@ -249,4 +266,8 @@ function compareActivityFeedCards(left: ActivityFeedCard, right: ActivityFeedCar
 
 function createActivityKey(actorId: string, tmdbId: number) {
   return `${actorId}:${tmdbId}`
+}
+
+function latestTimestamp(left: string, right: string) {
+  return Date.parse(left) >= Date.parse(right) ? left : right
 }
