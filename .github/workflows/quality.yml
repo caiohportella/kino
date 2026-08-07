@@ -26,4 +26,13 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
-      - run: pnpm build:web
+      - name: Build web app
+        env:
+          # The public Supabase values are required while Next.js evaluates the
+          # SSR/browser clients during prerendering. These placeholders are only
+          # used for CI compilation; deployments must provide real values.
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-build-anon-key
+          NEXT_PUBLIC_TMDB_API_KEY: ci-build-tmdb-key
+          NEXT_PUBLIC_SITE_URL: https://kino.example.com
+        run: pnpm build:web
