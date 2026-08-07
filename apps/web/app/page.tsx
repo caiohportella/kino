@@ -8,6 +8,7 @@ import {
   SITE_NAME,
 } from '@/lib/seo'
 import { getServerMetadataContext } from '@/lib/server-metadata'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 export async function generateMetadata(): Promise<Metadata> {
   const { locale, t } = await getServerMetadataContext()
