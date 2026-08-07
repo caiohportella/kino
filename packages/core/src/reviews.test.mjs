@@ -3,12 +3,73 @@ import test from 'node:test'
 import {
   getReviewAuthorLabel,
   isValidHalfStepRating,
+  mapFollowedEpisodeRatings,
   mapProfileReviewsPage,
   mapTitleReviewsPage,
+  ratingKeys,
   reviewKeys,
   toReviewAuthor,
   validateReviewContent,
 } from './reviews.ts'
+
+test('normalizes followed episode RPC rows into the shared rating contract', () => {
+  const result = mapFollowedEpisodeRatings(
+    {
+      '1:2': [
+        {
+          userId: 'user-1',
+          username: null,
+          displayName: 'Viewer',
+          avatarUrl: null,
+          rating: '4.5',
+          watchedAt: null,
+        },
+      ],
+    },
+    { '1:2': 1 }
+  )
+
+  assert.deepEqual(result.episodes['1:2'][0], {
+    user: { id: 'user-1', username: null, displayName: 'Viewer', avatarUrl: null },
+    rating: 4.5,
+    watchedAt: null,
+  })
+  assert.equal(result.totals['1:2'], 1)
+})
+
+test('versions followed episode rating cache entries with the normalized contract', () => {
+  assert.deepEqual(ratingKeys.followedEpisodes('series-1', 1), [
+    'followed-episode-ratings',
+    2,
+    'series-1',
+    1,
+  ])
+})
+
+test('drops malformed, orphan-shaped, duplicate, and legacy nested rows', () => {
+  const reasons = []
+  const result = mapFollowedEpisodeRatings(
+    {
+      '1:2': [
+        { user_id: 'user-1', rating: 4, watched_at: '2026-08-01T00:00:00Z' },
+        { userId: null, rating: 4 },
+        { userId: 'user-2', rating: 'not-a-rating' },
+        { userId: 'user-1', rating: 3 },
+        { user: { id: 'user-3', username: 'legacy' }, rating: 5 },
+        null,
+      ],
+    },
+    { '1:2': 5 },
+    (reason) => reasons.push(reason)
+  )
+
+  assert.deepEqual(
+    result.episodes['1:2'].map((item) => item.user.id),
+    ['user-1', 'user-3']
+  )
+  assert.equal(result.totals['1:2'], 2)
+  assert.deepEqual(reasons, ['invalid-user-id', 'invalid-rating', 'duplicate', 'invalid-user-id'])
+})
 
 test('maps review authors from the Kino profile identity', () => {
   assert.deepEqual(
