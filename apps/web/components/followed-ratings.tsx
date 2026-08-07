@@ -34,6 +34,10 @@ function RatingRow({ item, compact = false }: { item: FollowedRating; compact?: 
   )
 }
 
+function isRenderableFollowedRating(item: FollowedRating): item is FollowedRating {
+  return Boolean(item?.user?.id) && Number.isFinite(item?.rating)
+}
+
 export function FollowedTitleRatings({ titleId, enabled }: { titleId: string; enabled: boolean }) {
   const { t } = useTranslation()
   const query = useFollowedTitleRatings(titleId, enabled)
@@ -73,7 +77,9 @@ export function FollowedEpisodeRatingRows({
       {validItems.slice(0, 2).map((item) => (
         <RatingRow compact item={item} key={item.user.id} />
       ))}
-      {totalCount > 2 ? <span className="text-xs text-kino-muted">+{totalCount - 2}</span> : null}
+      {renderableTotal > 2 ? (
+        <span className="text-xs text-kino-muted">+{renderableTotal - 2}</span>
+      ) : null}
     </div>
   )
 }

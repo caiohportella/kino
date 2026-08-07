@@ -92,7 +92,7 @@ export interface ProfileReviewOptions {
 export interface FollowedRating {
   user: PublicUserSummary
   rating: number
-  watchedAt: string
+  watchedAt: string | null
 }
 
 export interface FollowedRatingsPage {
@@ -103,6 +103,20 @@ export interface FollowedRatingsPage {
 export interface FollowedEpisodeRatingsResponse {
   episodes: Record<string, FollowedRating[]>
   totals: Record<string, number>
+}
+
+export type FollowedEpisodeRatingRpcRow = {
+  avatarUrl?: unknown
+  avatar_url?: unknown
+  displayName?: unknown
+  display_name?: unknown
+  rating?: unknown
+  user?: { id?: unknown; username?: unknown; displayName?: unknown; avatarUrl?: unknown } | null
+  userId?: unknown
+  user_id?: unknown
+  username?: unknown
+  watchedAt?: unknown
+  watched_at?: unknown
 }
 
 export interface ReviewRow {
@@ -150,7 +164,7 @@ export const reviewKeys = {
 export const ratingKeys = {
   followedTitle: (titleId: string) => ['followed-title-ratings', titleId] as const,
   followedEpisodes: (seriesId: string, seasonNumber: number) =>
-    ['followed-episode-ratings', seriesId, seasonNumber] as const,
+    ['followed-episode-ratings', 2, seriesId, seasonNumber] as const,
 }
 
 export function isValidHalfStepRating(rating?: number | null) {
@@ -256,9 +270,83 @@ export function mapFollowedRatings(rows: FollowedRatingRow[]): FollowedRatingsPa
   }
 }
 
+export function mapFollowedEpisodeRating(
+  row: FollowedEpisodeRatingRpcRow | null
+): FollowedRating | null {
+  if (!row) return null
+  const nestedUser = row.user
+  const userId = toNonEmptyString(row.userId ?? row.user_id ?? nestedUser?.id)
+  const rating = Number(row.rating)
+
+  if (!userId || !Number.isFinite(rating)) return null
+
+  return {
+    user: {
+      id: userId,
+      username: toNullableString(row.username ?? nestedUser?.username),
+      displayName: toNullableString(row.displayName ?? row.display_name ?? nestedUser?.displayName),
+      avatarUrl: toNullableString(row.avatarUrl ?? row.avatar_url ?? nestedUser?.avatarUrl),
+    },
+    rating,
+    watchedAt: toNullableString(row.watchedAt ?? row.watched_at),
+  }
+}
+
+export function mapFollowedEpisodeRatings(
+  episodes: Record<string, Array<FollowedEpisodeRatingRpcRow | null>>,
+  totals: Record<string, unknown>,
+  onInvalidRow?: (reason: 'invalid-user-id' | 'invalid-rating' | 'duplicate') => void
+): FollowedEpisodeRatingsResponse {
+  const mappedEpisodes: Record<string, FollowedRating[]> = {}
+  const mappedTotals: Record<string, number> = {}
+
+  for (const [episodeKey, rows] of Object.entries(episodes)) {
+    const items: FollowedRating[] = []
+    const seenUserIds = new Set<string>()
+    let droppedRows = false
+
+    for (const row of Array.isArray(rows) ? rows : []) {
+      const item = mapFollowedEpisodeRating(row)
+      if (!item) {
+        onInvalidRow?.(
+          toNonEmptyString(row?.userId ?? row?.user_id ?? row?.user?.id)
+            ? 'invalid-rating'
+            : 'invalid-user-id'
+        )
+        droppedRows = true
+        continue
+      }
+      if (seenUserIds.has(item.user.id)) {
+        onInvalidRow?.('duplicate')
+        droppedRows = true
+        continue
+      }
+      seenUserIds.add(item.user.id)
+      items.push(item)
+    }
+
+    if (items.length) mappedEpisodes[episodeKey] = items
+
+    const authoritativeTotal = toSafeCount(totals[episodeKey])
+    mappedTotals[episodeKey] = droppedRows
+      ? items.length
+      : Math.max(items.length, authoritativeTotal)
+  }
+
+  return { episodes: mappedEpisodes, totals: mappedTotals }
+}
+
 function toSafeCount(value: unknown) {
   const count = Number(value)
   return Number.isFinite(count) && count >= 0 ? count : 0
+}
+
+function toNonEmptyString(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value : null
+}
+
+function toNullableString(value: unknown) {
+  return typeof value === 'string' ? value : null
 }
 
 function toTier(value: unknown): 0 | 1 | 2 {

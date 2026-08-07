@@ -14,6 +14,13 @@ permissions:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    env:
+      # Required while Next.js evaluates the SSR/browser clients during
+      # prerendering. Deployments must provide real values.
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-build-anon-key
+      NEXT_PUBLIC_TMDB_API_KEY: ci-build-tmdb-key
+      NEXT_PUBLIC_SITE_URL: https://kino.example.com
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
