@@ -11,9 +11,11 @@ import {
   slugifyActivityTitle,
 } from './activity.ts'
 import {
+  type FollowedEpisodeRatingRpcRow,
   type FollowedEpisodeRatingsResponse,
   type FollowedRatingRow,
   type FollowedRatingsPage,
+  mapFollowedEpisodeRatings,
   mapFollowedRatings,
   mapProfileReviewsPage,
   mapReviewRow,
@@ -493,11 +495,25 @@ export class KinoDatabaseService {
       p_per_episode_limit: perEpisodeLimit,
     })
     if (error) throw error
-    const response = (data ?? {}) as Partial<FollowedEpisodeRatingsResponse>
-    return {
-      episodes: response.episodes ?? {},
-      totals: response.totals ?? {},
-    }
+    const response = data && typeof data === 'object' ? data : {}
+    const rawEpisodes =
+      'episodes' in response && response.episodes && typeof response.episodes === 'object'
+        ? response.episodes
+        : {}
+    const rawTotals =
+      'totals' in response && response.totals && typeof response.totals === 'object'
+        ? response.totals
+        : {}
+
+    return mapFollowedEpisodeRatings(
+      rawEpisodes as Record<string, Array<FollowedEpisodeRatingRpcRow | null>>,
+      rawTotals as Record<string, unknown>,
+      getNodeEnvironment() === 'development'
+        ? (reason) => {
+            console.warn('[followed-ratings] Dropped malformed episode row', { reason })
+          }
+        : undefined
+    )
   }
 
   async uploadAvatar(file: File, userId: string) {
@@ -1957,4 +1973,8 @@ export class KinoDatabaseService {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
     return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
   }
+}
+
+function getNodeEnvironment() {
+  return (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV
 }
