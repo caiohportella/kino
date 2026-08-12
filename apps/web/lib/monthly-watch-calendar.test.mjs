@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { buildMonthlyWatchCalendar } from "./monthly-watch-calendar.ts";
+
+const monthlyWatchCalendarSource = await readFile(
+  new URL("../components/profile/monthly-watch-calendar.tsx", import.meta.url),
+  "utf8",
+);
 
 function day(date, overrides = {}) {
   return {
@@ -124,6 +130,48 @@ test("zero-minute active days and outside-month cells stay at level zero", () =>
   assert.equal(cellForDate(model, "2026-08-05")?.level, 0);
   assert.equal(cellForDate(model, "2026-09-01")?.activity, null);
   assert.equal(cellForDate(model, "2026-09-01")?.level, 0);
+});
+
+test("inactive zero-count daily objects do not create activity cells or featured days", () => {
+  const model = buildMonthlyWatchCalendar({
+    year: 2026,
+    month: 8,
+    dailyActivity: [
+      day("2026-08-05", {
+        entries: 1,
+        moviesWatched: 0,
+        episodesWatched: 0,
+        minutes: 120,
+      }),
+      day("2026-08-06", {
+        entries: 0,
+        moviesWatched: 0,
+        episodesWatched: 0,
+        minutes: 0,
+      }),
+    ],
+  });
+
+  assert.equal(model.activeDays, 0);
+  assert.equal(model.longestStreak, 0);
+  assert.equal(model.mostActiveDay, null);
+  assert.equal(model.biggestBingeDay, null);
+  assert.equal(model.maxMinutes, 0);
+  assert.equal(cellForDate(model, "2026-08-05")?.activity, null);
+  assert.equal(cellForDate(model, "2026-08-05")?.level, 0);
+  assert.equal(cellForDate(model, "2026-08-06")?.activity, null);
+  assert.equal(cellForDate(model, "2026-08-06")?.level, 0);
+});
+
+test("monthly calendar summary renders active days from the calendar model", () => {
+  assert.equal(monthlyWatchCalendarSource.includes("model.activeDays"), true);
+  assert.equal(monthlyWatchCalendarSource.includes("stats.activeDays"), true);
+});
+
+test("monthly calendar description interpolates the selected month label", () => {
+  assert.equal(monthlyWatchCalendarSource.includes("formatProfileMonth"), true);
+  assert.equal(monthlyWatchCalendarSource.includes("watchCalendarDescription"), true);
+  assert.match(monthlyWatchCalendarSource, /month:\s*monthLabel/);
 });
 
 test("date-only keys remain stable across local timezone parsing", () => {

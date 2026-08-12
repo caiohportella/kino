@@ -1,9 +1,15 @@
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import {
   buildPreviousMonthComparisonRows,
   getComparisonTone,
 } from './monthly-comparison.ts'
+
+const previousMonthCardSource = await readFile(
+  new URL('../components/profile/previous-month-card.tsx', import.meta.url),
+  'utf8',
+)
 
 test('selects a semantic tone for positive, negative, and zero deltas', () => {
   assert.equal(getComparisonTone(1), 'positive')
@@ -62,4 +68,10 @@ test('builds all four previous-month comparison rows with localized watch-time f
     rows.map((row) => getComparisonTone(row.delta)),
     ['negative', 'positive', 'neutral', 'negative'],
   )
+})
+
+test('previous-month comparison applies semantic tone to the visible delta value', () => {
+  assert.equal(previousMonthCardSource.includes('valueClassName'), true)
+  assert.match(previousMonthCardSource, /valueClassName[\s\S]*text-kino-accent/)
+  assert.match(previousMonthCardSource, /<span className=\{valueClassName\}>\{value\}<\/span>/)
 })

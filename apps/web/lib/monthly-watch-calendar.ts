@@ -215,7 +215,12 @@ export function buildMonthlyWatchCalendar(input: {
     }
 
     const key = toDateKey(parsed);
-    activitiesByDate.set(key, { ...activity, date: key });
+    const normalizedActivity = { ...activity, date: key };
+    if (!isActiveDay(normalizedActivity)) {
+      continue;
+    }
+
+    activitiesByDate.set(key, normalizedActivity);
   }
 
   const monthActivities = [...activitiesByDate.values()];

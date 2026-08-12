@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useTranslation } from '@/lib/i18n'
 import { buildMonthlyWatchCalendar } from '@/lib/monthly-watch-calendar'
+import { formatProfileMonth } from '@/lib/profile-recap'
 import { formatWatchTimeAccessible, formatWatchTimeCompact } from '@/lib/profile-stats'
 import { cn } from '@/lib/utils'
 import { PROFILE_ACTIVITY_LEVEL_COLORS } from './profile-activity-heatmap'
@@ -86,6 +87,14 @@ export function MonthlyWatchCalendar({
 
   const weekdays = useMemo(() => weekdayLabels(i18n.language), [i18n.language])
   const numberFormatter = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language])
+  const monthLabel = useMemo(() => formatProfileMonth(year, month, i18n.language), [i18n.language, month, year])
+
+  const activeDaysValue = `${numberFormatter.format(model.activeDays)} ${t(
+    'stats.duration.days',
+    {
+      count: model.activeDays,
+    }
+  )}`
 
   const longestStreakValue = `${numberFormatter.format(model.longestStreak)} ${t(
     'stats.duration.days',
@@ -102,7 +111,7 @@ export function MonthlyWatchCalendar({
     : t('stats.noActivity')
 
   const mostActiveDayDetail = model.mostActiveDay
-    ? `${formatWatchTimeCompact(model.mostActiveDay.minutes, i18n.language)} · ${t('stats.definedYourMonth')}`
+    ? `${formatWatchTimeCompact(model.mostActiveDay.minutes, i18n.language)} · ${t('stats.mostActiveDayIndicator')}`
     : undefined
 
   const biggestBingeValue =
@@ -125,7 +134,9 @@ export function MonthlyWatchCalendar({
           {t('stats.watchCalendar')}
         </CardTitle>
 
-        <p className="text-xs text-kino-muted">{t('stats.watchCalendarDescription')}</p>
+        <p className="text-xs text-kino-muted">
+          {t('stats.watchCalendarDescription', { month: monthLabel })}
+        </p>
       </CardHeader>
 
       <CardContent className="grid gap-6 px-4 pb-6 pt-4 sm:px-6">
@@ -163,25 +174,24 @@ export function MonthlyWatchCalendar({
                     const dayNumber = formatDate(cell.date, i18n.language, {
                       day: 'numeric',
                     })
-                    const dateLabel = formatDate(cell.date, i18n.language, {
+                    const date = formatDate(cell.date, i18n.language, {
                       day: 'numeric',
                       month: 'long',
                       year: 'numeric',
                     })
+                    const movies = activity
+                      ? `${numberFormatter.format(activity.moviesWatched)} ${t('stats.moviesWatched')}`
+                      : ''
+                    const episodes = activity
+                      ? activity.episodesWatched > 0
+                        ? `${numberFormatter.format(activity.episodesWatched)} ${t('stats.episodesWatched')}`
+                        : t('stats.noEpisodes')
+                      : ''
+                    const duration = activity ? formatWatchTimeAccessible(activity.minutes, t) : ''
 
                     const activityLabel = activity
-                      ? [
-                          dateLabel,
-                          `${numberFormatter.format(activity.moviesWatched)} ${t('stats.moviesWatched')}`,
-                          activity.episodesWatched > 0
-                            ? `${numberFormatter.format(activity.episodesWatched)} ${t('stats.episodesWatched')}`
-                            : t('stats.noEpisodes'),
-                          formatWatchTimeAccessible(activity.minutes, t),
-                          isMostActive ? t('stats.definedYourMonth') : null,
-                        ]
-                          .filter(Boolean)
-                          .join(', ')
-                      : `${dateLabel}, ${t('stats.noActivity')}`
+                      ? t('stats.calendarDayLabel', { date, movies, episodes, duration })
+                      : `${date}, ${t('stats.noActivity')}`
 
                     const cellBody = (
                       <div
@@ -231,7 +241,7 @@ export function MonthlyWatchCalendar({
                           </div>
                         ) : null}
 
-                        {isMostActive ? <span className="sr-only">{t('stats.definedYourMonth')}</span> : null}
+                        {isMostActive ? <span className="sr-only">{t('stats.mostActiveDayIndicator')}</span> : null}
                       </div>
                     )
 
@@ -261,7 +271,7 @@ export function MonthlyWatchCalendar({
 
                         <TooltipContent side="top">
                           <div className="grid gap-1">
-                            <div className="text-sm font-medium text-kino-text">{dateLabel}</div>
+                            <div className="text-sm font-medium text-kino-text">{date}</div>
 
                             <div className="text-xs text-kino-muted">
                               {numberFormatter.format(activity.moviesWatched)} {t('stats.moviesWatched')}
@@ -279,7 +289,7 @@ export function MonthlyWatchCalendar({
 
                             {isMostActive ? (
                               <div className="text-xs font-semibold text-kino-accent">
-                                {t('stats.definedYourMonth')}
+                                {t('stats.mostActiveDayIndicator')}
                               </div>
                             ) : null}
                           </div>
@@ -308,7 +318,9 @@ export function MonthlyWatchCalendar({
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <CalendarSummaryCard label={t('stats.activeDays')} value={activeDaysValue} />
+
           <CalendarSummaryCard label={t('stats.longestStreak')} value={longestStreakValue} />
 
           <CalendarSummaryCard

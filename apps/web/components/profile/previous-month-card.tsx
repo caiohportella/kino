@@ -46,12 +46,13 @@ export function PreviousMonthCard({
 function ComparisonRow({ label, value, delta }: { label: string; value: string; delta: number }) {
   const tone = getComparisonTone(delta);
   const Icon = tone === "positive" ? ArrowUp : tone === "negative" ? ArrowDown : Minus;
-  const iconClassName =
+  const valueClassName =
     tone === "positive"
       ? "text-kino-accent"
       : tone === "negative"
         ? "text-kino-muted/80"
         : "text-kino-muted";
+  const iconClassName = valueClassName;
 
   return (
     <div className="flex items-center justify-between gap-4 py-3">
@@ -60,7 +61,7 @@ function ComparisonRow({ label, value, delta }: { label: string; value: string; 
       <span className="flex items-center gap-2 text-right text-sm font-semibold text-kino-text">
         <Icon aria-hidden="true" className={iconClassName} size={14} />
 
-        <span>{value}</span>
+        <span className={valueClassName}>{value}</span>
       </span>
     </div>
   );
