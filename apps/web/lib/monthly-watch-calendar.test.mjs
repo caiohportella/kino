@@ -100,14 +100,15 @@ test("biggest binge day prefers episode count, then minutes, then earliest date"
     year: 2026,
     month: 8,
     dailyActivity: [
+      day("2026-08-12", { episodesWatched: 2, moviesWatched: 0, minutes: 10 }),
       day("2026-08-11", { episodesWatched: 3, moviesWatched: 0, minutes: 50 }),
-      day("2026-08-09", { episodesWatched: 3, moviesWatched: 0, minutes: 50 }),
-      day("2026-08-10", { episodesWatched: 3, moviesWatched: 0, minutes: 40 }),
-      day("2026-08-12", { episodesWatched: 4, moviesWatched: 0, minutes: 25 }),
+      day("2026-08-10", { episodesWatched: 3, moviesWatched: 0, minutes: 70 }),
+      day("2026-08-09", { episodesWatched: 3, moviesWatched: 0, minutes: 70 }),
+      day("2026-08-08", { episodesWatched: 3, moviesWatched: 0, minutes: 40 }),
     ],
   });
 
-  assert.equal(model.biggestBingeDay?.date, "2026-08-12");
+  assert.equal(model.biggestBingeDay?.date, "2026-08-09");
 });
 
 test("zero-minute active days and outside-month cells stay at level zero", () => {
@@ -136,23 +137,21 @@ test("date-only keys remain stable across local timezone parsing", () => {
   assert.equal(cellForDate(model, "2026-07-31")?.activity, null);
 });
 
-test("intensity scales the month into five levels with the top positive day at level four", () => {
+test("intensity scales monthly magnitude so skewed low values stay low", () => {
   const model = buildMonthlyWatchCalendar({
     year: 2026,
     month: 8,
     dailyActivity: [
-      day("2026-08-01", { minutes: 5 }),
-      day("2026-08-02", { minutes: 10 }),
-      day("2026-08-03", { minutes: 20 }),
-      day("2026-08-04", { minutes: 80 }),
+      day("2026-08-01", { minutes: 1 }),
+      day("2026-08-02", { minutes: 2 }),
+      day("2026-08-03", { minutes: 1000 }),
       day("2026-08-05", { minutes: 0 }),
     ],
   });
 
-  assert.equal(model.maxMinutes, 80);
+  assert.equal(model.maxMinutes, 1000);
   assert.equal(cellForDate(model, "2026-08-01")?.level, 1);
-  assert.equal(cellForDate(model, "2026-08-02")?.level, 2);
-  assert.equal(cellForDate(model, "2026-08-03")?.level, 3);
-  assert.equal(cellForDate(model, "2026-08-04")?.level, 4);
+  assert.equal(cellForDate(model, "2026-08-02")?.level, 1);
+  assert.equal(cellForDate(model, "2026-08-03")?.level, 4);
   assert.equal(cellForDate(model, "2026-08-05")?.level, 0);
 });

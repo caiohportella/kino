@@ -73,23 +73,53 @@ function compareDatesAscending(a: string, b: string) {
   return a.localeCompare(b);
 }
 
-function buildIntensityLevels(
-  activities: ProfileMonthlyRecapActivityDay[],
-) {
-  const positiveMinutes = Array.from(
-    new Set(
-      activities.filter((activity) => activity.minutes > 0).map((activity) => activity.minutes),
-    ),
-  ).sort((a, b) => a - b);
+function buildIntensityLevels(activities: ProfileMonthlyRecapActivityDay[]) {
+  const positiveMinutes = activities
+    .map((activity) => activity.minutes)
+    .filter((minutes) => minutes > 0);
 
-  const levelByMinutes = new Map<number, MonthlyCalendarIntensityLevel>();
+  if (positiveMinutes.length === 0) {
+    return { minMinutes: 0, maxMinutes: 0 };
+  }
 
-  positiveMinutes.forEach((minutes, index) => {
-    const level = Math.ceil(((index + 1) * 4) / positiveMinutes.length) as MonthlyCalendarIntensityLevel;
-    levelByMinutes.set(minutes, level);
-  });
+  const minMinutes = Math.min(...positiveMinutes);
+  const maxMinutes = Math.max(...positiveMinutes);
 
-  return levelByMinutes;
+  return { minMinutes, maxMinutes };
+}
+
+function intensityLevelForMinutes(
+  minutes: number,
+  minMinutes: number,
+  maxMinutes: number,
+): MonthlyCalendarIntensityLevel {
+  if (minutes <= 0) {
+    return 0;
+  }
+
+  if (minMinutes === maxMinutes) {
+    return 4;
+  }
+
+  const normalized = (minutes - minMinutes) / (maxMinutes - minMinutes);
+
+  if (normalized <= 0) {
+    return 1;
+  }
+
+  if (normalized < 0.25) {
+    return 1;
+  }
+
+  if (normalized < 0.5) {
+    return 2;
+  }
+
+  if (normalized < 0.75) {
+    return 3;
+  }
+
+  return 4;
 }
 
 function pickMostActiveDay(activities: ProfileMonthlyRecapActivityDay[]) {
@@ -177,12 +207,12 @@ export function buildMonthlyWatchCalendar(input: {
   }
 
   const monthActivities = [...activitiesByDate.values()];
-  const intensityByMinutes = buildIntensityLevels(monthActivities);
+  const { minMinutes, maxMinutes } = buildIntensityLevels(monthActivities);
   const activeDays = countActiveDays(monthActivities);
   const longestStreak = longestStreakFromActivities(monthActivities);
   const mostActiveDay = pickMostActiveDay(monthActivities);
   const biggestBingeDay = pickBiggestBingeDay(monthActivities);
-  const maxMinutes = monthActivities.reduce(
+  const monthMaxMinutes = monthActivities.reduce(
     (highest, activity) => Math.max(highest, activity.minutes),
     0,
   );
@@ -198,7 +228,9 @@ export function buildMonthlyWatchCalendar(input: {
       const inMonth = isInMonth(date, input.year, input.month);
       const activity = inMonth ? activitiesByDate.get(dateKey) ?? null : null;
       const level: MonthlyCalendarIntensityLevel =
-        activity && activity.minutes > 0 ? intensityByMinutes.get(activity.minutes) ?? 0 : 0;
+        activity
+          ? intensityLevelForMinutes(activity.minutes, minMinutes, maxMinutes)
+          : 0;
 
       week.push({
         date: dateKey,
@@ -217,6 +249,6 @@ export function buildMonthlyWatchCalendar(input: {
     longestStreak,
     mostActiveDay,
     biggestBingeDay,
-    maxMinutes,
+    maxMinutes: monthMaxMinutes,
   };
 }
