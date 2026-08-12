@@ -25,7 +25,10 @@ test('builds all four previous-month comparison rows with localized watch-time f
       episodesWatched: 'Episodes watched',
       ratingsMade: 'Ratings made',
     },
-    locale: 'en-US',
+    formatTimeDelta: (minutes) => {
+      assert.equal(minutes, -(8 * 60 + 24))
+      return '−8h 24m'
+    },
   })
 
   assert.deepEqual(rows, [

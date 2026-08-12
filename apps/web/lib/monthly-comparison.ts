@@ -16,9 +16,6 @@ type ComparisonLabels = {
   ratingsMade: string
 }
 
-const MINUTES_PER_HOUR = 60
-const MINUTES_PER_DAY = 24 * MINUTES_PER_HOUR
-
 export function getComparisonTone(delta: number): ComparisonTone {
   if (delta > 0) {
     return 'positive'
@@ -34,17 +31,17 @@ export function getComparisonTone(delta: number): ComparisonTone {
 export function buildPreviousMonthComparisonRows({
   comparison,
   labels,
-  locale,
+  formatTimeDelta,
 }: {
   comparison: ProfileMonthlyRecap['previousMonthComparison']
   labels: ComparisonLabels
-  locale: string
+  formatTimeDelta: (minutes: number) => string
 }): PreviousMonthComparisonRow[] {
   return [
     {
       id: 'time',
       label: labels.timeWatched,
-      value: formatWatchTimeDelta(comparison.timeWatchedMinutesDelta, locale),
+      value: formatTimeDelta(comparison.timeWatchedMinutesDelta),
       delta: comparison.timeWatchedMinutesDelta,
     },
     {
@@ -72,41 +69,6 @@ function formatDelta(value: number) {
   const sign = value > 0 ? '+' : ''
 
   return `${sign}${value}`
-}
-
-function formatWatchTimeDelta(minutes: number, locale: string) {
-  const sign = minutes > 0 ? '+' : minutes < 0 ? '\u2212' : ''
-
-  return `${sign}${formatWatchTimeCompact(Math.abs(minutes), locale)}`
-}
-
-function formatWatchTimeCompact(minutes: number, locale: string) {
-  const parts = splitWatchTime(minutes)
-  const formatter = new Intl.NumberFormat(locale)
-
-  if (parts.days > 0) {
-    return parts.hours > 0
-      ? `${formatter.format(parts.days)}d ${formatter.format(parts.hours)}h`
-      : `${formatter.format(parts.days)}d`
-  }
-
-  if (parts.hours > 0) {
-    return parts.minutes > 0
-      ? `${formatter.format(parts.hours)}h ${formatter.format(parts.minutes)}m`
-      : `${formatter.format(parts.hours)}h`
-  }
-
-  return `${formatter.format(parts.minutes)}m`
-}
-
-function splitWatchTime(minutes: number) {
-  const totalMinutes = Math.max(0, Math.floor(minutes))
-  const days = Math.floor(totalMinutes / MINUTES_PER_DAY)
-  const remainderAfterDays = totalMinutes % MINUTES_PER_DAY
-  const hours = Math.floor(remainderAfterDays / MINUTES_PER_HOUR)
-  const remainingMinutes = remainderAfterDays % MINUTES_PER_HOUR
-
-  return { days, hours, minutes: remainingMinutes }
 }
 
 

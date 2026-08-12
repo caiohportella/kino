@@ -80,7 +80,7 @@ export function ProfileMonthlyRecapPage({
           episodesWatched: t('stats.episodesWatched'),
           ratingsMade: t('stats.ratingsMade'),
         },
-        locale: i18n.language,
+        formatTimeDelta: (minutes) => formatWatchTimeDelta(minutes, i18n.language),
       })
     : []
 
@@ -533,4 +533,10 @@ function formatRating(rating: number) {
   const hasHalf = Math.abs(rating - whole) >= 0.25 && Math.abs(rating - whole) < 0.75
 
   return `${whole}${hasHalf ? '.5' : ''}★`
+}
+
+function formatWatchTimeDelta(minutes: number, locale: string) {
+  const sign = minutes > 0 ? '+' : minutes < 0 ? '−' : ''
+
+  return `${sign}${formatWatchTimeCompact(Math.abs(minutes), locale)}`
 }
