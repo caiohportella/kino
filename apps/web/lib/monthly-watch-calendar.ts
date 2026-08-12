@@ -155,10 +155,22 @@ function longestStreakFromActivities(activities: ProfileMonthlyRecapActivityDay[
 
   let longest = 1;
   let current = 1;
-  let previous = parseDateOnlyKey(activeDates[0]);
+  const firstActiveDate = activeDates[0];
+  if (!firstActiveDate) {
+    return 0;
+  }
+
+  let previous = parseDateOnlyKey(firstActiveDate);
 
   for (let index = 1; index < activeDates.length; index += 1) {
-    const currentDate = parseDateOnlyKey(activeDates[index]);
+    const activeDate = activeDates[index];
+    if (!activeDate) {
+      current = 1;
+      previous = null;
+      continue;
+    }
+
+    const currentDate = parseDateOnlyKey(activeDate);
     if (!previous || !currentDate) {
       current = 1;
       previous = currentDate;
