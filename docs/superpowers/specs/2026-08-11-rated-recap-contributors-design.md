@@ -99,6 +99,8 @@ The monthly recap type gains:
 - `highestRatedStudio: ProfileRatedCategoryStat | null`
 - `highestRatedActor: ProfileRatedCategoryStat | null`
 - `highestRatedActress: ProfileRatedCategoryStat | null`
+- `highestRatedGenre: ProfileRatedCategoryStat | null`
+- `highestRatedDecade: ProfileRatedDecadeStat | null`
 
 Existing genre and decade outputs are extended in place to use canonical distinct-title samples and confidence-aware ordering. Their existing display shapes remain stable.
 
