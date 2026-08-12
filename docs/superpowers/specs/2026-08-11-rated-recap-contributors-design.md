@@ -2,7 +2,7 @@
 
 ## Goal
 
-Improve the monthly and lifetime highest-rated actor, actress, and production-company statistics so they represent work the user rates highly consistently, rather than selecting a person or company attached to one exceptional title.
+Improve the monthly and lifetime highest-rated actor, actress, production-company, genre, and decade statistics so they represent work the user rates highly consistently, rather than selecting a category attached to one exceptional title.
 
 ## Scope
 
@@ -78,6 +78,18 @@ rankingScore = (n / (n + 3)) * weightedAverage + (3 / (n + 3)) * C
 
 The returned display average remains the raw weighted average; the Bayesian score is used only for ordering. Ordering is deterministic: ranking score descending, distinct title count descending, raw weighted average descending, qualifying observation count descending when available, then stable ID and name fallback.
 
+### Genre ranking
+
+Genres reuse the existing title genre metadata and stable genre IDs. A canonical rated title contributes once to every genre attached to it; rewatches and repeated episode ratings do not create additional title samples. Highest-rated genre uses the same Bayesian formula, relevant-scope baseline, `m = 3`, and monthly/lifetime eligibility thresholds as people and companies. The raw average remains the display value.
+
+Most-rated genre remains a separate metric and ranks by distinct rated-title count, then raw average, then stable genre ID. It does not use rating-event or episode counts.
+
+Genre names are never used as aggregation keys. Existing genre localization by TMDb genre ID remains responsible for display, with no new English-only labels.
+
+### Decade ranking
+
+Decades reuse each title's existing canonical `release_year` value. Reliable years map to `Math.floor(release_year / 10) * 10`; titles without a reliable year are excluded. Highest-rated decade uses canonical distinct-title scores, the same Bayesian formula, baseline, and eligibility thresholds. Any most-rated decade metric remains separate and uses distinct-title counts with deterministic tie-breaking. Decade labels continue through the existing locale/display convention.
+
 ## Monthly and lifetime integration
 
 The shared ranking helper will accept already-scoped rating rows. Monthly calls it with the current month’s rows, preserving the current `createMonthRange` and database query boundaries. Lifetime calls it with all rating rows. No second date-range implementation is introduced.
@@ -87,6 +99,8 @@ The monthly recap type gains:
 - `highestRatedStudio: ProfileRatedCategoryStat | null`
 - `highestRatedActor: ProfileRatedCategoryStat | null`
 - `highestRatedActress: ProfileRatedCategoryStat | null`
+
+Existing genre and decade outputs are extended in place to use canonical distinct-title samples and confidence-aware ordering. Their existing display shapes remain stable.
 
 The existing `mostWatchedStudio` and `topActor` fields are unchanged to keep exposure and quality metrics distinct. Existing localization labels and title rendering remain unchanged.
 
@@ -100,12 +114,16 @@ Extend `packages/core/src/profile-stats.test.mjs` with focused tests for:
 - series canonical scoring and no episode-count inflation;
 - missing/unknown gender exclusion;
 - studio aggregation across multiple companies;
+- Bayesian highest-rated genre and decade ranking;
+- most-rated genre/decade separation from highest-rated metrics;
+- genre and decade distinct-title counting across rewatches and series episodes;
 - monthly scope isolation from lifetime rows;
 - lifetime latest-rating behavior;
 - deterministic tie-breaking;
 - null results when eligibility thresholds are not met;
 - existing monthly exposure metrics remaining separate;
-- existing localization regression tests continuing to verify title display through localized-title helpers.
+- existing localization regression tests continuing to verify title display through localized-title helpers;
+- stable genre-ID aggregation with existing localized genre display.
 
 No translation keys or UI copy are added because the new values use existing statistic data paths and labels.
 
