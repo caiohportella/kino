@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useProfileMonthlyRecap } from '@/hooks/use-profile-stats'
 import { useTranslation } from '@/lib/i18n'
+import { buildPreviousMonthComparisonRows } from '@/lib/monthly-comparison'
 import { formatProfileMonth, profileStoryFilename, shiftMonth } from '@/lib/profile-recap'
 import { formatWatchTimeCompact } from '@/lib/profile-stats'
 import { profileStatsRecapImagePath, profileStatsRecapPath } from '@/lib/routes'
@@ -18,7 +19,7 @@ import { db } from '@/lib/services'
 import { HeroStat } from './hero-stat'
 import { HighsAndLowsCard } from './highs-and-lows-card'
 import { MonthlyWatchCalendar } from './monthly-watch-calendar'
-import { PreviousMonthCard, type PreviousMonthComparisonRow } from './previous-month-card'
+import { PreviousMonthCard } from './previous-month-card'
 
 export function ProfileMonthlyRecapPage({
   profileId,
@@ -70,32 +71,17 @@ export function ProfileMonthlyRecapPage({
         previousTotals.time > 0)
   )
 
-  const previousMonthRows: PreviousMonthComparisonRow[] = data
-    ? [
-        {
-          id: 'time',
-          label: t('stats.timeWatched'),
-          value: formatWatchTimeDelta(
-            data.previousMonthComparison.timeWatchedMinutesDelta,
-            i18n.language
-          ),
+  const previousMonthRows = data
+    ? buildPreviousMonthComparisonRows({
+        comparison: data.previousMonthComparison,
+        labels: {
+          timeWatched: t('stats.timeWatched'),
+          moviesWatched: t('stats.moviesWatched'),
+          episodesWatched: t('stats.episodesWatched'),
+          ratingsMade: t('stats.ratingsMade'),
         },
-        {
-          id: 'movies',
-          label: t('stats.moviesWatched'),
-          value: formatDelta(data.previousMonthComparison.moviesDelta),
-        },
-        {
-          id: 'episodes',
-          label: t('stats.episodesWatched'),
-          value: formatDelta(data.previousMonthComparison.episodesDelta),
-        },
-        {
-          id: 'ratings',
-          label: t('stats.ratingsMade'),
-          value: formatDelta(data.previousMonthComparison.ratingsDelta),
-        },
-      ]
+        locale: i18n.language,
+      })
     : []
 
   async function downloadStoryImage() {
@@ -471,12 +457,6 @@ type RecapItem =
   | ProfileMonthlyRecap['topRatedMovies'][number]
   | ProfileMonthlyRecap['topRatedSeries'][number]
 
-function formatDelta(value: number) {
-  const sign = value > 0 ? '+' : ''
-
-  return `${sign}${value}`
-}
-
 function SubsectionTitle({ children }: { children: ReactNode }) {
   return (
     <div className="text-xs font-semibold uppercase tracking-[0.12em] text-kino-muted">
@@ -553,10 +533,4 @@ function formatRating(rating: number) {
   const hasHalf = Math.abs(rating - whole) >= 0.25 && Math.abs(rating - whole) < 0.75
 
   return `${whole}${hasHalf ? '.5' : ''}★`
-}
-
-function formatWatchTimeDelta(minutes: number, locale: string) {
-  const sign = minutes > 0 ? '+' : minutes < 0 ? '−' : ''
-
-  return `${sign}${formatWatchTimeCompact(Math.abs(minutes), locale)}`
 }
