@@ -4,7 +4,9 @@ import type {
   RankSearchCandidatesInput,
   SearchEntity,
   SearchScoreComponents,
+  SearchEntityV2,
 } from './types.ts'
+import { compareTitleRankingSignals, titleRankingSignals } from './title-ranking.ts'
 
 export const SEARCH_EXACT_MATCH_WEIGHT = 0.28
 export const SEARCH_PREFIX_MATCH_WEIGHT = 0.1
@@ -79,6 +81,60 @@ function weightedScore(components: SearchScoreComponents): number {
   )
 }
 
+type TitleRankingEntity = SearchEntity &
+  Partial<SearchEntityV2> & {
+    readonly voteAverage?: number | null
+  }
+
+function isTitleRankingCandidate(candidate: FusedCandidate): boolean {
+  return (
+    (candidate.entity.entityType === 'movie' || candidate.entity.entityType === 'series') &&
+    candidate.personId === undefined &&
+    candidate.role === undefined &&
+    candidate.relationshipScore === undefined
+  )
+}
+
+function titleRankingComparison(left: FusedCandidate, right: FusedCandidate): number {
+  if (!isTitleRankingCandidate(left) || !isTitleRankingCandidate(right)) return 0
+
+  const leftEntity = left.entity as TitleRankingEntity
+  const rightEntity = right.entity as TitleRankingEntity
+
+  return compareTitleRankingSignals(
+    titleRankingSignals(
+      {
+        exactMatch: left.exactMatch,
+        prefixMatch: left.prefixMatch,
+        lexicalScore: left.lexicalScore,
+        semanticScore: left.semanticScore,
+      },
+      {
+        voteCount: left.entity.voteCount,
+        popularity: left.entity.popularity,
+        voteAverage:
+          leftEntity.tmdbVoteAverage ?? leftEntity.kinoAverageRating ?? leftEntity.voteAverage,
+      }
+    ),
+    titleRankingSignals(
+      {
+        exactMatch: right.exactMatch,
+        prefixMatch: right.prefixMatch,
+        lexicalScore: right.lexicalScore,
+        semanticScore: right.semanticScore,
+      },
+      {
+        voteCount: right.entity.voteCount,
+        popularity: right.entity.popularity,
+        voteAverage:
+          rightEntity.tmdbVoteAverage ??
+          rightEntity.kinoAverageRating ??
+          rightEntity.voteAverage,
+      }
+    )
+  )
+}
+
 function compareStableEntity(left: FusedCandidate, right: FusedCandidate): number {
   if (left.entity.entityType !== right.entity.entityType) {
     return left.entity.entityType.localeCompare(right.entity.entityType, 'en')
@@ -117,7 +173,9 @@ export function rankSearchCandidates(input: RankSearchCandidatesInput): RankedSe
     })
     .sort(
       (left, right) =>
-        right.score - left.score || compareStableEntity(left.candidate, right.candidate)
+        titleRankingComparison(left.candidate, right.candidate) ||
+        right.score - left.score ||
+        compareStableEntity(left.candidate, right.candidate)
     )
     .map(({ candidate: _candidate, ...result }) => result)
 }
