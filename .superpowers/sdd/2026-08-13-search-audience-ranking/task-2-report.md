@@ -4,7 +4,7 @@ Status: DONE
 
 Commit hashes:
 
-- `64e136ecbbb92504e5465645d7405c1ca640f170` — focused Task 2 review follow-up before the mixed-path fix
+- `fae6b37ececc08d18f56b62ab204d1a82e7c25cf` — focused Task 2 mixed-path follow-up before the intrinsic-score replacement
 - The follow-up commit hash is returned in the task handoff. Writing that hash into this file would change the commit hash again.
 
 Files changed:
@@ -28,9 +28,9 @@ Review follow-up:
 
 Mixed title/relationship follow-up:
 
-- Added a fused Dexter regression where the relationship movie remains first, relationship metadata is preserved, and exported scores are non-increasing.
-- Preserved the existing comparator and relationship ordering, then applied a final public-score envelope in returned order: each score is retained unless it exceeds the preceding emitted score, in which case it is clamped to that preceding score.
-- This keeps legacy weighted scores unchanged for ordinary non-title sequences and only adjusts exposed numeric scores when mixed comparator paths would otherwise produce an increasing public sequence.
+- Added a fused Dexter regression where the exact title and relationship movie are ordered by their intrinsic public scores, the relationship metadata is preserved, and scores are non-increasing.
+- Removed context-dependent post-sort score mutation. Each rank record carries its intrinsic public score: title candidates use the bounded shared title-ranking score, while relationship/non-title candidates use the legacy weighted score.
+- Title-title comparisons use the shared title comparator, then intrinsic score as the consistent fallback. Mixed movie/series title-versus-relationship comparisons use intrinsic public score, then legacy weighted score only as a deterministic tie-break. Non-title and relationship-versus-relationship comparisons retain legacy weighted ordering.
 
 RED verification:
 
@@ -49,6 +49,11 @@ Mixed-path RED verification:
 
 - Command: `node --test --experimental-strip-types src/search/rank.test.mjs src/search/title-ranking.test.mjs`
 - Result: failed only on the mixed Dexter public-score monotonicity assertion (19 passed, 1 failed) while preserving the relationship-first order.
+
+Intrinsic-score RED verification:
+
+- Command: `node --test --experimental-strip-types src/search/rank.test.mjs src/search/title-ranking.test.mjs`
+- Result: failed only on the Dexter intrinsic-order assertion (19 passed, 1 failed) against the previous mixed-score implementation; it returned the relationship movie first instead of ordering by its public score.
 
 GREEN verification:
 
@@ -74,6 +79,7 @@ Notes:
 
 Concerns:
 
-- Eligible movie/series V1 numeric scores represent the bounded title-ranking key unless the final mixed result order requires the public monotonic envelope to clamp a later score.
-- The legacy weighted score remains in the internal fallback sort key and `SearchScoreComponents`; this preserves relationship ordering while ensuring exported V1 scores cannot increase down the returned list.
+- Eligible movie/series V1 numeric scores are intrinsic: title candidates use the bounded title-ranking score and relationship candidates use the legacy weighted score. No score is changed after sorting.
+- Mixed title/relationship media ordering intentionally follows those intrinsic public scores; relationship metadata and relationship-vs-relationship legacy ordering remain preserved.
+- The legacy weighted score remains in the internal fallback sort key and `SearchScoreComponents` for non-title paths and deterministic ties.
 - V2 continues to serialize the existing normalized score components, so its response shape and non-title behavior remain unchanged.

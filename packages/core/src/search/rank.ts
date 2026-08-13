@@ -123,6 +123,10 @@ function titleRankingComparison(left: FusedCandidate, right: FusedCandidate): nu
   return compareTitleRankingSignals(leftSignals, rightSignals)
 }
 
+function isMediaCandidate(candidate: FusedCandidate): boolean {
+  return candidate.entity.entityType === 'movie' || candidate.entity.entityType === 'series'
+}
+
 function titleRankingScore(signals: ReturnType<typeof titleRankingSignals>): number {
   const tierBase =
     signals.tier === 'strong'
@@ -154,16 +158,39 @@ function compareStableEntity(left: FusedCandidate, right: FusedCandidate): numbe
   return left.identity.localeCompare(right.identity, 'en')
 }
 
-function enforcePublicScoreOrder<T extends { readonly score: number }>(
-  results: readonly T[]
-): T[] {
-  let previousScore = Number.POSITIVE_INFINITY
+type RankSortRecord = {
+  readonly candidate: FusedCandidate
+  readonly score: number
+  readonly sortScore: number
+}
 
-  return results.map((result) => {
-    const score = Math.min(result.score, previousScore)
-    previousScore = score
-    return score === result.score ? result : { ...result, score }
-  })
+function compareRankRecords(left: RankSortRecord, right: RankSortRecord): number {
+  const leftIsTitle = isTitleRankingCandidate(left.candidate)
+  const rightIsTitle = isTitleRankingCandidate(right.candidate)
+
+  if (leftIsTitle && rightIsTitle) {
+    return (
+      titleRankingComparison(left.candidate, right.candidate) ||
+      right.score - left.score ||
+      compareStableEntity(left.candidate, right.candidate)
+    )
+  }
+
+  const mixedMediaTitles =
+    isMediaCandidate(left.candidate) &&
+    isMediaCandidate(right.candidate) &&
+    leftIsTitle !== rightIsTitle
+  if (mixedMediaTitles) {
+    return (
+      right.score - left.score ||
+      right.sortScore - left.sortScore ||
+      compareStableEntity(left.candidate, right.candidate)
+    )
+  }
+
+  return (
+    right.sortScore - left.sortScore || compareStableEntity(left.candidate, right.candidate)
+  )
 }
 
 export function rankSearchCandidates(input: RankSearchCandidatesInput): RankedSearchResult[] {
@@ -194,13 +221,7 @@ export function rankSearchCandidates(input: RankSearchCandidatesInput): RankedSe
         candidate,
       }
     })
-    .sort(
-      (left, right) =>
-        titleRankingComparison(left.candidate, right.candidate) ||
-        right.sortScore - left.sortScore ||
-        compareStableEntity(left.candidate, right.candidate)
-    )
+    .sort(compareRankRecords)
 
-  return enforcePublicScoreOrder(sorted)
-    .map(({ candidate: _candidate, sortScore: _sortScore, ...result }) => result)
+  return sorted.map(({ candidate: _candidate, sortScore: _sortScore, ...result }) => result)
 }

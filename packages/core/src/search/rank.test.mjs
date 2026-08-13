@@ -44,7 +44,7 @@ test('exact title and year beats broad semantic similarity', () => {
   )
 })
 
-test('high-confidence person expansion beats incidental text mentions', () => {
+test('mixed intrinsic scores preserve relationship metadata', () => {
   const candidates = [
     {
       source: 'lexical',
@@ -63,10 +63,13 @@ test('high-confidence person expansion beats incidental text mentions', () => {
     },
   ]
 
-  assert.deepEqual(
-    rank('Marlon Brando', candidates).map(({ entity: result }) => result.tmdbId),
-    [238, 90]
-  )
+  const results = rank('Marlon Brando', candidates)
+
+  assert.deepEqual(results.map(({ entity: result }) => result.tmdbId), [90, 238])
+  assert.deepEqual(results[1].relationship, {
+    personId: 'person:3084',
+    role: 'acting',
+  })
 })
 
 test('audience-recognized Duna wins within the strong title band', () => {
@@ -221,7 +224,7 @@ test('keeps missing vote confidence neutral while bounded relationship evidence 
   assert.equal(semantic.entity.tmdbId, 9999)
 })
 
-test('keeps relationship movies ahead of title-ranked movies with monotonic public scores', () => {
+test('uses intrinsic scores for mixed title and relationship movies', () => {
   const results = rank('dexter', [
     {
       source: 'relationship',
@@ -245,9 +248,10 @@ test('keeps relationship movies ahead of title-ranked movies with monotonic publ
     },
   ])
 
-  assert.equal(results[0].entity.tmdbId, 1405)
-  assert.deepEqual(results[0].relationship, { personId: 'person:6487', role: 'acting' })
-  assert.equal(results[1].entity.tmdbId, 999)
+  assert.equal(results[0].entity.tmdbId, 999)
+  assert.equal(results[0].score, 0.75)
+  assert.equal(results[1].entity.tmdbId, 1405)
+  assert.deepEqual(results[1].relationship, { personId: 'person:6487', role: 'acting' })
   assert.ok(results.every((result, index) => index === 0 || result.score <= results[index - 1].score))
 })
 
