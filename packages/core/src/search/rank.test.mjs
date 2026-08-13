@@ -86,6 +86,7 @@ test('audience-recognized Duna wins within the strong title band', () => {
   ])
 
   assert.equal(results[0].entity.tmdbId, 2021)
+  assert.ok(results.every((result, index) => index === 0 || result.score <= results[index - 1].score))
 })
 
 test('audience-recognized Obsession wins over an obscure same-tier exact title', () => {
@@ -105,6 +106,7 @@ test('audience-recognized Obsession wins over an obscure same-tier exact title',
   ])
 
   assert.equal(results[0].entity.tmdbId, 2019)
+  assert.ok(results.every((result, index) => index === 0 || result.score <= results[index - 1].score))
 })
 
 test('popularity cannot rescue a result with negligible relevance', () => {

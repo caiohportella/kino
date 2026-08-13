@@ -4,8 +4,8 @@ Status: DONE
 
 Commit hashes:
 
-- `00c9adc8c8f51350cfa34f166b9f282ddafdb35f` — initial focused Task 2 commit before report synchronization
-- The final `HEAD` hash is returned in the task handoff. Writing that hash into this file would change the commit hash again.
+- `5be53fb6f59323aa78868d962d50a4fe8a76cac6` — focused Task 2 commit before the review follow-up
+- The follow-up commit hash is returned in the task handoff. Writing that hash into this file would change the commit hash again.
 
 Files changed:
 
@@ -20,6 +20,12 @@ Scope summary:
 - Kept people, users, and relationship-driven media candidates on the existing weighted ranking path.
 - Preserved `SearchScoreComponents` and existing response shapes.
 
+Review follow-up:
+
+- Added public-score consistency assertions for the Duna and Obsession title rankings.
+- Eligible movie/series results now expose a bounded title-ranking score derived from the same tier/audience/text signals used for ordering.
+- Retained the legacy weighted score as the internal fallback sort key and for non-title candidates, preserving the non-title path and cross-path fallback behavior.
+
 RED verification:
 
 - Command: `node --test --experimental-strip-types src/search/rank.test.mjs src/search/title-ranking.test.mjs`
@@ -28,10 +34,15 @@ RED verification:
   - `audience-recognized Obsession wins over an obscure same-tier exact title`
   - `vote count beats a high rating when text evidence is comparable`
 
+Review follow-up RED verification:
+
+- Command: `node --test --experimental-strip-types src/search/rank.test.mjs src/search/title-ranking.test.mjs`
+- Result: failed only on the new Duna and Obsession public-score monotonicity assertions (17 passed, 2 failed) before the score-consistency change.
+
 GREEN verification:
 
 - Command: `node --test --experimental-strip-types src/search/rank.test.mjs src/search/title-ranking.test.mjs`
-- Result: passed with 19 tests, 0 failures.
+- Result: passed with 19 tests, 0 failures after the follow-up fix.
 
 Full core search verification:
 
@@ -52,4 +63,5 @@ Notes:
 
 Concerns:
 
-- The public numeric `score` still comes from the existing weighted score calculation; title-specific audience reordering is applied in the sort key for eligible media-title comparisons.
+- Eligible movie/series V1 numeric scores now represent the bounded title-ranking key rather than the legacy weighted score; the legacy weighted score remains in the internal fallback sort key and `SearchScoreComponents`.
+- V2 continues to serialize the existing normalized score components, so its response shape and non-title behavior remain unchanged.

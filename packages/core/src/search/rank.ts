@@ -95,44 +95,49 @@ function isTitleRankingCandidate(candidate: FusedCandidate): boolean {
   )
 }
 
-function titleRankingComparison(left: FusedCandidate, right: FusedCandidate): number {
-  if (!isTitleRankingCandidate(left) || !isTitleRankingCandidate(right)) return 0
+function titleRankingSignalsForCandidate(
+  candidate: FusedCandidate
+): ReturnType<typeof titleRankingSignals> | undefined {
+  if (!isTitleRankingCandidate(candidate)) return undefined
 
-  const leftEntity = left.entity as TitleRankingEntity
-  const rightEntity = right.entity as TitleRankingEntity
-
-  return compareTitleRankingSignals(
-    titleRankingSignals(
-      {
-        exactMatch: left.exactMatch,
-        prefixMatch: left.prefixMatch,
-        lexicalScore: left.lexicalScore,
-        semanticScore: left.semanticScore,
-      },
-      {
-        voteCount: left.entity.voteCount,
-        popularity: left.entity.popularity,
-        voteAverage:
-          leftEntity.tmdbVoteAverage ?? leftEntity.kinoAverageRating ?? leftEntity.voteAverage,
-      }
-    ),
-    titleRankingSignals(
-      {
-        exactMatch: right.exactMatch,
-        prefixMatch: right.prefixMatch,
-        lexicalScore: right.lexicalScore,
-        semanticScore: right.semanticScore,
-      },
-      {
-        voteCount: right.entity.voteCount,
-        popularity: right.entity.popularity,
-        voteAverage:
-          rightEntity.tmdbVoteAverage ??
-          rightEntity.kinoAverageRating ??
-          rightEntity.voteAverage,
-      }
-    )
+  const entity = candidate.entity as TitleRankingEntity
+  return titleRankingSignals(
+    {
+      exactMatch: candidate.exactMatch,
+      prefixMatch: candidate.prefixMatch,
+      lexicalScore: candidate.lexicalScore,
+      semanticScore: candidate.semanticScore,
+    },
+    {
+      voteCount: candidate.entity.voteCount,
+      popularity: candidate.entity.popularity,
+      voteAverage: entity.tmdbVoteAverage ?? entity.kinoAverageRating ?? entity.voteAverage,
+    }
   )
+}
+
+function titleRankingComparison(left: FusedCandidate, right: FusedCandidate): number {
+  const leftSignals = titleRankingSignalsForCandidate(left)
+  const rightSignals = titleRankingSignalsForCandidate(right)
+  if (leftSignals === undefined || rightSignals === undefined) return 0
+  return compareTitleRankingSignals(leftSignals, rightSignals)
+}
+
+function titleRankingScore(signals: ReturnType<typeof titleRankingSignals>): number {
+  const tierBase =
+    signals.tier === 'strong'
+      ? 0.75
+      : signals.tier === 'medium'
+        ? 0.5
+        : signals.tier === 'fuzzy'
+          ? 0.25
+          : 0
+  const withinTier =
+    signals.tier === 'strong'
+      ? signals.audienceScore / (1 + signals.audienceScore)
+      : signals.textScore
+
+  return Math.round((tierBase + withinTier * 0.25) * 1_000_000) / 1_000_000
 }
 
 function compareStableEntity(left: FusedCandidate, right: FusedCandidate): number {
@@ -153,11 +158,17 @@ export function rankSearchCandidates(input: RankSearchCandidatesInput): RankedSe
   return input.candidates
     .map((candidate) => {
       const components = scoreComponents(candidate, input.query.year)
-      const score = Math.round(weightedScore(components) * 1_000_000) / 1_000_000
+      const weighted = weightedScore(components)
+      const titleSignals = titleRankingSignalsForCandidate(candidate)
+      const score =
+        titleSignals === undefined
+          ? Math.round(weighted * 1_000_000) / 1_000_000
+          : titleRankingScore(titleSignals)
       return {
         identity: candidate.identity,
         entity: candidate.entity,
         score,
+        sortScore: Math.round(weighted * 1_000_000) / 1_000_000,
         sources: candidate.sources,
         components,
         ...(candidate.personId === undefined || candidate.role === undefined
@@ -174,8 +185,8 @@ export function rankSearchCandidates(input: RankSearchCandidatesInput): RankedSe
     .sort(
       (left, right) =>
         titleRankingComparison(left.candidate, right.candidate) ||
-        right.score - left.score ||
+        right.sortScore - left.sortScore ||
         compareStableEntity(left.candidate, right.candidate)
     )
-    .map(({ candidate: _candidate, ...result }) => result)
+    .map(({ candidate: _candidate, sortScore: _sortScore, ...result }) => result)
 }
