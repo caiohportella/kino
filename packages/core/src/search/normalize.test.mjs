@@ -54,6 +54,7 @@ test('accepts version one requests and rejects unsupported request schemas', () 
       mediaTypes: ['movie', 'movie'],
       page: 2,
       limit: 10,
+      mode: 'autocomplete',
     }),
     {
       schemaVersion: 1,
@@ -63,6 +64,7 @@ test('accepts version one requests and rejects unsupported request schemas', () 
       mediaTypes: ['movie'],
       page: 2,
       limit: 10,
+      mode: 'autocomplete',
     }
   )
 
@@ -285,18 +287,18 @@ test('keeps nullable ratings independent from semantic relevance in V2 presentat
 test('normalizes only V2 requests and recognizes V1 and V2 compatibility contracts', () => {
   assert.deepEqual(
     normalizeSearchRequestV2({ schemaVersion: SEARCH_SCHEMA_VERSION_V2, query: '  Alien  ' }),
-    { schemaVersion: 2, query: 'Alien' }
+    { schemaVersion: 2, query: 'Alien', mode: 'full' }
   )
   assert.throws(() =>
     normalizeSearchRequestV2({ schemaVersion: SEARCH_SCHEMA_VERSION_V1, query: 'Alien' })
   )
   assert.deepEqual(
     normalizeSearchRequest({ schemaVersion: SEARCH_SCHEMA_VERSION_V1, query: 'Alien' }),
-    { schemaVersion: 1, query: 'Alien' }
+    { schemaVersion: 1, query: 'Alien', mode: 'full' }
   )
   assert.deepEqual(
     normalizeSearchRequest({ schemaVersion: SEARCH_SCHEMA_VERSION_V2, query: 'Alien' }),
-    { schemaVersion: 2, query: 'Alien' }
+    { schemaVersion: 2, query: 'Alien', mode: 'full' }
   )
   assert.equal(isSearchResponse(validV2Response()), true)
   assert.equal(
@@ -336,6 +338,7 @@ test('rejects malformed V2 pagination and media type filters without weakening V
       schemaVersion: 1,
       query: 'Alien',
       mediaTypes: ['movie'],
+      mode: 'full',
     }
   )
 })

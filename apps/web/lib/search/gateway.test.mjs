@@ -13,6 +13,12 @@ const request = {
   region: 'US',
   page: 1,
   limit: 2,
+  mode: 'full',
+}
+
+const autocompleteRequest = {
+  ...request,
+  mode: 'autocomplete',
 }
 
 const semantic = (tmdbId, title, semanticScore, options = {}) => ({
@@ -71,6 +77,99 @@ test('uses sufficient vector candidates without calling TMDB search', async () =
     response.results.map((result) => result.entity.tmdbId),
     [348, 679]
   )
+})
+
+test('autocomplete returns sufficient vector results without TMDB hydration or person expansion', async () => {
+  let tmdbSearchCalls = 0
+  let presentationCalls = 0
+  let creditCalls = 0
+  const gateway = createSearchGateway({
+    vector: {
+      search: async () =>
+        vectorResult(semantic(1399, 'Game of Thrones', 0.96), semantic(68784, 'Game Night', 0.9)),
+    },
+    tmdb: {
+      ...tmdbProvider(),
+      search: async () => {
+        tmdbSearchCalls += 1
+        return tmdbResult()
+      },
+      getPersonCredits: async () => {
+        creditCalls += 1
+        return []
+      },
+      resolvePresentation: async (entity) => {
+        presentationCalls += 1
+        return entity
+      },
+    },
+    minimumVectorResults: 2,
+    autocompleteProviderTimeoutMs: 5,
+  })
+
+  const response = await gateway.search({ ...autocompleteRequest, query: 'game' })
+  assert.equal(tmdbSearchCalls, 0)
+  assert.equal(presentationCalls, 0)
+  assert.equal(creditCalls, 0)
+  assert.equal(response.fallback, 'none')
+  assert.deepEqual(
+    response.results.map((result) => result.entity.tmdbId),
+    [1399, 68784]
+  )
+})
+
+test('autocomplete falls back to TMDB search when vector results are insufficient', async () => {
+  let tmdbSearchCalls = 0
+  let presentationCalls = 0
+  const gateway = createSearchGateway({
+    vector: { search: async () => vectorResult(semantic(348, 'Alien', 0.6)) },
+    tmdb: {
+      ...tmdbProvider(),
+      search: async () => {
+        tmdbSearchCalls += 1
+        return tmdbResult(lexical(348, 'Alien', 1), lexical(679, 'Aliens', 0.8))
+      },
+      resolvePresentation: async (entity) => {
+        presentationCalls += 1
+        return entity
+      },
+    },
+    minimumVectorResults: 2,
+    autocompleteProviderTimeoutMs: 5,
+  })
+
+  const response = await gateway.search({ ...autocompleteRequest, query: 'Alien' })
+  assert.equal(tmdbSearchCalls, 1)
+  assert.equal(presentationCalls, 0)
+  assert.equal(response.results.length > 0, true)
+})
+
+test('autocomplete uses the shorter provider timeout', async () => {
+  let sawTimeout = false
+  const gateway = createSearchGateway({
+    vector: {
+      search: async (_request, signal) =>
+        new Promise((_resolve, reject) => {
+          const safetyTimer = setTimeout(() => reject(new Error('timeout signal did not fire')), 50)
+          signal.addEventListener(
+            'abort',
+            () => {
+              clearTimeout(safetyTimer)
+              sawTimeout = signal.reason?.name === 'TimeoutError'
+              reject(signal.reason)
+            },
+            { once: true }
+          )
+        }),
+    },
+    tmdb: tmdbProvider(tmdbResult(lexical(348, 'Alien', 1))),
+    autocompleteProviderTimeoutMs: 5,
+    minimumVectorResults: 2,
+  })
+
+  const response = await gateway.search({ ...autocompleteRequest, query: 'Alien' })
+  assert.equal(sawTimeout, true)
+  assert.equal(response.results.map((result) => result.entity.tmdbId)[0], 348)
 })
 
 test('supplements weak vector candidates with TMDB before shared ranking and deduplication', async () => {
@@ -374,7 +473,7 @@ test('rejects oversized direct gateway windows before invoking providers', async
   })
 
   await assert.rejects(
-    gateway.search({ ...request, page: 3, limit: 50 }),
+    gateway.search({ ...request, page: 11, limit: 50 }),
     (error) => error instanceof SearchGatewayError && error.body.error.code === 'invalid_request'
   )
   assert.equal(providerCalls, 0)
@@ -644,4 +743,41 @@ test('serializes requested V2 responses with structured relevance and separate T
     'semanticScore',
     'voteConfidenceScore',
   ])
+})
+
+test('merges duplicate title hits and appends user search results', async () => {
+  const gateway = createSearchGateway({
+    vector: {
+      search: async () => vectorResult(semantic(238, 'The Godfather', 0.97)),
+    },
+    users: {
+      search: async () => ({
+        results: [
+          {
+            entity: {
+              id: 'user:alice',
+              entityType: 'user',
+              title: 'Alice Example',
+              route: '/alice',
+            },
+            score: 0.91,
+            sources: ['user-db'],
+          },
+        ],
+      }),
+    },
+    tmdb: tmdbProvider(tmdbResult(lexical(238, 'The Godfather', 1))),
+    minimumVectorResults: 1,
+  })
+
+  const response = await gateway.search({ ...request, query: 'Godfather', limit: 10 })
+  assert.equal(response.total, 2)
+  assert.deepEqual(
+    response.results.map((result) => result.entity.id),
+    ['movie:238', 'user:alice']
+  )
+  assert.deepEqual(
+    response.groups.map((group) => group.type),
+    ['movies', 'users']
+  )
 })

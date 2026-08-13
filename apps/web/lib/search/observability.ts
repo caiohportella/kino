@@ -26,6 +26,7 @@ export type SearchProviderStage =
   | 'tmdb_search'
   | 'person_expansion'
   | 'tmdb_presentation'
+  | 'user_search'
 
 export interface SearchProviderStageEvent {
   readonly type: 'search_gateway_provider_stage'

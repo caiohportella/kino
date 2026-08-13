@@ -32,11 +32,18 @@ import {
 import type { PersonRelationshipCache } from './providers/person-relationship-cache.ts'
 import { type TmdbSearchProvider, type VectorSearchProvider } from './providers/vector.ts'
 import { assertSearchResultWindow } from './request.ts'
+import type { PersonIndexer } from './upstash/person-indexer.ts'
+import { personDocumentsFromSearchResponse } from './upstash/person-indexer.ts'
+import type { TitleIndexer } from './upstash/title-indexer.ts'
+import { titleDocumentsFromSearchResponse } from './upstash/title-indexer.ts'
+import type { UserSearchProvider } from './upstash/user-search-provider.ts'
 
 const DEFAULT_MINIMUM_VECTOR_RESULTS = 5
 const DEFAULT_MINIMUM_VECTOR_SCORE = 0.55
 const DEFAULT_RESULT_LIMIT = 20
 const DEFAULT_PROVIDER_TIMEOUT_MS = 4_500
+const AUTOCOMPLETE_PROVIDER_TIMEOUT_MS = 800
+const AUTOCOMPLETE_MINIMUM_VECTOR_RESULTS = 2
 
 export interface SearchGateway {
   search(request: SearchRequest, signal?: AbortSignal): Promise<SearchResponse>
@@ -44,10 +51,14 @@ export interface SearchGateway {
 
 interface CreateSearchGatewayDependencies {
   readonly vector?: VectorSearchProvider
+  readonly users?: UserSearchProvider
+  readonly titleIndexer?: TitleIndexer
+  readonly personIndexer?: PersonIndexer
   readonly tmdb: TmdbSearchProvider
   readonly minimumVectorResults?: number
   readonly minimumVectorScore?: number
   readonly providerTimeoutMs?: number
+  readonly autocompleteProviderTimeoutMs?: number
   readonly telemetry?: SearchGatewayEventSink
   readonly relationships?: PersonRelationshipCache
   readonly now?: () => number
@@ -60,6 +71,55 @@ function throwIfCancelled(signal: AbortSignal | undefined): void {
 function providerSignal(signal: AbortSignal | undefined, timeoutMs: number): AbortSignal {
   const timeout = AbortSignal.timeout(timeoutMs)
   return signal ? AbortSignal.any([signal, timeout]) : timeout
+}
+
+function userSearchResultV2(result: SearchResultV1): SearchResultV2 {
+  return {
+    entity: result.entity,
+    score: {
+      relationshipScore: 0,
+      semanticScore: Math.max(0, Math.min(1, result.score)),
+      popularityScore: Math.max(0, Math.min(1, result.score)),
+      voteConfidenceScore: 0.5,
+      castOrderScore: 0,
+    },
+    sources: result.sources,
+    ...(result.relationship === undefined ? {} : { relationship: result.relationship }),
+  }
+}
+
+function appendUserResults(
+  response: SearchResponse,
+  userResults: readonly SearchResultV1[],
+  page: number,
+  limit: number
+): SearchResponse {
+  if (userResults.length === 0) return response
+  const start = (page - 1) * limit
+  const end = start + limit
+  const pagedUsers = userResults.slice(start, end)
+  if (pagedUsers.length === 0) return response
+  if (response.schemaVersion === 1) {
+    const group = { type: 'users' as const, results: pagedUsers }
+    const groups = [...response.groups, group]
+    return {
+      ...response,
+      results: [...response.results, ...pagedUsers],
+      groups,
+      total: response.total + userResults.length,
+      ...(userResults.length > end ? { nextPage: response.nextPage ?? page + 1 } : {}),
+    }
+  }
+  const pagedUsersV2 = pagedUsers.map(userSearchResultV2)
+  const group = { type: 'users' as const, results: pagedUsersV2 }
+  const groups = [...response.groups, group]
+  return {
+    ...response,
+    results: [...response.results, ...pagedUsersV2],
+    groups,
+    total: response.total + userResults.length,
+    ...(userResults.length > end ? { nextPage: response.nextPage ?? page + 1 } : {}),
+  }
 }
 
 function stageOutcome(error: unknown): 'failure' | 'timeout' {
@@ -88,12 +148,18 @@ function isSufficientVectorResult(
   minimumResults: number,
   minimumScore: number
 ): boolean {
-  if (result.candidates.length < minimumResults) return false
-  return result.candidates.some((candidate) =>
+  const uniqueEntities = new Set(result.candidates.map((candidate) => candidate.entity.id))
+  const strongLexical = result.candidates.some(
+    (candidate) =>
+      candidate.source === 'lexical' &&
+      (candidate.exactMatch || candidate.prefixMatch || candidate.lexicalScore >= minimumScore)
+  )
+  const strongSemantic = result.candidates.some((candidate) =>
     candidate.source === 'semantic'
       ? candidate.semanticScore >= minimumScore
       : candidate.source === 'person' && candidate.confidence >= minimumScore
   )
+  return strongLexical || (uniqueEntities.size >= minimumResults && strongSemantic)
 }
 
 function intentEvidence(sources: readonly SearchProviderResult[]): SearchIntentEvidence {
@@ -209,54 +275,104 @@ async function resolvePresentation(
 }
 
 export function createSearchGateway(dependencies: CreateSearchGatewayDependencies): SearchGateway {
+  const vector = dependencies.vector
+  const users = dependencies.users
   const minimumVectorResults = dependencies.minimumVectorResults ?? DEFAULT_MINIMUM_VECTOR_RESULTS
   const minimumVectorScore = dependencies.minimumVectorScore ?? DEFAULT_MINIMUM_VECTOR_SCORE
   const providerTimeoutMs = dependencies.providerTimeoutMs ?? DEFAULT_PROVIDER_TIMEOUT_MS
+  const autocompleteProviderTimeoutMs =
+    dependencies.autocompleteProviderTimeoutMs ?? AUTOCOMPLETE_PROVIDER_TIMEOUT_MS
   const now = dependencies.now ?? Date.now
 
   return {
     async search(request, signal): Promise<SearchResponse> {
       throwIfCancelled(signal)
       assertSearchResultWindow(request)
+      const autocomplete = request.mode === 'autocomplete'
+      const requestTimeoutMs = autocomplete ? autocompleteProviderTimeoutMs : providerTimeoutMs
+      const vectorMinimumResults = autocomplete
+        ? AUTOCOMPLETE_MINIMUM_VECTOR_RESULTS
+        : minimumVectorResults
       const sources: SearchProviderResult[] = []
       let fallback: SearchResponseV1['fallback'] = 'none'
-      let vectorFailed = dependencies.vector === undefined
+      let vectorFailed = vector === undefined
       let vectorIsSufficient = false
-
-      if (dependencies.vector) {
-        const startedAt = now()
-        try {
-          const pageWindow = (request.page ?? 1) * (request.limit ?? DEFAULT_RESULT_LIMIT)
-          const result = await dependencies.vector.search(
-            {
-              query: request.query,
-              topK: Math.max(pageWindow, minimumVectorResults) * 2,
-              ...(request.locale === undefined ? {} : { locale: request.locale }),
-              ...(request.region === undefined ? {} : { region: request.region }),
-              ...(request.mediaTypes === undefined ? {} : { mediaTypes: request.mediaTypes }),
-            },
-            providerSignal(signal, providerTimeoutMs)
-          )
-          throwIfCancelled(signal)
-          sources.push(result)
-          publishStage(dependencies.telemetry, 'vector', 'success', now() - startedAt, {
-            resultCount: result.candidates.length,
-          })
-          vectorIsSufficient = isSufficientVectorResult(
-            result,
-            minimumVectorResults,
-            minimumVectorScore
-          )
-        } catch (error) {
-          throwIfCancelled(signal)
-          publishStage(dependencies.telemetry, 'vector', stageOutcome(error), now() - startedAt, {
-            resultCount: 0,
-          })
-          vectorFailed = true
-        }
+      let userResults: readonly SearchResultV1[] = []
+      let vectorTask: Promise<SearchProviderResult | null>
+      if (vector) {
+        vectorTask = (async (): Promise<SearchProviderResult | null> => {
+          const startedAt = now()
+          try {
+            const pageWindow = (request.page ?? 1) * (request.limit ?? DEFAULT_RESULT_LIMIT)
+            const result = await vector.search(
+              {
+                query: request.query,
+                topK: Math.max(pageWindow, vectorMinimumResults) * 2,
+                ...(request.locale === undefined ? {} : { locale: request.locale }),
+                ...(request.region === undefined ? {} : { region: request.region }),
+                ...(request.mediaTypes === undefined ? {} : { mediaTypes: request.mediaTypes }),
+              },
+              providerSignal(signal, requestTimeoutMs)
+            )
+            throwIfCancelled(signal)
+            publishStage(dependencies.telemetry, 'vector', 'success', now() - startedAt, {
+              resultCount: result.candidates.length,
+            })
+            vectorIsSufficient = isSufficientVectorResult(
+              result,
+              vectorMinimumResults,
+              minimumVectorScore
+            )
+            return result
+          } catch (error) {
+            throwIfCancelled(signal)
+            publishStage(dependencies.telemetry, 'vector', stageOutcome(error), now() - startedAt, {
+              resultCount: 0,
+            })
+            vectorFailed = true
+            return null
+          }
+        })()
       } else {
-        publishStage(dependencies.telemetry, 'vector', 'skipped', 0, { resultCount: 0 })
+        publishStage(dependencies.telemetry, 'vector', 'skipped', 0, {
+          resultCount: 0,
+        })
+        vectorTask = Promise.resolve(null)
       }
+
+      const userTask = users
+        ? (async (): Promise<readonly SearchResultV1[]> => {
+            const startedAt = now()
+            try {
+              const userSearch = await users.search(
+                {
+                  query: request.query,
+                  limit: request.limit ?? DEFAULT_RESULT_LIMIT,
+                },
+                providerSignal(signal, requestTimeoutMs)
+              )
+              throwIfCancelled(signal)
+              publishStage(dependencies.telemetry, 'user_search', 'success', now() - startedAt, {
+                resultCount: userSearch.results.length,
+              })
+              return userSearch.results
+            } catch (error) {
+              throwIfCancelled(signal)
+              publishStage(
+                dependencies.telemetry,
+                'user_search',
+                stageOutcome(error),
+                now() - startedAt,
+                { resultCount: 0 }
+              )
+              return []
+            }
+          })()
+        : Promise.resolve([])
+
+      const vectorResult = await vectorTask
+      if (vectorResult) sources.push(vectorResult)
+      userResults = await userTask
 
       if (!vectorIsSufficient) {
         const startedAt = now()
@@ -267,18 +383,28 @@ export function createSearchGateway(dependencies: CreateSearchGatewayDependencie
               ...(request.locale === undefined ? {} : { locale: request.locale }),
               ...(request.region === undefined ? {} : { region: request.region }),
               ...(request.mediaTypes === undefined ? {} : { mediaTypes: request.mediaTypes }),
+              ...(autocomplete ? { mode: 'autocomplete' as const } : { mode: 'full' as const }),
               page: 1,
               limit: (request.page ?? 1) * (request.limit ?? DEFAULT_RESULT_LIMIT),
             },
-            providerSignal(signal, providerTimeoutMs)
+            providerSignal(signal, requestTimeoutMs)
           )
           throwIfCancelled(signal)
           sources.push(tmdbResult)
           publishStage(dependencies.telemetry, 'tmdb_search', 'success', now() - startedAt, {
             resultCount: tmdbResult.candidates.length,
-            supplementationCount:
-              sources[0]?.sourceId === 'vector' ? tmdbResult.candidates.length : 0,
+            supplementationCount: sources.length > 1 ? tmdbResult.candidates.length : 0,
           })
+          if (!autocomplete && dependencies.titleIndexer) {
+            void dependencies.titleIndexer
+              .upsertDocument(titleDocumentsFromSearchResponse(tmdbResult))
+              .catch(() => undefined)
+          }
+          if (!autocomplete && dependencies.personIndexer) {
+            void dependencies.personIndexer
+              .upsertDocument(personDocumentsFromSearchResponse(tmdbResult))
+              .catch(() => undefined)
+          }
           fallback = vectorFailed ? 'provider_unavailable' : 'supplemented'
         } catch (error) {
           throwIfCancelled(signal)
@@ -301,14 +427,14 @@ export function createSearchGateway(dependencies: CreateSearchGatewayDependencie
         })
       }
 
-      const person = qualifiedTopPerson(request, sources)
+      const person = autocomplete ? undefined : qualifiedTopPerson(request, sources)
       let personExpansion:
         | {
             readonly person: PersonCandidate
             readonly credits: Awaited<ReturnType<TmdbSearchProvider['getPersonCredits']>>
           }
         | undefined
-      if (person?.entity.tmdbId) {
+      if (!autocomplete && person?.entity.tmdbId) {
         const startedAt = now()
         try {
           const cached = dependencies.relationships
@@ -365,8 +491,15 @@ export function createSearchGateway(dependencies: CreateSearchGatewayDependencie
         request.schemaVersion === 2
           ? runSearchPipelineV2({ ...pipelineInput, request })
           : runSearchPipelineV1({ ...pipelineInput, request })
-      return resolvePresentation(
+      const withUsers = appendUserResults(
         response,
+        userResults,
+        request.page ?? 1,
+        request.limit ?? DEFAULT_RESULT_LIMIT
+      )
+      if (autocomplete) return withUsers
+      return resolvePresentation(
+        withUsers,
         dependencies.tmdb,
         request.locale
           ? {

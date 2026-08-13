@@ -128,20 +128,42 @@ function isMediaCandidate(candidate: FusedCandidate): boolean {
 }
 
 function titleRankingScore(signals: ReturnType<typeof titleRankingSignals>): number {
-  const tierBase =
+  const audience = signals.audienceScore / (1 + signals.audienceScore)
+  const text = bounded(signals.textScore)
+  const voteAverage = bounded(signals.voteAverage / 10)
+  const score =
     signals.tier === 'strong'
-      ? 0.75
+      ? 0.7 + audience * 0.25 + text * 0.03 + voteAverage * 0.001
       : signals.tier === 'medium'
-        ? 0.5
+        ? 0.45 + audience * 0.05 + text * 0.15 + voteAverage * 0.001
         : signals.tier === 'fuzzy'
-          ? 0.25
-          : 0
-  const withinTier =
-    signals.tier === 'strong'
-      ? signals.audienceScore / (1 + signals.audienceScore)
-      : signals.textScore
+          ? 0.25 + audience * 0.05 + text * 0.15 + voteAverage * 0.001
+          : audience * 0.05 + text * 0.15 + voteAverage * 0.001
 
-  return Math.round((tierBase + withinTier * 0.25) * 1_000_000) / 1_000_000
+  return Math.round(score * 1_000_000) / 1_000_000
+}
+
+function relationshipRankingScore(components: SearchScoreComponents): number {
+  const score =
+    0.66 +
+    components.relationship * 0.05 +
+    components.entityConfidence * 0.02 +
+    components.locale * 0.005
+
+  return Math.round(score * 1_000_000) / 1_000_000
+}
+
+function intrinsicMediaScore(
+  candidate: FusedCandidate,
+  components: SearchScoreComponents,
+  weighted: number
+): number {
+  const titleSignals = titleRankingSignalsForCandidate(candidate)
+  if (titleSignals !== undefined) return titleRankingScore(titleSignals)
+  if (isMediaCandidate(candidate) && candidate.relationshipScore !== undefined) {
+    return relationshipRankingScore(components)
+  }
+  return Math.round(weighted * 1_000_000) / 1_000_000
 }
 
 function compareStableEntity(left: FusedCandidate, right: FusedCandidate): number {
@@ -181,11 +203,11 @@ function compareRankRecords(left: RankSortRecord, right: RankSortRecord): number
     isMediaCandidate(right.candidate) &&
     leftIsTitle !== rightIsTitle
   if (mixedMediaTitles) {
-    return (
-      right.score - left.score ||
-      right.sortScore - left.sortScore ||
-      compareStableEntity(left.candidate, right.candidate)
-    )
+    return right.score - left.score || compareStableEntity(left.candidate, right.candidate)
+  }
+
+  if (isMediaCandidate(left.candidate) && isMediaCandidate(right.candidate)) {
+    return right.score - left.score || compareStableEntity(left.candidate, right.candidate)
   }
 
   return right.sortScore - left.sortScore || compareStableEntity(left.candidate, right.candidate)
@@ -196,11 +218,7 @@ export function rankSearchCandidates(input: RankSearchCandidatesInput): RankedSe
     .map((candidate) => {
       const components = scoreComponents(candidate, input.query.year)
       const weighted = weightedScore(components)
-      const titleSignals = titleRankingSignalsForCandidate(candidate)
-      const score =
-        titleSignals === undefined
-          ? Math.round(weighted * 1_000_000) / 1_000_000
-          : titleRankingScore(titleSignals)
+      const score = intrinsicMediaScore(candidate, components, weighted)
       return {
         identity: candidate.identity,
         entity: candidate.entity,

@@ -9,6 +9,7 @@ import {
   type SearchEntity,
   type SearchEntityV2,
   type SearchMediaType,
+  type SearchMode,
   type SearchProviderCandidate,
   type SearchRequest,
   type SearchRequestV1,
@@ -25,6 +26,7 @@ const ENTITY_TYPES = new Set(['movie', 'series', 'person', 'user'])
 const RELATIONSHIP_ROLES = new Set(['acting', 'directing', 'creating', 'writing'])
 const RESULT_GROUP_TYPES = new Set(['people', 'movies', 'series', 'users'])
 const FALLBACK_TYPES = new Set(['none', 'supplemented', 'provider_unavailable'])
+const SEARCH_MODES = new Set<SearchMode>(['autocomplete', 'full'])
 const GROUP_ENTITY_TYPES: Readonly<Record<string, string>> = {
   people: 'person',
   movies: 'movie',
@@ -61,6 +63,12 @@ function optionalTrimmedString(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined
   const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : undefined
+}
+
+function normalizeSearchMode(value: unknown): SearchMode | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'string' || !SEARCH_MODES.has(value as SearchMode)) return undefined
+  return value as SearchMode
 }
 
 function normalizeLocale(value: unknown): string | undefined {
@@ -183,6 +191,10 @@ function normalizeSearchRequestWithVersion<TVersion extends 1 | 2>(
   const region = optionalTrimmedString(input.region)?.toUpperCase()
   const page = positiveInteger(input.page)
   const limit = positiveInteger(input.limit)
+  const mode = normalizeSearchMode(input.mode)
+  if (input.mode !== undefined && mode === undefined) {
+    throw new TypeError('Search mode must be autocomplete or full')
+  }
   const mediaTypes = Array.isArray(input.mediaTypes)
     ? [
         ...new Set(
@@ -221,6 +233,7 @@ function normalizeSearchRequestWithVersion<TVersion extends 1 | 2>(
     ...(mediaTypes === undefined ? {} : { mediaTypes }),
     ...(page === undefined ? {} : { page }),
     ...(limit === undefined ? {} : { limit }),
+    mode: mode ?? 'full',
   } as TVersion extends 1 ? SearchRequestV1 : SearchRequestV2
 }
 

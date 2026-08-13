@@ -1,0 +1,32 @@
+import { s } from '@upstash/redis'
+
+export const KINO_SEARCH_SCHEMA = s.object({
+  id: s.string().noTokenize(),
+  entityType: s.string().noTokenize(),
+  mediaType: s.string().noTokenize(),
+  tmdbId: s.number('I64'),
+  title: s.string().noStem(),
+  originalTitle: s.string().noStem(),
+  aliases: s.string().noStem(),
+  localizedTitles: s.object({
+    en: s.string().noStem(),
+    pt: s.string().noStem(),
+    fr: s.string().noStem(),
+    it: s.string().noStem(),
+    no: s.string().noStem(),
+    es: s.string().noStem(),
+    de: s.string().noStem(),
+  }),
+  overview: s.string(),
+  year: s.number('I64'),
+  popularity: s.number('F64'),
+  voteCount: s.number('I64'),
+  voteAverage: s.number('F64'),
+  name: s.string().noStem(),
+  knownForDepartment: s.string().noStem(),
+  username: s.string().noTokenize(),
+  displayName: s.string().noStem(),
+  firstName: s.string().noStem(),
+  lastName: s.string().noStem(),
+  bio: s.string(),
+})

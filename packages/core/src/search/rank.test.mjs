@@ -67,12 +67,13 @@ test('mixed intrinsic scores preserve relationship metadata', () => {
 
   assert.deepEqual(
     results.map(({ entity: result }) => result.tmdbId),
-    [90, 238]
+    [238, 90]
   )
-  assert.deepEqual(results[1].relationship, {
+  assert.deepEqual(results[0].relationship, {
     personId: 'person:3084',
     role: 'acting',
   })
+  assert.ok(results[0].score > results[1].score)
 })
 
 test('audience-recognized Duna wins within the strong title band', () => {
@@ -256,7 +257,7 @@ test('uses intrinsic scores for mixed title and relationship movies', () => {
   ])
 
   assert.equal(results[0].entity.tmdbId, 999)
-  assert.equal(results[0].score, 0.75)
+  assert.ok(results[0].score > results[1].score)
   assert.equal(results[1].entity.tmdbId, 1405)
   assert.deepEqual(results[1].relationship, { personId: 'person:6487', role: 'acting' })
   assert.ok(

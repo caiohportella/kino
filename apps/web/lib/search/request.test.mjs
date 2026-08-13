@@ -14,6 +14,7 @@ const validRequest = {
   mediaTypes: ['movie'],
   page: 2,
   limit: 25,
+  mode: 'full',
 }
 
 test('normalizes a supported v1 request and ignores additive unknown fields', () => {
@@ -25,6 +26,7 @@ test('normalizes a supported v1 request and ignores additive unknown fields', ()
     mediaTypes: ['movie'],
     page: 2,
     limit: 25,
+    mode: 'full',
   })
 })
 
@@ -43,14 +45,15 @@ test('accepts requests at both result-window boundaries', () => {
         schemaVersion: SEARCH_SCHEMA_VERSION,
         query: 'Alien',
         ...paging,
+        mode: 'full',
       }
     )
   }
 })
 
-test('rejects individually valid paging values whose result window exceeds 100', () => {
+test('rejects individually valid paging values whose result window exceeds 500', () => {
   for (const paging of [
-    { page: 3, limit: 50 },
+    { page: 11, limit: 50 },
     { page: 100, limit: 50 },
   ]) {
     assert.throws(
@@ -89,6 +92,11 @@ test('defaults schema-less new requests to V2 while preserving explicit versions
   assert.equal(parseSearchRequest({ query: 'Alien' }).schemaVersion, 2)
   assert.equal(parseSearchRequest({ schemaVersion: 1, query: 'Alien' }).schemaVersion, 1)
   assert.equal(parseSearchRequest({ schemaVersion: 2, query: 'Alien' }).schemaVersion, 2)
+  assert.equal(parseSearchRequest({ query: 'Alien' }).mode, 'full')
+  assert.equal(
+    parseSearchRequest({ schemaVersion: 2, query: 'Alien', mode: 'autocomplete' }).mode,
+    'autocomplete'
+  )
 })
 
 const invalidRequests = [
@@ -136,6 +144,11 @@ const invalidRequests = [
     name: 'limit over 50',
     request: { ...validRequest, limit: 51 },
     field: 'limit',
+  },
+  {
+    name: 'invalid mode',
+    request: { ...validRequest, mode: 'fast' },
+    field: 'mode',
   },
 ]
 
