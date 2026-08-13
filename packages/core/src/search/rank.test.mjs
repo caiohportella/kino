@@ -65,7 +65,10 @@ test('mixed intrinsic scores preserve relationship metadata', () => {
 
   const results = rank('Marlon Brando', candidates)
 
-  assert.deepEqual(results.map(({ entity: result }) => result.tmdbId), [90, 238])
+  assert.deepEqual(
+    results.map(({ entity: result }) => result.tmdbId),
+    [90, 238]
+  )
   assert.deepEqual(results[1].relationship, {
     personId: 'person:3084',
     role: 'acting',
@@ -89,7 +92,9 @@ test('audience-recognized Duna wins within the strong title band', () => {
   ])
 
   assert.equal(results[0].entity.tmdbId, 2021)
-  assert.ok(results.every((result, index) => index === 0 || result.score <= results[index - 1].score))
+  assert.ok(
+    results.every((result, index) => index === 0 || result.score <= results[index - 1].score)
+  )
 })
 
 test('audience-recognized Obsession wins over an obscure same-tier exact title', () => {
@@ -109,7 +114,9 @@ test('audience-recognized Obsession wins over an obscure same-tier exact title',
   ])
 
   assert.equal(results[0].entity.tmdbId, 2019)
-  assert.ok(results.every((result, index) => index === 0 || result.score <= results[index - 1].score))
+  assert.ok(
+    results.every((result, index) => index === 0 || result.score <= results[index - 1].score)
+  )
 })
 
 test('popularity cannot rescue a result with negligible relevance', () => {
@@ -252,7 +259,9 @@ test('uses intrinsic scores for mixed title and relationship movies', () => {
   assert.equal(results[0].score, 0.75)
   assert.equal(results[1].entity.tmdbId, 1405)
   assert.deepEqual(results[1].relationship, { personId: 'person:6487', role: 'acting' })
-  assert.ok(results.every((result, index) => index === 0 || result.score <= results[index - 1].score))
+  assert.ok(
+    results.every((result, index) => index === 0 || result.score <= results[index - 1].score)
+  )
 })
 
 test('merged duplicate evidence affects one ranked result', () => {

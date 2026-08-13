@@ -39,7 +39,8 @@ function titleRankingSignalsForResult(
   const queryTokens = tokenize(normalizedQuery)
   const candidates = candidateTexts(result)
   const exactMatch = candidates.some((candidate) => candidate === normalizedQuery)
-  const prefixMatch = !exactMatch && candidates.some((candidate) => candidate.startsWith(normalizedQuery))
+  const prefixMatch =
+    !exactMatch && candidates.some((candidate) => candidate.startsWith(normalizedQuery))
   const tokenMatch =
     queryTokens.length > 0 &&
     candidates.some((candidate) => {

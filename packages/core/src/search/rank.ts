@@ -1,12 +1,12 @@
+import { compareTitleRankingSignals, titleRankingSignals } from './title-ranking.ts'
 import type {
   FusedCandidate,
   RankedSearchResult,
   RankSearchCandidatesInput,
   SearchEntity,
-  SearchScoreComponents,
   SearchEntityV2,
+  SearchScoreComponents,
 } from './types.ts'
-import { compareTitleRankingSignals, titleRankingSignals } from './title-ranking.ts'
 
 export const SEARCH_EXACT_MATCH_WEIGHT = 0.28
 export const SEARCH_PREFIX_MATCH_WEIGHT = 0.1
@@ -188,9 +188,7 @@ function compareRankRecords(left: RankSortRecord, right: RankSortRecord): number
     )
   }
 
-  return (
-    right.sortScore - left.sortScore || compareStableEntity(left.candidate, right.candidate)
-  )
+  return right.sortScore - left.sortScore || compareStableEntity(left.candidate, right.candidate)
 }
 
 export function rankSearchCandidates(input: RankSearchCandidatesInput): RankedSearchResult[] {
