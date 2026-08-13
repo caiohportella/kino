@@ -221,6 +221,36 @@ test('keeps missing vote confidence neutral while bounded relationship evidence 
   assert.equal(semantic.entity.tmdbId, 9999)
 })
 
+test('keeps relationship movies ahead of title-ranked movies with monotonic public scores', () => {
+  const results = rank('dexter', [
+    {
+      source: 'relationship',
+      entity: entity(1405, 'Dexter', { popularity: 4 }),
+      personId: 'person:6487',
+      personConfidence: 0.8,
+      role: 'acting',
+      relationshipScore: 1,
+      castOrder: 0,
+    },
+    {
+      source: 'semantic',
+      entity: entity(1405, 'Dexter', { popularity: 4 }),
+      semanticScore: 0.95,
+    },
+    {
+      source: 'lexical',
+      entity: entity(999, 'Dexter'),
+      lexicalScore: 1,
+      exactMatch: true,
+    },
+  ])
+
+  assert.equal(results[0].entity.tmdbId, 1405)
+  assert.deepEqual(results[0].relationship, { personId: 'person:6487', role: 'acting' })
+  assert.equal(results[1].entity.tmdbId, 999)
+  assert.ok(results.every((result, index) => index === 0 || result.score <= results[index - 1].score))
+})
+
 test('merged duplicate evidence affects one ranked result', () => {
   const result = rank('Alien', [
     { source: 'semantic', entity: entity(348, 'Alien'), semanticScore: 0.8 },

@@ -4,7 +4,7 @@ Status: DONE
 
 Commit hashes:
 
-- `5be53fb6f59323aa78868d962d50a4fe8a76cac6` — focused Task 2 commit before the review follow-up
+- `64e136ecbbb92504e5465645d7405c1ca640f170` — focused Task 2 review follow-up before the mixed-path fix
 - The follow-up commit hash is returned in the task handoff. Writing that hash into this file would change the commit hash again.
 
 Files changed:
@@ -26,6 +26,12 @@ Review follow-up:
 - Eligible movie/series results now expose a bounded title-ranking score derived from the same tier/audience/text signals used for ordering.
 - Retained the legacy weighted score as the internal fallback sort key and for non-title candidates, preserving the non-title path and cross-path fallback behavior.
 
+Mixed title/relationship follow-up:
+
+- Added a fused Dexter regression where the relationship movie remains first, relationship metadata is preserved, and exported scores are non-increasing.
+- Preserved the existing comparator and relationship ordering, then applied a final public-score envelope in returned order: each score is retained unless it exceeds the preceding emitted score, in which case it is clamped to that preceding score.
+- This keeps legacy weighted scores unchanged for ordinary non-title sequences and only adjusts exposed numeric scores when mixed comparator paths would otherwise produce an increasing public sequence.
+
 RED verification:
 
 - Command: `node --test --experimental-strip-types src/search/rank.test.mjs src/search/title-ranking.test.mjs`
@@ -39,15 +45,20 @@ Review follow-up RED verification:
 - Command: `node --test --experimental-strip-types src/search/rank.test.mjs src/search/title-ranking.test.mjs`
 - Result: failed only on the new Duna and Obsession public-score monotonicity assertions (17 passed, 2 failed) before the score-consistency change.
 
+Mixed-path RED verification:
+
+- Command: `node --test --experimental-strip-types src/search/rank.test.mjs src/search/title-ranking.test.mjs`
+- Result: failed only on the mixed Dexter public-score monotonicity assertion (19 passed, 1 failed) while preserving the relationship-first order.
+
 GREEN verification:
 
 - Command: `node --test --experimental-strip-types src/search/rank.test.mjs src/search/title-ranking.test.mjs`
-- Result: passed with 19 tests, 0 failures after the follow-up fix.
+- Result: passed with 20 tests, 0 failures after the mixed-path fix.
 
 Full core search verification:
 
 - Command: `node --test --experimental-strip-types src/search/*.test.mjs`
-- Result: passed with 64 tests, 0 failures.
+- Result: passed with 65 tests, 0 failures.
 
 Typecheck:
 
@@ -63,5 +74,6 @@ Notes:
 
 Concerns:
 
-- Eligible movie/series V1 numeric scores now represent the bounded title-ranking key rather than the legacy weighted score; the legacy weighted score remains in the internal fallback sort key and `SearchScoreComponents`.
+- Eligible movie/series V1 numeric scores represent the bounded title-ranking key unless the final mixed result order requires the public monotonic envelope to clamp a later score.
+- The legacy weighted score remains in the internal fallback sort key and `SearchScoreComponents`; this preserves relationship ordering while ensuring exported V1 scores cannot increase down the returned list.
 - V2 continues to serialize the existing normalized score components, so its response shape and non-title behavior remain unchanged.

@@ -154,8 +154,20 @@ function compareStableEntity(left: FusedCandidate, right: FusedCandidate): numbe
   return left.identity.localeCompare(right.identity, 'en')
 }
 
+function enforcePublicScoreOrder<T extends { readonly score: number }>(
+  results: readonly T[]
+): T[] {
+  let previousScore = Number.POSITIVE_INFINITY
+
+  return results.map((result) => {
+    const score = Math.min(result.score, previousScore)
+    previousScore = score
+    return score === result.score ? result : { ...result, score }
+  })
+}
+
 export function rankSearchCandidates(input: RankSearchCandidatesInput): RankedSearchResult[] {
-  return input.candidates
+  const sorted = input.candidates
     .map((candidate) => {
       const components = scoreComponents(candidate, input.query.year)
       const weighted = weightedScore(components)
@@ -188,5 +200,7 @@ export function rankSearchCandidates(input: RankSearchCandidatesInput): RankedSe
         right.sortScore - left.sortScore ||
         compareStableEntity(left.candidate, right.candidate)
     )
+
+  return enforcePublicScoreOrder(sorted)
     .map(({ candidate: _candidate, sortScore: _sortScore, ...result }) => result)
 }
