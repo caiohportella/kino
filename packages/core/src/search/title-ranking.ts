@@ -73,7 +73,7 @@ export function titleRankingSignals(
     tier: classifyTitleMatch(evidence),
     audienceScore: titleAudienceScore(metrics),
     textScore,
-    voteAverage: finiteOrZero(metrics.voteAverage),
+    voteAverage: sanitizedNonNegative(metrics.voteAverage),
   }
 }
 
@@ -92,5 +92,5 @@ export function compareTitleRankingSignals(
   const textDifference = right.textScore - left.textScore
   if (textDifference !== 0) return textDifference
 
-  return right.voteAverage - left.voteAverage
+  return sanitizedNonNegative(right.voteAverage) - sanitizedNonNegative(left.voteAverage)
 }

@@ -30,6 +30,20 @@ test('handles missing and invalid audience metrics neutrally', () => {
   assert.equal(titleAudienceScore({ voteCount: Number.NaN, popularity: -4 }), 0)
 })
 
+test('normalizes negative vote average to a neutral tiebreak', () => {
+  const negative = titleRankingSignals(
+    { exactMatch: true, lexicalScore: 1 },
+    { voteCount: 100, popularity: 2, voteAverage: -3.5 }
+  )
+  const neutral = titleRankingSignals(
+    { exactMatch: true, lexicalScore: 1 },
+    { voteCount: 100, popularity: 2, voteAverage: 0 }
+  )
+
+  assert.equal(negative.voteAverage, 0)
+  assert.equal(compareTitleRankingSignals(negative, neutral), 0)
+})
+
 test('audience prominence reorders comparable strong matches', () => {
   const obscure = titleRankingSignals(
     { exactMatch: true, lexicalScore: 1 },
