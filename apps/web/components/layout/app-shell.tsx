@@ -4,10 +4,14 @@ import { hasAuthenticatedUser } from '@kino/core/auth'
 import { Activity, BookOpen, Compass, ListChecks, Menu, Search } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { type ReactNode, useEffect } from 'react'
-import { AccountMenu, MobileAccountActions, MobileProfileMenuItem } from '@/components/account-menu'
-import { AppFooter } from '@/components/app-footer'
+import { type ReactNode, useEffect, useState } from 'react'
 import { KinoLogo } from '@/components/kino-logo'
+import {
+  AccountMenu,
+  MobileAccountActions,
+  MobileProfileMenuItem,
+} from '@/components/layout/account-menu'
+import { AppFooter } from '@/components/layout/app-footer'
 import { HomeSkeleton } from '@/components/skeletons/page-skeletons'
 import { Button, buttonVariants } from '@/components/ui/button'
 import {
@@ -21,10 +25,10 @@ import {
 import { useTranslation } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
+import { GlobalSearch } from '../global-search'
 
 const authenticatedNavItems = [
   { href: '/discover', labelKey: 'tabs.home', icon: Compass },
-  { href: '/search', labelKey: 'tabs.search', icon: Search },
   { href: '/activity', labelKey: 'tabs.activity', icon: Activity },
   { href: '/diary', labelKey: 'tabs.diary', icon: BookOpen },
   { href: '/watchlists', labelKey: 'tabs.watchlists', icon: ListChecks },
@@ -32,7 +36,6 @@ const authenticatedNavItems = [
 
 const publicNavItems = [
   { href: '/discover', labelKey: 'tabs.home', icon: Compass },
-  { href: '/search', labelKey: 'tabs.search', icon: Search },
   { href: '/diary', labelKey: 'tabs.diary', icon: BookOpen },
   { href: '/watchlists', labelKey: 'tabs.watchlists', icon: ListChecks },
 ]
@@ -56,6 +59,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const user = useAuthStore((state) => state.user)
   const resolution = useAuthStore((state) => state.resolution)
   const { t } = useTranslation()
+
+  const [searchOpen, setSearchOpen] = useState(false)
 
   // Auth callback route: render bare
   if (pathname.startsWith('/auth/callback')) {
@@ -86,21 +91,25 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="page-shell flex min-h-screen flex-col bg-kino-bg">
       <header className="app-header">
-        <div className="app-header-inner">
-          <Link
-            aria-label="Kino home"
-            className="inline-flex h-11 shrink-0 items-center justify-center transition-opacity hover:opacity-80 focus-ring"
-            href={user ? '/discover' : '/'}
-          >
-            <KinoLogo className="h-10 w-15" priority width={60} />
-          </Link>
+        <div className="flex h-16 items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:px-0">
+          <div className={cn(searchOpen && 'hidden lg:block')}>
+            <Link
+              aria-label="Kino home"
+              className="inline-flex h-10 shrink-0 items-center justify-center transition-opacity hover:opacity-80 focus-ring sm:h-11"
+              href={user ? '/discover' : '/'}
+            >
+              <KinoLogo className="h-12 w-auto sm:h-7 lg:h-12" />
+            </Link>
+          </div>
 
           <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">
             {navItems.map((item) => {
               const active =
                 pathname === item.href ||
                 (item.href !== '/discover' && pathname.startsWith(item.href))
+
               const Icon = item.icon
+
               return (
                 <Link className="header-link" data-active={active} href={item.href} key={item.href}>
                   <Icon size={17} />
@@ -110,10 +119,22 @@ export function AppShell({ children }: { children: ReactNode }) {
             })}
           </nav>
 
-          <div className="ml-auto flex items-center gap-2">
+          <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
+
+          <div className={cn('ml-auto items-center gap-2', searchOpen ? 'hidden lg:flex' : 'flex')}>
             {user ? (
               <>
                 <AccountMenu />
+
+                <Button
+                  aria-label={t('tabs.search')}
+                  className="lg:hidden"
+                  onClick={() => setSearchOpen(true)}
+                  size="icon"
+                  variant="ghost"
+                >
+                  <Search size={18} />
+                </Button>
 
                 <DropdownMenu>
                   <DropdownMenuTrigger

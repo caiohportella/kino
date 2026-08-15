@@ -27,10 +27,11 @@ export function SingleDatePicker({
   return (
     <Popover onOpenChange={onOpenChange} open={open}>
       <PopoverTrigger disabled={disabled} render={trigger} />
+
       <PopoverContent align="end" className="w-auto max-w-[calc(100vw-2rem)] p-0">
         <AdvancedCalendar
           autoFocus
-          disabled={{ after: endMonth, before: startMonth }}
+          disabled={{ after: endMonth }}
           endMonth={endMonth}
           locale={locale}
           mode="single"

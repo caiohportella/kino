@@ -1,6 +1,6 @@
 'use client'
 
-import type { TMDbPerson, TMDbPersonCredit } from '@kino/core'
+import type { TMDbPerson, TMDbPersonCredit, TMDbTitle } from '@kino/core'
 import { formatDate, getKnownForCredits } from '@kino/core'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -14,18 +14,19 @@ import {
   Star,
   UserRound,
 } from 'lucide-react'
+import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   type ExternalLinkProvider,
   ExternalLinksSection,
 } from '@/components/external-links-section'
-import { EmptyState } from '@/components/kino'
-import { MediaCard } from '@/components/media-card'
+import { EmptyState, Poster } from '@/components/kino'
 import { ShareButton } from '@/components/share-button'
 import { PersonSkeleton } from '@/components/skeletons/page-skeletons'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { useMediaPoster } from '@/hooks/use-media-poster'
 import { useTranslation } from '@/lib/i18n'
 import { resolveLocalizedTitlePresentation } from '@/lib/localized-title-presentation'
 import { getPersonImagePaths } from '@/lib/person-visuals'
@@ -200,20 +201,32 @@ function PersonCreditCard({
     title: string
   }
 }) {
-  const type = credit.media_type === 'tv' ? 'tv' : 'movie'
+  const type: 'movie' | 'tv' = credit.media_type === 'tv' ? 'tv' : 'movie'
+
   const role = credit.character || credit.job
+
+  const item: TMDbTitle = {
+    ...credit,
+    media_type: type,
+    name: type === 'tv' ? localizedTitle.title : credit.name,
+    poster_path: localizedTitle.posterPath,
+    title: type === 'movie' ? localizedTitle.title : credit.title,
+  }
+
+  const { href, poster, prefetch, title, year } = useMediaPoster(item)
 
   return (
     <div className="min-w-0">
-      <MediaCard
-        item={{
-          ...credit,
-          media_type: type,
-          name: type === 'tv' ? localizedTitle.title : credit.name,
-          poster_path: localizedTitle.posterPath,
-          title: type === 'movie' ? localizedTitle.title : credit.title,
-        }}
-      />
+      <Link
+        className="group min-w-0 focus-ring"
+        href={href}
+        onFocus={prefetch}
+        onMouseEnter={prefetch}
+        onTouchStart={prefetch}
+      >
+        <Poster className="w-full rounded-md" details={{ year }} src={poster} title={title} />
+      </Link>
+
       {role ? <p className="mt-1 truncate text-xs text-kino-subtle">{role}</p> : null}
     </div>
   )

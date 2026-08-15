@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { FooterSocialLinks } from '@/components/footer-social-links'
 import { KinoLogo } from '@/components/kino-logo'
+import { FooterSocialLinks } from '@/components/layout/footer-social-links'
 import { useTranslation } from '@/lib/i18n'
 
 export function AppFooter() {
@@ -14,7 +14,7 @@ export function AppFooter() {
       <div className="content-frame flex flex-col gap-4 px-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div className="grid gap-1">
           <Link className="w-fit" href="/discover">
-            <KinoLogo width={86} />
+            <KinoLogo className="w-20" />
           </Link>
           <p className="text-xs text-kino-muted">
             {t('appFooter.copyright', { year: currentYear })}

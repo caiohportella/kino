@@ -1,14 +1,15 @@
 'use client'
 
 import type { UserProfile, Watchlist, WatchlistItemDetails, WatchlistVisibility } from '@kino/core'
-import { formatDate } from '@kino/core'
+import { findNextKnownSeason, formatDate } from '@kino/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LoaderCircle, LogOut, Pencil, Save, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { EmptyState, Poster } from '@/components/kino'
-import { PageHeader } from '@/components/page-header'
+import { AppPagination } from '@/components/layout/app-pagination'
+import { PageHeader } from '@/components/layout/page-header'
 import { ShareButton } from '@/components/share-button'
 import { WatchlistsSkeleton } from '@/components/skeletons/page-skeletons'
 import { useToast } from '@/components/toast-provider'
@@ -28,8 +29,8 @@ import { Card } from '@/components/ui/card'
 import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
 import { ModalDialog as Dialog } from '@/components/ui/modal-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ShareCodeDisplay } from '@/components/watchlist-sharing'
-import { WatchlistVisibilitySelector } from '@/components/watchlist-visibility-selector'
+import { ShareCodeDisplay } from '@/components/watchlist/watchlist-sharing'
+import { WatchlistVisibilitySelector } from '@/components/watchlist/watchlist-visibility-selector'
 import { useTranslation } from '@/lib/i18n'
 import { resolveLocalizedTitlePresentation } from '@/lib/localized-title-presentation'
 import { invalidateProfileMutation } from '@/lib/profile-invalidation'
@@ -47,6 +48,10 @@ interface WatchlistDetailData {
   isOwner: boolean
 }
 
+type WatchlistProgressFilter = 'all' | 'watched' | 'to-watch'
+
+const WATCHLIST_ROWS_PER_PAGE = 4
+
 export default function WatchlistDetailPage() {
   const params = useParams<{ id: string }>()
   const watchlistId = parseWatchlistSegment(params.id).id
@@ -59,7 +64,11 @@ export default function WatchlistDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [leaveOpen, setLeaveOpen] = useState(false)
   const [removeTarget, setRemoveTarget] = useState<WatchlistItemDetails | null>(null)
+  const [progressFilter, setProgressFilter] = useState<WatchlistProgressFilter>('all')
   const detailQueryKey = ['watchlist-detail', watchlistId] as const
+  const [page, setPage] = useState(1)
+  const [gridElement, setGridElement] = useState<HTMLDivElement | null>(null)
+  const [gridColumns, setGridColumns] = useState(1)
 
   const query = useQuery<WatchlistDetailData>({
     queryKey: detailQueryKey,
@@ -88,8 +97,57 @@ export default function WatchlistDetailPage() {
   })
   const watchlistItems = query.data?.items || []
   const localizedTitles = useLocalizedTitles(
-    watchlistItems.map((item) => ({ tmdbId: item.title.tmdb_id, type: item.title.type }))
+    watchlistItems.map((item) => ({
+      tmdbId: item.title.tmdb_id,
+      type: item.title.type,
+    }))
   )
+
+  const viewerMediaQuery = useQuery({
+    queryKey: ['viewer-media-status', user?.id],
+    enabled: Boolean(user?.id),
+    queryFn: async () => {
+      if (!user?.id) {
+        return {
+          movies: [],
+          series: [],
+        }
+      }
+
+      const [movies, series] = await Promise.all([
+        db.getWatchedMovies(user.id),
+        db.getWatchedSeries(user.id),
+      ])
+
+      return {
+        movies,
+        series,
+      }
+    },
+  })
+
+  const viewerMediaStatus = useMemo(() => {
+    const watchedMovies = new Set(
+      (viewerMediaQuery.data?.movies ?? []).map((movie) => movie.tmdb_id)
+    )
+
+    const watchedSeries = new Map(
+      (viewerMediaQuery.data?.series ?? []).map((series) => [series.tmdb_id, series])
+    )
+
+    return {
+      watchedMovies,
+      watchedSeries,
+    }
+  }, [viewerMediaQuery.data])
+
+  const isItemWatched = (item: WatchlistItemDetails) => {
+    if (item.title.type === 'movie') {
+      return viewerMediaStatus.watchedMovies.has(item.title.tmdb_id)
+    }
+
+    return viewerMediaStatus.watchedSeries.get(item.title.tmdb_id)?.is_caught_up === true
+  }
 
   const isOwner = query.data?.isOwner || false
   const canEdit = query.data?.canEdit || false
@@ -97,7 +155,10 @@ export default function WatchlistDetailPage() {
   const removeTargetTitle = removeTarget
     ? resolveLocalizedTitlePresentation({
         ...localizedTitles,
-        request: { tmdbId: removeTarget.title.tmdb_id, type: removeTarget.title.type },
+        request: {
+          tmdbId: removeTarget.title.tmdb_id,
+          type: removeTarget.title.type,
+        },
         unknownTitle: t('diary.unknownTitle'),
       }).title
     : t('diary.unknownTitle')
@@ -109,6 +170,25 @@ export default function WatchlistDetailPage() {
     if (canonical !== `/watchlists/${params.id}`) router.replace(canonical)
   }, [params.id, query.data?.watchlist, router])
 
+  useEffect(() => {
+    if (!gridElement) return
+
+    const updateGridColumns = () => {
+      const styles = window.getComputedStyle(gridElement)
+
+      const columns = styles.gridTemplateColumns.split(' ').filter(Boolean).length
+
+      setGridColumns(Math.max(1, columns))
+    }
+
+    updateGridColumns()
+
+    const observer = new ResizeObserver(updateGridColumns)
+    observer.observe(gridElement)
+
+    return () => observer.disconnect()
+  }, [gridElement])
+
   const removeMutation = useMutation({
     mutationFn: (item: WatchlistItemDetails) => db.removeFromWatchlist(watchlistId, item.title.id),
     onMutate: async (item) => {
@@ -116,7 +196,10 @@ export default function WatchlistDetailPage() {
       const previous = queryClient.getQueryData<WatchlistDetailData>(detailQueryKey)
       queryClient.setQueryData<WatchlistDetailData>(detailQueryKey, (current) =>
         current
-          ? { ...current, items: current.items.filter((entry) => entry.id !== item.id) }
+          ? {
+              ...current,
+              items: current.items.filter((entry) => entry.id !== item.id),
+            }
           : current
       )
       return { previous }
@@ -224,6 +307,31 @@ export default function WatchlistDetailPage() {
   const isParticipant = Boolean(
     user?.id && !isOwner && participants.some((participant) => participant.id === user.id)
   )
+  const isSharedWatchlist = watchlist.visibility === 'shared' && participants.length > 1
+  const watchedCount = items.filter(isItemWatched).length
+  const toWatchCount = items.length - watchedCount
+
+  const progressPercentage = items.length > 0 ? Math.round((watchedCount / items.length) * 100) : 0
+
+  const filteredItems =
+    progressFilter === 'watched'
+      ? items.filter(isItemWatched)
+      : progressFilter === 'to-watch'
+        ? items.filter((item) => !isItemWatched(item))
+        : items
+
+  const pageSize = gridColumns * WATCHLIST_ROWS_PER_PAGE
+
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize))
+
+  const currentPage = Math.min(page, totalPages)
+
+  const paginatedItems = filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
+  const changeProgressFilter = (filter: WatchlistProgressFilter) => {
+    setProgressFilter(filter)
+    setPage(1)
+  }
 
   return (
     <div className="content-frame">
@@ -278,11 +386,12 @@ export default function WatchlistDetailPage() {
         title={watchlist.name}
       />
 
-      {watchlist.visibility === 'shared' && participants.length > 0 ? (
+      {isSharedWatchlist ? (
         <Card className="mb-6 w-full min-w-0 max-w-full flex-row flex-wrap items-center gap-3 p-4">
           <span className="text-sm font-semibold text-kino-muted">
             {t('watchlists.participants')}
           </span>
+
           {participants.map((profile) => (
             <Link
               className={buttonVariants({
@@ -301,6 +410,99 @@ export default function WatchlistDetailPage() {
         </Card>
       ) : null}
 
+      {user && items.length > 0 ? (
+        <section className="mb-8 rounded-lg p-5">
+          <div className="flex items-start justify-between gap-6">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-kino-muted">
+                {t('watchlists.progress.label', {
+                  defaultValue: 'Progress',
+                })}
+              </p>
+
+              <p className="mt-1 text-3xl font-bold tracking-tight text-kino-text">
+                {t('watchlists.progress.summary', {
+                  defaultValue: '{{watched}} of {{total}} watched',
+                  watched: watchedCount,
+                  total: items.length,
+                })}
+              </p>
+            </div>
+
+            <div
+              aria-label={t('watchlists.progress.percentage', {
+                defaultValue: '{{percentage}}% watched',
+                percentage: progressPercentage,
+              })}
+              className="relative grid h-14 w-14 shrink-0 place-items-center rounded-full"
+              role="img"
+              style={{
+                background: `conic-gradient(#1db954 ${progressPercentage * 3.6}deg, rgba(255,255,255,0.1) 0deg)`,
+              }}
+            >
+              <div className="absolute inset-1 rounded-full bg-kino-bg" />
+
+              <span className="relative text-base font-bold text-kino-text">
+                {progressPercentage}%
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Button
+              aria-pressed={progressFilter === 'all'}
+              className={
+                progressFilter === 'all'
+                  ? 'border-kino-accent/30 bg-kino-accent/10 text-kino-accent hover:bg-kino-accent/15'
+                  : undefined
+              }
+              onClick={() => changeProgressFilter('all')}
+              size="sm"
+              variant={progressFilter === 'all' ? 'secondary' : 'ghost'}
+            >
+              {t('watchlists.progress.all', {
+                defaultValue: 'All {{count}}',
+                count: items.length,
+              })}
+            </Button>
+
+            <Button
+              aria-pressed={progressFilter === 'watched'}
+              className={
+                progressFilter === 'watched'
+                  ? 'border-kino-accent/30 bg-kino-accent/10 text-kino-accent hover:bg-kino-accent/15'
+                  : undefined
+              }
+              onClick={() => changeProgressFilter('watched')}
+              size="sm"
+              variant={progressFilter === 'watched' ? 'secondary' : 'ghost'}
+            >
+              {t('watchlists.progress.watched', {
+                defaultValue: 'Watched {{count}}',
+                count: watchedCount,
+              })}
+            </Button>
+
+            <Button
+              aria-pressed={progressFilter === 'to-watch'}
+              className={
+                progressFilter === 'to-watch'
+                  ? 'border-kino-accent/30 bg-kino-accent/10 text-kino-accent hover:bg-kino-accent/15'
+                  : undefined
+              }
+              onClick={() => changeProgressFilter('to-watch')}
+              size="sm"
+              variant={progressFilter === 'to-watch' ? 'secondary' : 'ghost'}
+            >
+              {t('watchlists.progress.toWatch', {
+                defaultValue: 'To watch {{count}}',
+                count: toWatchCount,
+              })}
+            </Button>
+          </div>
+        </section>
+      ) : null}
+
       {items.length === 0 ? (
         <EmptyState
           action={
@@ -314,17 +516,146 @@ export default function WatchlistDetailPage() {
           variant="watchlist"
         />
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-x-5 gap-y-10 sm:grid-cols-[repeat(auto-fill,minmax(168px,1fr))]">
-          {items.map((item) => (
-            <WatchlistTitleCard
-              item={item}
-              key={item.id}
-              localizedTitles={localizedTitles}
-              onRemove={() => setRemoveTarget(item)}
-              showRemove={canEdit}
-            />
-          ))}
-        </div>
+        <>
+          <div
+            className="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-x-5 gap-y-10 sm:grid-cols-[repeat(auto-fill,minmax(168px,1fr))]"
+            ref={setGridElement}
+          >
+            {paginatedItems.map((item) => {
+              const localized = resolveLocalizedTitlePresentation({
+                ...localizedTitles,
+                request: {
+                  tmdbId: item.title.tmdb_id,
+                  type: item.title.type,
+                },
+                unknownTitle: t('diary.unknownTitle'),
+              })
+
+              if (localizedTitles.isPending) {
+                return (
+                  <div aria-busy="true" className="grid min-w-0 content-start gap-3" key={item.id}>
+                    <Skeleton className="aspect-2/3 w-full rounded-lg" />
+                    <Skeleton className="h-10 w-4/5" />
+                    <Skeleton className="h-3 w-3/5" />
+                  </div>
+                )
+              }
+
+              if (localized.status !== 'ready') {
+                return (
+                  <article className="grid min-w-0 content-start gap-3" key={item.id}>
+                    <div className="grid aspect-2/3 place-items-center rounded-lg border border-white/10 bg-kino-surface px-4 text-center text-xs font-semibold text-kino-muted">
+                      {t('watchlists.titleUnavailable')}
+                    </div>
+
+                    <h2 className="line-clamp-2 h-10 text-sm font-semibold leading-5 text-kino-muted">
+                      {t('watchlists.titleUnavailable')}
+                    </h2>
+                  </article>
+                )
+              }
+
+              const displayTitle = localized.title
+              const poster = getTmdb().getImageUrl(localized.posterPath, 'w300')
+
+              const series =
+                item.title.type === 'tv'
+                  ? viewerMediaStatus.watchedSeries.get(item.title.tmdb_id)
+                  : undefined
+
+              const completed = isItemWatched(item)
+
+              const nextKnownSeason =
+                series?.is_caught_up === true ? findNextKnownSeason(series) : null
+
+              const profile = item.addedByUser || {
+                avatar_url: null,
+                display_name: null,
+                username: null,
+              }
+
+              const releaseYear = localized.year ?? item.title.release_year
+
+              return (
+                <article className="relative min-w-0" key={item.id}>
+                  <Poster
+                    artworkOverlay={
+                      <>
+                        {isSharedWatchlist ? (
+                          <div className="pointer-events-none absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-1/2">
+                            <ProfileAvatar profile={profile} size="poster" />
+                          </div>
+                        ) : null}
+
+                        {canEdit ? (
+                          <button
+                            aria-label={t('watchlists.removeTitle', {
+                              title: displayTitle,
+                            })}
+                            className="pointer-events-auto absolute bottom-2 right-2 z-20 grid h-8 w-8 place-items-center rounded-full bg-black/70 text-white backdrop-blur-sm transition hover:bg-black/85"
+                            onClick={() => setRemoveTarget(item)}
+                            type="button"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        ) : null}
+                      </>
+                    }
+                    className="rounded-lg shadow-soft"
+                    details={{
+                      completed,
+                      upcomingSeasonLabel: nextKnownSeason
+                        ? t('seasons.season', {
+                            number: nextKnownSeason.season,
+                          })
+                        : null,
+                      year: releaseYear,
+                    }}
+                    src={poster}
+                    title={displayTitle}
+                  />
+
+                  <div className="mt-2 flex min-w-0 items-center text-xs text-kino-muted">
+                    <time dateTime={item.addedAt.toISOString()}>
+                      {t('watchlists.addedOn', {
+                        date: formatDate(item.addedAt),
+                      })}
+                    </time>
+                  </div>
+
+                  <Link
+                    aria-label={displayTitle}
+                    className="absolute inset-0 z-10 rounded-lg focus-ring"
+                    href={titlePath(item.title.tmdb_id, displayTitle, item.title.type)}
+                  >
+                    <span className="sr-only">{displayTitle}</span>
+                  </Link>
+                </article>
+              )
+            })}
+          </div>
+
+          <AppPagination
+            ellipsisLabel={t('pagination.morePages')}
+            label={t('pagination.label')}
+            nextText={t('pagination.next')}
+            onPageChange={setPage}
+            page={currentPage}
+            pageAriaLabel={(nextPage, currentPage) =>
+              nextPage === currentPage
+                ? t('pagination.currentPage', { page: nextPage })
+                : t('pagination.goToPage', { page: nextPage })
+            }
+            previousText={t('pagination.previous')}
+            summary={(currentPage, totalPages) =>
+              t('pagination.summary', {
+                current: currentPage,
+                total: totalPages,
+              })
+            }
+            totalPages={totalPages}
+          />
+        </>
       )}
 
       <ConfirmActionDialog
@@ -364,7 +695,9 @@ export default function WatchlistDetailPage() {
         onSaved={() => {
           void Promise.all([
             queryClient.invalidateQueries({ queryKey: detailQueryKey }),
-            queryClient.invalidateQueries({ queryKey: ['watchlists', user?.id] }),
+            queryClient.invalidateQueries({
+              queryKey: ['watchlists', user?.id],
+            }),
             ...(user?.id
               ? [
                   invalidateProfileMutation(queryClient, {
@@ -381,95 +714,6 @@ export default function WatchlistDetailPage() {
         watchlist={watchlist}
       />
     </div>
-  )
-}
-
-function WatchlistTitleCard({
-  item,
-  showRemove,
-  onRemove,
-  localizedTitles,
-}: {
-  item: WatchlistItemDetails
-  showRemove: boolean
-  onRemove: () => void
-  localizedTitles: ReturnType<typeof useLocalizedTitles>
-}) {
-  const { t } = useTranslation()
-  const localized = resolveLocalizedTitlePresentation({
-    ...localizedTitles,
-    request: { tmdbId: item.title.tmdb_id, type: item.title.type },
-    unknownTitle: t('diary.unknownTitle'),
-  })
-  if (localizedTitles.isPending) {
-    return (
-      <div aria-busy="true" className="grid min-w-0 content-start gap-3">
-        <Skeleton className="aspect-2/3 w-full rounded-lg" />
-        <Skeleton className="h-10 w-4/5" />
-        <Skeleton className="h-3 w-3/5" />
-      </div>
-    )
-  }
-  if (localized.status !== 'ready') {
-    return (
-      <article className="grid min-w-0 content-start gap-3">
-        <div className="grid aspect-2/3 place-items-center rounded-lg border border-white/10 bg-kino-surface px-4 text-center text-xs font-semibold text-kino-muted">
-          {t('watchlists.titleUnavailable')}
-        </div>
-        <h2 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-kino-muted">
-          {t('watchlists.titleUnavailable')}
-        </h2>
-      </article>
-    )
-  }
-  const displayTitle = localized.title
-  const poster = getTmdb().getImageUrl(localized.posterPath, 'w300')
-  const profile = item.addedByUser || {
-    avatar_url: null,
-    display_name: null,
-    username: null,
-  }
-  const addedBy = profile.display_name || profile.username || t('watchlists.kinoUser')
-
-  return (
-    <article className="group min-w-0">
-      <div className="relative">
-        <Link
-          aria-label={displayTitle}
-          className="focus-ring block rounded-lg"
-          href={titlePath(item.title.tmdb_id, displayTitle, item.title.type)}
-        >
-          <Poster className="rounded-lg shadow-soft" src={poster} title={displayTitle} />
-        </Link>
-        <div className="pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2">
-          <ProfileAvatar profile={profile} size="poster" />
-        </div>
-        {showRemove ? (
-          <button
-            aria-label={t('watchlists.removeTitle', { title: displayTitle })}
-            className="absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-md border border-white/10 bg-black/75 text-white opacity-0 shadow-soft transition hover:bg-red-500/80 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-kino-accent group-hover:opacity-100"
-            onClick={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-              onRemove()
-            }}
-            title={t('watchlists.removeTitle', { title: displayTitle })}
-            type="button"
-          >
-            <Trash2 size={16} />
-          </button>
-        ) : null}
-      </div>
-      <div className="min-w-0 pt-7">
-        <h2 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-kino-text">
-          {displayTitle}
-        </h2>
-        <div className="mt-2 grid gap-1 text-xs text-kino-muted">
-          <span>{t('watchlists.addedBy', { name: addedBy })}</span>
-          <span>{t('watchlists.addedOn', { date: formatDate(item.addedAt) })}</span>
-        </div>
-      </div>
-    </article>
   )
 }
 
@@ -588,7 +832,9 @@ function EditWatchlistDialog({
         queryClient.cancelQueries({ queryKey: ['watchlists'] }),
       ])
       const previousDetail = queryClient.getQueryData<WatchlistDetailData>(detailKey)
-      const previousLists = queryClient.getQueriesData<Watchlist[]>({ queryKey: ['watchlists'] })
+      const previousLists = queryClient.getQueriesData<Watchlist[]>({
+        queryKey: ['watchlists'],
+      })
       setVisibility(nextVisibility)
       if (nextVisibility !== 'shared') setShareCode('')
       const applyOptimistic = (item: Watchlist) =>
@@ -648,7 +894,9 @@ function EditWatchlistDialog({
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['watchlists'] })
-      queryClient.invalidateQueries({ queryKey: ['watchlist-detail', watchlist.id] })
+      queryClient.invalidateQueries({
+        queryKey: ['watchlist-detail', watchlist.id],
+      })
     },
   })
 

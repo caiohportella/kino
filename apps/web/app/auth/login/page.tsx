@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { AuthPanel } from '@/components/auth-panel'
+import { AuthPanel } from '@/components/auth/auth-panel'
 import { useAuthStore } from '@/stores/auth-store'
 
 export default function LoginPage() {

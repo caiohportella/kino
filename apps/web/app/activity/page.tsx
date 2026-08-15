@@ -4,13 +4,13 @@ import { useQuery } from '@tanstack/react-query'
 import { CalendarDays } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { ActivityCard } from '@/components/activity-feed/ActivityCard'
-import { ActivityFeedSkeleton } from '@/components/activity-feed/ActivityFeedSkeleton'
-import { AppPagination } from '@/components/app-pagination'
+import { ActivityCard } from '@/components/activity-feed/activity-card'
+import { ActivityFeedSkeleton } from '@/components/activity-feed/activity-feed-skeleton'
+import { ProtectedContentGate } from '@/components/auth/protected-content-gate'
+import { ProtectedEmpty } from '@/components/auth/protected-empty'
 import { EmptyState } from '@/components/kino'
-import { PageHeader } from '@/components/page-header'
-import { ProtectedContentGate } from '@/components/protected-content-gate'
-import { ProtectedEmpty } from '@/components/protected-empty'
+import { AppPagination } from '@/components/layout/app-pagination'
+import { PageHeader } from '@/components/layout/page-header'
 import {
   Avatar,
   AvatarFallback,
@@ -129,7 +129,9 @@ export default function ActivityPage() {
 
       groups.push({
         dateKey,
-        dateLabel: formatLocalizedDate(item.occurredAt, locale, { dateStyle: 'long' }),
+        dateLabel: formatLocalizedDate(item.occurredAt, locale, {
+          dateStyle: 'long',
+        }),
         relativeLabel: formatLocalizedRelativeTime(item.occurredAt, t),
         items: [item],
       })
@@ -330,21 +332,36 @@ export default function ActivityPage() {
             ))}
 
             <AppPagination
-              ellipsisLabel={t('activity.pagination.morePages')}
-              label={t('activity.pagination.label')}
-              nextText={t('activity.pagination.next')}
+              ellipsisLabel={t('pagination.morePages', {
+                defaultValue: 'More pages',
+              })}
+              label={t('pagination.label', {
+                defaultValue: 'Pagination',
+              })}
+              nextText={t('pagination.next', {
+                defaultValue: 'Next',
+              })}
               onPageChange={setPage}
               page={currentPage}
               pageAriaLabel={(nextPage, currentPage) =>
                 nextPage === currentPage
-                  ? t('activity.pagination.currentPage', { page: nextPage })
-                  : t('activity.pagination.goToPage', { page: nextPage })
+                  ? t('pagination.currentPage', {
+                      defaultValue: 'Page {{page}}',
+                      page: nextPage,
+                    })
+                  : t('pagination.goToPage', {
+                      defaultValue: 'Go to page {{page}}',
+                      page: nextPage,
+                    })
               }
-              previousText={t('activity.pagination.previous')}
-              summary={(currentPage, total) =>
-                t('activity.pagination.summary', {
-                  currentPage,
-                  totalPages: total,
+              previousText={t('pagination.previous', {
+                defaultValue: 'Previous',
+              })}
+              summary={(currentPage, totalPages) =>
+                t('pagination.summary', {
+                  defaultValue: 'Page {{current}} of {{total}}',
+                  current: currentPage,
+                  total: totalPages,
                 })
               }
               totalPages={totalPages}

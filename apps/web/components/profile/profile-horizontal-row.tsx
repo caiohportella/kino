@@ -2,7 +2,7 @@
 
 import type { ComponentPropsWithoutRef, KeyboardEvent, ReactNode, UIEvent } from 'react'
 import { useLayoutEffect, useRef } from 'react'
-import { MediaRow } from '@/components/media-row'
+import { MediaRow } from '@/components/media/media-row'
 import { isInteractiveMediaRowTarget } from '@/lib/media-row-interactions'
 import { cn } from '@/lib/utils'
 

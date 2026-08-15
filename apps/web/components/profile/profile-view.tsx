@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import type { FollowerInfo, PublicWatchlistSummary, UserProfile } from '@kino/core'
-import { formatDate, isFutureDateOnly, parseDateOnly } from '@kino/core'
+import { findNextKnownSeason, formatDate, isFutureDateOnly, parseDateOnly } from '@kino/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -18,17 +18,16 @@ import {
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
-import { BannerPickerDialog } from '@/components/banner-picker-dialog'
-import { DisplayTitle } from '@/components/display-title'
+import { ProtectedEmpty } from '@/components/auth/protected-empty'
 import { EmptyState, Poster } from '@/components/kino'
-import { ProfileHorizontalRow } from '@/components/profile-horizontal-row'
-import { ProfileShareButton } from '@/components/profile-share-button'
-import { ProtectedEmpty } from '@/components/protected-empty'
-import { RatingStars } from '@/components/rating-stars'
+import { DisplayTitle } from '@/components/media/display-title'
+import { RatingStars } from '@/components/media/rating-stars'
+import { BannerPickerDialog } from '@/components/profile/banner-picker-dialog'
+import { ProfileHorizontalRow } from '@/components/profile/profile-horizontal-row'
+import { ProfileShareButton } from '@/components/profile/profile-share-button'
 import { ProfileReviewSkeleton } from '@/components/reviews/profile-review-skeleton'
 import { ProfileReviewsSection } from '@/components/reviews/profile-reviews-section'
 import { ProfileSkeleton } from '@/components/skeletons/page-skeletons'
-import { TitleCard } from '@/components/title-card'
 import { useToast } from '@/components/toast-provider'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -47,6 +46,8 @@ import {
   useProfileSections,
   useProfileUsernameResolution,
 } from '@/hooks/use-profile-sections'
+
+import { useProfileMediaStats } from '@/hooks/use-profile-stats'
 import { useTranslation } from '@/lib/i18n'
 import { invalidateProfileMutation } from '@/lib/profile-invalidation'
 import {
@@ -56,8 +57,8 @@ import {
   selectProfileSliceState,
 } from '@/lib/profile-progressive-state'
 import { resolveProfileSectionPresentation } from '@/lib/profile-section-presentation'
-import { normalizeProfileWatchlistCard } from '@/lib/profile-watchlist-card'
 import { titlePath, watchlistCoverPath, watchlistPath } from '@/lib/routes'
+import { syncCurrentUserSearchProfile } from '@/lib/search/upstash/user-sync-client'
 import { db, getTmdb } from '@/lib/services'
 import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
 import { cn } from '@/lib/utils'
@@ -398,24 +399,18 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
     },
   })
 
-  const stats = useMemo(() => {
-    const movieCount =
-      sections.statistics.data?.publicStats?.moviesWatched ??
-      new Set(sections.watchedMovies.data?.map((movie) => movie.id) || []).size
-    const seriesCount =
-      sections.statistics.data?.publicStats?.seriesWatched ??
-      new Set(sections.watchedSeries.data?.map((series) => series.id) || []).size
-    const averageMovieRating =
-      movieCount > 0
-        ? (sections.watchedMovies.data?.reduce((sum, movie) => sum + movie.rating, 0) || 0) /
-          movieCount
-        : 0
-    return { movieCount, seriesCount, averageMovieRating }
-  }, [sections.statistics.data, sections.watchedMovies.data, sections.watchedSeries.data])
-
   const seriesIds = useMemo(
     () => sections.watchedSeries.data?.map((series) => series.id).sort() || [],
     [sections.watchedSeries.data]
+  )
+  const mediaStatsQuery = useProfileMediaStats(
+    targetUserId
+      ? {
+          profileId: targetUserId,
+          service: db,
+          visibilityScope,
+        }
+      : undefined
   )
   const seriesRatingQuery = useProfileRatings(
     targetUserId
@@ -441,10 +436,17 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
           right.rating - left.rating || left.series.title.localeCompare(right.series.title)
       )
   }, [sections.watchedSeries.data, seriesRatingQuery.data])
-  const averageSeriesRating = useMemo(() => {
-    if (seriesRatingRows.length === 0) return 0
-    return seriesRatingRows.reduce((sum, entry) => sum + entry.rating, 0) / seriesRatingRows.length
-  }, [seriesRatingRows])
+  const movieCount =
+    sections.lifetimeStats.data?.moviesWatched ??
+    sections.statistics.data?.publicStats?.moviesWatched ??
+    0
+  const seriesCount =
+    mediaStatsQuery.data?.seriesWatched ??
+    sections.statistics.data?.publicStats?.seriesWatched ??
+    new Set(sections.watchedSeries.data?.map((series) => series.id) || []).size
+  const averageMovieRating = mediaStatsQuery.data?.movieRatings.average ?? null
+  const averageSeriesRating = mediaStatsQuery.data?.seriesRatings.average ?? null
+  const ratedSeriesCount = mediaStatsQuery.data?.seriesRatings.ratedCount ?? 0
 
   if (!targetUserId) {
     if (username && resolvedProfile.isPending)
@@ -562,18 +564,14 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
 
       <ProfileSectionState query={sections.statistics} state={statisticsState}>
         <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-6">
-          <ProfileStatCard
-            icon={Film}
-            label={t('profile.watchedMovies')}
-            value={stats.movieCount}
-          />
-          <ProfileStatCard icon={Tv} label={t('profile.watchedSeries')} value={stats.seriesCount} />
-          <MovieRatingStat averageRating={stats.averageMovieRating} items={movies} />
+          <ProfileStatCard icon={Film} label={t('profile.watchedMovies')} value={movieCount} />
+          <ProfileStatCard icon={Tv} label={t('profile.watchedSeries')} value={seriesCount} />
+          <MovieRatingStat averageRating={averageMovieRating} items={movies} />
           <ProfileRatingStatState query={seriesRatingQuery} state={ratingsState}>
             <SeriesRatingStat
               averageRating={averageSeriesRating}
               items={series}
-              ratedCount={seriesRatingRows.length}
+              ratedCount={ratedSeriesCount}
               ratingRows={seriesRatingRows}
             />
           </ProfileRatingStatState>
@@ -602,7 +600,7 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
       ) : (
         <>
           <ProfileSectionState query={sections.watchedMovies} state={moviesState}>
-            <ProfileShelf items={movies} title={t('profile.watchedMovies')} type="movie" />
+            <ProfileShelf items={movies} title={t('profile.watchedMovies')} />
           </ProfileSectionState>
           <ProfileSectionState query={sections.watchedSeries} state={seriesState}>
             <SeriesShelf items={series} />
@@ -642,6 +640,7 @@ export function ProfileView({ profileId, username }: { profileId?: string; usern
           onOpenChange={setBannerDialogOpen}
           onSelectBanner={async (bannerUrl) => {
             await db.updateUserProfile(user!.id, { banner_url: bannerUrl })
+            await syncCurrentUserSearchProfile('upsert').catch(() => undefined)
             await Promise.all([
               invalidateProfileMutation(queryClient, {
                 kind: 'banner',
@@ -974,7 +973,7 @@ function MovieRatingStat({
   averageRating,
   items,
 }: {
-  averageRating: number
+  averageRating: number | null
   items: Awaited<ReturnType<typeof db.getWatchedMovies>>
 }) {
   const { t } = useTranslation()
@@ -986,7 +985,7 @@ function MovieRatingStat({
         icon={Star}
         label={t('profile.avgMovieRating')}
         onClick={() => setOpen(true)}
-        value={averageRating.toFixed(1)}
+        value={averageRating == null ? '—' : averageRating.toFixed(1)}
       />
       <MovieRatingDialog
         averageRating={averageRating}
@@ -1004,7 +1003,7 @@ function SeriesRatingStat({
   ratedCount,
   ratingRows,
 }: {
-  averageRating: number
+  averageRating: number | null
   items: Awaited<ReturnType<typeof db.getWatchedSeries>>
   ratedCount: number
   ratingRows: Array<{
@@ -1021,7 +1020,7 @@ function SeriesRatingStat({
         icon={Star}
         label={t('profile.avgSeriesRating')}
         onClick={() => setOpen(true)}
-        value={ratedCount > 0 ? averageRating.toFixed(1) : '0.0'}
+        value={ratedCount > 0 && averageRating != null ? averageRating.toFixed(1) : '—'}
       />
       <SeriesRatingDialog
         averageRating={averageRating}
@@ -1041,7 +1040,7 @@ function MovieRatingDialog({
   onOpenChange,
   open,
 }: {
-  averageRating: number
+  averageRating: number | null
   items: Awaited<ReturnType<typeof db.getWatchedMovies>>
   onOpenChange: (open: boolean) => void
   open: boolean
@@ -1112,7 +1111,7 @@ function RatingModalSummary({
   note,
   summary,
 }: {
-  averageRating: number
+  averageRating: number | null
   label: string
   note?: string
   summary: string
@@ -1121,15 +1120,17 @@ function RatingModalSummary({
     <div className="grid shrink-0 gap-4 rounded-md border border-white/10 bg-white/[0.035] p-4 sm:grid-cols-[170px_1fr]">
       <div className="grid place-items-center gap-2 rounded-md border border-white/10 bg-kino-surface px-4 py-5 text-center">
         <div className="text-4xl font-semibold text-kino-text">
-          {averageRating > 0 ? averageRating.toFixed(1) : '—'}
+          {averageRating != null ? averageRating.toFixed(1) : '—'}
         </div>
-        <RatingStars
-          className="justify-center"
-          label={label}
-          readonly
-          size="sm"
-          value={averageRating}
-        />
+        {averageRating != null ? (
+          <RatingStars
+            className="justify-center"
+            label={label}
+            readonly
+            size="sm"
+            value={averageRating}
+          />
+        ) : null}
       </div>
       <div className="grid content-center gap-2">
         <p className="text-sm leading-6 text-kino-muted">{summary}</p>
@@ -1183,7 +1184,7 @@ function SeriesRatingDialog({
     series: Awaited<ReturnType<typeof db.getWatchedSeries>>[number]
     rating: number
   }>
-  averageRating: number
+  averageRating: number | null
   ratedCount: number
 }) {
   const { t } = useTranslation()
@@ -1351,43 +1352,50 @@ function LocalizedShelfError({ title }: { title: string }) {
 function ProfileShelf({
   title,
   items,
-  type,
 }: {
   title: string
-  type: 'movie' | 'tv'
-  items: Array<{
-    id: string
-    tmdb_id: number
-    title: string
-    cover_image: string | null
-    release_year: number
-  }>
+  items: Awaited<ReturnType<typeof db.getWatchedMovies>>
 }) {
   const { t } = useTranslation()
-  const localizedTitles = useLocalizedTitles(items.map((item) => ({ tmdbId: item.tmdb_id, type })))
+  const localizedTitles = useLocalizedTitles(
+    items.map((item) => ({
+      tmdbId: item.tmdb_id,
+      type: 'movie' as const,
+    }))
+  )
 
   if (items.length === 0) return null
   if (localizedTitles.isPending) return <LocalizedShelfSkeleton title={title} />
   if (localizedTitles.isError) return <LocalizedShelfError title={title} />
 
   const renderTitleCard = (item: (typeof items)[number]) => {
-    const localized = localizedTitles.data?.[localizedTitleKey({ tmdbId: item.tmdb_id, type })]
+    const localized =
+      localizedTitles.data?.[
+        localizedTitleKey({
+          tmdbId: item.tmdb_id,
+          type: 'movie',
+        })
+      ]
     const displayTitle = localized?.title || t('diary.unknownTitle')
     const posterPath = localized?.posterPath ?? null
     const releaseYear = localized?.year ?? item.release_year
 
     return (
-      <TitleCard
-        item={{
-          href: titlePath(item.tmdb_id, item.title, type),
-          id: item.id,
-          imageAlt: displayTitle,
-          imageUrl: getTmdb().getImageUrl(posterPath, 'w300'),
-          subtitle: String(releaseYear || t('profile.releaseYearUnknown')),
-          title: displayTitle,
-        }}
+      <Link
+        className="group min-w-0 focus-ring"
+        href={titlePath(item.tmdb_id, displayTitle, 'movie')}
         key={item.id}
-      />
+      >
+        <Poster
+          className="w-full rounded-md"
+          details={{
+            completed: true,
+            year: releaseYear,
+          }}
+          src={getTmdb().getImageUrl(posterPath, 'w300')}
+          title={displayTitle}
+        />
+      </Link>
     )
   }
 
@@ -1396,19 +1404,40 @@ function ProfileShelf({
 
 function PublicWatchlistShelf({ items }: { items: PublicWatchlistSummary[] }) {
   const { t } = useTranslation()
+
   if (items.length === 0) return null
 
-  const cards = items.map((watchlist) =>
-    normalizeProfileWatchlistCard(watchlist, {
-      count: t('watchlists.watchlistCount', { count: watchlist.titleCount }),
-      href: watchlistPath(watchlist.id, watchlist.name),
-      imageUrl: watchlistCoverPath(watchlist.id, watchlist.coverVersion),
-    })
+  const renderWatchlistCard = (watchlist: PublicWatchlistSummary) => (
+    <Link
+      className="group grid min-w-0 content-start gap-3 focus-ring"
+      href={watchlistPath(watchlist.id, watchlist.name)}
+      key={watchlist.id}
+    >
+      <Poster
+        alt={watchlist.name}
+        className="w-full rounded-md"
+        src={watchlistCoverPath(watchlist.id, watchlist.coverVersion)}
+        title={watchlist.name}
+      />
+
+      <div className="min-w-0">
+        <h3 className="line-clamp-2 h-10 text-sm font-semibold leading-5 text-kino-text group-hover:text-kino-accent">
+          {watchlist.name}
+        </h3>
+
+        <p className="mt-1 text-xs text-kino-muted">
+          {t('watchlists.watchlistCount', {
+            count: watchlist.titleCount,
+          })}
+        </p>
+      </div>
+    </Link>
   )
+
   return (
     <ProfileTitleRow
-      items={cards}
-      renderTitleCard={(item) => <TitleCard item={item} key={item.id} />}
+      items={items}
+      renderTitleCard={renderWatchlistCard}
       title={t('watchlists.title')}
     />
   )
@@ -1416,11 +1445,31 @@ function PublicWatchlistShelf({ items }: { items: PublicWatchlistSummary[] }) {
 
 function SeriesShelf({ items }: { items: Awaited<ReturnType<typeof db.getWatchedSeries>> }) {
   const { t } = useTranslation()
-  const watchedSeries = useMemo(() => items.filter((series) => !series.next_episode), [items])
-  const keepWatchingSeries = useMemo(
-    () => items.filter((series) => Boolean(series.next_episode)),
-    [items]
-  )
+  const { keepWatchingSeries, returningSoonSeries, watchedSeries } = useMemo(() => {
+    const keepWatchingSeries: typeof items = []
+    const returningSoonSeries: typeof items = []
+    const watchedSeries: typeof items = []
+
+    for (const series of items) {
+      if (series.next_episode) {
+        keepWatchingSeries.push(series)
+        continue
+      }
+
+      if (findNextKnownSeason(series)) {
+        returningSoonSeries.push(series)
+        continue
+      }
+
+      watchedSeries.push(series)
+    }
+
+    return {
+      keepWatchingSeries,
+      returningSoonSeries,
+      watchedSeries,
+    }
+  }, [items])
   const localizedTitleRequests = useMemo(
     () => items.map((item) => ({ tmdbId: item.tmdb_id, type: 'tv' as const })),
     [items]
@@ -1435,6 +1484,14 @@ function SeriesShelf({ items }: { items: Awaited<ReturnType<typeof db.getWatched
         localizedTitles={localizedTitles}
         title={t('profile.keepWatching')}
       />
+
+      <SeriesShelfRow
+        items={returningSoonSeries}
+        localizedTitles={localizedTitles}
+        showUpcomingSeason
+        title={t('profile.returningSoon')}
+      />
+
       <SeriesShelfRow
         items={watchedSeries}
         localizedTitles={localizedTitles}
@@ -1449,11 +1506,13 @@ function SeriesShelfRow({
   items,
   localizedTitles,
   emptyBody,
+  showUpcomingSeason = false,
 }: {
   title: string
   items: Awaited<ReturnType<typeof db.getWatchedSeries>>
   localizedTitles: ReturnType<typeof useLocalizedTitles>
   emptyBody?: string
+  showUpcomingSeason?: boolean
 }) {
   const { t } = useTranslation()
 
@@ -1480,20 +1539,29 @@ function SeriesShelfRow({
     const posterPath = localized?.posterPath ?? null
     const releaseYear = localized?.year ?? series.release_year
 
+    const nextKnownSeason = showUpcomingSeason ? findNextKnownSeason(series) : null
+
     return (
-      <TitleCard
-        item={{
-          href: titlePath(series.tmdb_id, series.title, 'tv'),
-          id: series.id,
-          imageAlt: displayTitle,
-          imageUrl: getTmdb().getImageUrl(posterPath, 'w300'),
-          subtitle: String(releaseYear || t('profile.releaseYearUnknown')),
-          title: displayTitle,
-        }}
+      <Link
+        className="group min-w-0 focus-ring"
+        href={titlePath(series.tmdb_id, series.title, 'tv')}
         key={series.id}
       >
+        <Poster
+          className="w-full rounded-md"
+          details={{
+            completed: series.is_caught_up === true,
+            upcomingSeasonLabel: nextKnownSeason
+              ? t('seasons.season', { number: nextKnownSeason.season })
+              : null,
+            year: releaseYear,
+          }}
+          src={getTmdb().getImageUrl(posterPath, 'w300')}
+          title={displayTitle}
+        />
+
         <SeriesStatusPill series={series} />
-      </TitleCard>
+      </Link>
     )
   }
 
@@ -1558,12 +1626,8 @@ function SeriesStatusPill({
 }) {
   const { t } = useTranslation()
 
-  if (series.is_series_completed || series.is_caught_up) {
-    return (
-      <span className="mt-3 inline-flex min-h-7 items-center rounded-full bg-kino-accent px-3 text-xs font-bold text-black">
-        {t('profile.completed')}
-      </span>
-    )
+  if (series.is_caught_up) {
+    return null
   }
 
   if (series.next_episode) {

@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import type { ReactNode } from 'react'
 import './globals.css'
-import { AppShell } from '@/components/app-shell'
+import { AppShell } from '@/components/layout/app-shell'
 import { absoluteUrl, getSiteOrigin, SITE_NAME, socialImage } from '@/lib/seo'
 import { getServerMetadataContext } from '@/lib/server-metadata'
 import { cn } from '@/lib/utils'

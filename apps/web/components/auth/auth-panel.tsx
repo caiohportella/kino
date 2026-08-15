@@ -189,7 +189,7 @@ export function AuthPanel({ initialTab = 'sign-in' }: { initialTab?: AuthTab }) 
     <Card className="border-white/12 bg-kino-surface/95 shadow-[0_24px_80px_rgb(0_0_0/0.35)]">
       <CardHeader className="p-6 pb-4">
         <CardTitle>
-          <KinoLogo priority width={132} />
+          <KinoLogo priority className="w-33" />
         </CardTitle>
         <CardDescription>
           Sign in or create your account to sync your library across devices.

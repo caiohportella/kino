@@ -110,7 +110,7 @@ export function RatingStars({
                   onKeyDown={handleKeyDown}
                   onMouseEnter={() => setHovered(star - 0.5)}
                   role="radio"
-                  tabIndex={star === Math.max(1, Math.ceil(value || 1)) ? 0 : -1}
+                  tabIndex={value === star - 0.5 || (value === 0 && star === 1) ? 0 : -1}
                   type="button"
                 />
                 <button

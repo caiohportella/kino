@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { DisplayTitle } from '@/components/display-title'
+import { DisplayTitle } from '@/components/media/display-title'
 import { cn } from '@/lib/utils'
 
 export function PageHeader({

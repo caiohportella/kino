@@ -2,7 +2,7 @@
 
 import type { FollowedRating } from '@kino/core'
 import Link from 'next/link'
-import { RatingStars } from '@/components/rating-stars'
+import { RatingStars } from '@/components/media/rating-stars'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useFollowedTitleRatings } from '@/hooks/use-followed-ratings'

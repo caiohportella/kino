@@ -1,5 +1,5 @@
 import { ChevronDown, RotateCcw, SlidersHorizontal } from 'lucide-react'
-import { RatingStars } from '@/components/rating-stars'
+import { RatingStars } from '@/components/media/rating-stars'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,

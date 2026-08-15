@@ -1,4 +1,4 @@
-import { ActivityFeedSkeleton } from '@/components/activity-feed/ActivityFeedSkeleton'
+import { ActivityFeedSkeleton } from '@/components/activity-feed/activity-feed-skeleton'
 
 export default function Loading() {
   return (
