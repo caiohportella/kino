@@ -39,8 +39,36 @@ export const profileCachePolicies = {
     staleTime: 5 * MINUTE_IN_MILLISECONDS,
     gcTime: HOUR_IN_MILLISECONDS,
   },
+  diaryEntries: {
+    staleTime: 5 * MINUTE_IN_MILLISECONDS,
+    gcTime: HOUR_IN_MILLISECONDS,
+  },
   statistics: {
     staleTime: 5 * MINUTE_IN_MILLISECONDS,
+    gcTime: HOUR_IN_MILLISECONDS,
+  },
+  lifetimeStats: {
+    staleTime: 5 * MINUTE_IN_MILLISECONDS,
+    gcTime: HOUR_IN_MILLISECONDS,
+  },
+  mediaStats: {
+    staleTime: 5 * MINUTE_IN_MILLISECONDS,
+    gcTime: HOUR_IN_MILLISECONDS,
+  },
+  viewingBreakdownStats: {
+    staleTime: 5 * MINUTE_IN_MILLISECONDS,
+    gcTime: HOUR_IN_MILLISECONDS,
+  },
+  genreStats: {
+    staleTime: 15 * MINUTE_IN_MILLISECONDS,
+    gcTime: HOUR_IN_MILLISECONDS,
+  },
+  ratingStats: {
+    staleTime: 15 * MINUTE_IN_MILLISECONDS,
+    gcTime: HOUR_IN_MILLISECONDS,
+  },
+  monthlyRecap: {
+    staleTime: 15 * MINUTE_IN_MILLISECONDS,
     gcTime: HOUR_IN_MILLISECONDS,
   },
   watchlists: {
