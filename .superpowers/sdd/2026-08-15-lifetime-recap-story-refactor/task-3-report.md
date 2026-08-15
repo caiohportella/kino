@@ -9,9 +9,9 @@
 - `apps/web/lib/profile-query-options.test.mjs`
 - `.superpowers/sdd/2026-08-15-lifetime-recap-story-refactor/task-3-report.md`
 
-## Commit SHA
+## Implementation commit SHA
 
-- `dc0c989c18c414332bdaa478d39159d43a44a89c`
+- `08193b406dc699b0ea2a9c63852eea17082eac78`
 
 ## RED commands
 
