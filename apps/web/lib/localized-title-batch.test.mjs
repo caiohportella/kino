@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
+import { titleQueryKeys } from '@kino/core/cache'
 import { QueryClient } from '@tanstack/react-query'
-import { titleQueryKeys } from '../../../packages/core/src/cache/query-keys.ts'
 import { hydrateLocalizedTitleBatch } from './localized-title-batch.ts'
 
 test('cold web multi-title hydration uses one batch request and seeds every canonical summary', async () => {
@@ -56,7 +56,7 @@ test('localized summary gateway uses only server TMDB credentials and declares p
   assert.match(source, /process\.env\.TMDB_API_KEY/)
   assert.doesNotMatch(source, /NEXT_PUBLIC|EXPO_PUBLIC/)
   assert.match(source, /normalizeLocalizedTitleBatchRequest/)
-  assert.match(source, /createLocalizedTitleBatchService/)
+  assert.match(source, /createTmdbLocalizedTitleBatchService/)
 })
 
 for (const [count, expectedSizes] of [

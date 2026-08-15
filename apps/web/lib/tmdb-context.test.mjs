@@ -5,7 +5,7 @@ import {
   normalizeWatchProviders,
   resolveWatchProviderRegion,
   selectPreferredTrailer,
-} from '../../../packages/core/src/tmdb-context.ts'
+} from '@kino/core'
 
 test('normalizeFranchiseTitles excludes the current title, deduplicates, and sorts dates first', () => {
   const part = (id, release_date) => ({

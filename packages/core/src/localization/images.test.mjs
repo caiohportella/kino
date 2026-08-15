@@ -36,6 +36,7 @@ const tierCases = [
     expectedPath: '/base.jpg',
     expectedReason: 'base-language',
     expectedTier: 'base',
+    locale: 'pt-Latn',
     name: 'base language',
   },
   {
@@ -72,6 +73,7 @@ for (const fixture of tierCases) {
   test(`selects the ${fixture.name} image tier`, () => {
     const result = selectLocalizedImage({
       ...baseInput,
+      locale: fixture.locale ?? baseInput.locale,
       candidates: fixture.candidates,
     })
 
@@ -106,6 +108,35 @@ test('does not reinterpret a malformed image language as language neutral', () =
 
   assert.equal(result.path, '/neutral.jpg')
   assert.equal(result.languageTier, 'neutral')
+})
+
+test('uses generic base-language artwork when TMDB provides no region metadata', () => {
+  const result = selectLocalizedImage({
+    ...baseInput,
+    candidates: [candidate('/ambiguous-pt.jpg', 'pt')],
+  })
+
+  assert.deepEqual(result, {
+    fallbackReason: 'base-language',
+    languageTier: 'base',
+    path: '/ambiguous-pt.jpg',
+  })
+})
+
+test('prefers a region-matching image over a different-region image', () => {
+  const result = selectLocalizedImage({
+    ...baseInput,
+    candidates: [
+      candidate('/pt-pt.jpg', 'pt', { region: 'PT', voteAverage: 10 }),
+      candidate('/pt-br.jpg', 'pt', { region: 'BR', voteAverage: 1 }),
+    ],
+  })
+
+  assert.deepEqual(result, {
+    fallbackReason: null,
+    languageTier: 'exact',
+    path: '/pt-br.jpg',
+  })
 })
 
 test('uses the Kino placeholder when neither candidates nor a TMDB default are valid', () => {

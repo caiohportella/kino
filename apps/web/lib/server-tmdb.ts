@@ -1,5 +1,11 @@
 import type { MediaType, TMDbTitle } from '@kino/core'
 import { TMDbService, transformMovieToTitleDetails, transformTVToTitleDetails } from '@kino/core'
+import {
+  getLocale,
+  getRegion,
+  type KinoLanguage,
+  SUPPORTED_LANGUAGES,
+} from '@kino/core/locale-config'
 import { cache } from 'react'
 import { getPersonImagePaths } from '@/lib/person-visuals'
 import { slugify } from '@/lib/routes'
@@ -17,15 +23,7 @@ function createTmdb(language: string) {
 }
 
 export function getRegionForLanguage(language: string) {
-  return (
-    {
-      en: 'US',
-      fr: 'FR',
-      it: 'IT',
-      no: 'NO',
-      pt: 'BR',
-    }[language] ?? 'US'
-  )
+  return isKinoLanguage(language) ? getRegion(language) : 'US'
 }
 
 export const getTitleSeoData = cache(async (tmdbId: number, type: MediaType, language = 'en') => {
@@ -95,14 +93,29 @@ export const getDiscoverData = cache(
   async (language = 'en', region = getRegionForLanguage(language)) => {
     const tmdb = createTmdb(language)
 
-    const [trending, popularMovies, popularTV, nowPlaying, topRated, upcoming] = await Promise.all([
+    const [
+      trending,
+      popularMovies,
+      popularTV,
+      movieGenres,
+      tvGenres,
+      nowPlaying,
+      topRated,
+      upcoming,
+    ] = await Promise.all([
       tmdb.getTrending('all', 'week'),
       tmdb.getPopularMovies(),
       tmdb.getPopularTV(),
+      tmdb.getGenres('movie'),
+      tmdb.getGenres('tv'),
       tmdb.getNowPlayingMovies(region, tmdbLanguage(language)),
       tmdb.getTopRatedMovies(),
       tmdb.getUpcomingMovies(),
     ])
+
+    const genres = Array.from(
+      new Map([...movieGenres, ...tvGenres].map((genre) => [genre.id, genre])).values()
+    ).sort((a, b) => a.name.localeCompare(b.name))
 
     const [enrichedTrending, enrichedPopularMovies, enrichedPopularTV] = await Promise.all([
       enrichTitlesWithPalette(trending),
@@ -117,18 +130,17 @@ export const getDiscoverData = cache(
       nowPlaying,
       topRated,
       upcoming,
+      genres,
+      movieGenres,
+      tvGenres,
     }
   }
 )
 
 function tmdbLanguage(language: string) {
-  return (
-    {
-      en: 'en-US',
-      fr: 'fr-FR',
-      it: 'it-IT',
-      no: 'no-NO',
-      pt: 'pt-BR',
-    }[language] ?? 'en-US'
-  )
+  return isKinoLanguage(language) ? getLocale(language) : 'en-US'
+}
+
+function isKinoLanguage(language: string): language is KinoLanguage {
+  return SUPPORTED_LANGUAGES.includes(language as KinoLanguage)
 }

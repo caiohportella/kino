@@ -13,8 +13,18 @@ const baseInput = {
 }
 
 for (const [label, posters, expectedTier, expectedPath] of [
-  ['exact', [{ file_path: '/exact.jpg', iso_639_1: 'pt-BR' }], 'exact', '/exact.jpg'],
-  ['base', [{ file_path: '/base.jpg', iso_639_1: 'pt' }], 'base', '/base.jpg'],
+  [
+    'exact',
+    [{ file_path: '/exact.jpg', iso_639_1: 'pt', iso_3166_1: 'BR' }],
+    'exact',
+    '/exact.jpg',
+  ],
+  [
+    'ambiguous-base',
+    [{ file_path: '/base.jpg', iso_639_1: 'pt', iso_3166_1: 'PT' }],
+    'base',
+    '/base.jpg',
+  ],
   ['original', [{ file_path: '/original.jpg', iso_639_1: 'it' }], 'original', '/original.jpg'],
   ['neutral', [{ file_path: '/neutral.jpg', iso_639_1: null }], 'neutral', '/neutral.jpg'],
   ['default', [], 'tmdb-default', '/default.jpg'],
@@ -43,11 +53,16 @@ for (const [label, posters, expectedTier, expectedPath] of [
 for (const [label, backdrops, expectedTier, expectedPath] of [
   [
     'exact',
-    [{ file_path: '/exact-backdrop.jpg', iso_639_1: 'pt-BR' }],
+    [{ file_path: '/exact-backdrop.jpg', iso_639_1: 'pt', iso_3166_1: 'BR' }],
     'exact',
     '/exact-backdrop.jpg',
   ],
-  ['base', [{ file_path: '/base-backdrop.jpg', iso_639_1: 'pt' }], 'base', '/base-backdrop.jpg'],
+  [
+    'ambiguous-base',
+    [{ file_path: '/base-backdrop.jpg', iso_639_1: 'pt', iso_3166_1: 'PT' }],
+    'base',
+    '/base-backdrop.jpg',
+  ],
   [
     'original',
     [{ file_path: '/original-backdrop.jpg', iso_639_1: 'it' }],

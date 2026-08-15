@@ -1,3 +1,4 @@
+import { KINO_LOCALES } from './locale-config.ts'
 import type {
   MediaType,
   TitleDetails,
@@ -8,6 +9,7 @@ import type {
   TMDbImage,
   TMDbMovie,
   TMDbPerson,
+  TMDbProductionCompany,
   TMDbTitle,
   TMDbTVShow,
   TMDbVideoResponse,
@@ -26,13 +28,9 @@ export function getTMDbImageUrl(
   return `${TMDB_IMAGE_BASE}/${size}${path}`
 }
 
-const LANGUAGE_MAP: Record<string, string> = {
-  en: 'en-US',
-  fr: 'fr-FR',
-  it: 'it-IT',
-  no: 'no-NO',
-  pt: 'pt-BR',
-}
+const LANGUAGE_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(KINO_LOCALES).map(([language, config]) => [language, config.locale])
+)
 
 export class TMDbService {
   private language = 'en-US'
@@ -43,13 +41,17 @@ export class TMDbService {
   }
 
   setLanguage(appLanguage: string) {
-    this.language = LANGUAGE_MAP[appLanguage] || 'en-US'
+    this.language = LANGUAGE_MAP[appLanguage] || KINO_LOCALES.en.locale
   }
 
   async search(
     query: string,
     page = 1
-  ): Promise<{ results: TMDbTitle[]; total_pages: number; total_results: number }> {
+  ): Promise<{
+    results: TMDbTitle[]
+    total_pages: number
+    total_results: number
+  }> {
     const data = await this.request<{
       results: (TMDbTitle & { media_type: string })[]
       total_pages: number
@@ -65,15 +67,18 @@ export class TMDbService {
   }
 
   async getTrending(type: 'all' | MediaType = 'all', timeWindow: 'day' | 'week' = 'day') {
-    const data = await this.request<{ results: (TMDbTitle & { media_type: MediaType })[] }>(
-      `/trending/${type}/${timeWindow}`
-    )
+    const data = await this.request<{
+      results: (TMDbTitle & { media_type: MediaType })[]
+    }>(`/trending/${type}/${timeWindow}`)
     return data.results.filter((item) => item.media_type === 'movie' || item.media_type === 'tv')
   }
 
   async getPopularMovies() {
     const data = await this.request<{ results: TMDbTitle[] }>('/movie/popular')
-    return data.results.map((item) => ({ ...item, media_type: 'movie' as const }))
+    return data.results.map((item) => ({
+      ...item,
+      media_type: 'movie' as const,
+    }))
   }
 
   async getPopularTV() {
@@ -83,7 +88,10 @@ export class TMDbService {
 
   async getTopRatedMovies() {
     const data = await this.request<{ results: TMDbTitle[] }>('/movie/top_rated')
-    return data.results.map((item) => ({ ...item, media_type: 'movie' as const }))
+    return data.results.map((item) => ({
+      ...item,
+      media_type: 'movie' as const,
+    }))
   }
 
   async getNowPlayingMovies(region?: string, language?: string) {
@@ -91,12 +99,18 @@ export class TMDbService {
       region: region || this.language.split('-')[1] || 'US',
       ...(language ? { language } : {}),
     })
-    return data.results.map((item) => ({ ...item, media_type: 'movie' as const }))
+    return data.results.map((item) => ({
+      ...item,
+      media_type: 'movie' as const,
+    }))
   }
 
   async getUpcomingMovies() {
     const data = await this.request<{ results: TMDbTitle[] }>('/movie/upcoming')
-    return data.results.map((item) => ({ ...item, media_type: 'movie' as const }))
+    return data.results.map((item) => ({
+      ...item,
+      media_type: 'movie' as const,
+    }))
   }
 
   async getGenres(type: MediaType) {
@@ -105,16 +119,33 @@ export class TMDbService {
   }
 
   async discoverMedia(type: MediaType, params: Record<string, string> = {}) {
-    const data = await this.request<{ results: TMDbTitle[] }>(`/discover/${type}`, params)
-    return data.results.map((item) => ({ ...item, media_type: type }))
-  }
+    const data = await this.request<{
+      page: number
+      results: TMDbTitle[]
+      total_pages: number
+      total_results: number
+    }>(`/discover/${type}`, params)
 
+    return {
+      page: data.page,
+      results: data.results.map((item) => ({
+        ...item,
+        media_type: type,
+      })),
+      totalPages: data.total_pages,
+      totalResults: data.total_results,
+    }
+  }
   async getMovieDetails(movieId: number) {
-    return this.request<TMDbMovie>(`/movie/${movieId}`, { append_to_response: 'external_ids' })
+    return this.request<TMDbMovie>(`/movie/${movieId}`, {
+      append_to_response: 'external_ids',
+    })
   }
 
   async getTVDetails(tvId: number) {
-    return this.request<TMDbTVShow>(`/tv/${tvId}`, { append_to_response: 'external_ids' })
+    return this.request<TMDbTVShow>(`/tv/${tvId}`, {
+      append_to_response: 'external_ids',
+    })
   }
 
   async getMovieCredits(movieId: number) {
@@ -135,6 +166,10 @@ export class TMDbService {
     })
   }
 
+  async getCompanyDetails(companyId: number) {
+    return this.request<TMDbProductionCompany>(`/company/${companyId}`)
+  }
+
   async getRecommendations(type: MediaType, id: number) {
     const data = await this.request<{ results: TMDbTitle[] }>(`/${type}/${id}/recommendations`)
     return data.results.map((item) => ({ ...item, media_type: type }))
@@ -146,7 +181,10 @@ export class TMDbService {
     )
     return {
       ...collection,
-      parts: collection.parts.map((item) => ({ ...item, media_type: 'movie' as const })),
+      parts: collection.parts.map((item) => ({
+        ...item,
+        media_type: 'movie' as const,
+      })),
     }
   }
 
@@ -176,10 +214,11 @@ export class TMDbService {
   }
 
   async searchPeople(query: string, page = 1) {
-    return this.request<{ results: TMDbPerson[]; total_pages: number; total_results: number }>(
-      '/search/person',
-      { query, page: String(page) }
-    )
+    return this.request<{
+      results: TMDbPerson[]
+      total_pages: number
+      total_results: number
+    }>('/search/person', { query, page: String(page) })
   }
 
   getImageUrl(path: string | null, size: 'w200' | 'w300' | 'w500' | 'w780' | 'original' = 'w500') {
@@ -227,7 +266,9 @@ export function transformMovieToTitleDetails(
     genres: movie.genres || [],
     cast: credits.cast,
     director: director ? { ...director, job: 'Director' } : undefined,
+    productionCompanies: movie.production_companies?.map(mapProductionCompany) ?? [],
     runtime: movie.runtime,
+    episodeRuntime: null,
     externalIds: movie.external_ids,
   }
 }
@@ -252,10 +293,21 @@ export function transformTVToTitleDetails(
     genres: tv.genres || [],
     cast: credits.cast,
     director: creator ? { ...creator, job: 'Creator' } : undefined,
+    productionCompanies: tv.production_companies?.map(mapProductionCompany) ?? [],
     totalSeasons: tv.number_of_seasons,
     totalEpisodes: tv.number_of_episodes,
+    episodeRuntime: tv.episode_run_time?.[0] ?? null,
     seasons: tv.seasons,
     externalIds: tv.external_ids,
+  }
+}
+
+function mapProductionCompany(company: TMDbProductionCompany): TMDbProductionCompany {
+  return {
+    id: company.id,
+    name: company.name,
+    logo_path: company.logo_path,
+    origin_country: company.origin_country ?? null,
   }
 }
 
