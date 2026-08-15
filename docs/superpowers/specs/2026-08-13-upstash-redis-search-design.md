@@ -45,17 +45,17 @@ The implementation follows the official Redis Search documentation discovered th
 
 Keep the existing `/api/v1/search` route, `createSearchGateway`, `@kino/core/search` pipeline, response versions, and web presentation adapters. Replace the current vector/standalone-search provider implementation with a Redis Search provider that returns the existing `SearchProviderResult` shape.
 
-The Redis title and people indexes are queried in parallel by one indexed provider. The user index is queried by the existing user-provider slot. Upstash-specific keys, scores, filters, and document shapes do not cross into React components.
+The unified Redis index is queried in parallel for title and people candidates by one indexed provider, and the same handle serves the user-provider slot. Upstash-specific keys, scores, filters, and document shapes do not cross into React components.
 
 ### Indexes and key prefixes
 
-| Index | Redis key prefix | Contents |
+| Index | Redis key prefixes | Contents |
 | --- | --- | --- |
-| `kino-titles` | `kino:search:title:` | Movies and series |
-| `kino-people` | `kino:search:person:` | TMDb/Kino people |
-| `kino-users` | `kino:search:user:` | Public Kino users |
+| `kino-search` | `kino:search:title:`, `kino:search:person:`, `kino:search:user:` | Movies, series, people, and public Kino users |
 
-All three indexes use `dataType: "json"`.
+The unified index uses `dataType: "json"`. Title, person, and user queries apply `entityType` filters inside Redis Search.
+
+Setup lists indexes with `SEARCH.LISTINDEXES`, drops only the known legacy Kino index names (`kino-titles`, `kino-people`, `kino-users`), and then creates `kino-search` with `existsOk: true`. Dropping a search index does not delete the underlying JSON keys.
 
 ### Documents
 
@@ -153,4 +153,3 @@ pnpm build:web
 ```
 
 No unrelated native/mobile files will be modified for this web-only migration.
-
