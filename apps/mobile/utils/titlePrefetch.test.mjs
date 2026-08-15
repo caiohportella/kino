@@ -1,9 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {
-  LOCALIZED_TITLE_GC_TIME,
-  LOCALIZED_TITLE_STALE_TIME,
-} from '@kino/core/cache'
+import { LOCALIZED_TITLE_GC_TIME, LOCALIZED_TITLE_STALE_TIME } from '@kino/core/cache'
 import { QueryClient } from '@tanstack/query-core'
 import {
   seedTitleSummary,

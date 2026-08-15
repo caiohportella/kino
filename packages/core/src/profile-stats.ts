@@ -22,131 +22,124 @@ import type {
   TMDbProductionCompany,
   WatchedSeries,
   WatchType,
-} from "./types.ts";
+} from './types.ts'
 
 type JoinedTitleRow = {
-  id: string;
-  title: string;
-  type: MediaType;
-  genres?: TMDbGenre[] | null;
-  cast?: TMDbCast[] | null;
-  production_companies?: TMDbProductionCompany[] | null;
-  cover_image?: string | null;
+  id: string
+  title: string
+  type: MediaType
+  genres?: TMDbGenre[] | null
+  cast?: TMDbCast[] | null
+  production_companies?: TMDbProductionCompany[] | null
+  cover_image?: string | null
   tmdb_data?: {
-    production_companies?: TMDbProductionCompany[] | null;
-  } | null;
-  tmdb_id: number;
-  runtime?: number | null;
-  release_year?: number | null;
-  episode_runtime?: number | null;
-};
+    production_companies?: TMDbProductionCompany[] | null
+  } | null
+  tmdb_id: number
+  runtime?: number | null
+  release_year?: number | null
+  episode_runtime?: number | null
+}
 
-type JoinedTitle = JoinedTitleRow | JoinedTitleRow[] | null | undefined;
+type JoinedTitle = JoinedTitleRow | JoinedTitleRow[] | null | undefined
 
 type WatchEventRow = {
-  title_id: string;
-  watched_at?: string;
-  watch_type?: WatchType;
-  runtime_minutes?: number | null;
-  title?: JoinedTitle;
-  titles?: JoinedTitle;
-};
+  title_id: string
+  watched_at?: string
+  watch_type?: WatchType
+  runtime_minutes?: number | null
+  title?: JoinedTitle
+  titles?: JoinedTitle
+}
 
 type RatingEventRow = {
-  title_id: string;
-  rating: string | number | null;
-  watched_at: string;
-  watch_type?: WatchType;
-  runtime_minutes?: number | null;
-  season_number?: number;
-  episode_number?: number;
-  title?: JoinedTitle;
-  titles?: JoinedTitle;
-};
+  title_id: string
+  rating: string | number | null
+  watched_at: string
+  watch_type?: WatchType
+  runtime_minutes?: number | null
+  season_number?: number
+  episode_number?: number
+  title?: JoinedTitle
+  titles?: JoinedTitle
+}
 
 type ProfileActivityTitle = ProfileMonthlyRecapTitle & {
-  latestWatchedAt: number;
-};
+  latestWatchedAt: number
+}
 
 type CanonicalRatingRow = {
-  title_id?: string;
-  rating: string | number | null;
-  watched_at?: string;
-  season_number?: number;
-  episode_number?: number;
-  title?: JoinedTitle;
-  titles?: JoinedTitle;
-};
+  title_id?: string
+  rating: string | number | null
+  watched_at?: string
+  season_number?: number
+  episode_number?: number
+  title?: JoinedTitle
+  titles?: JoinedTitle
+}
 
 type CanonicalRatedTitle = {
-  titleId: string;
-  rating: number;
-  title: JoinedTitleRow;
-  observationCount: number;
-};
+  titleId: string
+  rating: number
+  title: JoinedTitleRow
+  observationCount: number
+}
 
 type RatingCandidate = {
-  rating: number;
-  watchedAt: number;
-  title: JoinedTitleRow;
-  observationCount: number;
-};
+  rating: number
+  watchedAt: number
+  title: JoinedTitleRow
+  observationCount: number
+}
 
 type MonthRange = {
-  end: Date;
-  start: Date;
-};
+  end: Date
+  start: Date
+}
 
-function buildCanonicalRatedTitles(
-  rows: CanonicalRatingRow[],
-): Map<string, CanonicalRatedTitle> {
-  const movies = new Map<string, RatingCandidate>();
-  const explicitSeries = new Map<string, RatingCandidate>();
-  const episodeRatings = new Map<string, Map<string, RatingCandidate>>();
+function buildCanonicalRatedTitles(rows: CanonicalRatingRow[]): Map<string, CanonicalRatedTitle> {
+  const movies = new Map<string, RatingCandidate>()
+  const explicitSeries = new Map<string, RatingCandidate>()
+  const episodeRatings = new Map<string, Map<string, RatingCandidate>>()
 
   for (const row of rows) {
-    const rating = normalizeRating(row.rating);
-    const title = unwrapTitle(row.title ?? row.titles);
-    const titleId = row.title_id ?? title?.id;
+    const rating = normalizeRating(row.rating)
+    const title = unwrapTitle(row.title ?? row.titles)
+    const titleId = row.title_id ?? title?.id
 
-    if (rating == null || !title || !titleId) continue;
+    if (rating == null || !title || !titleId) continue
 
-    const watchedAt = row.watched_at
-      ? Date.parse(row.watched_at)
-      : Number.NEGATIVE_INFINITY;
+    const watchedAt = row.watched_at ? Date.parse(row.watched_at) : Number.NEGATIVE_INFINITY
     const candidate = {
       rating,
-      watchedAt: Number.isFinite(watchedAt)
-        ? watchedAt
-        : Number.NEGATIVE_INFINITY,
+      watchedAt: Number.isFinite(watchedAt) ? watchedAt : Number.NEGATIVE_INFINITY,
       title,
       observationCount: 1,
-    };
+    }
 
-    if (title.type === "movie") {
-      const existing = movies.get(titleId);
-      movies.set(titleId, selectLatestRating(existing, candidate));
-      continue;
+    if (title.type === 'movie') {
+      const existing = movies.get(titleId)
+      movies.set(titleId, selectLatestRating(existing, candidate))
+      continue
     }
 
     const hasEpisodeKey =
-      Number.isInteger(row.season_number) &&
-      Number.isInteger(row.episode_number);
+      Number.isInteger(row.season_number) && Number.isInteger(row.episode_number)
 
     if (!hasEpisodeKey) {
-      const existing = explicitSeries.get(titleId);
-      explicitSeries.set(titleId, selectLatestRating(existing, candidate));
-      continue;
+      const existing = explicitSeries.get(titleId)
+      explicitSeries.set(titleId, selectLatestRating(existing, candidate))
+      continue
     }
 
-    const byEpisode = episodeRatings.get(titleId) ?? new Map();
-    const episodeKey = `${row.season_number}:${row.episode_number}`;
-    const existing = byEpisode.get(episodeKey);
-    byEpisode.set(episodeKey, selectLatestRating(existing, candidate));
-    episodeRatings.set(titleId, byEpisode);
+    const byEpisode = episodeRatings.get(titleId) ?? new Map()
+    const episodeKey = `${row.season_number}:${row.episode_number}`
+    const existing = byEpisode.get(episodeKey)
+    byEpisode.set(episodeKey, selectLatestRating(existing, candidate))
+    episodeRatings.set(titleId, byEpisode)
   }
 
-  const canonicalTitles = new Map<string, CanonicalRatedTitle>();
+  const canonicalTitles = new Map<string, CanonicalRatedTitle>()
 
   for (const [titleId, candidate] of movies) {
     canonicalTitles.set(titleId, {
@@ -154,7 +147,7 @@ function buildCanonicalRatedTitles(
       rating: candidate.rating,
       title: candidate.title,
       observationCount: candidate.observationCount,
-    });
+    })
   }
 
   for (const [titleId, candidate] of explicitSeries) {
@@ -163,126 +156,119 @@ function buildCanonicalRatedTitles(
       rating: candidate.rating,
       title: candidate.title,
       observationCount: candidate.observationCount,
-    });
+    })
   }
 
   for (const [titleId, byEpisode] of episodeRatings) {
-    if (explicitSeries.has(titleId) || byEpisode.size === 0) continue;
+    if (explicitSeries.has(titleId) || byEpisode.size === 0) continue
 
-    const candidates = Array.from(byEpisode.values());
-    const firstCandidate = candidates[0];
-    if (!firstCandidate) continue;
-    const total = candidates.reduce(
-      (sum, candidate) => sum + candidate.rating,
-      0,
-    );
+    const candidates = Array.from(byEpisode.values())
+    const firstCandidate = candidates[0]
+    if (!firstCandidate) continue
+    const total = candidates.reduce((sum, candidate) => sum + candidate.rating, 0)
     const observationCount = candidates.reduce(
       (sum, candidate) => sum + candidate.observationCount,
-      0,
-    );
+      0
+    )
 
     canonicalTitles.set(titleId, {
       titleId,
       rating: total / candidates.length,
       title: firstCandidate.title,
       observationCount,
-    });
+    })
   }
 
-  return canonicalTitles;
+  return canonicalTitles
 }
 
-function selectLatestRating(
-  existing: RatingCandidate | undefined,
-  candidate: RatingCandidate,
-) {
-  if (!existing) return candidate;
+function selectLatestRating(existing: RatingCandidate | undefined, candidate: RatingCandidate) {
+  if (!existing) return candidate
 
   if (
     candidate.watchedAt > existing.watchedAt ||
-    (candidate.watchedAt === existing.watchedAt &&
-      candidate.rating > existing.rating)
+    (candidate.watchedAt === existing.watchedAt && candidate.rating > existing.rating)
   ) {
     return {
       ...candidate,
       observationCount: existing.observationCount + 1,
-    };
+    }
   }
 
   return {
     ...existing,
     observationCount: existing.observationCount + 1,
-  };
+  }
 }
 
 type HighlightCandidate = {
-  id: number;
-  name: string;
-  total: number;
-  weight: number;
-  titleIds: Set<string>;
-  observationCount: number;
-};
+  id: number
+  name: string
+  total: number
+  weight: number
+  titleIds: Set<string>
+  observationCount: number
+}
 
 type DecadeCandidate = {
-  startYear: number;
-  total: number;
-  titleIds: Set<string>;
-  observationCount: number;
-};
+  startYear: number
+  total: number
+  titleIds: Set<string>
+  observationCount: number
+}
 
 type RatedHighlights = {
-  highestRatedStudio: ProfileRatedCategoryStat | null;
-  highestRatedActor: ProfileRatedCategoryStat | null;
-  highestRatedActress: ProfileRatedCategoryStat | null;
-  highestRatedGenre: ProfileRatedCategoryStat | null;
-  highestRatedDecade: ProfileRatedDecadeStat | null;
-  mostRatedGenre: ProfileRatedCategoryStat | null;
-};
+  highestRatedStudio: ProfileRatedCategoryStat | null
+  highestRatedActor: ProfileRatedCategoryStat | null
+  highestRatedActress: ProfileRatedCategoryStat | null
+  highestRatedGenre: ProfileRatedCategoryStat | null
+  highestRatedDecade: ProfileRatedDecadeStat | null
+  mostRatedGenre: ProfileRatedCategoryStat | null
+}
 
-const BAYESIAN_CONFIDENCE_THRESHOLD = 3;
+const BAYESIAN_CONFIDENCE_THRESHOLD = 3
 
 function getCastProminenceWeight(order: number | undefined) {
-  if (order == null || !Number.isFinite(order)) return 0;
-  if (order <= 1) return 1;
-  if (order <= 4) return 0.85;
-  if (order <= 9) return 0.65;
-  if (order <= 14) return 0.4;
-  return 0;
+  if (order == null || !Number.isFinite(order)) return 0
+  if (order <= 1) return 1
+  if (order <= 4) return 0.85
+  if (order <= 9) return 0.65
+  if (order <= 14) return 0.4
+  return 0
 }
 
 function getBayesianRankingScore(
   rawAverage: number,
   distinctTitleCount: number,
-  scopeAverage: number,
+  scopeAverage: number
 ) {
-  const evidence = distinctTitleCount;
-  const priorWeight = BAYESIAN_CONFIDENCE_THRESHOLD;
+  const evidence = distinctTitleCount
+  const priorWeight = BAYESIAN_CONFIDENCE_THRESHOLD
   return (
     (evidence / (evidence + priorWeight)) * rawAverage +
     (priorWeight / (evidence + priorWeight)) * scopeAverage
-  );
+  )
 }
 
 function calculateRatedHighlights(
   rows: CanonicalRatingRow[],
-  eligibilityThreshold: number,
+  eligibilityThreshold: number
 ): RatedHighlights {
-  const canonicalTitles = buildCanonicalRatedTitles(rows);
-  const genreCandidates = new Map<number, HighlightCandidate>();
-  const studioCandidates = new Map<number, HighlightCandidate>();
-  const actorCandidates = new Map<number, HighlightCandidate>();
-  const actressCandidates = new Map<number, HighlightCandidate>();
-  const decadeCandidates = new Map<number, DecadeCandidate>();
+  const canonicalTitles = buildCanonicalRatedTitles(rows)
+  const genreCandidates = new Map<number, HighlightCandidate>()
+  const studioCandidates = new Map<number, HighlightCandidate>()
+  const actorCandidates = new Map<number, HighlightCandidate>()
+  const actressCandidates = new Map<number, HighlightCandidate>()
+  const decadeCandidates = new Map<number, DecadeCandidate>()
 
-  let scopeTotal = 0;
+  let scopeTotal = 0
 
   for (const canonicalTitle of canonicalTitles.values()) {
-    const { rating, title, titleId, observationCount } = canonicalTitle;
-    scopeTotal += rating;
+    const { rating, title, titleId, observationCount } = canonicalTitle
+    scopeTotal += rating
 
     for (const genre of title.genres ?? []) {
-      if (!genre?.id || !genre.name) continue;
+      if (!genre?.id || !genre.name) continue
       addWeightedCandidate(
         genreCandidates,
         genre.id,
@@ -290,12 +276,12 @@ function calculateRatedHighlights(
         rating,
         1,
         titleId,
-        observationCount,
-      );
+        observationCount
+      )
     }
 
     for (const studio of productionCompaniesForTitle(title)) {
-      if (!studio?.id || !studio.name) continue;
+      if (!studio?.id || !studio.name) continue
       addWeightedCandidate(
         studioCandidates,
         studio.id,
@@ -303,23 +289,19 @@ function calculateRatedHighlights(
         rating,
         1,
         titleId,
-        observationCount,
-      );
+        observationCount
+      )
     }
 
     for (const person of title.cast ?? []) {
-      if (!person?.id || !person.name) continue;
-      const weight = getCastProminenceWeight(person.order);
-      if (weight <= 0) continue;
+      if (!person?.id || !person.name) continue
+      const weight = getCastProminenceWeight(person.order)
+      if (weight <= 0) continue
 
       const target =
-        person.gender === 2
-          ? actorCandidates
-          : person.gender === 1
-            ? actressCandidates
-            : null;
+        person.gender === 2 ? actorCandidates : person.gender === 1 ? actressCandidates : null
 
-      if (!target) continue;
+      if (!target) continue
       addWeightedCandidate(
         target,
         person.id,
@@ -327,62 +309,49 @@ function calculateRatedHighlights(
         rating,
         weight,
         titleId,
-        observationCount,
-      );
+        observationCount
+      )
     }
 
-    const releaseYear = title.release_year;
-    if (
-      typeof releaseYear === "number" &&
-      Number.isInteger(releaseYear) &&
-      releaseYear > 0
-    ) {
-      const startYear = Math.floor(releaseYear / 10) * 10;
+    const releaseYear = title.release_year
+    if (typeof releaseYear === 'number' && Number.isInteger(releaseYear) && releaseYear > 0) {
+      const startYear = Math.floor(releaseYear / 10) * 10
       const current = decadeCandidates.get(startYear) ?? {
         startYear,
         total: 0,
         titleIds: new Set<string>(),
         observationCount: 0,
-      };
-      current.total += rating;
-      current.titleIds.add(titleId);
-      current.observationCount += observationCount;
-      decadeCandidates.set(startYear, current);
+      }
+      current.total += rating
+      current.titleIds.add(titleId)
+      current.observationCount += observationCount
+      decadeCandidates.set(startYear, current)
     }
   }
 
-  const scopeAverage =
-    canonicalTitles.size > 0 ? scopeTotal / canonicalTitles.size : 0;
+  const scopeAverage = canonicalTitles.size > 0 ? scopeTotal / canonicalTitles.size : 0
 
   return {
     highestRatedStudio: rankWeightedCandidates(
       studioCandidates,
       eligibilityThreshold,
-      scopeAverage,
+      scopeAverage
     ),
-    highestRatedActor: rankWeightedCandidates(
-      actorCandidates,
-      eligibilityThreshold,
-      scopeAverage,
-    ),
+    highestRatedActor: rankWeightedCandidates(actorCandidates, eligibilityThreshold, scopeAverage),
     highestRatedActress: rankWeightedCandidates(
       actressCandidates,
       eligibilityThreshold,
-      scopeAverage,
+      scopeAverage
     ),
     highestRatedGenre: rankWeightedCandidates(
       genreCandidates,
       eligibilityThreshold,
       scopeAverage,
-      true,
+      true
     ),
-    highestRatedDecade: rankDecades(
-      decadeCandidates,
-      eligibilityThreshold,
-      scopeAverage,
-    ),
+    highestRatedDecade: rankDecades(decadeCandidates, eligibilityThreshold, scopeAverage),
     mostRatedGenre: rankMostRatedGenre(genreCandidates),
-  };
+  }
 }
 
 function addWeightedCandidate(
@@ -392,7 +361,7 @@ function addWeightedCandidate(
   rating: number,
   weight: number,
   titleId: string,
-  observationCount: number,
+  observationCount: number
 ) {
   const current = candidates.get(id) ?? {
     id,
@@ -401,36 +370,31 @@ function addWeightedCandidate(
     weight: 0,
     titleIds: new Set<string>(),
     observationCount: 0,
-  };
+  }
 
-  current.total += rating * weight;
-  current.weight += weight;
-  current.titleIds.add(titleId);
-  current.observationCount += observationCount;
-  current.name = name;
-  candidates.set(id, current);
+  current.total += rating * weight
+  current.weight += weight
+  current.titleIds.add(titleId)
+  current.observationCount += observationCount
+  current.name = name
+  candidates.set(id, current)
 }
 
 function rankWeightedCandidates(
   candidates: Map<number, HighlightCandidate>,
   eligibilityThreshold: number,
   scopeAverage: number,
-  includeId = false,
+  includeId = false
 ): ProfileRatedCategoryStat | null {
   const ranked = Array.from(candidates.values())
     .map((candidate) => {
-      const titleCount = candidate.titleIds.size;
-      const average =
-        candidate.weight > 0 ? candidate.total / candidate.weight : 0;
+      const titleCount = candidate.titleIds.size
+      const average = candidate.weight > 0 ? candidate.total / candidate.weight : 0
       return {
         candidate,
         average,
-        rankingScore: getBayesianRankingScore(
-          average,
-          titleCount,
-          scopeAverage,
-        ),
-      };
+        rankingScore: getBayesianRankingScore(average, titleCount, scopeAverage),
+      }
     })
     .filter(({ candidate }) => candidate.titleIds.size >= eligibilityThreshold)
     .sort(
@@ -440,35 +404,35 @@ function rankWeightedCandidates(
         right.average - left.average ||
         right.candidate.observationCount - left.candidate.observationCount ||
         left.candidate.id - right.candidate.id ||
-        left.candidate.name.localeCompare(right.candidate.name),
-    );
+        left.candidate.name.localeCompare(right.candidate.name)
+    )
 
-  const top = ranked[0];
-  if (!top) return null;
+  const top = ranked[0]
+  if (!top) return null
 
   const result: ProfileRatedCategoryStat = {
     name: top.candidate.name,
     average: top.average,
     count: top.candidate.observationCount,
     titleCount: top.candidate.titleIds.size,
-  };
+  }
 
-  if (includeId) result.id = top.candidate.id;
-  return result;
+  if (includeId) result.id = top.candidate.id
+  return result
 }
 
 function rankMostRatedGenre(
-  candidates: Map<number, HighlightCandidate>,
+  candidates: Map<number, HighlightCandidate>
 ): ProfileRatedCategoryStat | null {
   const top = Array.from(candidates.values()).sort(
     (left, right) =>
       right.titleIds.size - left.titleIds.size ||
       right.total / right.weight - left.total / left.weight ||
       left.id - right.id ||
-      left.name.localeCompare(right.name),
-  )[0];
+      left.name.localeCompare(right.name)
+  )[0]
 
-  if (!top) return null;
+  if (!top) return null
 
   return {
     id: top.id,
@@ -476,27 +440,23 @@ function rankMostRatedGenre(
     average: top.total / top.weight,
     count: top.observationCount,
     titleCount: top.titleIds.size,
-  };
+  }
 }
 
 function rankDecades(
   candidates: Map<number, DecadeCandidate>,
   eligibilityThreshold: number,
-  scopeAverage: number,
+  scopeAverage: number
 ): ProfileRatedDecadeStat | null {
   const ranked = Array.from(candidates.values())
     .map((candidate) => {
-      const titleCount = candidate.titleIds.size;
-      const average = titleCount > 0 ? candidate.total / titleCount : 0;
+      const titleCount = candidate.titleIds.size
+      const average = titleCount > 0 ? candidate.total / titleCount : 0
       return {
         candidate,
         average,
-        rankingScore: getBayesianRankingScore(
-          average,
-          titleCount,
-          scopeAverage,
-        ),
-      };
+        rankingScore: getBayesianRankingScore(average, titleCount, scopeAverage),
+      }
     })
     .filter(({ candidate }) => candidate.titleIds.size >= eligibilityThreshold)
     .sort(
@@ -505,78 +465,73 @@ function rankDecades(
         right.candidate.titleIds.size - left.candidate.titleIds.size ||
         right.average - left.average ||
         right.candidate.observationCount - left.candidate.observationCount ||
-        left.candidate.startYear - right.candidate.startYear,
-    )[0];
+        left.candidate.startYear - right.candidate.startYear
+    )[0]
 
-  if (!ranked) return null;
+  if (!ranked) return null
 
   return {
     startYear: ranked.candidate.startYear,
     average: ranked.average,
     count: ranked.candidate.observationCount,
     titleCount: ranked.candidate.titleIds.size,
-  };
+  }
 }
 
 export function createMonthRange(year: number, month: number): MonthRange {
-  const start = new Date(Date.UTC(year, month - 1, 1));
-  const end = new Date(Date.UTC(year, month, 1));
-  return { start, end };
+  const start = new Date(Date.UTC(year, month - 1, 1))
+  const end = new Date(Date.UTC(year, month, 1))
+  return { start, end }
 }
 
-export function calculateProfileRatingStats(
-  rows: CanonicalRatingRow[],
-): ProfileRatingStats {
-  const buckets = new Map<number, number>();
+export function calculateProfileRatingStats(rows: CanonicalRatingRow[]): ProfileRatingStats {
+  const buckets = new Map<number, number>()
 
-  const latestMovieRatings = new Map<string, ProfileRatedTitleStat>();
-  const latestMovieRatingTimes = new Map<string, number>();
+  const latestMovieRatings = new Map<string, ProfileRatedTitleStat>()
+  const latestMovieRatingTimes = new Map<string, number>()
 
   const seriesRatings = new Map<
     string,
     {
-      titleId: string;
-      title: string;
-      total: number;
-      count: number;
+      titleId: string
+      title: string
+      total: number
+      count: number
     }
-  >();
+  >()
 
-  let totalRatings = 0;
-  let sum = 0;
-  let movieRatingTotal = 0;
-  let movieRatingCount = 0;
-  let seriesRatingTotal = 0;
-  let seriesRatingCount = 0;
+  let totalRatings = 0
+  let sum = 0
+  let movieRatingTotal = 0
+  let movieRatingCount = 0
+  let seriesRatingTotal = 0
+  let seriesRatingCount = 0
 
   for (const row of rows) {
-    const rating = normalizeRating(row.rating);
-    if (rating == null) continue;
+    const rating = normalizeRating(row.rating)
+    if (rating == null) continue
 
-    totalRatings += 1;
-    sum += rating;
+    totalRatings += 1
+    sum += rating
 
-    buckets.set(rating, (buckets.get(rating) ?? 0) + 1);
+    buckets.set(rating, (buckets.get(rating) ?? 0) + 1)
 
-    const title = unwrapTitle(row.title ?? row.titles);
+    const title = unwrapTitle(row.title ?? row.titles)
 
-    if (title?.type === "movie") {
-      movieRatingTotal += rating;
-      movieRatingCount += 1;
-    } else if (title?.type === "tv") {
-      seriesRatingTotal += rating;
-      seriesRatingCount += 1;
+    if (title?.type === 'movie') {
+      movieRatingTotal += rating
+      movieRatingCount += 1
+    } else if (title?.type === 'tv') {
+      seriesRatingTotal += rating
+      seriesRatingCount += 1
     }
 
-    const titleId = row.title_id ?? title?.id;
+    const titleId = row.title_id ?? title?.id
 
-    if (titleId && title?.title && title.type === "movie") {
-      const watchedAtMs = row.watched_at
-        ? Date.parse(row.watched_at)
-        : Number.NEGATIVE_INFINITY;
+    if (titleId && title?.title && title.type === 'movie') {
+      const watchedAtMs = row.watched_at ? Date.parse(row.watched_at) : Number.NEGATIVE_INFINITY
 
-      const previousTime =
-        latestMovieRatingTimes.get(titleId) ?? Number.NEGATIVE_INFINITY;
+      const previousTime = latestMovieRatingTimes.get(titleId) ?? Number.NEGATIVE_INFINITY
 
       if (!latestMovieRatings.has(titleId) || watchedAtMs >= previousTime) {
         latestMovieRatings.set(titleId, {
@@ -584,71 +539,66 @@ export function calculateProfileRatingStats(
           title: title.title,
           rating,
           ratingCount: 1,
-        });
+        })
 
-        latestMovieRatingTimes.set(titleId, watchedAtMs);
+        latestMovieRatingTimes.set(titleId, watchedAtMs)
       }
     }
 
-    if (titleId && title?.title && title.type === "tv") {
+    if (titleId && title?.title && title.type === 'tv') {
       const current = seriesRatings.get(titleId) ?? {
         titleId,
         title: title.title,
         total: 0,
         count: 0,
-      };
+      }
 
-      current.total += rating;
-      current.count += 1;
-      current.title = title.title;
+      current.total += rating
+      current.count += 1
+      current.title = title.title
 
-      seriesRatings.set(titleId, current);
+      seriesRatings.set(titleId, current)
     }
   }
 
-  const ratedHighlights = calculateRatedHighlights(rows, 3);
+  const ratedHighlights = calculateRatedHighlights(rows, 3)
 
   const distribution: ProfileRatingBucket[] = ratingSteps().map((rating) => ({
     rating,
     count: buckets.get(rating) ?? 0,
-    percentage:
-      totalRatings > 0 ? ((buckets.get(rating) ?? 0) / totalRatings) * 100 : 0,
-  }));
+    percentage: totalRatings > 0 ? ((buckets.get(rating) ?? 0) / totalRatings) * 100 : 0,
+  }))
 
-  const movieRatingStats = Array.from(latestMovieRatings.values());
+  const movieRatingStats = Array.from(latestMovieRatings.values())
 
   const highestRatedMovie = movieRatingStats
     .slice()
     .sort(
       (left, right) =>
         right.rating - left.rating ||
-        (latestMovieRatingTimes.get(right.titleId) ??
-          Number.NEGATIVE_INFINITY) -
-          (latestMovieRatingTimes.get(left.titleId) ??
-            Number.NEGATIVE_INFINITY) ||
-        left.title.localeCompare(right.title),
-    )[0];
+        (latestMovieRatingTimes.get(right.titleId) ?? Number.NEGATIVE_INFINITY) -
+          (latestMovieRatingTimes.get(left.titleId) ?? Number.NEGATIVE_INFINITY) ||
+        left.title.localeCompare(right.title)
+    )[0]
 
   const lowestRatedMovie = movieRatingStats
     .slice()
     .sort(
       (left, right) =>
         left.rating - right.rating ||
-        (latestMovieRatingTimes.get(right.titleId) ??
-          Number.NEGATIVE_INFINITY) -
-          (latestMovieRatingTimes.get(left.titleId) ??
-            Number.NEGATIVE_INFINITY) ||
-        left.title.localeCompare(right.title),
-    )[0];
+        (latestMovieRatingTimes.get(right.titleId) ?? Number.NEGATIVE_INFINITY) -
+          (latestMovieRatingTimes.get(left.titleId) ?? Number.NEGATIVE_INFINITY) ||
+        left.title.localeCompare(right.title)
+    )[0]
 
-  const seriesRatingStats: ProfileRatedTitleStat[] = Array.from(
-    seriesRatings.values(),
-  ).map((series) => ({
-    titleId: series.titleId,
-    title: series.title,
-    rating: series.total / series.count,
-    ratingCount: series.count,
-  }));
+  const seriesRatingStats: ProfileRatedTitleStat[] = Array.from(seriesRatings.values()).map(
+    (series) => ({
+      titleId: series.titleId,
+      title: series.title,
+      rating: series.total / series.count,
+      ratingCount: series.count,
+    })
+  )
 
   const highestRatedSeries = seriesRatingStats
     .slice()
@@ -656,8 +606,8 @@ export function calculateProfileRatingStats(
       (left, right) =>
         right.rating - left.rating ||
         right.ratingCount - left.ratingCount ||
-        left.title.localeCompare(right.title),
-    )[0];
+        left.title.localeCompare(right.title)
+    )[0]
 
   const lowestRatedSeries = seriesRatingStats
     .slice()
@@ -665,23 +615,18 @@ export function calculateProfileRatingStats(
       (left, right) =>
         left.rating - right.rating ||
         right.ratingCount - left.ratingCount ||
-        left.title.localeCompare(right.title),
-    )[0];
+        left.title.localeCompare(right.title)
+    )[0]
 
   return {
     averageRating: totalRatings > 0 ? roundRating(sum / totalRatings) : null,
     movieAverageRating:
-      movieRatingCount > 0
-        ? roundRating(movieRatingTotal / movieRatingCount)
-        : null,
+      movieRatingCount > 0 ? roundRating(movieRatingTotal / movieRatingCount) : null,
     seriesAverageRating:
-      seriesRatingCount > 0
-        ? roundRating(seriesRatingTotal / seriesRatingCount)
-        : null,
+      seriesRatingCount > 0 ? roundRating(seriesRatingTotal / seriesRatingCount) : null,
     totalRatings,
     distribution,
-    fiveStarRate:
-      totalRatings > 0 ? ((buckets.get(5) ?? 0) / totalRatings) * 100 : 0,
+    fiveStarRate: totalRatings > 0 ? ((buckets.get(5) ?? 0) / totalRatings) * 100 : 0,
     mostRatedGenre: ratedHighlights.mostRatedGenre,
     highestRatedGenre: ratedHighlights.highestRatedGenre,
     highestRatedDecade: ratedHighlights.highestRatedDecade,
@@ -693,144 +638,136 @@ export function calculateProfileRatingStats(
     lowestRatedMovie: lowestRatedMovie ?? null,
     highestRatedSeries: highestRatedSeries ?? null,
     lowestRatedSeries: lowestRatedSeries ?? null,
-  };
+  }
 }
 
 export function calculateProfileMediaStats(input: {
-  seriesWatched: number;
-  watchedMovies: Array<{ rating: number | string | null }>;
-  watchedSeries: Array<{ id: string }>;
-  seriesRatings: Record<string, number>;
+  seriesWatched: number
+  watchedMovies: Array<{ rating: number | string | null }>
+  watchedSeries: Array<{ id: string }>
+  seriesRatings: Record<string, number>
 }): ProfileMediaStats {
   const ratedMovies = input.watchedMovies
     .map((movie) => normalizeRating(movie.rating))
-    .filter((rating): rating is number => rating != null && rating > 0);
+    .filter((rating): rating is number => rating != null && rating > 0)
 
   const watchedSeriesIds = new Set(
-    input.watchedSeries.map((series) => series.id).filter((id) => Boolean(id)),
-  );
+    input.watchedSeries.map((series) => series.id).filter((id) => Boolean(id))
+  )
   const ratedSeries = Object.entries(input.seriesRatings)
     .map(([titleId, rating]) => ({ titleId, rating: normalizeRating(rating) }))
     .filter(
-      (entry) =>
-        watchedSeriesIds.has(entry.titleId) &&
-        entry.rating != null &&
-        entry.rating > 0,
-    );
+      (entry) => watchedSeriesIds.has(entry.titleId) && entry.rating != null && entry.rating > 0
+    )
 
   return {
     seriesWatched: input.seriesWatched,
     movieRatings: {
       average:
         ratedMovies.length > 0
-          ? ratedMovies.reduce((sum, rating) => sum + rating, 0) /
-            ratedMovies.length
+          ? ratedMovies.reduce((sum, rating) => sum + rating, 0) / ratedMovies.length
           : null,
       ratedCount: ratedMovies.length,
     },
     seriesRatings: {
       average:
         ratedSeries.length > 0
-          ? ratedSeries.reduce((sum, entry) => sum + (entry.rating ?? 0), 0) /
-            ratedSeries.length
+          ? ratedSeries.reduce((sum, entry) => sum + (entry.rating ?? 0), 0) / ratedSeries.length
           : null,
       ratedCount: ratedSeries.length,
     },
-  };
+  }
 }
 
 export function calculateProfileViewingBreakdownStats(input: {
-  diaryRows: WatchEventRow[];
-  episodeRows: WatchEventRow[];
+  diaryRows: WatchEventRow[]
+  episodeRows: WatchEventRow[]
 }): ProfileViewingBreakdownStats {
-  const movieDays = new Set<string>();
-  const tvDays = new Set<string>();
+  const movieDays = new Set<string>()
+  const tvDays = new Set<string>()
 
-  let movieRuntimeTotal = 0;
-  let movieRuntimeCount = 0;
+  let movieRuntimeTotal = 0
+  let movieRuntimeCount = 0
 
   for (const row of input.diaryRows) {
-    const title = unwrapTitle(row.title ?? row.titles);
-    if (!title || title.type !== "movie") continue;
+    const title = unwrapTitle(row.title ?? row.titles)
+    if (!title || title.type !== 'movie') continue
 
-    const runtime = title.runtime;
-    if (runtime == null) continue;
+    const runtime = title.runtime
+    if (runtime == null) continue
 
-    movieRuntimeTotal += runtime;
-    movieRuntimeCount += 1;
+    movieRuntimeTotal += runtime
+    movieRuntimeCount += 1
   }
 
-  let watchedEpisodeCount = 0;
-  let longestBingeEpisodes = 0;
+  let watchedEpisodeCount = 0
+  let longestBingeEpisodes = 0
 
-  const watchedSeriesIds = new Set<string>();
-  const bingeCounts = new Map<string, number>();
+  const watchedSeriesIds = new Set<string>()
+  const bingeCounts = new Map<string, number>()
 
   for (const row of input.episodeRows) {
-    const title = unwrapTitle(row.title ?? row.titles);
-    if (!title || title.type !== "tv") continue;
+    const title = unwrapTitle(row.title ?? row.titles)
+    if (!title || title.type !== 'tv') continue
 
-    watchedEpisodeCount += 1;
-    watchedSeriesIds.add(row.title_id);
+    watchedEpisodeCount += 1
+    watchedSeriesIds.add(row.title_id)
 
-    if (!row.watched_at) continue;
+    if (!row.watched_at) continue
 
-    const day = new Date(row.watched_at).toISOString().slice(0, 10);
-    const bingeKey = `${row.title_id}:${day}`;
-    const bingeCount = (bingeCounts.get(bingeKey) ?? 0) + 1;
+    const day = new Date(row.watched_at).toISOString().slice(0, 10)
+    const bingeKey = `${row.title_id}:${day}`
+    const bingeCount = (bingeCounts.get(bingeKey) ?? 0) + 1
 
-    bingeCounts.set(bingeKey, bingeCount);
-    longestBingeEpisodes = Math.max(longestBingeEpisodes, bingeCount);
+    bingeCounts.set(bingeKey, bingeCount)
+    longestBingeEpisodes = Math.max(longestBingeEpisodes, bingeCount)
   }
 
   const movieTimeWatchedMinutes = sumWatchTime(
     input.diaryRows,
-    "movie",
+    'movie',
     (title) => title.runtime ?? null,
-    movieDays,
-  );
+    movieDays
+  )
 
   const tvTimeWatchedMinutes = sumWatchTime(
     input.episodeRows,
-    "tv",
+    'tv',
     (title, row) => row.runtime_minutes ?? title.episode_runtime ?? null,
-    tvDays,
-  );
+    tvDays
+  )
 
-  const weekdayMedia = { movies: 0, series: 0 };
-  const weekendMedia = { movies: 0, series: 0 };
+  const weekdayMedia = { movies: 0, series: 0 }
+  const weekendMedia = { movies: 0, series: 0 }
 
   for (const row of input.diaryRows) {
-    const title = unwrapTitle(row.title ?? row.titles);
-    if (title?.type !== "movie" || !row.watched_at) continue;
+    const title = unwrapTitle(row.title ?? row.titles)
+    if (title?.type !== 'movie' || !row.watched_at) continue
 
-    const day = utcDayOfWeek(row.watched_at);
-    if (day == null) continue;
+    const day = utcDayOfWeek(row.watched_at)
+    if (day == null) continue
 
-    (day === 0 || day === 6 ? weekendMedia : weekdayMedia).movies += 1;
+    ;(day === 0 || day === 6 ? weekendMedia : weekdayMedia).movies += 1
   }
 
   for (const row of input.episodeRows) {
-    const title = unwrapTitle(row.title ?? row.titles);
-    if (title?.type !== "tv" || !row.watched_at) continue;
+    const title = unwrapTitle(row.title ?? row.titles)
+    if (title?.type !== 'tv' || !row.watched_at) continue
 
-    const day = utcDayOfWeek(row.watched_at);
-    if (day == null) continue;
+    const day = utcDayOfWeek(row.watched_at)
+    if (day == null) continue
 
-    (day === 0 || day === 6 ? weekendMedia : weekdayMedia).series += 1;
+    ;(day === 0 || day === 6 ? weekendMedia : weekdayMedia).series += 1
   }
 
   return {
     movieTimeWatchedMinutes,
     tvTimeWatchedMinutes,
 
-    averageMovieRuntimeMinutes:
-      movieRuntimeCount > 0 ? movieRuntimeTotal / movieRuntimeCount : 0,
+    averageMovieRuntimeMinutes: movieRuntimeCount > 0 ? movieRuntimeTotal / movieRuntimeCount : 0,
 
     averageEpisodesPerSeries:
-      watchedSeriesIds.size > 0
-        ? watchedEpisodeCount / watchedSeriesIds.size
-        : 0,
+      watchedSeriesIds.size > 0 ? watchedEpisodeCount / watchedSeriesIds.size : 0,
 
     longestBingeEpisodes,
 
@@ -839,35 +776,35 @@ export function calculateProfileViewingBreakdownStats(input: {
     studioStats: calculateStudioStats(input.diaryRows),
     weekdayMediaSplit: buildMediaSplit(weekdayMedia),
     weekendMediaSplit: buildMediaSplit(weekendMedia),
-  };
+  }
 }
 
 export function calculateProfileGenreStats(
   rows: Array<{ title?: JoinedTitle; titles?: JoinedTitle }>,
-  limit = 5,
+  limit = 5
 ): ProfileGenreStat[] {
-  const genres = new Map<number, { count: number; name: string }>();
-  let total = 0;
+  const genres = new Map<number, { count: number; name: string }>()
+  let total = 0
 
   for (const row of rows) {
-    const title = unwrapTitle(row.title ?? row.titles);
-    if (!title?.genres?.length) continue;
+    const title = unwrapTitle(row.title ?? row.titles)
+    if (!title?.genres?.length) continue
 
-    const weight = 1 / title.genres.length;
+    const weight = 1 / title.genres.length
 
     for (const genre of title.genres) {
-      if (!genre?.id || !genre.name) continue;
+      if (!genre?.id || !genre.name) continue
 
       const entry = genres.get(genre.id) ?? {
         count: 0,
         name: genre.name,
-      };
+      }
 
-      entry.count += weight;
-      entry.name = genre.name;
+      entry.count += weight
+      entry.name = genre.name
 
-      genres.set(genre.id, entry);
-      total += weight;
+      genres.set(genre.id, entry)
+      total += weight
     }
   }
 
@@ -878,35 +815,32 @@ export function calculateProfileGenreStats(
       count: value.count,
       percentage: total > 0 ? (value.count / total) * 100 : 0,
     }))
-    .sort(
-      (left, right) =>
-        right.count - left.count || left.name.localeCompare(right.name),
-    )
-    .slice(0, limit);
+    .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
+    .slice(0, limit)
 }
 
 export function calculateProfileLifetimeStats(input: {
-  diaryRows: WatchEventRow[];
-  episodeRows: WatchEventRow[];
-  movieRatingsCount: number;
-  episodeRatingsCount: number;
+  diaryRows: WatchEventRow[]
+  episodeRows: WatchEventRow[]
+  movieRatingsCount: number
+  episodeRatingsCount: number
 }): ProfileLifetimeStats {
-  let moviesWatched = 0;
-  let episodesWatched = 0;
-  let timeWatchedMinutes = 0;
+  let moviesWatched = 0
+  let episodesWatched = 0
+  let timeWatchedMinutes = 0
 
   for (const row of input.diaryRows) {
-    const title = unwrapTitle(row.title ?? row.titles);
-    if (!title || title.type !== "movie") continue;
-    moviesWatched += 1;
-    timeWatchedMinutes += title.runtime ?? 0;
+    const title = unwrapTitle(row.title ?? row.titles)
+    if (!title || title.type !== 'movie') continue
+    moviesWatched += 1
+    timeWatchedMinutes += title.runtime ?? 0
   }
 
   for (const row of input.episodeRows) {
-    const title = unwrapTitle(row.title ?? row.titles);
-    if (!title || title.type !== "tv") continue;
-    episodesWatched += 1;
-    timeWatchedMinutes += row.runtime_minutes ?? title.episode_runtime ?? 0;
+    const title = unwrapTitle(row.title ?? row.titles)
+    if (!title || title.type !== 'tv') continue
+    episodesWatched += 1
+    timeWatchedMinutes += row.runtime_minutes ?? title.episode_runtime ?? 0
   }
 
   return {
@@ -914,25 +848,25 @@ export function calculateProfileLifetimeStats(input: {
     episodesWatched,
     ratingsMade: input.movieRatingsCount + input.episodeRatingsCount,
     timeWatchedMinutes,
-  };
+  }
 }
 
 export function buildProfileMonthlyRecap(input: {
-  year: number;
-  month: number;
+  year: number
+  month: number
   current: {
-    diaryRows: WatchEventRow[];
-    movieRatingRows: RatingEventRow[];
-    episodeRatingRows: RatingEventRow[];
-    watchedSeries?: WatchedSeries[];
-  };
+    diaryRows: WatchEventRow[]
+    movieRatingRows: RatingEventRow[]
+    episodeRatingRows: RatingEventRow[]
+    watchedSeries?: WatchedSeries[]
+  }
   previous: {
-    diaryRows: WatchEventRow[];
-    movieRatingRows: RatingEventRow[];
-    episodeRatingRows: RatingEventRow[];
-  };
+    diaryRows: WatchEventRow[]
+    movieRatingRows: RatingEventRow[]
+    episodeRatingRows: RatingEventRow[]
+  }
 }): ProfileMonthlyRecap {
-  const currentRange = createMonthRange(input.year, input.month);
+  const currentRange = createMonthRange(input.year, input.month)
 
   const currentSummary = summarizeProfileActivity({
     diaryRows: input.current.diaryRows,
@@ -940,7 +874,7 @@ export function buildProfileMonthlyRecap(input: {
     episodeRatingRows: input.current.episodeRatingRows,
     watchedSeries: input.current.watchedSeries ?? [],
     monthRange: currentRange,
-  });
+  })
 
   const previousSummary = summarizeProfileActivity({
     diaryRows: input.previous.diaryRows,
@@ -949,11 +883,11 @@ export function buildProfileMonthlyRecap(input: {
     watchedSeries: [],
     monthRange: createMonthRange(
       input.month === 1 ? input.year - 1 : input.year,
-      input.month === 1 ? 12 : input.month - 1,
+      input.month === 1 ? 12 : input.month - 1
     ),
-  });
+  })
 
-  const titles = Array.from(currentSummary.titleById.values());
+  const titles = Array.from(currentSummary.titleById.values())
 
   const highestRated =
     titles
@@ -963,9 +897,9 @@ export function buildProfileMonthlyRecap(input: {
           (right.rating ?? 0) - (left.rating ?? 0) ||
           right.count - left.count ||
           right.latestWatchedAt - left.latestWatchedAt ||
-          left.title.localeCompare(right.title),
+          left.title.localeCompare(right.title)
       )
-      .map(stripTitleInternal)[0] ?? null;
+      .map(stripTitleInternal)[0] ?? null
 
   const lowestRated =
     titles
@@ -975,27 +909,21 @@ export function buildProfileMonthlyRecap(input: {
           (left.rating ?? 0) - (right.rating ?? 0) ||
           right.count - left.count ||
           right.latestWatchedAt - left.latestWatchedAt ||
-          left.title.localeCompare(right.title),
+          left.title.localeCompare(right.title)
       )
-      .map(stripTitleInternal)[0] ?? null;
+      .map(stripTitleInternal)[0] ?? null
 
   const topRatedMovies = titles
-    .filter(
-      (title) =>
-        title.mediaType === "movie" && title.rating != null && title.rating > 0,
-    )
+    .filter((title) => title.mediaType === 'movie' && title.rating != null && title.rating > 0)
     .sort(compareTopRatedMovieTitles)
     .map(stripTitleInternal)
-    .slice(0, 10);
+    .slice(0, 10)
 
   const topRatedSeries = titles
-    .filter(
-      (title) =>
-        title.mediaType === "tv" && title.rating != null && title.rating > 0,
-    )
+    .filter((title) => title.mediaType === 'tv' && title.rating != null && title.rating > 0)
     .sort(compareTopRatedSeriesTitles)
     .map(stripTitleInternal)
-    .slice(0, 10);
+    .slice(0, 10)
 
   /**
    * "Top titles" now means actual consumption.
@@ -1009,10 +937,10 @@ export function buildProfileMonthlyRecap(input: {
         (right.watchTimeMinutes ?? 0) - (left.watchTimeMinutes ?? 0) ||
         right.count - left.count ||
         right.latestWatchedAt - left.latestWatchedAt ||
-        left.title.localeCompare(right.title),
+        left.title.localeCompare(right.title)
     )
     .map(stripTitleInternal)
-    .slice(0, 10);
+    .slice(0, 10)
 
   const mostWatchedSeries = Array.from(currentSummary.seriesByTitle.values())
     .sort(
@@ -1020,10 +948,10 @@ export function buildProfileMonthlyRecap(input: {
         (right.watchTimeMinutes ?? 0) - (left.watchTimeMinutes ?? 0) ||
         right.count - left.count ||
         left.firstWatchedAt - right.firstWatchedAt ||
-        left.title.localeCompare(right.title),
+        left.title.localeCompare(right.title)
     )
     .map(({ firstWatchedAt: _firstWatchedAt, ...series }) => series)
-    .slice(0, 5);
+    .slice(0, 5)
 
   return {
     year: input.year,
@@ -1076,59 +1004,47 @@ export function buildProfileMonthlyRecap(input: {
     highestRatedDecade: currentSummary.ratedHighlights.highestRatedDecade,
 
     previousMonthComparison: {
-      moviesDelta:
-        currentSummary.movieWatchCount - previousSummary.movieWatchCount,
+      moviesDelta: currentSummary.movieWatchCount - previousSummary.movieWatchCount,
 
-      episodesDelta:
-        currentSummary.episodesWatched - previousSummary.episodesWatched,
+      episodesDelta: currentSummary.episodesWatched - previousSummary.episodesWatched,
 
       timeWatchedMinutesDelta:
         currentSummary.timeWatchedMinutes - previousSummary.timeWatchedMinutes,
 
       ratingsDelta: currentSummary.ratingsCount - previousSummary.ratingsCount,
     },
-  };
+  }
 }
 
 export function buildProfileLifetimeRecap(input: {
-  lifetime: ProfileLifetimeStats;
-  diaryRows: WatchEventRow[];
-  movieRatingRows: RatingEventRow[];
-  episodeRatingRows: RatingEventRow[];
-  watchedSeries?: WatchedSeries[];
+  lifetime: ProfileLifetimeStats
+  diaryRows: WatchEventRow[]
+  movieRatingRows: RatingEventRow[]
+  episodeRatingRows: RatingEventRow[]
+  watchedSeries?: WatchedSeries[]
 }): ProfileLifetimeRecap {
-  const watchedSeries = input.watchedSeries ?? [];
+  const watchedSeries = input.watchedSeries ?? []
   const summary = summarizeProfileActivity({
     diaryRows: input.diaryRows,
     movieRatingRows: input.movieRatingRows,
     episodeRatingRows: input.episodeRatingRows,
     watchedSeries,
-  });
-  const titles = Array.from(summary.titleById.values());
-  const watchedSeriesById = new Map(
-    watchedSeries.map((series) => [series.id, series]),
-  );
+  })
+  const titles = Array.from(summary.titleById.values())
+  const watchedSeriesById = new Map(watchedSeries.map((series) => [series.id, series]))
 
   const topRatedMovies = titles
-    .filter(
-      (title) =>
-        title.mediaType === "movie" && title.rating != null && title.rating > 0,
-    )
+    .filter((title) => title.mediaType === 'movie' && title.rating != null && title.rating > 0)
     .sort(compareTopRatedMovieTitles)
     .map(stripTitleInternal)
-    .slice(0, 10);
+    .slice(0, 10)
 
   const topRatedSeries = titles
-    .filter(
-      (title) =>
-        title.mediaType === "tv" && title.rating != null && title.rating > 0,
-    )
+    .filter((title) => title.mediaType === 'tv' && title.rating != null && title.rating > 0)
     .sort(compareTopRatedSeriesTitles)
     .map(stripTitleInternal)
     .slice(0, 10)
-    .map((title) =>
-      enrichLifetimeSeriesTitle(title, watchedSeriesById.get(title.titleId)),
-    );
+    .map((title) => enrichLifetimeSeriesTitle(title, watchedSeriesById.get(title.titleId)))
 
   return {
     moviesWatched: input.lifetime.moviesWatched,
@@ -1144,131 +1060,118 @@ export function buildProfileLifetimeRecap(input: {
     highestRatedActress: summary.ratedHighlights.highestRatedActress,
     highestRatedGenre: summary.ratedHighlights.highestRatedGenre,
     highestRatedDecade: summary.ratedHighlights.highestRatedDecade,
-  };
+  }
 }
 
-function compareTopRatedMovieTitles(
-  left: ProfileActivityTitle,
-  right: ProfileActivityTitle,
-) {
+function compareTopRatedMovieTitles(left: ProfileActivityTitle, right: ProfileActivityTitle) {
   return (
     (right.rating ?? 0) - (left.rating ?? 0) ||
     (right.watchTimeMinutes ?? 0) - (left.watchTimeMinutes ?? 0) ||
     right.latestWatchedAt - left.latestWatchedAt ||
     left.title.localeCompare(right.title)
-  );
+  )
 }
 
-function compareTopRatedSeriesTitles(
-  left: ProfileActivityTitle,
-  right: ProfileActivityTitle,
-) {
+function compareTopRatedSeriesTitles(left: ProfileActivityTitle, right: ProfileActivityTitle) {
   return (
     (right.rating ?? 0) - (left.rating ?? 0) ||
     (right.watchTimeMinutes ?? 0) - (left.watchTimeMinutes ?? 0) ||
     right.count - left.count ||
     left.title.localeCompare(right.title)
-  );
+  )
 }
 
 function stripTitleInternal(item: ProfileActivityTitle): ProfileMonthlyRecapTitle {
-  const { latestWatchedAt: _latestWatchedAt, ...title } = item;
-  return title;
+  const { latestWatchedAt: _latestWatchedAt, ...title } = item
+  return title
 }
 
 function enrichLifetimeSeriesTitle(
   title: ProfileMonthlyRecapTitle,
-  watchedSeries?: WatchedSeries,
+  watchedSeries?: WatchedSeries
 ): ProfileMonthlyRecapTitle {
   if (!watchedSeries) {
-    return title;
+    return title
   }
 
   return {
     ...title,
     watchedEpisodeCount: watchedSeries.watched_episode_count,
-  };
+  }
 }
 
 function summarizeProfileActivity(input: {
-  diaryRows: WatchEventRow[];
-  movieRatingRows: RatingEventRow[];
-  episodeRatingRows: RatingEventRow[];
-  watchedSeries: WatchedSeries[];
-  monthRange?: MonthRange;
+  diaryRows: WatchEventRow[]
+  movieRatingRows: RatingEventRow[]
+  episodeRatingRows: RatingEventRow[]
+  watchedSeries: WatchedSeries[]
+  monthRange?: MonthRange
 }) {
-  const {
-    diaryRows,
-    movieRatingRows,
-    episodeRatingRows,
-    watchedSeries,
-    monthRange,
-  } = input;
-  const titleById = new Map<string, ProfileActivityTitle>();
+  const { diaryRows, movieRatingRows, episodeRatingRows, watchedSeries, monthRange } = input
+  const titleById = new Map<string, ProfileActivityTitle>()
 
   const seriesByTitle = new Map<
     string,
     ProfileMonthlyRecapSeries & {
-      firstWatchedAt: number;
+      firstWatchedAt: number
     }
-  >();
+  >()
 
-  const activeDays = new Set<string>();
+  const activeDays = new Set<string>()
 
   const genres = new Map<
     number,
     {
-      count: number;
-      name: string;
-      watchTimeMinutes: number;
+      count: number
+      name: string
+      watchTimeMinutes: number
     }
-  >();
+  >()
 
   const dailyActivity = new Map<
     string,
     {
-      entries: number;
-      moviesWatched: number;
-      episodesWatched: number;
-      minutes: number;
+      entries: number
+      moviesWatched: number
+      episodesWatched: number
+      minutes: number
     }
-  >();
+  >()
 
   const studioCounts = new Map<
     number,
     {
-      id: number;
-      name: string;
-      logoPath: string | null;
-      count: number;
+      id: number
+      name: string
+      logoPath: string | null
+      count: number
     }
-  >();
+  >()
 
   const actorStats = new Map<
     string,
     {
-      id: number | string;
-      name: string;
-      profilePath: string | null;
-      count: number;
-      titles: Set<string>;
+      id: number | string
+      name: string
+      profilePath: string | null
+      count: number
+      titles: Set<string>
     }
-  >();
+  >()
 
-  const finishedSeries = new Map<string, ProfileMonthlyRecapSeries>();
+  const finishedSeries = new Map<string, ProfileMonthlyRecapSeries>()
 
-  let movieWatchCount = 0;
-  let episodesWatched = 0;
+  let movieWatchCount = 0
+  let episodesWatched = 0
 
-  let movieRuntimeMinutes = 0;
-  let seriesRuntimeMinutes = 0;
+  let movieRuntimeMinutes = 0
+  let seriesRuntimeMinutes = 0
 
-  let ratingsCount = 0;
-  let rewatches = 0;
-  const ratingRowsForSummary = [
-    ...movieRatingRows,
-    ...episodeRatingRows,
-  ].filter((row) => isRatingWithinRange(row, monthRange));
+  let ratingsCount = 0
+  let rewatches = 0
+  const ratingRowsForSummary = [...movieRatingRows, ...episodeRatingRows].filter((row) =>
+    isRatingWithinRange(row, monthRange)
+  )
 
   /*
    * Aggregate rating events per title.
@@ -1280,38 +1183,38 @@ function summarizeProfileActivity(input: {
   const ratingStatsByTitle = new Map<
     string,
     {
-      sum: number;
-      count: number;
+      sum: number
+      count: number
     }
-  >();
+  >()
 
-  const ratingValues: number[] = [];
+  const ratingValues: number[] = []
 
   for (const row of ratingRowsForSummary) {
-    const rating = normalizeRating(row.rating);
+    const rating = normalizeRating(row.rating)
 
     if (rating == null) {
-      continue;
+      continue
     }
 
-    ratingsCount += 1;
-    ratingValues.push(rating);
+    ratingsCount += 1
+    ratingValues.push(rating)
 
     const existing = ratingStatsByTitle.get(row.title_id) ?? {
       sum: 0,
       count: 0,
-    };
+    }
 
-    existing.sum += rating;
-    existing.count += 1;
+    existing.sum += rating
+    existing.count += 1
 
-    ratingStatsByTitle.set(row.title_id, existing);
+    ratingStatsByTitle.set(row.title_id, existing)
   }
 
-  const averageRatingByTitle = new Map<string, number>();
+  const averageRatingByTitle = new Map<string, number>()
 
   for (const [titleId, rating] of ratingStatsByTitle) {
-    averageRatingByTitle.set(titleId, rating.sum / rating.count);
+    averageRatingByTitle.set(titleId, rating.sum / rating.count)
   }
 
   /* ---------------------------------------------------------------------- */
@@ -1319,63 +1222,62 @@ function summarizeProfileActivity(input: {
   /* ---------------------------------------------------------------------- */
 
   for (const row of diaryRows) {
-    const title = unwrapTitle(row.title ?? row.titles);
+    const title = unwrapTitle(row.title ?? row.titles)
 
     if (!title || !row.watched_at) {
-      continue;
+      continue
     }
 
-    const watchedAt = Date.parse(row.watched_at);
+    const watchedAt = Date.parse(row.watched_at)
 
     if (Number.isNaN(watchedAt)) {
-      continue;
+      continue
     }
 
-    const watchedDate = new Date(row.watched_at);
+    const watchedDate = new Date(row.watched_at)
 
     if (!isWithinRange(watchedDate, monthRange)) {
-      continue;
+      continue
     }
 
-    const watchedDay = toLocalDateKey(watchedDate);
+    const watchedDay = toLocalDateKey(watchedDate)
 
     /*
      * This recap treats watch_diary movie rows as movie watches.
      * If TV diary rows exist for another purpose, don't count them
      * as episode consumption here.
      */
-    if (title.type === "movie") {
-      movieWatchCount += 1;
-      activeDays.add(watchedDay);
+    if (title.type === 'movie') {
+      movieWatchCount += 1
+      activeDays.add(watchedDay)
 
-      if (row.watch_type === "rewatch") {
-        rewatches += 1;
+      if (row.watch_type === 'rewatch') {
+        rewatches += 1
       }
 
-      const runtimeMinutes = Math.max(0, title.runtime ?? 0);
+      const runtimeMinutes = Math.max(0, title.runtime ?? 0)
 
-      movieRuntimeMinutes += runtimeMinutes;
+      movieRuntimeMinutes += runtimeMinutes
 
       const activity = dailyActivity.get(watchedDay) ?? {
         entries: 0,
         moviesWatched: 0,
         episodesWatched: 0,
         minutes: 0,
-      };
+      }
 
-      activity.entries += 1;
-      activity.moviesWatched += 1;
-      activity.minutes += runtimeMinutes;
+      activity.entries += 1
+      activity.moviesWatched += 1
+      activity.minutes += runtimeMinutes
 
-      dailyActivity.set(watchedDay, activity);
+      dailyActivity.set(watchedDay, activity)
 
-      addGenreConsumption(genres, title, runtimeMinutes);
+      addGenreConsumption(genres, title, runtimeMinutes)
 
-      recordTopActorStats(actorStats, title, title.id);
+      recordTopActorStats(actorStats, title, title.id)
     }
 
-    const runtimeMinutes =
-      title.type === "movie" ? Math.max(0, title.runtime ?? 0) : 0;
+    const runtimeMinutes = title.type === 'movie' ? Math.max(0, title.runtime ?? 0) : 0
 
     const titleEntry = titleById.get(title.id) ?? {
       count: 0,
@@ -1387,42 +1289,38 @@ function summarizeProfileActivity(input: {
       tmdbId: title.tmdb_id,
       coverImage: title.cover_image ?? null,
       watchTimeMinutes: 0,
-    };
+    }
 
-    titleEntry.count += 1;
+    titleEntry.count += 1
 
-    titleEntry.latestWatchedAt = Math.max(
-      titleEntry.latestWatchedAt,
-      watchedAt,
-    );
+    titleEntry.latestWatchedAt = Math.max(titleEntry.latestWatchedAt, watchedAt)
 
-    titleEntry.rating = averageRatingByTitle.get(title.id) ?? titleEntry.rating;
+    titleEntry.rating = averageRatingByTitle.get(title.id) ?? titleEntry.rating
 
-    titleEntry.mediaType = title.type;
-    titleEntry.title = title.title;
-    titleEntry.tmdbId = title.tmdb_id;
+    titleEntry.mediaType = title.type
+    titleEntry.title = title.title
+    titleEntry.tmdbId = title.tmdb_id
 
-    titleEntry.coverImage = title.cover_image ?? titleEntry.coverImage ?? null;
+    titleEntry.coverImage = title.cover_image ?? titleEntry.coverImage ?? null
 
-    titleEntry.watchTimeMinutes =
-      (titleEntry.watchTimeMinutes ?? 0) + runtimeMinutes;
+    titleEntry.watchTimeMinutes = (titleEntry.watchTimeMinutes ?? 0) + runtimeMinutes
 
-    titleById.set(title.id, titleEntry);
+    titleById.set(title.id, titleEntry)
 
-    if (title.type === "movie") {
+    if (title.type === 'movie') {
       const companies = title.production_companies?.length
         ? title.production_companies
-        : (title.tmdb_data?.production_companies ?? []);
+        : (title.tmdb_data?.production_companies ?? [])
 
       for (const company of companies) {
-        const existing = studioCounts.get(company.id);
+        const existing = studioCounts.get(company.id)
 
         studioCounts.set(company.id, {
           id: company.id,
           name: company.name,
           logoPath: existing?.logoPath ?? company.logo_path ?? null,
           count: (existing?.count ?? 0) + 1,
-        });
+        })
       }
     }
   }
@@ -1432,57 +1330,57 @@ function summarizeProfileActivity(input: {
   /* ---------------------------------------------------------------------- */
 
   for (const row of episodeRatingRows) {
-    const title = unwrapTitle(row.title ?? row.titles);
+    const title = unwrapTitle(row.title ?? row.titles)
 
     if (!row.watched_at) {
-      continue;
+      continue
     }
 
-    const watchedAt = Date.parse(row.watched_at);
+    const watchedAt = Date.parse(row.watched_at)
 
     if (Number.isNaN(watchedAt)) {
-      continue;
+      continue
     }
 
-    const watchedDate = new Date(row.watched_at);
+    const watchedDate = new Date(row.watched_at)
 
     if (!isWithinRange(watchedDate, monthRange)) {
-      continue;
+      continue
     }
 
-    const watchedDay = toLocalDateKey(watchedDate);
+    const watchedDay = toLocalDateKey(watchedDate)
 
-    activeDays.add(watchedDay);
+    activeDays.add(watchedDay)
 
-    const runtimeMinutes = Math.max(0, row.runtime_minutes ?? 0);
+    const runtimeMinutes = Math.max(0, row.runtime_minutes ?? 0)
 
     const activity = dailyActivity.get(watchedDay) ?? {
       entries: 0,
       moviesWatched: 0,
       episodesWatched: 0,
       minutes: 0,
-    };
-
-    activity.entries += 1;
-    activity.episodesWatched += 1;
-    activity.minutes += runtimeMinutes;
-
-    dailyActivity.set(watchedDay, activity);
-
-    if (!title || title.type !== "tv") {
-      continue;
     }
 
-    episodesWatched += 1;
-    seriesRuntimeMinutes += runtimeMinutes;
+    activity.entries += 1
+    activity.episodesWatched += 1
+    activity.minutes += runtimeMinutes
 
-    if (row.watch_type === "rewatch") {
-      rewatches += 1;
+    dailyActivity.set(watchedDay, activity)
+
+    if (!title || title.type !== 'tv') {
+      continue
     }
 
-    addGenreConsumption(genres, title, runtimeMinutes);
+    episodesWatched += 1
+    seriesRuntimeMinutes += runtimeMinutes
 
-    recordTopActorStats(actorStats, title, title.id);
+    if (row.watch_type === 'rewatch') {
+      rewatches += 1
+    }
+
+    addGenreConsumption(genres, title, runtimeMinutes)
+
+    recordTopActorStats(actorStats, title, title.id)
 
     /*
      * Put series in titleById too.
@@ -1494,34 +1392,30 @@ function summarizeProfileActivity(input: {
     const titleEntry = titleById.get(title.id) ?? {
       count: 0,
       latestWatchedAt: watchedAt,
-      mediaType: "tv",
+      mediaType: 'tv',
       rating: averageRatingByTitle.get(title.id) ?? null,
       title: title.title,
       titleId: title.id,
       tmdbId: title.tmdb_id,
       coverImage: title.cover_image ?? null,
       watchTimeMinutes: 0,
-    };
+    }
 
-    titleEntry.count += 1;
+    titleEntry.count += 1
 
-    titleEntry.latestWatchedAt = Math.max(
-      titleEntry.latestWatchedAt,
-      watchedAt,
-    );
+    titleEntry.latestWatchedAt = Math.max(titleEntry.latestWatchedAt, watchedAt)
 
-    titleEntry.mediaType = "tv";
-    titleEntry.title = title.title;
-    titleEntry.tmdbId = title.tmdb_id;
+    titleEntry.mediaType = 'tv'
+    titleEntry.title = title.title
+    titleEntry.tmdbId = title.tmdb_id
 
-    titleEntry.rating = averageRatingByTitle.get(title.id) ?? titleEntry.rating;
+    titleEntry.rating = averageRatingByTitle.get(title.id) ?? titleEntry.rating
 
-    titleEntry.coverImage = title.cover_image ?? titleEntry.coverImage ?? null;
+    titleEntry.coverImage = title.cover_image ?? titleEntry.coverImage ?? null
 
-    titleEntry.watchTimeMinutes =
-      (titleEntry.watchTimeMinutes ?? 0) + runtimeMinutes;
+    titleEntry.watchTimeMinutes = (titleEntry.watchTimeMinutes ?? 0) + runtimeMinutes
 
-    titleById.set(title.id, titleEntry);
+    titleById.set(title.id, titleEntry)
 
     const seriesEntry = seriesByTitle.get(title.id) ?? {
       titleId: title.id,
@@ -1533,28 +1427,22 @@ function summarizeProfileActivity(input: {
       percentageOfTvTime: 0,
       rating: averageRatingByTitle.get(title.id) ?? null,
       firstWatchedAt: watchedAt,
-    };
+    }
 
-    seriesEntry.count += 1;
+    seriesEntry.count += 1
 
-    seriesEntry.firstWatchedAt = Math.min(
-      seriesEntry.firstWatchedAt,
-      watchedAt,
-    );
+    seriesEntry.firstWatchedAt = Math.min(seriesEntry.firstWatchedAt, watchedAt)
 
-    seriesEntry.title = title.title;
-    seriesEntry.tmdbId = title.tmdb_id;
+    seriesEntry.title = title.title
+    seriesEntry.tmdbId = title.tmdb_id
 
-    seriesEntry.coverImage =
-      title.cover_image ?? seriesEntry.coverImage ?? null;
+    seriesEntry.coverImage = title.cover_image ?? seriesEntry.coverImage ?? null
 
-    seriesEntry.rating =
-      averageRatingByTitle.get(title.id) ?? seriesEntry.rating;
+    seriesEntry.rating = averageRatingByTitle.get(title.id) ?? seriesEntry.rating
 
-    seriesEntry.watchTimeMinutes =
-      (seriesEntry.watchTimeMinutes ?? 0) + runtimeMinutes;
+    seriesEntry.watchTimeMinutes = (seriesEntry.watchTimeMinutes ?? 0) + runtimeMinutes
 
-    seriesByTitle.set(title.id, seriesEntry);
+    seriesByTitle.set(title.id, seriesEntry)
   }
 
   /*
@@ -1563,9 +1451,7 @@ function summarizeProfileActivity(input: {
    */
   for (const series of seriesByTitle.values()) {
     series.percentageOfTvTime =
-      seriesRuntimeMinutes > 0
-        ? ((series.watchTimeMinutes ?? 0) / seriesRuntimeMinutes) * 100
-        : 0;
+      seriesRuntimeMinutes > 0 ? ((series.watchTimeMinutes ?? 0) / seriesRuntimeMinutes) * 100 : 0
   }
 
   /* ---------------------------------------------------------------------- */
@@ -1574,24 +1460,22 @@ function summarizeProfileActivity(input: {
 
   for (const series of watchedSeries) {
     if (!series.is_series_completed) {
-      continue;
+      continue
     }
 
-    const completedAt = series.latest_watched_at
-      ? Date.parse(series.latest_watched_at)
-      : null;
+    const completedAt = series.latest_watched_at ? Date.parse(series.latest_watched_at) : null
 
     if (completedAt == null || Number.isNaN(completedAt)) {
-      continue;
+      continue
     }
 
-    const completedDate = new Date(series.latest_watched_at);
+    const completedDate = new Date(series.latest_watched_at)
 
     if (!isWithinRange(completedDate, monthRange)) {
-      continue;
+      continue
     }
 
-    const monthlySeries = seriesByTitle.get(series.id);
+    const monthlySeries = seriesByTitle.get(series.id)
 
     finishedSeries.set(series.id, {
       titleId: series.id,
@@ -1611,16 +1495,15 @@ function summarizeProfileActivity(input: {
       watchTimeMinutes: monthlySeries?.watchTimeMinutes ?? 0,
 
       percentageOfTvTime: monthlySeries?.percentageOfTvTime ?? 0,
-    });
+    })
   }
 
-  const totalWatchTimeMinutes = movieRuntimeMinutes + seriesRuntimeMinutes;
+  const totalWatchTimeMinutes = movieRuntimeMinutes + seriesRuntimeMinutes
 
   const averageRating =
     ratingValues.length > 0
-      ? ratingValues.reduce((sum, rating) => sum + rating, 0) /
-        ratingValues.length
-      : null;
+      ? ratingValues.reduce((sum, rating) => sum + rating, 0) / ratingValues.length
+      : null
 
   return {
     activeDays,
@@ -1651,13 +1534,9 @@ function summarizeProfileActivity(input: {
       .map((company) => ({
         ...company,
 
-        percentage:
-          movieWatchCount > 0 ? (company.count / movieWatchCount) * 100 : 0,
+        percentage: movieWatchCount > 0 ? (company.count / movieWatchCount) * 100 : 0,
       }))
-      .sort(
-        (left, right) =>
-          right.count - left.count || left.name.localeCompare(right.name),
-      ),
+      .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name)),
 
     ratedHighlights: calculateRatedHighlights(ratingRowsForSummary, 2),
 
@@ -1665,69 +1544,68 @@ function summarizeProfileActivity(input: {
       (left, right) =>
         (right.watchTimeMinutes ?? 0) - (left.watchTimeMinutes ?? 0) ||
         right.count - left.count ||
-        left.title.localeCompare(right.title),
+        left.title.localeCompare(right.title)
     ),
-  };
+  }
 }
 
 function isWithinRange(watchedAt: Date, monthRange?: MonthRange) {
   if (!monthRange) {
-    return true;
+    return true
   }
 
-  return watchedAt >= monthRange.start && watchedAt < monthRange.end;
+  return watchedAt >= monthRange.start && watchedAt < monthRange.end
 }
 
 function isRatingWithinRange(row: RatingEventRow, monthRange?: MonthRange) {
   if (!monthRange) {
-    return true;
+    return true
   }
 
-  const watchedAt = Date.parse(row.watched_at);
+  const watchedAt = Date.parse(row.watched_at)
 
   if (Number.isNaN(watchedAt)) {
-    return false;
+    return false
   }
 
-  return isWithinRange(new Date(row.watched_at), monthRange);
+  return isWithinRange(new Date(row.watched_at), monthRange)
 }
 
 function addGenreConsumption(
   genres: Map<
     number,
     {
-      count: number;
-      name: string;
-      watchTimeMinutes: number;
+      count: number
+      name: string
+      watchTimeMinutes: number
     }
   >,
   title: JoinedTitleRow,
-  runtimeMinutes: number,
+  runtimeMinutes: number
 ) {
   const validGenres =
-    title.genres?.filter((genre) => genre?.id != null && Boolean(genre.name)) ??
-    [];
+    title.genres?.filter((genre) => genre?.id != null && Boolean(genre.name)) ?? []
 
   if (validGenres.length === 0) {
-    return;
+    return
   }
 
-  const countWeight = 1 / validGenres.length;
+  const countWeight = 1 / validGenres.length
 
-  const runtimeWeight = Math.max(0, runtimeMinutes) / validGenres.length;
+  const runtimeWeight = Math.max(0, runtimeMinutes) / validGenres.length
 
   for (const genre of validGenres) {
     const existing = genres.get(genre.id) ?? {
       count: 0,
       name: genre.name,
       watchTimeMinutes: 0,
-    };
+    }
 
-    existing.count += countWeight;
-    existing.watchTimeMinutes += runtimeWeight;
-    existing.name = genre.name;
+    existing.count += countWeight
+    existing.watchTimeMinutes += runtimeWeight
+    existing.name = genre.name
 
-    genres.set(genre.id, existing);
+    genres.set(genre.id, existing)
   }
 }
 
@@ -1735,17 +1613,17 @@ function calculateMonthlyGenreStats(
   genres: Map<
     number,
     {
-      count: number;
-      name: string;
-      watchTimeMinutes: number;
+      count: number
+      name: string
+      watchTimeMinutes: number
     }
   >,
-  limit: number,
+  limit: number
 ): ProfileGenreStat[] {
   const totalMinutes = Array.from(genres.values()).reduce(
     (sum, genre) => sum + genre.watchTimeMinutes,
-    0,
-  );
+    0
+  )
 
   return Array.from(genres.entries())
     .map(([genreId, { count, name, watchTimeMinutes }]) => ({
@@ -1754,52 +1632,51 @@ function calculateMonthlyGenreStats(
       count,
       watchTimeMinutes,
 
-      percentage:
-        totalMinutes > 0 ? (watchTimeMinutes / totalMinutes) * 100 : 0,
+      percentage: totalMinutes > 0 ? (watchTimeMinutes / totalMinutes) * 100 : 0,
     }))
     .sort(
       (left, right) =>
         (right.watchTimeMinutes ?? 0) - (left.watchTimeMinutes ?? 0) ||
         right.count - left.count ||
-        left.name.localeCompare(right.name),
+        left.name.localeCompare(right.name)
     )
-    .slice(0, limit);
+    .slice(0, limit)
 }
 
 function recordTopActorStats(
   actorStats: Map<
     string,
     {
-      id: number | string;
-      name: string;
-      profilePath: string | null;
-      count: number;
-      titles: Set<string>;
+      id: number | string
+      name: string
+      profilePath: string | null
+      count: number
+      titles: Set<string>
     }
   >,
   title: JoinedTitleRow,
-  watchedTitleId: string,
+  watchedTitleId: string
 ) {
-  const cast = uniqueCastMembers(title.cast ?? []);
+  const cast = uniqueCastMembers(title.cast ?? [])
 
-  if (!cast.length) return;
+  if (!cast.length) return
 
   for (const person of cast) {
-    const key = getActorKey(person);
+    const key = getActorKey(person)
     const entry = actorStats.get(key) ?? {
       id: person.id,
       name: person.name,
       profilePath: person.profile_path ?? null,
       count: 0,
       titles: new Set<string>(),
-    };
-
-    entry.count += 1;
-    entry.titles.add(watchedTitleId);
-    if (!entry.profilePath && person.profile_path) {
-      entry.profilePath = person.profile_path;
     }
-    actorStats.set(key, entry);
+
+    entry.count += 1
+    entry.titles.add(watchedTitleId)
+    if (!entry.profilePath && person.profile_path) {
+      entry.profilePath = person.profile_path
+    }
+    actorStats.set(key, entry)
   }
 }
 
@@ -1807,22 +1684,22 @@ function calculateTopActor(
   actorStats: Map<
     string,
     {
-      id: number | string;
-      name: string;
-      profilePath: string | null;
-      count: number;
-      titles: Set<string>;
+      id: number | string
+      name: string
+      profilePath: string | null
+      count: number
+      titles: Set<string>
     }
-  >,
+  >
 ): ProfileMonthlyRecapPersonStat | null {
   const top = Array.from(actorStats.values()).sort(
     (left, right) =>
       right.count - left.count ||
       right.titles.size - left.titles.size ||
-      left.name.localeCompare(right.name),
-  )[0];
+      left.name.localeCompare(right.name)
+  )[0]
 
-  if (!top || top.count <= 0) return null;
+  if (!top || top.count <= 0) return null
 
   return {
     id: top.id,
@@ -1830,47 +1707,47 @@ function calculateTopActor(
     count: top.count,
     distinctTitles: top.titles.size,
     profilePath: top.profilePath,
-  };
+  }
 }
 
 function uniqueCastMembers(cast: TMDbCast[]) {
-  const seen = new Set<string>();
-  const unique: TMDbCast[] = [];
+  const seen = new Set<string>()
+  const unique: TMDbCast[] = []
 
   for (const person of cast) {
-    if (!person?.name) continue;
-    const key = getActorKey(person);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    unique.push(person);
+    if (!person?.name) continue
+    const key = getActorKey(person)
+    if (seen.has(key)) continue
+    seen.add(key)
+    unique.push(person)
   }
 
-  return unique;
+  return unique
 }
 
 function getActorKey(person: TMDbCast) {
-  return typeof person.id === "number" && Number.isFinite(person.id)
+  return typeof person.id === 'number' && Number.isFinite(person.id)
     ? `id:${person.id}`
-    : `name:${normalizeKey(person.name)}`;
+    : `name:${normalizeKey(person.name)}`
 }
 
 function normalizeKey(value: string) {
-  return value.trim().toLowerCase();
+  return value.trim().toLowerCase()
 }
 
 function unwrapTitle(title: JoinedTitle) {
-  if (Array.isArray(title)) return title[0] ?? null;
-  return title ?? null;
+  if (Array.isArray(title)) return title[0] ?? null
+  return title ?? null
 }
 
 function productionCompaniesForTitle(
-  title: JoinedTitleRow | null | undefined,
+  title: JoinedTitleRow | null | undefined
 ): TMDbProductionCompany[] {
   if (title?.production_companies?.length) {
-    return title.production_companies;
+    return title.production_companies
   }
 
-  return title?.tmdb_data?.production_companies ?? [];
+  return title?.tmdb_data?.production_companies ?? []
 }
 
 function sumWatchTime(
@@ -1878,38 +1755,35 @@ function sumWatchTime(
   type: MediaType,
   selectRuntime: (
     title: {
-      runtime?: number | null;
-      episode_runtime?: number | null;
+      runtime?: number | null
+      episode_runtime?: number | null
     },
-    row: WatchEventRow,
+    row: WatchEventRow
   ) => number | null,
-  days: Set<string>,
+  days: Set<string>
 ) {
-  let total = 0;
+  let total = 0
 
   for (const row of rows) {
-    const title = unwrapTitle(row.title ?? row.titles);
-    if (!title || title.type !== type || !row.watched_at) continue;
+    const title = unwrapTitle(row.title ?? row.titles)
+    if (!title || title.type !== type || !row.watched_at) continue
 
-    days.add(new Date(row.watched_at).toISOString().slice(0, 10));
-    const runtime = selectRuntime(title, row);
-    if (runtime != null) total += runtime;
+    days.add(new Date(row.watched_at).toISOString().slice(0, 10))
+    const runtime = selectRuntime(title, row)
+    if (runtime != null) total += runtime
   }
 
-  return total;
+  return total
 }
 
 function utcDayOfWeek(value: string) {
-  const timestamp = Date.parse(value);
-  if (!Number.isFinite(timestamp)) return null;
-  return new Date(timestamp).getUTCDay();
+  const timestamp = Date.parse(value)
+  if (!Number.isFinite(timestamp)) return null
+  return new Date(timestamp).getUTCDay()
 }
 
-function buildMediaSplit(value: {
-  movies: number;
-  series: number;
-}): ProfileMediaSplit {
-  const total = value.movies + value.series;
+function buildMediaSplit(value: { movies: number; series: number }): ProfileMediaSplit {
+  const total = value.movies + value.series
 
   return {
     movies: value.movies,
@@ -1917,88 +1791,81 @@ function buildMediaSplit(value: {
     moviePercentage: total > 0 ? (value.movies / total) * 100 : 0,
     seriesPercentage: total > 0 ? (value.series / total) * 100 : 0,
     dominantType:
-      value.movies > value.series
-        ? "movie"
-        : value.series > value.movies
-          ? "series"
-          : null,
-  };
+      value.movies > value.series ? 'movie' : value.series > value.movies ? 'series' : null,
+  }
 }
 
 function calculateLongestStreak(days: Set<string>) {
-  const sortedDays = Array.from(days).sort();
-  let longest = 0;
-  let current = 0;
-  let previousDay: string | null = null;
+  const sortedDays = Array.from(days).sort()
+  let longest = 0
+  let current = 0
+  let previousDay: string | null = null
 
   for (const day of sortedDays) {
     if (previousDay && areConsecutiveDays(previousDay, day)) {
-      current += 1;
+      current += 1
     } else {
-      current = 1;
+      current = 1
     }
 
-    longest = Math.max(longest, current);
-    previousDay = day;
+    longest = Math.max(longest, current)
+    previousDay = day
   }
 
-  return longest;
+  return longest
 }
 
 function areConsecutiveDays(left: string, right: string) {
   const leftDate = Date.UTC(
     Number(left.slice(0, 4)),
     Number(left.slice(5, 7)) - 1,
-    Number(left.slice(8, 10)),
-  );
+    Number(left.slice(8, 10))
+  )
   const rightDate = Date.UTC(
     Number(right.slice(0, 4)),
     Number(right.slice(5, 7)) - 1,
-    Number(right.slice(8, 10)),
-  );
-  return rightDate - leftDate === 24 * 60 * 60 * 1000;
+    Number(right.slice(8, 10))
+  )
+  return rightDate - leftDate === 24 * 60 * 60 * 1000
 }
 
 function calculateStudioStats(rows: WatchEventRow[]): ProfileStudioStat[] {
   const counts = new Map<
     number,
     {
-      id: number;
-      name: string;
-      logoPath: string | null;
-      count: number;
+      id: number
+      name: string
+      logoPath: string | null
+      count: number
     }
-  >();
+  >()
 
-  let total = 0;
+  let total = 0
 
   for (const row of rows) {
-    const title = resolveJoinedTitle(row.title ?? row.titles);
+    const title = resolveJoinedTitle(row.title ?? row.titles)
 
-    if (!title || title.type !== "movie") continue;
+    if (!title || title.type !== 'movie') continue
 
     const companies = title.production_companies?.length
       ? title.production_companies
-      : (title.tmdb_data?.production_companies ?? []);
+      : (title.tmdb_data?.production_companies ?? [])
     const logoByCompanyId = new Map(
-      companies.map((company) => [company.id, company.logo_path ?? null]),
-    );
+      companies.map((company) => [company.id, company.logo_path ?? null])
+    )
 
     for (const company of companies) {
-      const existing = counts.get(company.id);
+      const existing = counts.get(company.id)
 
       counts.set(company.id, {
         id: company.id,
         name: company.name,
         logoPath:
-          existing?.logoPath ??
-          company.logo_path ??
-          logoByCompanyId.get(company.id) ??
-          null,
+          existing?.logoPath ?? company.logo_path ?? logoByCompanyId.get(company.id) ?? null,
         count: (existing?.count ?? 0) + 1,
-      });
+      })
 
-      total += 1;
+      total += 1
     }
   }
 
@@ -2007,32 +1874,32 @@ function calculateStudioStats(rows: WatchEventRow[]): ProfileStudioStat[] {
       ...company,
       percentage: total > 0 ? (company.count / total) * 100 : 0,
     }))
-    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
 }
 
 function resolveJoinedTitle(title: JoinedTitle) {
-  if (Array.isArray(title)) return title[0] ?? null;
-  return title ?? null;
+  if (Array.isArray(title)) return title[0] ?? null
+  return title ?? null
 }
 
 function normalizeRating(value: number | string | null) {
-  if (value == null) return null;
-  const rating = Number(value);
-  if (!Number.isFinite(rating)) return null;
-  return rating;
+  if (value == null) return null
+  const rating = Number(value)
+  if (!Number.isFinite(rating)) return null
+  return rating
 }
 
 function toLocalDateKey(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function ratingSteps() {
-  return Array.from({ length: 10 }, (_, index) => (index + 1) / 2);
+  return Array.from({ length: 10 }, (_, index) => (index + 1) / 2)
 }
 
 function roundRating(value: number) {
-  return Math.round(value * 10) / 10;
+  return Math.round(value * 10) / 10
 }
