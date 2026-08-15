@@ -139,6 +139,49 @@ function watchedSeries(id, watchedEpisodeCount) {
   };
 }
 
+function makeSharedRecapRows() {
+  const movieA = movieDiaryRow(
+    "runner-up",
+    "2026-01-02T12:00:00.000Z",
+    90,
+    "first-time",
+    {
+      title: "Runner Up",
+      tmdb_id: 101,
+    },
+  );
+  const movieB = movieDiaryRow(
+    "winner",
+    "2026-01-03T12:00:00.000Z",
+    150,
+    "first-time",
+    {
+      title: "Winner",
+      tmdb_id: 102,
+    },
+  );
+  const movieC = movieDiaryRow(
+    "third",
+    "2026-01-04T12:00:00.000Z",
+    120,
+    "first-time",
+    {
+      title: "Third",
+      tmdb_id: 103,
+    },
+  );
+
+  return {
+    diaryRows: [movieA, movieB, movieC],
+    movieRatingRows: [
+      movieRating("runner-up", 4.5, "2026-01-02T12:00:00.000Z"),
+      movieRating("winner", 4.5, "2026-01-03T12:00:00.000Z"),
+      movieRating("third", 4, "2026-01-04T12:00:00.000Z"),
+    ],
+    episodeRatingRows: [],
+  };
+}
+
 test("uses the latest movie rating once for lifetime contributor confidence", () => {
   const stats = calculateProfileRatingStats([
     ratedMovieRow("movie-a", 5, "2026-08-01T10:00:00.000Z"),
@@ -1114,6 +1157,34 @@ test("lifetime recap preserves repeated movie diary watches and series episode c
   assert.equal(recap.topRatedMovies[0].count, 2);
   assert.equal(recap.topRatedSeries[0].watchedEpisodeCount, 47);
   assert.equal(recap.topRatedSeries[0].rating, 4);
+});
+
+test("lifetime and monthly use the same top-rated title ordering for the same unbounded activity", async () => {
+  const { buildProfileMonthlyRecap, buildProfileLifetimeRecap } =
+    await import("@kino/core");
+  const rows = makeSharedRecapRows();
+
+  const lifetime = buildProfileLifetimeRecap({
+    lifetime: {
+      moviesWatched: 3,
+      episodesWatched: 0,
+      ratingsMade: 3,
+      timeWatchedMinutes: 360,
+    },
+    ...rows,
+    watchedSeries: [],
+  });
+  const monthly = buildProfileMonthlyRecap({
+    year: 2026,
+    month: 1,
+    current: { ...rows, watchedSeries: [] },
+    previous: { diaryRows: [], movieRatingRows: [], episodeRatingRows: [] },
+  });
+
+  assert.deepEqual(
+    lifetime.topRatedMovies.map((item) => item.titleId),
+    monthly.topRatedMovies.map((item) => item.titleId),
+  );
 });
 
 test("binge tie source data stays deterministic across episode counts, minutes, and date", () => {
