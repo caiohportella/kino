@@ -43,7 +43,7 @@ const readRunCommands = async (path) => {
 test('quality workflow exposes every required command in order', async () => {
   assert.deepEqual(await readRunCommands(workflowPath), [
     'pnpm install --frozen-lockfile',
-    'pnpm biome check .',
+    'pnpm biome',
     'pnpm lint',
     'pnpm typecheck',
     'pnpm test',
@@ -75,11 +75,12 @@ test('validator rejects a workflow that keeps obsolete runs or exposes secrets',
   assert.deepEqual(result.errors.map(({ rule }) => rule).sort(), [
     'concurrency-cancellation',
     'no-production-credentials',
+    'run-commands',
   ])
 
   await assert.rejects(
     execFileAsync(process.execPath, [validatorPath, fixturePath]),
-    /concurrency-cancellation, no-production-credentials/
+    /run-commands, concurrency-cancellation, no-production-credentials/
   )
 })
 

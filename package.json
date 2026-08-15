@@ -15,7 +15,6 @@
     "lint": "pnpm -r --if-present lint",
     "pretest": "node --test scripts/*.test.mjs && node scripts/validate-test-scripts.mjs .",
     "test": "pnpm -r --if-present test",
-    "check": "pnpm biome check . && pnpm lint && pnpm typecheck && pnpm test && pnpm build:web",
     "format": "biome format --write .",
     "start": "pnpm dev:mobile",
     "android": "pnpm --filter @kino/mobile android",
@@ -23,7 +22,8 @@
     "web": "pnpm dev:web",
     "mobile:web": "pnpm --filter @kino/mobile web",
     "native:prebuild": "pnpm --filter @kino/mobile native:prebuild",
-    "quality": "pnpm biome check . && pnpm lint && pnpm typecheck && pnpm test && pnpm build:web",
+    "check": "pnpm biome && pnpm lint && pnpm typecheck && pnpm test && pnpm build:web",
+    "quality": "pnpm biome && pnpm lint && pnpm typecheck && pnpm test && pnpm build:web",
     "quality:fix": "node scripts/quality-fix.mjs",
     "quality:web": "node scripts/quality-web.mjs"
   },
