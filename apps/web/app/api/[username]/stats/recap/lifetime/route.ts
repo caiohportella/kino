@@ -31,7 +31,7 @@ import { isReservedProfileRoute, normalizeProfileUsername } from '@/lib/profile-
 import { formatWatchTimeCompact } from '@/lib/profile-stats'
 import { getRequestLanguage, getTranslations } from '@/lib/server-localization'
 
-export const runtime = 'edge'
+export const runtime = 'nodejs'
 
 type SafeImageData = StoryImageData
 type PosterImages = Map<string, SafeImageData>
