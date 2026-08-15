@@ -474,7 +474,7 @@ function ExpandableReviewContent({ content }: { content: string }) {
     observer.observe(element)
 
     return () => observer.disconnect()
-  }, [content])
+  }, [])
 
   return (
     <div>

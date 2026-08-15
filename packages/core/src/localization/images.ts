@@ -73,7 +73,6 @@ export function selectLocalizedImage(
   const locale = normalizeLocale(input.locale);
   const baseLanguage = localeBaseLanguage(locale);
   const requestedRegion = localeRegion(locale);
-  const hasRegionalLocale = requestedRegion !== null;
   const fallbackLocale = normalizeOptionalLocale(input.fallbackLocale);
   const originalLanguage = normalizeOptionalLocale(input.originalLanguage);
   const candidates = input.candidates

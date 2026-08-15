@@ -8,14 +8,6 @@ import type { FeaturedTitleResult } from '@/lib/search/featured-title'
 import { getTmdb } from '@/lib/services'
 import { cn } from '@/lib/utils'
 
-function formatCompactNumber(value: unknown): string | null {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null
-  return new Intl.NumberFormat('en', {
-    notation: 'compact',
-    maximumFractionDigits: 1,
-  }).format(value)
-}
-
 function extractYear(value: string | null | undefined): string | null {
   if (!value) return null
   const match = /^(\d{4})/u.exec(value)
