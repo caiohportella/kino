@@ -309,6 +309,8 @@ interface ProfileViewingBreakdownJoinRow {
   titles?: ProfileStatsJoinedTitle | ProfileStatsJoinedTitle[] | null;
 }
 
+const PROFILE_RECAP_PAGE_SIZE = 500;
+
 export class KinoDatabaseService {
   private readonly supabase: SupabaseClient;
 
@@ -1047,45 +1049,35 @@ export class KinoDatabaseService {
 
     try {
       const selectClause =
-        "title_id,watched_at,watch_type,titles:title_id(id,tmdb_id,title,type,release_year,genres,runtime,episode_runtime,production_companies,cast,tmdb_data,cover_image)";
+        "id,title_id,watched_at,watch_type,titles:title_id(id,tmdb_id,title,type,release_year,genres,runtime,episode_runtime,production_companies,cast,tmdb_data,cover_image)";
       const ratingSelectClause =
-        "title_id,rating,watched_at,titles:title_id(id,tmdb_id,title,type,release_year,genres,runtime,episode_runtime,production_companies,cast,tmdb_data,cover_image)";
+        "id,title_id,rating,watched_at,titles:title_id(id,tmdb_id,title,type,release_year,genres,runtime,episode_runtime,production_companies,cast,tmdb_data,cover_image)";
       const episodeSelectClause =
-        "title_id,season_number,episode_number,rating,watched_at,watch_type,runtime_minutes,titles:title_id(id,tmdb_id,title,type,release_year,genres,cast,runtime,episode_runtime,production_companies,tmdb_data,cover_image)";
+        "id,title_id,season_number,episode_number,rating,watched_at,watch_type,runtime_minutes,titles:title_id(id,tmdb_id,title,type,release_year,genres,cast,runtime,episode_runtime,production_companies,tmdb_data,cover_image)";
 
-      const [
-        lifetime,
-        { data: diaryRows, error: diaryError },
-        { data: movieRatingRows, error: movieRatingError },
-        { data: episodeRatingRows, error: episodeRatingError },
-        watchedSeries,
-      ] = await Promise.all([
+      const [lifetime, diaryRows, movieRatingRows, episodeRatingRows, watchedSeries] =
+        await Promise.all([
         this.getProfileLifetimeStatsByProfileId(profileId),
-        this.supabase
-          .from("watch_diary")
-          .select(selectClause)
-          .eq("user_id", profileId),
-        this.supabase
-          .from("title_ratings")
-          .select(ratingSelectClause)
-          .eq("user_id", profileId)
-          .not("rating", "is", null),
-        this.supabase
-          .from("episode_ratings")
-          .select(episodeSelectClause)
-          .eq("user_id", profileId),
+        this.getCompleteProfileRecapRows("watch_diary", selectClause, profileId),
+        this.getCompleteProfileRecapRows(
+          "title_ratings",
+          ratingSelectClause,
+          profileId,
+          true,
+        ),
+        this.getCompleteProfileRecapRows(
+          "episode_ratings",
+          episodeSelectClause,
+          profileId,
+        ),
         this.getWatchedSeries(profileId).catch(() => []),
       ]);
 
-      if (diaryError) throw diaryError;
-      if (movieRatingError) throw movieRatingError;
-      if (episodeRatingError) throw episodeRatingError;
-
       return buildProfileLifetimeRecap({
         lifetime,
-        diaryRows: (diaryRows ?? []) as LifetimeStatsTitleJoinRow[],
-        movieRatingRows: (movieRatingRows ?? []) as ProfileRatingJoinRow[],
-        episodeRatingRows: (episodeRatingRows ?? []) as ProfileRatingJoinRow[],
+        diaryRows: diaryRows as LifetimeStatsTitleJoinRow[],
+        movieRatingRows: movieRatingRows as ProfileRatingJoinRow[],
+        episodeRatingRows: episodeRatingRows as ProfileRatingJoinRow[],
         watchedSeries: watchedSeries ?? [],
       });
     } catch (error) {
@@ -1094,6 +1086,43 @@ export class KinoDatabaseService {
         profileId,
       });
       return empty;
+    }
+  }
+
+  private async getCompleteProfileRecapRows(
+    table: "watch_diary" | "title_ratings" | "episode_ratings",
+    selectClause: string,
+    profileId: string,
+    ratedOnly = false,
+  ): Promise<unknown[]> {
+    const rows: unknown[] = [];
+
+    for (let from = 0; ; from += PROFILE_RECAP_PAGE_SIZE) {
+      let query = this.supabase
+        .from(table)
+        .select(selectClause)
+        .eq("user_id", profileId)
+        .order("watched_at", { ascending: true })
+        .order("title_id", { ascending: true })
+        .order("id", { ascending: true });
+
+      if (ratedOnly) {
+        query = query.not("rating", "is", null);
+      }
+
+      const { data, error } = await query.range(
+        from,
+        from + PROFILE_RECAP_PAGE_SIZE - 1,
+      );
+
+      if (error) throw error;
+
+      const page = data ?? [];
+      rows.push(...page);
+
+      if (page.length < PROFILE_RECAP_PAGE_SIZE) {
+        return rows;
+      }
     }
   }
 

@@ -218,8 +218,7 @@ function getElapsedCalendarDuration(start: Date, end: Date) {
 
 function fullCalendarYearsBetween(start: Date, end: Date) {
   let years = end.getFullYear() - start.getFullYear()
-  const anniversary = new Date(start)
-  anniversary.setFullYear(start.getFullYear() + years)
+  const anniversary = createClampedAnniversary(start, start.getFullYear() + years, start.getMonth())
 
   if (anniversary > end) {
     years -= 1
@@ -230,14 +229,36 @@ function fullCalendarYearsBetween(start: Date, end: Date) {
 
 function fullCalendarMonthsBetween(start: Date, end: Date) {
   let months = (end.getFullYear() - start.getFullYear()) * 12 + end.getMonth() - start.getMonth()
-  const anniversary = new Date(start)
-  anniversary.setMonth(start.getMonth() + months)
+  const anniversary = createClampedAnniversary(
+    start,
+    start.getFullYear(),
+    start.getMonth() + months
+  )
 
   if (anniversary > end) {
     months -= 1
   }
 
   return Math.max(0, months)
+}
+
+function createClampedAnniversary(start: Date, year: number, month: number) {
+  const targetMonth = new Date(year, month, 1)
+  const daysInTargetMonth = new Date(
+    targetMonth.getFullYear(),
+    targetMonth.getMonth() + 1,
+    0
+  ).getDate()
+
+  return new Date(
+    targetMonth.getFullYear(),
+    targetMonth.getMonth(),
+    Math.min(start.getDate(), daysInTargetMonth),
+    start.getHours(),
+    start.getMinutes(),
+    start.getSeconds(),
+    start.getMilliseconds()
+  )
 }
 
 function startOfDay(value: Date) {

@@ -129,6 +129,24 @@ test('Lifetime Statistics adds localized concepts required by the updated mockup
       )
     }
 
+    assert.match(resource.stats.story.lifetimeHeadline, /\{\{name\}\}/)
+    assert.match(resource.stats.story.memberSince, /\{\{year\}\}/)
+
+    for (const key of [
+      'kinoTimeDays_one',
+      'kinoTimeDays_other',
+      'kinoTimeMonths_one',
+      'kinoTimeMonths_other',
+      'kinoTimeYears_one',
+      'kinoTimeYears_other',
+    ]) {
+      assert.match(
+        resource.stats.story[key],
+        /\{\{count\}\}/,
+        `${locale} stats.story.${key} must interpolate count`
+      )
+    }
+
     assert.equal(typeof resource.common.series, 'string', `${locale} is missing common.series`)
   }
 })

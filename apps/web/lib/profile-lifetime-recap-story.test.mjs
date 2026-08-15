@@ -271,3 +271,16 @@ test('Kino membership formats days, months, years, and member-since year with in
     ['stats.story.memberSince', { year: 2024 }],
   ])
 })
+
+test('Kino membership clamps leap-day and month-end anniversaries to the last valid day', () => {
+  const t = (key, values) => `${key}:${values.count ?? values.year}`
+
+  assert.equal(
+    formatKinoMembership('2024-02-29T12:00:00Z', t, new Date('2025-02-28T12:00:00Z')).kinoTime,
+    'stats.story.kinoTimeYears:1'
+  )
+  assert.equal(
+    formatKinoMembership('2026-01-31T12:00:00Z', t, new Date('2026-02-28T12:00:00Z')).kinoTime,
+    'stats.story.kinoTimeMonths:1'
+  )
+})

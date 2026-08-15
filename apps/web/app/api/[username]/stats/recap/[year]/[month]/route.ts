@@ -267,8 +267,6 @@ export async function GET(
   const year = Number(routeParams.year)
   const month = Number(routeParams.month)
   const requestUrl = new URL(request.url)
-  const profileIdParam = requestUrl.searchParams.get('profileId')
-  const displayNameParam = requestUrl.searchParams.get('displayName')
 
   if (
     !username ||
@@ -281,10 +279,7 @@ export async function GET(
     return new Response('Not found', { status: 404 })
   }
 
-  const profile =
-    profileIdParam && displayNameParam
-      ? { id: profileIdParam, username, display_name: displayNameParam }
-      : await getProfile(username)
+  const profile = await getProfile(username)
 
   if (!profile) {
     return new Response('Not found', { status: 404 })
@@ -302,7 +297,7 @@ export async function GET(
   const posterImages = await preloadPosterImages(recap)
 
   const monthLabel = formatProfileMonth(year, month, language)
-  const name = displayNameParam || profile.display_name || profile.username || 'Kino member'
+  const name = profile.display_name || profile.username || 'Kino member'
   const host = requestUrl.host
   const logoUrl = new URL('/kino-logo.png', request.url).toString()
 

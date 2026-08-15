@@ -71,3 +71,14 @@ test('monthly story assigns series runner-up ranks starting at two', async () =>
   assert.match(route, /seriesRunnersUp[\s\S]*index \+ 2/)
   assert.doesNotMatch(route, /seriesRunnersUp[\s\S]*index \+ 1/)
 })
+
+test('monthly recap resolves its identity server-side instead of trusting caller parameters', async () => {
+  const route = await readFile(
+    new URL('../app/api/[username]/stats/recap/[year]/[month]/route.ts', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(route, /const profile = await getProfile\(username\)/)
+  assert.doesNotMatch(route, /searchParams\.get\('profileId'\)/)
+  assert.doesNotMatch(route, /searchParams\.get\('displayName'\)/)
+})
