@@ -3,12 +3,18 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { profileQueryKeys } from '@kino/core/cache'
 import {
+  profileGenreStatisticsQueryOptions,
   profileIdentityQueryOptions,
+  profileLifetimeStatisticsQueryOptions,
+  profileMediaStatisticsQueryOptions,
+  profileMonthlyRecapQueryOptions,
+  profileRatingStatisticsQueryOptions,
   profileRatingsQueryOptions,
   profileRelationshipQueryOptions,
   profileReviewsQueryOptions,
   profileStatisticsQueryOptions,
   profileUsernameResolutionQueryOptions,
+  profileViewingBreakdownStatisticsQueryOptions,
   profileWatchedMoviesQueryOptions,
   profileWatchedSeriesQueryOptions,
   profileWatchlistsQueryOptions,
@@ -38,6 +44,72 @@ function createService() {
       items: [],
       nextCursor: null,
       totalCount: id.length,
+    }),
+    getProfileGenreStatsByProfileId: async () => [
+      { genreId: 1, name: 'Drama', count: 2, percentage: 66.7 },
+    ],
+    getProfileMediaStatsByProfileId: async () => ({
+      seriesWatched: 4,
+      movieRatings: { average: 3.5, ratedCount: 2 },
+      seriesRatings: { average: 4.1, ratedCount: 1 },
+    }),
+    getProfileViewingBreakdownStatsByProfileId: async () => ({
+      movieTimeWatchedMinutes: 120,
+      tvTimeWatchedMinutes: 240,
+      longestMovieStreakDays: 3,
+      longestSeriesStreakDays: 2,
+      studioStats: [{ name: 'Studio One', count: 2, percentage: 100 }],
+    }),
+    getProfileLifetimeStatsByProfileId: async (id) => {
+      canonicalCalls.push(['lifetime', id])
+      return {
+        episodesWatched: 3,
+        moviesWatched: 2,
+        ratingsMade: 5,
+        timeWatchedMinutes: 246,
+      }
+    },
+    getProfileLifetimeRecapByProfileId: async () => ({
+      episodesWatched: 3,
+      moviesWatched: 2,
+      ratingsMade: 5,
+      timeWatchedMinutes: 246,
+      topRatedMovies: [],
+      topRatedSeries: [],
+      topGenres: [],
+      mostRatedGenre: null,
+      highestRatedStudio: null,
+      highestRatedActor: null,
+      highestRatedActress: null,
+      highestRatedGenre: null,
+      highestRatedDecade: null,
+    }),
+    getProfileMonthlyRecapByProfileId: async (id, year, month) => {
+      canonicalCalls.push(['monthly', id, year, month])
+      return {
+        activeDays: 2,
+        episodesWatched: 4,
+        month,
+        moviesWatched: 3,
+        mostWatchedSeries: [],
+        previousMonthComparison: {
+          episodesDelta: 0,
+          moviesDelta: 0,
+          ratingsDelta: 0,
+          timeWatchedMinutesDelta: 0,
+        },
+        ratingsMade: 6,
+        rewatches: 1,
+        timeWatchedMinutes: 120,
+        topGenres: [],
+        topTitles: [],
+        year,
+      }
+    },
+    getProfileRatingStatsByProfileId: async () => ({
+      averageRating: 3.5,
+      distribution: [],
+      totalRatings: 1,
     }),
     getPublicProfileStatsByProfileId: async (id) => {
       canonicalCalls.push(['statistics', id])
@@ -115,6 +187,76 @@ test('keeps identity and every content section scoped to the canonical profile i
   )
   assert.equal((await reviews.queryFn()).totalCount, profileId.length)
   assert.deepEqual(await identity.queryFn(), { id: profileId })
+})
+
+test('exposes independent genre, media, rating, and monthly recap queries', async () => {
+  const service = createService()
+  const genres = profileGenreStatisticsQueryOptions({
+    profileId,
+    service,
+    visibilityScope: scope,
+    limit: 5,
+  })
+  const media = profileMediaStatisticsQueryOptions({
+    profileId,
+    service,
+    visibilityScope: scope,
+  })
+  const ratings = profileRatingStatisticsQueryOptions({
+    profileId,
+    service,
+    visibilityScope: scope,
+  })
+  const recap = profileMonthlyRecapQueryOptions({
+    profileId,
+    service,
+    visibilityScope: scope,
+    year: 2026,
+    month: 7,
+  })
+
+  assert.equal((await genres.queryFn())[0].name, 'Drama')
+  assert.equal((await media.queryFn()).seriesWatched, 4)
+  assert.equal((await ratings.queryFn()).averageRating, 3.5)
+  assert.equal((await recap.queryFn()).month, 7)
+})
+
+test('exposes a dedicated viewing breakdown query with its own cache key', async () => {
+  const service = createService()
+  const options = profileViewingBreakdownStatisticsQueryOptions({
+    profileId,
+    service,
+    visibilityScope: scope,
+  })
+
+  assert.deepEqual(
+    options.queryKey,
+    profileQueryKeys.viewingBreakdownStats({
+      profileId,
+      visibilityScope: scope,
+    })
+  )
+  assert.equal((await options.queryFn()).studioStats[0].name, 'Studio One')
+})
+
+test('exposes a dedicated lifetime stats query from the canonical profile id', async () => {
+  const service = createService()
+  const options = profileLifetimeStatisticsQueryOptions({
+    profileId,
+    service,
+    visibilityScope: scope,
+  })
+
+  assert.deepEqual(
+    options.queryKey,
+    profileQueryKeys.lifetimeStats({ profileId, visibilityScope: scope })
+  )
+  assert.deepEqual(await options.queryFn(), {
+    episodesWatched: 3,
+    moviesWatched: 2,
+    ratingsMade: 5,
+    timeWatchedMinutes: 246,
+  })
 })
 
 test('starts relationship work from a canonical route id without waiting for unrelated profile sections', async () => {
