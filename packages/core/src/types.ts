@@ -36,6 +36,7 @@ export interface TMDbMovie extends TMDbTitle {
   release_date: string
   runtime?: number
   genres: TMDbGenre[]
+  production_companies?: TMDbProductionCompany[]
   external_ids?: TMDbExternalIds
   belongs_to_collection?: TMDbCollectionSummary | null
 }
@@ -59,6 +60,12 @@ export interface TMDbTVShow extends TMDbTitle {
   episode_run_time?: number[]
   seasons: TMDbSeason[]
   genres: TMDbGenre[]
+  production_companies?: Array<{
+    id: number
+    name: string
+    logo_path: string | null
+    origin_country: string
+  }>
   number_of_seasons: number
   number_of_episodes: number
   external_ids?: TMDbExternalIds
@@ -71,11 +78,19 @@ export interface TMDbCast {
   job?: string
   profile_path: string | null
   order?: number
+  gender?: number | null
 }
 
 export interface TMDbGenre {
   id: number
   name: string
+}
+
+export interface TMDbProductionCompany {
+  id: number
+  name: string
+  logo_path: string | null
+  origin_country?: string | null
 }
 
 export interface TMDbEpisode {
@@ -85,6 +100,7 @@ export interface TMDbEpisode {
   episode_number: number
   season_number: number
   air_date: string
+  runtime?: number | null
   still_path: string | null
   vote_average: number
   vote_count: number
@@ -199,7 +215,11 @@ export type SearchResult =
       name: string
       imagePath: string | null
       year?: number
-      media: TMDbTitle
+      media: TMDbTitle & {
+        readonly cast?: readonly string[]
+        readonly number_of_seasons?: number
+        readonly last_air_date?: string
+      }
     }
   | {
       kind: 'person'
@@ -251,6 +271,7 @@ export interface TitleDetails {
   genres: TMDbGenre[]
   cast: TMDbCast[]
   director?: TMDbCast
+  productionCompanies?: TMDbProductionCompany[]
   averageRating: number
   ratingCount: number
   externalIds?: TMDbExternalIds
@@ -258,6 +279,7 @@ export interface TitleDetails {
   totalSeasons?: number
   totalEpisodes?: number
   runtime?: number
+  episodeRuntime?: number | null
 }
 
 export interface UserRating {
@@ -280,6 +302,7 @@ export interface EpisodeRating {
   rating: number | null
   watchType: WatchType
   watchedAt: Date
+  runtimeMinutes: number | null
   createdAt: Date
   updatedAt: Date
 }
@@ -322,7 +345,6 @@ export interface Watchlist {
   description?: string
   thumbnail?: string
   visibility: WatchlistVisibility
-  /** @deprecated Use visibility. */
   isShared: boolean
   shareCode?: string
   createdAt: Date
@@ -409,10 +431,210 @@ export interface PersistedTitle {
   genres: TMDbGenre[]
   cast: TMDbCast[]
   director?: TMDbCast | null
+  production_companies?: TMDbProductionCompany[] | null
   runtime?: number | null
+  episode_runtime?: number | null
   total_seasons?: number | null
   total_episodes?: number | null
   seasons_metadata?: SeasonMetadata[] | null
+}
+
+export interface ProfileLifetimeStats {
+  moviesWatched: number
+  episodesWatched: number
+  ratingsMade: number
+  timeWatchedMinutes: number
+}
+
+export interface ProfileMediaStats {
+  seriesWatched: number
+  movieRatings: {
+    average: number | null
+    ratedCount: number
+  }
+  seriesRatings: {
+    average: number | null
+    ratedCount: number
+  }
+}
+
+export interface ProfileGenreStat {
+  genreId: number
+  name: string
+  count: number
+  percentage: number
+  watchTimeMinutes?: number
+}
+
+export interface ProfileRatingBucket {
+  rating: number
+  count: number
+  percentage: number
+}
+
+export interface ProfileRatedTitleStat {
+  titleId: string
+  title: string
+  rating: number
+  ratingCount: number
+}
+
+export interface ProfileStudioStat {
+  id: number
+  name: string
+  logoPath: string | null
+  count: number
+  percentage: number
+}
+
+export interface ProfileMonthlyRecapPersonStat {
+  id: number | string
+  name: string
+  count: number
+  distinctTitles: number
+  profilePath?: string | null
+}
+
+export interface ProfileRatingStats {
+  averageRating: number | null
+  movieAverageRating: number | null
+  seriesAverageRating: number | null
+  totalRatings: number
+  distribution: ProfileRatingBucket[]
+  fiveStarRate: number
+  mostRatedGenre: ProfileRatedCategoryStat | null
+  highestRatedGenre: ProfileRatedCategoryStat | null
+  highestRatedDecade: ProfileRatedDecadeStat | null
+  highestRatedStudio: ProfileRatedCategoryStat | null
+  highestRatedActor: ProfileRatedCategoryStat | null
+  highestRatedActress: ProfileRatedCategoryStat | null
+
+  highestRatedMovie: ProfileRatedTitleStat | null
+  lowestRatedMovie: ProfileRatedTitleStat | null
+  highestRatedSeries: ProfileRatedTitleStat | null
+  lowestRatedSeries: ProfileRatedTitleStat | null
+}
+
+export interface ProfileRatedCategoryStat {
+  id?: number
+  name: string
+  average: number
+  count: number
+  titleCount: number
+}
+
+export interface ProfileRatedDecadeStat {
+  startYear: number
+  average: number
+  count: number
+  titleCount: number
+}
+
+export interface ProfileMediaSplit {
+  movies: number
+  series: number
+  moviePercentage: number
+  seriesPercentage: number
+  dominantType: 'movie' | 'series' | null
+}
+
+export interface ProfileViewingBreakdownStats {
+  movieTimeWatchedMinutes: number
+  tvTimeWatchedMinutes: number
+  averageMovieRuntimeMinutes: number
+  averageEpisodesPerSeries: number
+  longestBingeEpisodes: number
+  longestMovieStreakDays: number
+  longestSeriesStreakDays: number
+  studioStats: ProfileStudioStat[]
+  weekdayMediaSplit: ProfileMediaSplit
+  weekendMediaSplit: ProfileMediaSplit
+}
+
+export interface ProfileMonthlyRecapTitle {
+  titleId: string
+  tmdbId: number
+  title: string
+  mediaType: MediaType
+  count: number
+  rating: number | null
+  coverImage?: string | null
+  watchTimeMinutes?: number
+  watchedEpisodeCount?: number
+}
+
+export interface ProfileMonthlyRecapSeries {
+  titleId: string
+  tmdbId: number
+  title: string
+  count: number
+  seasonCount?: number | null
+  episodeCount?: number | null
+  rating?: number | null
+  coverImage?: string | null
+  watchTimeMinutes?: number
+  percentageOfTvTime?: number
+}
+
+export interface ProfileMonthlyRecapActivityDay {
+  date: string
+  entries: number
+  moviesWatched: number
+  episodesWatched: number
+  minutes: number
+}
+
+export interface ProfileMonthlyRecapComparison {
+  moviesDelta: number
+  episodesDelta: number
+  timeWatchedMinutesDelta: number
+  ratingsDelta: number
+}
+
+export interface ProfileMonthlyRecap {
+  year: number
+  month: number
+  moviesWatched: number
+  episodesWatched: number
+  timeWatchedMinutes: number
+  ratingsMade: number
+  rewatches: number
+  activeDays: number
+  dailyActivity: ProfileMonthlyRecapActivityDay[]
+  highestRated: ProfileMonthlyRecapTitle | null
+  lowestRated: ProfileMonthlyRecapTitle | null
+  topRatedMovies: ProfileMonthlyRecapTitle[]
+  topRatedSeries: ProfileMonthlyRecapTitle[]
+  topTitles: ProfileMonthlyRecapTitle[]
+  topGenres: ProfileGenreStat[]
+  mostWatchedSeries: ProfileMonthlyRecapSeries[]
+  finishedSeries: ProfileMonthlyRecapSeries[]
+  mostWatchedStudio: ProfileStudioStat | null
+  topActor: ProfileMonthlyRecapPersonStat | null
+  highestRatedStudio: ProfileRatedCategoryStat | null
+  highestRatedActor: ProfileRatedCategoryStat | null
+  highestRatedActress: ProfileRatedCategoryStat | null
+  highestRatedGenre: ProfileRatedCategoryStat | null
+  highestRatedDecade: ProfileRatedDecadeStat | null
+  previousMonthComparison: ProfileMonthlyRecapComparison
+  uniqueTitlesWatched: number
+  averageRating: number | null
+}
+
+export interface ProfileLifetimeRecap {
+  moviesWatched: number
+  episodesWatched: number
+  timeWatchedMinutes: number
+  ratingsMade: number
+  topRatedMovies: ProfileMonthlyRecapTitle[]
+  topRatedSeries: ProfileMonthlyRecapTitle[]
+  topGenres: ProfileGenreStat[]
+  mostRatedGenre: ProfileRatedCategoryStat | null
+  highestRatedStudio: ProfileRatedCategoryStat | null
+  highestRatedActor: ProfileRatedCategoryStat | null
+  highestRatedActress: ProfileRatedCategoryStat | null
+  highestRatedGenre: ProfileRatedCategoryStat | null
+  highestRatedDecade: ProfileRatedDecadeStat | null
 }
 
 export interface SeasonMetadata {

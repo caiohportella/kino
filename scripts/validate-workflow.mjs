@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 
 const requiredCommands = [
   'pnpm install --frozen-lockfile',
-  'pnpm biome check .',
+  'pnpm biome',
   'pnpm lint',
   'pnpm typecheck',
   'pnpm test',

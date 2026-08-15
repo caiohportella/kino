@@ -47,9 +47,10 @@ export interface TMDbCast {
   id: number
   name: string
   character?: string
-  job?: string // For crew (director, etc.)
+  job?: string
   profile_path: string | null
   order?: number
+  gender?: number | null
 }
 
 export interface TMDbGenre {

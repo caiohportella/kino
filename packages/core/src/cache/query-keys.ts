@@ -79,6 +79,11 @@ export interface ProfileIdentityQueryInput {
   readonly visibilityScope: CacheScope
 }
 
+export interface ProfileMonthlyRecapQueryInput extends ProfileIdentityQueryInput {
+  readonly month: number
+  readonly year: number
+}
+
 export interface ProfileRelationshipQueryInput {
   readonly profileId: string
   readonly viewerId: string
@@ -97,20 +102,32 @@ export interface ProfileAvailabilityQueryInput extends ProfileSectionQueryInput 
   readonly titleId: number
 }
 
-type ProfileSectionInvalidationDescriptor = {
-  readonly profileId: string
-  readonly visibilityScope: CacheScope
-}
+export type VisibilityScope = { kind: 'public' } | { kind: 'authenticated'; userId: string }
 
 export type ProfileInvalidationDescriptor =
-  | ({ readonly kind: 'identity' } & ProfileIdentityQueryInput)
-  | ({ readonly kind: 'relationship' } & ProfileRelationshipQueryInput)
-  | ({ readonly kind: 'watched-movies' } & ProfileSectionInvalidationDescriptor)
-  | ({ readonly kind: 'watched-series' } & ProfileSectionInvalidationDescriptor)
-  | ({ readonly kind: 'statistics' } & ProfileIdentityQueryInput)
-  | ({ readonly kind: 'watchlists' } & ProfileSectionInvalidationDescriptor)
-  | ({ readonly kind: 'reviews' } & ProfileSectionInvalidationDescriptor)
-  | ({ readonly kind: 'ratings' } & ProfileSectionInvalidationDescriptor)
+  | {
+      kind:
+        | 'identity'
+        | 'statistics'
+        | 'watchlists'
+        | 'reviews'
+        | 'ratings'
+        | 'watched-movies'
+        | 'watched-series'
+        | 'lifetime-stats'
+        | 'media-stats'
+        | 'genre-stats'
+        | 'viewing-breakdown-stats'
+        | 'rating-stats'
+        | 'monthly-recap'
+      profileId: string
+      visibilityScope: VisibilityScope
+    }
+  | {
+      kind: 'relationship'
+      profileId: string
+      viewerId: string
+    }
 
 export interface ProfileListQueryInput extends ProfileQueryInput {
   readonly filters?: CacheFilters
@@ -209,10 +226,64 @@ export const profileQueryKeys = {
   watchedSeries: (input: ProfileSectionQueryInput) => profileSectionKey('watched-series', input),
   watchedSeriesRoot: (input: ProfileIdentityQueryInput) =>
     profileSectionRootKey('watched-series', input),
+  diaryEntries: (input: ProfileSectionQueryInput) => profileSectionKey('diary-entries', input),
+  diaryEntriesRoot: (input: ProfileIdentityQueryInput) =>
+    profileSectionRootKey('diary-entries', input),
   statistics: (input: ProfileIdentityQueryInput) =>
     [
       ...PROFILE_ROOT,
       'statistics',
+      requireIdentifier(input.profileId, 'profile id'),
+      ...scopeSegments(input.visibilityScope),
+    ] as const,
+  lifetimeStats: (input: ProfileIdentityQueryInput) =>
+    [
+      ...PROFILE_ROOT,
+      'lifetime-stats',
+      requireIdentifier(input.profileId, 'profile id'),
+      ...scopeSegments(input.visibilityScope),
+    ] as const,
+  mediaStats: (input: ProfileIdentityQueryInput) =>
+    [
+      ...PROFILE_ROOT,
+      'media-stats',
+      requireIdentifier(input.profileId, 'profile id'),
+      ...scopeSegments(input.visibilityScope),
+    ] as const,
+  viewingBreakdownStats: (input: ProfileIdentityQueryInput) =>
+    [
+      ...PROFILE_ROOT,
+      'viewing-breakdown-stats',
+      requireIdentifier(input.profileId, 'profile id'),
+      ...scopeSegments(input.visibilityScope),
+    ] as const,
+  genreStats: (input: ProfileIdentityQueryInput) =>
+    [
+      ...PROFILE_ROOT,
+      'genre-stats',
+      requireIdentifier(input.profileId, 'profile id'),
+      ...scopeSegments(input.visibilityScope),
+    ] as const,
+  ratingStats: (input: ProfileIdentityQueryInput) =>
+    [
+      ...PROFILE_ROOT,
+      'rating-stats',
+      requireIdentifier(input.profileId, 'profile id'),
+      ...scopeSegments(input.visibilityScope),
+    ] as const,
+  monthlyRecap: (input: ProfileMonthlyRecapQueryInput) =>
+    [
+      ...PROFILE_ROOT,
+      'monthly-recap',
+      requireIdentifier(input.profileId, 'profile id'),
+      input.year,
+      input.month,
+      ...scopeSegments(input.visibilityScope),
+    ] as const,
+  monthlyRecapRoot: (input: ProfileIdentityQueryInput) =>
+    [
+      ...PROFILE_ROOT,
+      'monthly-recap',
       requireIdentifier(input.profileId, 'profile id'),
       ...scopeSegments(input.visibilityScope),
     ] as const,

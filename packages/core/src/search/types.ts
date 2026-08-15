@@ -7,6 +7,7 @@ export const SEARCH_SCHEMA_VERSION = SEARCH_SCHEMA_VERSION_V1
 export type SearchSchemaVersion = typeof SEARCH_SCHEMA_VERSION_V1 | typeof SEARCH_SCHEMA_VERSION_V2
 export type SearchMediaType = 'movie' | 'series'
 export type SearchEntityType = SearchMediaType | 'person' | 'user'
+export type SearchMode = 'autocomplete' | 'full'
 
 export interface NormalizedSearchQuery {
   readonly original: string
@@ -45,6 +46,7 @@ export interface SearchRequestV1 {
   readonly mediaTypes?: readonly SearchMediaType[]
   readonly page?: number
   readonly limit?: number
+  readonly mode?: SearchMode
 }
 
 export interface SearchEntity {
@@ -60,6 +62,10 @@ export interface SearchEntity {
   readonly imageUrl?: string
   readonly popularity?: number
   readonly voteCount?: number
+  readonly cast?: readonly string[]
+  readonly numberOfSeasons?: number
+  readonly startDate?: string
+  readonly endDate?: string
 }
 
 /**
@@ -87,6 +93,7 @@ export interface SearchRequestV2 {
   readonly mediaTypes?: readonly SearchMediaType[]
   readonly page?: number
   readonly limit?: number
+  readonly mode?: SearchMode
 }
 
 export type SearchRequest = SearchRequestV1 | SearchRequestV2

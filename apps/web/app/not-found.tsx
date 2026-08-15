@@ -1,26 +1,33 @@
 import type { Metadata } from 'next'
 import { HttpErrorState } from '@/components/error-state'
-import { SITE_DESCRIPTION, SITE_NAME, socialImage } from '@/lib/seo'
+import { SITE_NAME, socialImage } from '@/lib/seo'
+import { getServerMetadataContext } from '@/lib/server-metadata'
 
-const image = socialImage('/api/og/fallback', 'Kino — page not found')
+export async function generateMetadata(): Promise<Metadata> {
+  const { locale, t } = await getServerMetadataContext()
+  const title = t('errors.404.title')
+  const description = t('metadata.siteDescription')
+  const image = socialImage('/api/og/fallback', title)
 
-export const metadata: Metadata = {
-  title: 'Page not found',
-  description: SITE_DESCRIPTION,
-  robots: { index: false, follow: false },
-  openGraph: {
-    description: SITE_DESCRIPTION,
-    images: [image],
-    siteName: SITE_NAME,
-    title: 'Page not found',
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    description: SITE_DESCRIPTION,
-    images: [image],
-    title: 'Page not found',
-  },
+  return {
+    title,
+    description,
+    robots: { index: false, follow: false },
+    openGraph: {
+      description,
+      images: [image],
+      locale,
+      siteName: SITE_NAME,
+      title: `${title} | ${SITE_NAME}`,
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      description,
+      images: [image],
+      title: `${title} | ${SITE_NAME}`,
+    },
+  }
 }
 
 export default function NotFound() {

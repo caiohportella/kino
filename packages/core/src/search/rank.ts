@@ -1,8 +1,10 @@
+import { compareTitleRankingSignals, titleRankingSignals } from './title-ranking.ts'
 import type {
   FusedCandidate,
   RankedSearchResult,
   RankSearchCandidatesInput,
   SearchEntity,
+  SearchEntityV2,
   SearchScoreComponents,
 } from './types.ts'
 
@@ -79,6 +81,91 @@ function weightedScore(components: SearchScoreComponents): number {
   )
 }
 
+type TitleRankingEntity = SearchEntity &
+  Partial<SearchEntityV2> & {
+    readonly voteAverage?: number | null
+  }
+
+function isTitleRankingCandidate(candidate: FusedCandidate): boolean {
+  return (
+    (candidate.entity.entityType === 'movie' || candidate.entity.entityType === 'series') &&
+    candidate.personId === undefined &&
+    candidate.role === undefined &&
+    candidate.relationshipScore === undefined
+  )
+}
+
+function titleRankingSignalsForCandidate(
+  candidate: FusedCandidate
+): ReturnType<typeof titleRankingSignals> | undefined {
+  if (!isTitleRankingCandidate(candidate)) return undefined
+
+  const entity = candidate.entity as TitleRankingEntity
+  return titleRankingSignals(
+    {
+      exactMatch: candidate.exactMatch,
+      prefixMatch: candidate.prefixMatch,
+      lexicalScore: candidate.lexicalScore,
+      semanticScore: candidate.semanticScore,
+    },
+    {
+      voteCount: candidate.entity.voteCount,
+      popularity: candidate.entity.popularity,
+      voteAverage: entity.tmdbVoteAverage ?? entity.kinoAverageRating ?? entity.voteAverage,
+    }
+  )
+}
+
+function titleRankingComparison(left: FusedCandidate, right: FusedCandidate): number {
+  const leftSignals = titleRankingSignalsForCandidate(left)
+  const rightSignals = titleRankingSignalsForCandidate(right)
+  if (leftSignals === undefined || rightSignals === undefined) return 0
+  return compareTitleRankingSignals(leftSignals, rightSignals)
+}
+
+function isMediaCandidate(candidate: FusedCandidate): boolean {
+  return candidate.entity.entityType === 'movie' || candidate.entity.entityType === 'series'
+}
+
+function titleRankingScore(signals: ReturnType<typeof titleRankingSignals>): number {
+  const audience = signals.audienceScore / (1 + signals.audienceScore)
+  const text = bounded(signals.textScore)
+  const voteAverage = bounded(signals.voteAverage / 10)
+  const score =
+    signals.tier === 'strong'
+      ? 0.7 + audience * 0.25 + text * 0.03 + voteAverage * 0.001
+      : signals.tier === 'medium'
+        ? 0.45 + audience * 0.05 + text * 0.15 + voteAverage * 0.001
+        : signals.tier === 'fuzzy'
+          ? 0.25 + audience * 0.05 + text * 0.15 + voteAverage * 0.001
+          : audience * 0.05 + text * 0.15 + voteAverage * 0.001
+
+  return Math.round(score * 1_000_000) / 1_000_000
+}
+
+function relationshipRankingScore(components: SearchScoreComponents): number {
+  const score =
+    0.66 +
+    components.relationship * 0.05 +
+    components.entityConfidence * 0.02 +
+    components.locale * 0.005
+
+  return Math.round(score * 1_000_000) / 1_000_000
+}
+
+function intrinsicMediaScore(
+  candidate: FusedCandidate,
+  components: SearchScoreComponents,
+  weighted: number
+): number {
+  const titleSignals = titleRankingSignalsForCandidate(candidate)
+  if (titleSignals !== undefined) return titleRankingScore(titleSignals)
+  if (isMediaCandidate(candidate) && candidate.relationshipScore !== undefined) {
+    return relationshipRankingScore(components)
+  }
+  return Math.round(weighted * 1_000_000) / 1_000_000
+}
+
 function compareStableEntity(left: FusedCandidate, right: FusedCandidate): number {
   if (left.entity.entityType !== right.entity.entityType) {
     return left.entity.entityType.localeCompare(right.entity.entityType, 'en')
@@ -93,15 +180,50 @@ function compareStableEntity(left: FusedCandidate, right: FusedCandidate): numbe
   return left.identity.localeCompare(right.identity, 'en')
 }
 
+type RankSortRecord = {
+  readonly candidate: FusedCandidate
+  readonly score: number
+  readonly sortScore: number
+}
+
+function compareRankRecords(left: RankSortRecord, right: RankSortRecord): number {
+  const leftIsTitle = isTitleRankingCandidate(left.candidate)
+  const rightIsTitle = isTitleRankingCandidate(right.candidate)
+
+  if (leftIsTitle && rightIsTitle) {
+    return (
+      titleRankingComparison(left.candidate, right.candidate) ||
+      right.score - left.score ||
+      compareStableEntity(left.candidate, right.candidate)
+    )
+  }
+
+  const mixedMediaTitles =
+    isMediaCandidate(left.candidate) &&
+    isMediaCandidate(right.candidate) &&
+    leftIsTitle !== rightIsTitle
+  if (mixedMediaTitles) {
+    return right.score - left.score || compareStableEntity(left.candidate, right.candidate)
+  }
+
+  if (isMediaCandidate(left.candidate) && isMediaCandidate(right.candidate)) {
+    return right.score - left.score || compareStableEntity(left.candidate, right.candidate)
+  }
+
+  return right.sortScore - left.sortScore || compareStableEntity(left.candidate, right.candidate)
+}
+
 export function rankSearchCandidates(input: RankSearchCandidatesInput): RankedSearchResult[] {
-  return input.candidates
+  const sorted = input.candidates
     .map((candidate) => {
       const components = scoreComponents(candidate, input.query.year)
-      const score = Math.round(weightedScore(components) * 1_000_000) / 1_000_000
+      const weighted = weightedScore(components)
+      const score = intrinsicMediaScore(candidate, components, weighted)
       return {
         identity: candidate.identity,
         entity: candidate.entity,
         score,
+        sortScore: Math.round(weighted * 1_000_000) / 1_000_000,
         sources: candidate.sources,
         components,
         ...(candidate.personId === undefined || candidate.role === undefined
@@ -115,9 +237,7 @@ export function rankSearchCandidates(input: RankSearchCandidatesInput): RankedSe
         candidate,
       }
     })
-    .sort(
-      (left, right) =>
-        right.score - left.score || compareStableEntity(left.candidate, right.candidate)
-    )
-    .map(({ candidate: _candidate, ...result }) => result)
+    .sort(compareRankRecords)
+
+  return sorted.map(({ candidate: _candidate, sortScore: _sortScore, ...result }) => result)
 }

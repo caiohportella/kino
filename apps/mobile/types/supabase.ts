@@ -46,6 +46,7 @@ export interface SupabaseEpisodeRating {
   title_id: string
   season_number: number
   episode_number: number
+  runtime_minutes: number | null
   rating: number | null
   watch_type: 'first-time' | 'rewatch'
   watched_at: string

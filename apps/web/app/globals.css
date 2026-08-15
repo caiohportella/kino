@@ -336,6 +336,13 @@ a {
   cursor: grabbing;
 }
 
+.media-row[data-overflow="false"] {
+  overflow-x: hidden;
+  cursor: default;
+  touch-action: auto;
+  user-select: auto;
+}
+
 .media-row-track > * {
   width: 156px;
   min-width: 0;
@@ -685,6 +692,31 @@ a {
   border-radius: 8px;
   background: rgb(0 0 0 / 0.25);
   padding: 16px;
+}
+
+/* Activity Heatmap Tooltip */
+body .react-activity-calendar__tooltip[data-color-scheme="dark"] {
+  padding: 0.45rem 0.65rem;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-top-color: rgb(29 185 84 / 45%);
+  border-radius: 0.5rem;
+
+  background-color: #1b1b1b;
+  color: #f5f5f5;
+
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+
+  box-shadow:
+    0 8px 24px rgb(0 0 0 / 35%),
+    0 0 0 1px rgb(29 185 84 / 6%);
+}
+
+body
+  .react-activity-calendar__tooltip[data-color-scheme="dark"]
+  .react-activity-calendar__tooltip-arrow {
+  fill: #1b1b1b;
 }
 
 @media (max-width: 900px) {

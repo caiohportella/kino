@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 
@@ -8,7 +9,7 @@ export function SegmentedControl<T extends string>({
   activeClassName,
 }: {
   value: T
-  options: { label: string; value: T }[]
+  options: { label: ReactNode; value: T }[]
   onChange: (value: T) => void
   activeClassName?: string
 }) {

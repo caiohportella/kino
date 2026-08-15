@@ -1,13 +1,5 @@
-import type { KinoLanguage } from '@/stores/settings-store'
-
-export const supportedLanguages = [
-  'en',
-  'fr',
-  'it',
-  'no',
-  'pt',
-] as const satisfies readonly KinoLanguage[]
+import { type KinoLanguage, SUPPORTED_LANGUAGES } from '@kino/core/locale-config'
 
 export function isSupportedLanguage(language: string): language is KinoLanguage {
-  return supportedLanguages.includes(language as KinoLanguage)
+  return SUPPORTED_LANGUAGES.some((supportedLanguage) => supportedLanguage === language)
 }

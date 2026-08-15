@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { EmptyState, Poster } from '@/components/kino'
-import { PageHeader } from '@/components/page-header'
+import { PageHeader } from '@/components/layout/page-header'
 import { WatchlistsSkeleton } from '@/components/skeletons/page-skeletons'
 import { useTranslation } from '@/lib/i18n'
 import { resolveLocalizedTitlePresentation } from '@/lib/localized-title-presentation'
@@ -27,7 +27,7 @@ export default function SharedWatchlistPage() {
     }))
   )
 
-  if (query.isLoading || localizedTitles.isPending)
+  if (query.isPending || localizedTitles.isPending)
     return <WatchlistsSkeleton detail label={t('watchlists.loadingWatchlist')} />
   if (!query.data) {
     return (
@@ -54,20 +54,32 @@ export default function SharedWatchlistPage() {
               request: { tmdbId: item.title.tmdb_id, type: item.title.type },
               unknownTitle: t('diary.unknownTitle'),
             })
+            if (localizedTitle.status !== 'ready') {
+              return (
+                <article className="grid min-w-0 content-start gap-3" key={item.id}>
+                  <div className="grid aspect-2/3 place-items-center rounded-lg border border-white/10 bg-kino-surface px-4 text-center text-xs font-semibold text-kino-muted">
+                    {t('watchlists.titleUnavailable')}
+                  </div>
+                  <h2 className="line-clamp-2 h-10 text-sm font-semibold leading-5 text-kino-muted">
+                    {t('watchlists.titleUnavailable')}
+                  </h2>
+                </article>
+              )
+            }
             return (
               <Link
-                className="grid min-w-0 content-start gap-3"
+                className="group min-w-0 focus-ring"
                 href={titlePath(item.title.tmdb_id, localizedTitle.title, item.title.type)}
                 key={item.id}
               >
                 <Poster
                   className="rounded-lg shadow-soft"
+                  details={{
+                    year: localizedTitle.year ?? item.title.release_year,
+                  }}
                   src={getTmdb().getImageUrl(localizedTitle.posterPath, 'w300')}
                   title={localizedTitle.title}
                 />
-                <h2 className="line-clamp-2 text-sm font-semibold text-kino-text">
-                  {localizedTitle.title}
-                </h2>
               </Link>
             )
           })}

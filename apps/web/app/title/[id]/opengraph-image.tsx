@@ -4,6 +4,7 @@ import { KINO_OG_LOGO_URL } from '@/lib/og-assets'
 import { safeImageData } from '@/lib/og-images'
 import { parseResourceSegment } from '@/lib/routes'
 import { getTitlePresentation } from '@/lib/seo'
+import { getRequestLanguage } from '@/lib/server-localization'
 import { getTitleSeoDataBySegment } from '@/lib/server-tmdb'
 
 export const runtime = 'nodejs'
@@ -25,7 +26,7 @@ export default async function OpenGraphImage({ params }: { params: Promise<{ id:
   }
 
   try {
-    const details = await getTitleSeoDataBySegment(tmdbId, segment.slug, 'en')
+    const details = await getTitleSeoDataBySegment(tmdbId, segment.slug, await getRequestLanguage())
     const presentation = getTitlePresentation(details)
     const [backdrop, poster] = await Promise.all([
       safeImageData(details.backdropImage),

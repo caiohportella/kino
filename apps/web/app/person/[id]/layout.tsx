@@ -3,13 +3,8 @@ import { permanentRedirect } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { cache } from 'react'
 import { isCanonicalResourceSegment, parseResourceSegment, personPath } from '@/lib/routes'
-import {
-  absoluteUrl,
-  buildPersonDescription,
-  buildPersonSchema,
-  SITE_DESCRIPTION,
-  SITE_NAME,
-} from '@/lib/seo'
+import { absoluteUrl, buildPersonSchema } from '@/lib/seo'
+import { getServerMetadataContext, pageMetadata } from '@/lib/server-metadata'
 import { getPersonSeoData } from '@/lib/server-tmdb'
 
 export async function generateMetadata({
@@ -18,70 +13,45 @@ export async function generateMetadata({
   params: Promise<{ id: string }>
 }): Promise<Metadata> {
   const { id } = await params
+  const { language, locale, t } = await getServerMetadataContext()
   const personId = parseResourceSegment(id).id
 
   if (!Number.isFinite(personId) || personId <= 0) {
     return {
-      title: 'Person not found',
-      description: SITE_DESCRIPTION,
-      robots: { index: false, follow: false },
+      ...pageMetadata({
+        canonical: absoluteUrl(`/person/${personId || id}`),
+        description: t('metadata.siteDescription'),
+        index: false,
+        locale,
+        title: t('metadata.personNotFound'),
+      }),
     }
   }
 
   try {
-    const person = await getPersonSeoData(personId)
+    const person = await getPersonSeoData(personId, language)
     const pageTitle = person.name
-    const description = buildPersonDescription(person)
+    const description = person.biography || t('metadata.personDescription', { name: person.name })
     const canonical = absoluteUrl(personPath(personId, person.name))
 
-    return {
-      title: pageTitle,
+    return pageMetadata({
+      canonical,
       description,
-      alternates: {
-        canonical,
-      },
-      openGraph: {
-        description,
-        siteName: SITE_NAME,
-        title: pageTitle,
-        type: 'profile',
-        url: canonical,
-      },
-      robots: {
-        index: true,
-        follow: true,
-      },
-      twitter: {
-        card: 'summary_large_image',
-        description,
-        title: pageTitle,
-      },
-    }
+      index: true,
+      locale,
+      title: pageTitle,
+      type: 'profile',
+    })
   } catch {
-    const fallbackTitle = `Person ${personId}`
-    return {
+    const fallbackTitle = t('metadata.personNotFound')
+    return pageMetadata({
+      canonical: absoluteUrl(`/person/${personId}`),
+      description: t('metadata.siteDescription'),
+      index: false,
+      locale,
       title: fallbackTitle,
-      description: SITE_DESCRIPTION,
-      alternates: {
-        canonical: absoluteUrl(`/person/${personId}`),
-      },
-      robots: {
-        index: false,
-        follow: false,
-      },
-      openGraph: {
-        description: SITE_DESCRIPTION,
-        siteName: SITE_NAME,
-        title: fallbackTitle,
-        type: 'profile',
-        url: absoluteUrl(`/person/${personId}`),
-      },
-      twitter: {
-        card: 'summary_large_image',
-        description: SITE_DESCRIPTION,
-        title: fallbackTitle,
-      },
-    }
+      type: 'profile',
+    })
   }
 }
 

@@ -3,6 +3,7 @@ import {
   SEARCH_SCHEMA_VERSION_V1,
   SEARCH_SCHEMA_VERSION_V2,
   type SearchMediaType,
+  type SearchMode,
   type SearchRequest,
   type SearchRequestV1,
 } from '@kino/core/search'
@@ -12,10 +13,11 @@ import { SearchGatewayError } from './errors.ts'
 const MAX_QUERY_CODE_POINTS = 200
 const MAX_PAGE = 100
 const MAX_LIMIT = 50
-const MAX_RESULT_WINDOW = 100
+const MAX_RESULT_WINDOW = 500
 const DEFAULT_PAGE = 1
 const DEFAULT_LIMIT = 20
 const MEDIA_TYPES = new Set<SearchMediaType>(['movie', 'series'])
+const SEARCH_MODES = new Set<SearchMode>(['autocomplete', 'full'])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -78,6 +80,14 @@ function optionalBoundedInteger(
   return value
 }
 
+function optionalMode(value: unknown): SearchMode | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'string' || !SEARCH_MODES.has(value as SearchMode)) {
+    throw SearchGatewayError.invalidRequest('mode')
+  }
+  return value as SearchMode
+}
+
 export function assertSearchResultWindow(request: Pick<SearchRequestV1, 'page' | 'limit'>): void {
   if ((request.page ?? DEFAULT_PAGE) * (request.limit ?? DEFAULT_LIMIT) > MAX_RESULT_WINDOW) {
     throw SearchGatewayError.invalidRequest('page')
@@ -94,6 +104,7 @@ export function parseSearchRequestV1(json: unknown): SearchRequestV1 {
   const mediaTypes = optionalMediaTypes(json.mediaTypes)
   const page = optionalBoundedInteger(json.page, 'page', MAX_PAGE)
   const limit = optionalBoundedInteger(json.limit, 'limit', MAX_LIMIT)
+  const mode = optionalMode(json.mode) ?? 'full'
   assertSearchResultWindow({ page, limit })
 
   return {
@@ -104,6 +115,7 @@ export function parseSearchRequestV1(json: unknown): SearchRequestV1 {
     ...(mediaTypes === undefined ? {} : { mediaTypes }),
     ...(page === undefined ? {} : { page }),
     ...(limit === undefined ? {} : { limit }),
+    mode,
   }
 }
 

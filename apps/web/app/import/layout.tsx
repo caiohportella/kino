@@ -1,29 +1,12 @@
-import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
-import { absoluteUrl, SITE_DESCRIPTION, SITE_NAME } from '@/lib/seo'
+import { localizedRouteMetadata } from '@/lib/server-metadata'
 
-export const metadata: Metadata = {
-  title: 'Import History',
-  description: 'Review and manage imported watch history in Kino.',
-  alternates: {
-    canonical: absoluteUrl('/import'),
-  },
-  robots: {
-    index: false,
-    follow: false,
-  },
-  openGraph: {
-    description: SITE_DESCRIPTION,
-    siteName: SITE_NAME,
-    title: 'Import History | Kino',
-    type: 'website',
-    url: absoluteUrl('/import'),
-  },
-  twitter: {
-    card: 'summary_large_image',
-    description: SITE_DESCRIPTION,
-    title: 'Import History | Kino',
-  },
+export async function generateMetadata() {
+  return localizedRouteMetadata({
+    canonicalPath: '/import',
+    descriptionKey: 'metadata.importDescription',
+    titleKey: 'metadata.importTitle',
+  })
 }
 
 export default function ImportLayout({ children }: { children: ReactNode }) {

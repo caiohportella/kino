@@ -1,13 +1,15 @@
 'use client'
 
 import type { TitleDetails, Watchlist } from '@kino/core'
+import { KinoLanguage } from '@kino/core/locale-config'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { enUS, fr, it, nb, ptBR } from 'date-fns/locale'
-import { BookmarkPlus, CalendarCheck, ChevronDown, Plus, Ticket } from 'lucide-react'
+import { de, enUS, es, fr, it, Locale, nb, ptBR } from 'date-fns/locale'
+import { motion } from 'framer-motion'
+import { Bookmark, Calendar, CalendarCheck, Plus, Ticket } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
+import { SingleDatePicker } from '@/components/diary/single-date-picker'
 import { ShareButton } from '@/components/share-button'
-import { SingleDatePicker } from '@/components/single-date-picker'
 import { MediaModalSkeleton } from '@/components/skeletons/page-skeletons'
 import { Button } from '@/components/ui/button'
 import {
@@ -17,8 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { SplitButton, SplitButtonMain, SplitButtonSecondary } from '@/components/ui/split-button'
-import { WatchlistDialog } from '@/components/watchlist-dialog'
+import { WatchlistDialog } from '@/components/watchlist/watchlist-dialog'
 import { ANON_TITLE_ID } from '@/hooks/title/use-title-data'
 import { useTranslation } from '@/lib/i18n'
 import { db } from '@/lib/services'
@@ -79,11 +80,19 @@ export function TitleActions({
     },
   })
 
-  const diaryLocale = { en: enUS, fr, it, no: nb, pt: ptBR }[language] || enUS
+  const DIARY_LOCALES = {
+    en: enUS,
+    pt: ptBR,
+    fr,
+    it,
+    no: nb,
+    es,
+    de,
+  } satisfies Record<KinoLanguage, Locale>
 
   const today = new Date()
 
-  const earliestDiaryDate = new Date(Math.max(title.year || 1900, 1900), 0, 1)
+  const calendarStartDate = new Date(1900, 0, 1)
 
   return (
     <>
@@ -101,7 +110,22 @@ export function TitleActions({
             setWatchlistOpen(true)
           }}
         >
-          <BookmarkPlus size={17} />
+          <motion.span
+            key={isWatchlisted ? 'watchlisted' : 'watchlist'}
+            initial={{ opacity: 0, scale: 0.7, rotate: -10 }}
+            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            transition={{
+              duration: 0.2,
+              ease: 'easeOut',
+            }}
+            className="inline-flex shrink-0"
+          >
+            <Bookmark
+              className={isWatchlisted ? 'text-black/70' : undefined}
+              fill={isWatchlisted ? 'currentColor' : 'none'}
+              size={17}
+            />
+          </motion.span>
 
           <span>{isWatchlisted ? t('title.watchlisted') : t('title.watchlist')}</span>
         </Button>
@@ -114,58 +138,73 @@ export function TitleActions({
             onClick={() => diaryMutation.mutate(undefined)}
             variant="secondary"
           >
-            <CalendarCheck size={17} />
+            <motion.span
+              key="diary-added"
+              initial={{ opacity: 0, scale: 0.7, rotate: -10 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+              transition={{
+                duration: 0.2,
+                ease: 'easeOut',
+              }}
+              className="inline-flex shrink-0"
+            >
+              <CalendarCheck size={17} />
+            </motion.span>
+
             <span>{t('title.removeHistory')}</span>
           </Button>
         ) : (
-          <SplitButton aria-label={t('title.diary')} className="w-full sm:w-auto sm:min-w-36">
-            <SplitButtonMain
-              disabled={(Boolean(userId) && title.id === ANON_TITLE_ID) || diaryMutation.isPending}
-              onClick={() => {
-                if (!canUsePersonalActions) {
-                  onAuthRequired()
-                  return
-                }
-
-                diaryMutation.mutate(new Date())
-              }}
-            >
-              <CalendarCheck />
-              <span className="truncate">{t('title.diary')}</span>
-            </SplitButtonMain>
-
-            <SingleDatePicker
-              disabled={diaryMutation.isPending}
-              endMonth={today}
-              locale={diaryLocale}
-              onOpenChange={(nextOpen) => {
-                if (nextOpen && !canUsePersonalActions) {
-                  onAuthRequired()
-                  return
-                }
-
-                setDiaryCalendarOpen(nextOpen)
-              }}
-              onSelect={(date) => {
-                if (diaryMutation.isPending) {
-                  return
-                }
-
-                const localDay = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12)
-
-                setDiaryDate(localDay)
-                diaryMutation.mutate(localDay)
-              }}
-              open={diaryCalendarOpen}
-              selected={diaryDate}
-              startMonth={earliestDiaryDate}
-              trigger={
-                <SplitButtonSecondary aria-label={t('title.chooseDiaryDate')}>
-                  <ChevronDown />
-                </SplitButtonSecondary>
+          <SingleDatePicker
+            disabled={(Boolean(userId) && title.id === ANON_TITLE_ID) || diaryMutation.isPending}
+            endMonth={today}
+            locale={DIARY_LOCALES[language]}
+            onOpenChange={(nextOpen) => {
+              if (nextOpen && !canUsePersonalActions) {
+                onAuthRequired()
+                return
               }
-            />
-          </SplitButton>
+
+              setDiaryCalendarOpen(nextOpen)
+            }}
+            onSelect={(date) => {
+              if (diaryMutation.isPending) {
+                return
+              }
+
+              const localDay = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12)
+
+              setDiaryDate(localDay)
+              diaryMutation.mutate(localDay)
+            }}
+            open={diaryCalendarOpen}
+            selected={diaryDate}
+            startMonth={calendarStartDate}
+            trigger={
+              <Button
+                aria-label={t('title.diary')}
+                className="min-h-11 w-full whitespace-normal px-4 leading-tight sm:w-auto sm:min-w-36 sm:whitespace-nowrap"
+                disabled={
+                  (Boolean(userId) && title.id === ANON_TITLE_ID) || diaryMutation.isPending
+                }
+                variant="secondary"
+              >
+                <motion.span
+                  key="diary-empty"
+                  initial={{ opacity: 0, scale: 0.7, rotate: -10 }}
+                  animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                  transition={{
+                    duration: 0.2,
+                    ease: 'easeOut',
+                  }}
+                  className="inline-flex shrink-0"
+                >
+                  <Calendar size={17} />
+                </motion.span>
+
+                <span>{t('title.diary')}</span>
+              </Button>
+            }
+          />
         )}
 
         <ShareButton

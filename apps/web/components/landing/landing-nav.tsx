@@ -44,7 +44,7 @@ export function LandingNav({ showBrand }: { showBrand: boolean }) {
             tabIndex={showBrand ? 0 : -1}
             href="/"
           >
-            <KinoLogo priority width={92} />
+            <KinoLogo priority className="w-fit" />
           </Link>
         </motion.div>
 

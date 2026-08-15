@@ -1,29 +1,12 @@
-import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
-import { absoluteUrl, SITE_DESCRIPTION, SITE_NAME } from '@/lib/seo'
+import { localizedRouteMetadata } from '@/lib/server-metadata'
 
-export const metadata: Metadata = {
-  title: 'Diary',
-  description: 'Private watch diary and review history for Kino.',
-  alternates: {
-    canonical: absoluteUrl('/diary'),
-  },
-  robots: {
-    index: false,
-    follow: false,
-  },
-  openGraph: {
-    description: SITE_DESCRIPTION,
-    siteName: SITE_NAME,
-    title: 'Diary | Kino',
-    type: 'website',
-    url: absoluteUrl('/diary'),
-  },
-  twitter: {
-    card: 'summary_large_image',
-    description: SITE_DESCRIPTION,
-    title: 'Diary | Kino',
-  },
+export async function generateMetadata() {
+  return localizedRouteMetadata({
+    canonicalPath: '/diary',
+    descriptionKey: 'metadata.diaryDescription',
+    titleKey: 'metadata.diaryTitle',
+  })
 }
 
 export default function DiaryLayout({ children }: { children: ReactNode }) {

@@ -65,7 +65,7 @@ export function LandingHero({ logoRef }: { logoRef?: RefObject<HTMLSpanElement |
         <motion.div className="flex flex-col gap-9 py-8" variants={heroSequenceVariants}>
           <motion.div className="flex items-center gap-3" variants={heroContentVariants}>
             <span ref={logoRef}>
-              <KinoLogo priority width={132} />
+              <KinoLogo priority className="w-fit" />
             </span>
           </motion.div>
 

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { titleQueryKeys } from '@kino/core/cache'
 import { QueryClient } from '@tanstack/query-core'
-import { titleQueryKeys } from '../../../packages/core/src/cache/query-keys.ts'
 import { hydrateLocalizedTitleBatch } from '../hooks/data/localizedTitleBatch.ts'
 
 test('cold mobile multi-title hydration uses one gateway request and seeds localized summaries', async () => {

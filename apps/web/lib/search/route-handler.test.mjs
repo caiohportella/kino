@@ -37,6 +37,7 @@ test('parses POST JSON, supplies the request signal, and returns the shared resp
   assert.deepEqual(received.request, {
     schemaVersion: SEARCH_SCHEMA_VERSION,
     query: 'Alien',
+    mode: 'full',
   })
   assert.equal(received.signal, request.signal)
   assert.equal(response.headers.get('cache-control'), 'no-store')

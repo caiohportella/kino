@@ -30,6 +30,16 @@ export function TrendingCarousel({ items }: TrendingCarouselProps) {
     return null
   }
 
+  const MAX_VISIBLE_BULLETS = 8
+  const visibleBulletCount = Math.min(MAX_VISIBLE_BULLETS, items.length)
+
+  const bulletStart = Math.max(
+    0,
+    Math.min(selectedIndex - Math.floor(visibleBulletCount / 2), items.length - visibleBulletCount)
+  )
+
+  const visibleBullets = items.slice(bulletStart, bulletStart + visibleBulletCount)
+
   return (
     <section
       className="group/carousel relative w-full overflow-hidden rounded-2xl bg-kino-surface"
@@ -60,7 +70,8 @@ export function TrendingCarousel({ items }: TrendingCarouselProps) {
           </div>
 
           <div className="absolute inset-x-0 bottom-3 flex justify-center gap-2 sm:bottom-5">
-            {items.map((item, index) => {
+            {visibleBullets.map((item, visibleIndex) => {
+              const index = bulletStart + visibleIndex
               const active = index === selectedIndex
 
               return (

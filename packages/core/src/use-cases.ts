@@ -13,6 +13,11 @@ export interface NextEpisodeCandidate {
   air_date?: string
 }
 
+export interface NextKnownSeasonCandidate {
+  season: number
+  air_date?: string
+}
+
 export interface EpisodeAvailability {
   season_number: number
   episode_number: number
@@ -59,6 +64,41 @@ export function calculateSeriesProgress(
 
 export function getEpisodeKey(seasonNumber: number, episodeNumber: number) {
   return `${seasonNumber}-${episodeNumber}`
+}
+
+export function findNextKnownSeason(
+  series: Pick<WatchedSeries, 'is_caught_up' | 'seasons_metadata' | 'watched_episode_keys'>
+): NextKnownSeasonCandidate | null {
+  if (!series.is_caught_up) return null
+  if (!series.seasons_metadata?.length) return null
+  if (!series.watched_episode_keys?.length) return null
+
+  let highestWatchedSeason = 0
+
+  for (const key of series.watched_episode_keys) {
+    const [seasonPart] = key.split('-')
+
+    if (!seasonPart) continue
+
+    const seasonNumber = Number.parseInt(seasonPart, 10)
+
+    if (Number.isInteger(seasonNumber) && seasonNumber > highestWatchedSeason) {
+      highestWatchedSeason = seasonNumber
+    }
+  }
+
+  if (highestWatchedSeason <= 0) return null
+
+  const nextSeason = series.seasons_metadata
+    .filter((season) => season.season_number > 0 && season.season_number > highestWatchedSeason)
+    .sort((left, right) => left.season_number - right.season_number)[0]
+
+  if (!nextSeason) return null
+
+  return {
+    season: nextSeason.season_number,
+    air_date: nextSeason.air_date || undefined,
+  }
 }
 
 export function isOfficiallyReleasedEpisode(episode: EpisodeAvailability, now = new Date()) {
@@ -110,7 +150,8 @@ export function resolveReleasedSeriesProgress(
           air_date: next.air_date || undefined,
         }
       : null,
-    isCaughtUp: watchedEpisodeKeys.size > 0 && !next,
+    isCaughtUp:
+      releasedEpisodes.length > 0 && watchedReleasedEpisodeCount === releasedEpisodes.length,
   }
 }
 

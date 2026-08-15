@@ -11,6 +11,16 @@ import {
   slugifyActivityTitle,
 } from './activity.ts'
 import {
+  buildProfileLifetimeRecap,
+  buildProfileMonthlyRecap,
+  calculateProfileGenreStats,
+  calculateProfileLifetimeStats,
+  calculateProfileMediaStats,
+  calculateProfileRatingStats,
+  calculateProfileViewingBreakdownStats,
+  createMonthRange,
+} from './profile-stats.ts'
+import {
   type FollowedEpisodeRatingRpcRow,
   type FollowedEpisodeRatingsResponse,
   type FollowedRatingRow,
@@ -30,11 +40,19 @@ import {
   type TitleReviewsPage,
   validateReviewContent,
 } from './reviews.ts'
+import { TMDbService } from './tmdb.ts'
 import type {
   EpisodeRating,
   FollowerInfo,
   MediaType,
   PersistedTitle,
+  ProfileGenreStat,
+  ProfileLifetimeRecap,
+  ProfileLifetimeStats,
+  ProfileMediaStats,
+  ProfileMonthlyRecap,
+  ProfileRatingStats,
+  ProfileViewingBreakdownStats,
   PublicWatchlistSummary,
   SeasonMetadata,
   TitleDetails,
@@ -64,6 +82,23 @@ function toSafeCount(value: unknown) {
   return Number.isFinite(count) && count >= 0 ? count : 0
 }
 
+let tmdbService: TMDbService | null = null
+
+function getTmdbService() {
+  const proc = globalThis as {
+    process?: { env?: Record<string, string | undefined> }
+  }
+  const apiKey =
+    proc.process?.env?.NEXT_PUBLIC_TMDB_API_KEY ?? proc.process?.env?.EXPO_PUBLIC_TMDB_API_KEY
+  if (!apiKey) return null
+
+  if (!tmdbService) {
+    tmdbService = new TMDbService(apiKey)
+  }
+
+  return tmdbService
+}
+
 function unwrapRpcRow<Row>(data: unknown): Row {
   const row = Array.isArray(data) ? data[0] : data
   if (!row || typeof row !== 'object') throw new Error('Review RPC returned no row')
@@ -82,7 +117,22 @@ interface TitleRow {
   genres: TMDbGenre[] | null
   cast: TMDbCast[] | null
   director: TMDbCast | null
+  production_companies?: Array<{
+    id: number
+    name: string
+    logo_path: string | null
+    origin_country?: string | null
+  }> | null
+  tmdb_data?: {
+    production_companies?: Array<{
+      id: number
+      name: string
+      logo_path: string | null
+      origin_country?: string | null
+    }> | null
+  } | null
   runtime: number | null
+  episode_runtime: number | null
   total_seasons: number | null
   total_episodes: number | null
   seasons_metadata?: SeasonMetadata[] | null
@@ -110,6 +160,7 @@ interface EpisodeRatingRow {
   rating: number | null
   watch_type: WatchType
   watched_at: string
+  runtime_minutes: number | null
   notes?: string | null
   created_at: string
   updated_at: string
@@ -197,6 +248,57 @@ interface RatingStatsRow {
   total_ratings: number | string | null
   star_breakdown: Record<number, number> | null
 }
+
+interface ProfileLifetimeStatsRow {
+  movies_watched: number | string | null
+  episodes_watched: number | string | null
+  ratings_made: number | string | null
+  time_watched_minutes: number | string | null
+}
+
+interface LifetimeStatsTitleJoinRow {
+  title_id: string
+  watched_at?: string
+  watch_type?: WatchType
+  titles?: ProfileStatsJoinedTitle | ProfileStatsJoinedTitle[] | null
+}
+
+interface ProfileGenreTitleJoinRow {
+  title_id: string
+  titles?: ProfileStatsJoinedTitle | ProfileStatsJoinedTitle[] | null
+}
+
+type ProfileStatsJoinedTitle = Pick<
+  TitleRow,
+  | 'id'
+  | 'tmdb_id'
+  | 'title'
+  | 'type'
+  | 'genres'
+  | 'runtime'
+  | 'episode_runtime'
+  | 'production_companies'
+  | 'cast'
+  | 'tmdb_data'
+>
+
+interface ProfileRatingJoinRow {
+  title_id: string
+  rating: number | string | null
+  watched_at: string
+  season_number?: number
+  episode_number?: number
+  titles?: ProfileStatsJoinedTitle | ProfileStatsJoinedTitle[] | null
+}
+
+interface ProfileViewingBreakdownJoinRow {
+  title_id: string
+  watched_at?: string
+  watch_type?: WatchType
+  titles?: ProfileStatsJoinedTitle | ProfileStatsJoinedTitle[] | null
+}
+
+const PROFILE_RECAP_PAGE_SIZE = 500
 
 export class KinoDatabaseService {
   private readonly supabase: SupabaseClient
@@ -313,7 +415,10 @@ export class KinoDatabaseService {
         .in('review_id', reviewIds)
       if (reviewLikesError) throw reviewLikesError
 
-      for (const row of (reviewLikeRows ?? []) as Array<{ review_id: string; user_id: string }>) {
+      for (const row of (reviewLikeRows ?? []) as Array<{
+        review_id: string
+        user_id: string
+      }>) {
         const current = reviewLikeStats.get(row.review_id) ?? {
           like_count: 0,
           liked_by_viewer: false,
@@ -436,12 +541,16 @@ export class KinoDatabaseService {
   }
 
   async likeReview(reviewId: string) {
-    const { error } = await this.supabase.rpc('like_review', { p_review_id: reviewId })
+    const { error } = await this.supabase.rpc('like_review', {
+      p_review_id: reviewId,
+    })
     if (error) throw error
   }
 
   async unlikeReview(reviewId: string) {
-    const { error } = await this.supabase.rpc('unlike_review', { p_review_id: reviewId })
+    const { error } = await this.supabase.rpc('unlike_review', {
+      p_review_id: reviewId,
+    })
     if (error) throw error
   }
 
@@ -510,7 +619,9 @@ export class KinoDatabaseService {
       rawTotals as Record<string, unknown>,
       getNodeEnvironment() === 'development'
         ? (reason) => {
-            console.warn('[followed-ratings] Dropped malformed episode row', { reason })
+            console.warn('[followed-ratings] Dropped malformed episode row', {
+              reason,
+            })
           }
         : undefined
     )
@@ -596,7 +707,10 @@ export class KinoDatabaseService {
           watched_episode_count: 0,
           latest_rating: row.rating,
           latest_watched_at: row.watched_at,
-          last_episode: { season: row.season_number, episode: row.episode_number },
+          last_episode: {
+            season: row.season_number,
+            episode: row.episode_number,
+          },
           next_episode: null,
           is_series_completed: false,
           watchedEpisodeKeys: new Set([key]),
@@ -608,7 +722,10 @@ export class KinoDatabaseService {
       if (new Date(row.watched_at) > new Date(existing.latest_watched_at)) {
         existing.latest_rating = row.rating
         existing.latest_watched_at = row.watched_at
-        existing.last_episode = { season: row.season_number, episode: row.episode_number }
+        existing.last_episode = {
+          season: row.season_number,
+          episode: row.episode_number,
+        }
       }
     }
 
@@ -652,6 +769,496 @@ export class KinoDatabaseService {
       moviesWatched: toSafeCount(row.movies_watched),
       reviews: toSafeCount(row.review_count),
       seriesWatched: toSafeCount(row.series_watched),
+    }
+  }
+
+  async getProfileMediaStatsByProfileId(profileId: string): Promise<ProfileMediaStats> {
+    const empty: ProfileMediaStats = {
+      seriesWatched: 0,
+      movieRatings: {
+        average: null,
+        ratedCount: 0,
+      },
+      seriesRatings: {
+        average: null,
+        ratedCount: 0,
+      },
+    }
+
+    try {
+      const profile = await this.getUserProfile(profileId)
+      const [publicStats, watchedMovies, watchedSeries] = await Promise.all([
+        profile?.username
+          ? this.getPublicProfileStatsByUsername(profile.username).catch(() => null)
+          : Promise.resolve(null),
+        this.getWatchedMovies(profileId).catch(() => []),
+        this.getWatchedSeries(profileId).catch(() => []),
+      ])
+
+      const watchedSeriesIds = watchedSeries.map((series) => series.id)
+      const seriesRatings =
+        watchedSeriesIds.length > 0
+          ? await this.getAverageSeasonRatingsForTitles(profileId, watchedSeriesIds).catch(
+              () => ({})
+            )
+          : {}
+
+      return calculateProfileMediaStats({
+        seriesWatched: publicStats?.seriesWatched ?? watchedSeries.length,
+        watchedMovies,
+        watchedSeries,
+        seriesRatings,
+      })
+    } catch (error) {
+      console.warn('[profile-stats] media stats failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        profileId,
+      })
+      return empty
+    }
+  }
+
+  async getProfileViewingBreakdownStatsByProfileId(
+    profileId: string
+  ): Promise<ProfileViewingBreakdownStats> {
+    const empty: ProfileViewingBreakdownStats = {
+      movieTimeWatchedMinutes: 0,
+      tvTimeWatchedMinutes: 0,
+      averageMovieRuntimeMinutes: 0,
+      averageEpisodesPerSeries: 0,
+      longestBingeEpisodes: 0,
+      longestMovieStreakDays: 0,
+      longestSeriesStreakDays: 0,
+      studioStats: [],
+      weekdayMediaSplit: {
+        movies: 0,
+        series: 0,
+        moviePercentage: 0,
+        seriesPercentage: 0,
+        dominantType: null,
+      },
+      weekendMediaSplit: {
+        movies: 0,
+        series: 0,
+        moviePercentage: 0,
+        seriesPercentage: 0,
+        dominantType: null,
+      },
+    }
+
+    try {
+      const [diaryResult, episodeResult] = await Promise.all([
+        this.supabase
+          .from('watch_diary')
+          .select(
+            'title_id,watched_at,watch_type,titles:title_id(id,tmdb_id,title,type,genres,cast,runtime,episode_runtime,production_companies,tmdb_data)'
+          )
+          .eq('user_id', profileId)
+          .order('watched_at', { ascending: false }),
+        this.supabase
+          .from('episode_ratings')
+          .select(
+            'title_id,watched_at,watch_type,runtime_minutes,titles:title_id(id,tmdb_id,title,type,genres,cast,runtime,episode_runtime,production_companies,tmdb_data)'
+          )
+          .eq('user_id', profileId)
+          .order('watched_at', { ascending: false }),
+      ])
+
+      if (diaryResult.error) throw diaryResult.error
+      if (episodeResult.error) throw episodeResult.error
+
+      const [diaryRows, episodeRows] = await Promise.all([
+        hydrateViewingBreakdownRows((diaryResult.data ?? []) as ProfileViewingBreakdownJoinRow[]),
+        hydrateViewingBreakdownRows((episodeResult.data ?? []) as ProfileViewingBreakdownJoinRow[]),
+      ])
+
+      return calculateProfileViewingBreakdownStats({
+        diaryRows,
+        episodeRows,
+      })
+    } catch (error) {
+      console.warn('[profile-stats] viewing breakdown failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        profileId,
+      })
+      return empty
+    }
+  }
+
+  async getProfileLifetimeStatsByProfileId(profileId: string): Promise<ProfileLifetimeStats> {
+    const empty = {
+      moviesWatched: 0,
+      episodesWatched: 0,
+      ratingsMade: 0,
+      timeWatchedMinutes: 0,
+    }
+
+    try {
+      const { data, error } = await this.supabase.rpc('get_profile_lifetime_stats', {
+        p_profile_id: profileId,
+      })
+      if (!error) {
+        const row = Array.isArray(data) ? data[0] : data
+        if (!row) return empty
+        const stats = row as ProfileLifetimeStatsRow
+        return {
+          moviesWatched: toSafeCount(stats.movies_watched),
+          episodesWatched: toSafeCount(stats.episodes_watched),
+          ratingsMade: toSafeCount(stats.ratings_made),
+          timeWatchedMinutes: toSafeCount(stats.time_watched_minutes),
+        }
+      }
+
+      console.warn('[profile-stats] RPC lookup failed, falling back to table queries', {
+        error: error.message,
+        profileId,
+      })
+
+      return await this.getProfileLifetimeStatsFromTables(profileId)
+    } catch (error) {
+      console.warn('[profile-stats] RPC lookup threw, falling back to table queries', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        profileId,
+      })
+      try {
+        return await this.getProfileLifetimeStatsFromTables(profileId)
+      } catch (fallbackError) {
+        console.warn('[profile-stats] fallback table queries failed', {
+          error: fallbackError instanceof Error ? fallbackError.message : 'Unknown error',
+          profileId,
+        })
+        return empty
+      }
+    }
+  }
+
+  async getProfileLifetimeRecapByProfileId(profileId: string): Promise<ProfileLifetimeRecap> {
+    const empty = {
+      moviesWatched: 0,
+      episodesWatched: 0,
+      ratingsMade: 0,
+      timeWatchedMinutes: 0,
+      topRatedMovies: [],
+      topRatedSeries: [],
+      topGenres: [],
+      mostRatedGenre: null,
+      highestRatedStudio: null,
+      highestRatedActor: null,
+      highestRatedActress: null,
+      highestRatedGenre: null,
+      highestRatedDecade: null,
+    } satisfies ProfileLifetimeRecap
+
+    try {
+      const selectClause =
+        'id,title_id,watched_at,watch_type,titles:title_id(id,tmdb_id,title,type,release_year,genres,runtime,episode_runtime,production_companies,cast,tmdb_data,cover_image)'
+      const ratingSelectClause =
+        'id,title_id,rating,watched_at,titles:title_id(id,tmdb_id,title,type,release_year,genres,runtime,episode_runtime,production_companies,cast,tmdb_data,cover_image)'
+      const episodeSelectClause =
+        'id,title_id,season_number,episode_number,rating,watched_at,watch_type,runtime_minutes,titles:title_id(id,tmdb_id,title,type,release_year,genres,cast,runtime,episode_runtime,production_companies,tmdb_data,cover_image)'
+
+      const [lifetime, diaryRows, movieRatingRows, episodeRatingRows, watchedSeries] =
+        await Promise.all([
+          this.getProfileLifetimeStatsByProfileId(profileId),
+          this.getCompleteProfileRecapRows('watch_diary', selectClause, profileId),
+          this.getCompleteProfileRecapRows('title_ratings', ratingSelectClause, profileId, true),
+          this.getCompleteProfileRecapRows('episode_ratings', episodeSelectClause, profileId),
+          this.getWatchedSeries(profileId).catch(() => []),
+        ])
+
+      return buildProfileLifetimeRecap({
+        lifetime,
+        diaryRows: diaryRows as LifetimeStatsTitleJoinRow[],
+        movieRatingRows: movieRatingRows as ProfileRatingJoinRow[],
+        episodeRatingRows: episodeRatingRows as ProfileRatingJoinRow[],
+        watchedSeries: watchedSeries ?? [],
+      })
+    } catch (error) {
+      console.warn('[profile-stats] lifetime recap failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        profileId,
+      })
+      return empty
+    }
+  }
+
+  private async getCompleteProfileRecapRows(
+    table: 'watch_diary' | 'title_ratings' | 'episode_ratings',
+    selectClause: string,
+    profileId: string,
+    ratedOnly = false
+  ): Promise<unknown[]> {
+    const rows: unknown[] = []
+
+    for (let from = 0; ; from += PROFILE_RECAP_PAGE_SIZE) {
+      let query = this.supabase
+        .from(table)
+        .select(selectClause)
+        .eq('user_id', profileId)
+        .order('watched_at', { ascending: true })
+        .order('title_id', { ascending: true })
+        .order('id', { ascending: true })
+
+      if (ratedOnly) {
+        query = query.not('rating', 'is', null)
+      }
+
+      const { data, error } = await query.range(from, from + PROFILE_RECAP_PAGE_SIZE - 1)
+
+      if (error) throw error
+
+      const page = data ?? []
+      rows.push(...page)
+
+      if (page.length < PROFILE_RECAP_PAGE_SIZE) {
+        return rows
+      }
+    }
+  }
+
+  private async getProfileLifetimeStatsFromTables(
+    profileId: string
+  ): Promise<ProfileLifetimeStats> {
+    const [
+      { data: diaryRows, error: diaryError },
+      { data: episodeRows, error: episodeError },
+      { count: movieRatingsCount, error: movieRatingsError },
+      { count: episodeRatingsCount, error: episodeRatingsError },
+    ] = await Promise.all([
+      this.supabase
+        .from('watch_diary')
+        .select('title_id,titles:title_id(id,title,type,genres,cast,runtime,episode_runtime)')
+        .eq('user_id', profileId),
+      this.supabase
+        .from('episode_ratings')
+        .select('title_id,titles:title_id(id,title,type,genres,cast,runtime,episode_runtime)')
+        .eq('user_id', profileId),
+      this.supabase
+        .from('title_ratings')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', profileId),
+      this.supabase
+        .from('episode_ratings')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', profileId)
+        .not('rating', 'is', null),
+    ])
+
+    if (diaryError) throw diaryError
+    if (episodeError) throw episodeError
+    if (movieRatingsError) throw movieRatingsError
+    if (episodeRatingsError) throw episodeRatingsError
+
+    return calculateProfileLifetimeStats({
+      diaryRows: (diaryRows ?? []) as LifetimeStatsTitleJoinRow[],
+      episodeRows: (episodeRows ?? []) as LifetimeStatsTitleJoinRow[],
+      movieRatingsCount: toSafeCount(movieRatingsCount),
+      episodeRatingsCount: toSafeCount(episodeRatingsCount),
+    })
+  }
+
+  async getProfileGenreStatsByProfileId(profileId: string, limit = 5): Promise<ProfileGenreStat[]> {
+    try {
+      const { data, error } = await this.supabase
+        .from('watch_diary')
+        .select('title_id,titles:title_id(id,title,type,genres,cast,runtime,episode_runtime)')
+        .eq('user_id', profileId)
+
+      if (error) throw error
+      return calculateProfileGenreStats((data ?? []) as ProfileGenreTitleJoinRow[], limit)
+    } catch (error) {
+      console.warn('[profile-stats] genre stats failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        profileId,
+      })
+      return []
+    }
+  }
+
+  async getProfileRatingStatsByProfileId(profileId: string): Promise<ProfileRatingStats> {
+    try {
+      const [movieRatings, episodeRatings] = await Promise.all([
+        this.supabase
+          .from('title_ratings')
+          .select(
+            'title_id,rating,watched_at,titles:title_id(id,tmdb_id,title,type,release_year,genres,cast,production_companies,tmdb_data,cover_image,runtime,episode_runtime)'
+          )
+          .eq('user_id', profileId)
+          .not('rating', 'is', null),
+
+        this.supabase
+          .from('episode_ratings')
+          .select(
+            'title_id,season_number,episode_number,rating,watched_at,titles:title_id(id,tmdb_id,title,type,release_year,genres,cast,production_companies,tmdb_data,cover_image,runtime,episode_runtime)'
+          )
+          .eq('user_id', profileId)
+          .not('rating', 'is', null),
+      ])
+
+      if (movieRatings.error) throw movieRatings.error
+      if (episodeRatings.error) throw episodeRatings.error
+
+      return calculateProfileRatingStats([
+        ...((movieRatings.data ?? []) as ProfileRatingJoinRow[]),
+        ...((episodeRatings.data ?? []) as ProfileRatingJoinRow[]),
+      ])
+    } catch (error) {
+      console.warn('[profile-stats] rating stats failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        profileId,
+      })
+
+      return {
+        averageRating: null,
+        movieAverageRating: null,
+        seriesAverageRating: null,
+        distribution: [],
+        totalRatings: 0,
+        fiveStarRate: 0,
+        mostRatedGenre: null,
+        highestRatedGenre: null,
+        highestRatedDecade: null,
+        highestRatedStudio: null,
+        highestRatedActor: null,
+        highestRatedActress: null,
+        highestRatedMovie: null,
+        lowestRatedMovie: null,
+        highestRatedSeries: null,
+        lowestRatedSeries: null,
+      }
+    }
+  }
+
+  async getProfileMonthlyRecapByProfileId(
+    profileId: string,
+    year: number,
+    month: number
+  ): Promise<ProfileMonthlyRecap> {
+    try {
+      const currentRange = createMonthRange(year, month)
+      const previousMonth = month === 1 ? 12 : month - 1
+      const previousYear = month === 1 ? year - 1 : year
+      const previousRange = createMonthRange(previousYear, previousMonth)
+      const selectClause =
+        'title_id,watched_at,watch_type,titles:title_id(id,tmdb_id,title,type,release_year,genres,runtime,episode_runtime,production_companies,cast,tmdb_data,cover_image)'
+      const ratingSelectClause =
+        'title_id,rating,watched_at,titles:title_id(id,tmdb_id,title,type,release_year,genres,runtime,episode_runtime,production_companies,cast,tmdb_data,cover_image)'
+      const episodeSelectClause =
+        'title_id,season_number,episode_number,rating,watched_at,watch_type,runtime_minutes,titles:title_id(id,tmdb_id,title,type,release_year,genres,cast,runtime,episode_runtime,production_companies,tmdb_data,cover_image)'
+
+      const [
+        { data: currentDiary, error: currentDiaryError },
+        { data: previousDiary, error: previousDiaryError },
+        { data: currentMovieRatings, error: currentMovieRatingsError },
+        { data: currentEpisodeRatings, error: currentEpisodeRatingsError },
+        { data: previousMovieRatings, error: previousMovieRatingsError },
+        { data: previousEpisodeRatings, error: previousEpisodeRatingsError },
+        currentWatchedSeries,
+      ] = await Promise.all([
+        this.supabase
+          .from('watch_diary')
+          .select(selectClause)
+          .eq('user_id', profileId)
+          .gte('watched_at', currentRange.start.toISOString())
+          .lt('watched_at', currentRange.end.toISOString()),
+        this.supabase
+          .from('watch_diary')
+          .select(selectClause)
+          .eq('user_id', profileId)
+          .gte('watched_at', previousRange.start.toISOString())
+          .lt('watched_at', previousRange.end.toISOString()),
+        this.supabase
+          .from('title_ratings')
+          .select(ratingSelectClause)
+          .eq('user_id', profileId)
+          .gte('watched_at', currentRange.start.toISOString())
+          .lt('watched_at', currentRange.end.toISOString())
+          .not('rating', 'is', null),
+        this.supabase
+          .from('episode_ratings')
+          .select(episodeSelectClause)
+          .eq('user_id', profileId)
+          .gte('watched_at', currentRange.start.toISOString())
+          .lt('watched_at', currentRange.end.toISOString()),
+        this.supabase
+          .from('title_ratings')
+          .select(ratingSelectClause)
+          .eq('user_id', profileId)
+          .gte('watched_at', previousRange.start.toISOString())
+          .lt('watched_at', previousRange.end.toISOString())
+          .not('rating', 'is', null),
+        this.supabase
+          .from('episode_ratings')
+          .select(episodeSelectClause)
+          .eq('user_id', profileId)
+          .gte('watched_at', previousRange.start.toISOString())
+          .lt('watched_at', previousRange.end.toISOString()),
+        this.getWatchedSeries(profileId).catch(() => []),
+      ])
+
+      if (currentDiaryError) throw currentDiaryError
+      if (previousDiaryError) throw previousDiaryError
+      if (currentMovieRatingsError) throw currentMovieRatingsError
+      if (currentEpisodeRatingsError) throw currentEpisodeRatingsError
+      if (previousMovieRatingsError) throw previousMovieRatingsError
+      if (previousEpisodeRatingsError) throw previousEpisodeRatingsError
+
+      return buildProfileMonthlyRecap({
+        year,
+        month,
+        current: {
+          diaryRows: (currentDiary ?? []) as LifetimeStatsTitleJoinRow[],
+          movieRatingRows: (currentMovieRatings ?? []) as ProfileRatingJoinRow[],
+          episodeRatingRows: (currentEpisodeRatings ?? []) as ProfileRatingJoinRow[],
+          watchedSeries: currentWatchedSeries ?? [],
+        },
+        previous: {
+          diaryRows: (previousDiary ?? []) as LifetimeStatsTitleJoinRow[],
+          movieRatingRows: (previousMovieRatings ?? []) as ProfileRatingJoinRow[],
+          episodeRatingRows: (previousEpisodeRatings ?? []) as ProfileRatingJoinRow[],
+        },
+      })
+    } catch (error) {
+      console.warn('[profile-stats] monthly recap failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        profileId,
+        year,
+        month,
+      })
+      return {
+        activeDays: 0,
+        averageRating: null,
+        dailyActivity: [],
+        episodesWatched: 0,
+        finishedSeries: [],
+        highestRated: null,
+        lowestRated: null,
+        highestRatedStudio: null,
+        highestRatedActor: null,
+        highestRatedActress: null,
+        highestRatedGenre: null,
+        highestRatedDecade: null,
+        month,
+        moviesWatched: 0,
+        mostWatchedSeries: [],
+        mostWatchedStudio: null,
+        previousMonthComparison: {
+          episodesDelta: 0,
+          moviesDelta: 0,
+          ratingsDelta: 0,
+          timeWatchedMinutesDelta: 0,
+        },
+        ratingsMade: 0,
+        rewatches: 0,
+        timeWatchedMinutes: 0,
+        topActor: null,
+        topGenres: [],
+        topRatedMovies: [],
+        topRatedSeries: [],
+        topTitles: [],
+        uniqueTitlesWatched: 0,
+        year,
+      } satisfies ProfileMonthlyRecap
     }
   }
 
@@ -736,7 +1343,11 @@ export class KinoDatabaseService {
     const communityStats: Record<string, { total: number; count: number; users: Set<string> }> = {}
     const addCommunityRating = (titleId: string, rating: number | null, ratingUserId: string) => {
       if (!rating || rating <= 0) return
-      const stats = communityStats[titleId] ?? { total: 0, count: 0, users: new Set<string>() }
+      const stats = communityStats[titleId] ?? {
+        total: 0,
+        count: 0,
+        users: new Set<string>(),
+      }
       stats.total += rating
       stats.count += 1
       stats.users.add(ratingUserId)
@@ -860,6 +1471,8 @@ export class KinoDatabaseService {
         .update({
           cover_image: title.coverImage,
           backdrop_image: title.backdropImage,
+          episode_runtime: title.episodeRuntime ?? null,
+          production_companies: title.productionCompanies ?? [],
           total_seasons: title.totalSeasons,
           total_episodes: title.totalEpisodes,
           seasons_metadata: seasonsMetadata,
@@ -881,7 +1494,9 @@ export class KinoDatabaseService {
         genres: title.genres,
         cast: title.cast,
         director: title.director,
+        production_companies: title.productionCompanies ?? [],
         runtime: title.runtime,
+        episode_runtime: title.episodeRuntime ?? null,
         total_seasons: title.totalSeasons,
         total_episodes: title.totalEpisodes,
         seasons_metadata: seasonsMetadata,
@@ -967,30 +1582,26 @@ export class KinoDatabaseService {
     rating: number | null,
     watchType: WatchType,
     watchedAt: Date,
-    notes?: string
+    notes?: string,
+    existingRatingId?: string,
+    runtimeMinutes?: number | null
   ) {
     const user = await this.getRequiredUserId()
-    const { data: existing } = await this.supabase
-      .from('episode_ratings')
-      .select('id')
-      .eq('user_id', user)
-      .eq('title_id', titleId)
-      .eq('season_number', seasonNumber)
-      .eq('episode_number', episodeNumber)
-      .maybeSingle()
 
     const payload = {
       rating,
       watch_type: watchType,
       watched_at: watchedAt.toISOString(),
       notes,
+      runtime_minutes: runtimeMinutes ?? null,
     }
 
-    const query = existing
+    const query = existingRatingId
       ? this.supabase
           .from('episode_ratings')
           .update(payload)
-          .eq('id', (existing as { id: string }).id)
+          .eq('id', existingRatingId)
+          .eq('user_id', user)
       : this.supabase.from('episode_ratings').insert({
           ...payload,
           user_id: user,
@@ -1000,7 +1611,9 @@ export class KinoDatabaseService {
         })
 
     const { data, error } = await query.select().single()
+
     if (error) throw error
+
     return this.mapEpisodeRating(data as EpisodeRatingRow)
   }
 
@@ -1020,7 +1633,10 @@ export class KinoDatabaseService {
   async markSeasonEpisodesAsWatched(
     titleId: string,
     seasonNumber: number,
-    episodes: Array<{ episode_number: number }>,
+    episodes: Array<{
+      episode_number: number
+      runtime?: number | null
+    }>,
     watchType: WatchType,
     watchedAt = new Date(),
     rating: number | null = null
@@ -1030,44 +1646,88 @@ export class KinoDatabaseService {
     const user = await this.getRequiredUserId()
     const existingByEpisode = new Map<
       number,
-      Pick<EpisodeRatingRow, 'rating' | 'watch_type' | 'watched_at'>
+      Pick<EpisodeRatingRow, 'id' | 'rating' | 'watch_type' | 'watched_at' | 'runtime_minutes'>
     >()
 
-    if (rating === null) {
-      const { data: existing, error: existingError } = await this.supabase
-        .from('episode_ratings')
-        .select('episode_number, rating, watch_type, watched_at')
-        .eq('user_id', user)
-        .eq('title_id', titleId)
-        .eq('season_number', seasonNumber)
+    const { data: existing, error: existingError } = await this.supabase
+      .from('episode_ratings')
+      .select('id,episode_number,rating,watch_type,watched_at,runtime_minutes')
+      .eq('user_id', user)
+      .eq('title_id', titleId)
+      .eq('season_number', seasonNumber)
+      .order('watched_at', { ascending: false })
 
-      if (existingError) throw existingError
-      for (const row of (existing ?? []) as Pick<
-        EpisodeRatingRow,
-        'episode_number' | 'rating' | 'watch_type' | 'watched_at'
-      >[]) {
+    if (existingError) throw existingError
+
+    for (const row of (existing ?? []) as Pick<
+      EpisodeRatingRow,
+      'id' | 'episode_number' | 'rating' | 'watch_type' | 'watched_at' | 'runtime_minutes'
+    >[]) {
+      if (!existingByEpisode.has(row.episode_number)) {
         existingByEpisode.set(row.episode_number, row)
       }
     }
 
-    const payload = episodes.map((episode) => ({
+    const existingEpisodes = episodes.filter((episode) =>
+      existingByEpisode.has(episode.episode_number)
+    )
+
+    const newEpisodes = episodes.filter((episode) => !existingByEpisode.has(episode.episode_number))
+
+    const newEpisodePayload = newEpisodes.map((episode) => ({
       user_id: user,
       title_id: titleId,
       season_number: seasonNumber,
       episode_number: episode.episode_number,
-      rating: rating ?? existingByEpisode.get(episode.episode_number)?.rating ?? null,
-      watch_type: existingByEpisode.get(episode.episode_number)?.watch_type ?? watchType,
-      watched_at:
-        existingByEpisode.get(episode.episode_number)?.watched_at ?? watchedAt.toISOString(),
+      rating,
+      watch_type: watchType,
+      watched_at: watchedAt.toISOString(),
+      runtime_minutes: episode.runtime ?? null,
     }))
 
-    const { data, error } = await this.supabase
-      .from('episode_ratings')
-      .upsert(payload, { onConflict: 'user_id,title_id,season_number,episode_number' })
-      .select()
+    const savedRows: EpisodeRatingRow[] = []
 
-    if (error) throw error
-    return ((data ?? []) as EpisodeRatingRow[]).map((row) => this.mapEpisodeRating(row))
+    if (newEpisodePayload.length > 0) {
+      const { data: inserted, error: insertError } = await this.supabase
+        .from('episode_ratings')
+        .insert(newEpisodePayload)
+        .select()
+
+      if (insertError) throw insertError
+
+      savedRows.push(...((inserted ?? []) as EpisodeRatingRow[]))
+    }
+
+    if (rating !== null && existingEpisodes.length > 0) {
+      const updatedRows = await Promise.all(
+        existingEpisodes.map(async (episode) => {
+          const existing = existingByEpisode.get(episode.episode_number)
+
+          if (!existing) {
+            throw new Error(`Missing existing rating for episode ${episode.episode_number}`)
+          }
+
+          const { data, error } = await this.supabase
+            .from('episode_ratings')
+            .update({
+              rating,
+              runtime_minutes: episode.runtime ?? existing.runtime_minutes ?? null,
+            })
+            .eq('id', existing.id)
+            .eq('user_id', user)
+            .select()
+            .single()
+
+          if (error) throw error
+
+          return data as EpisodeRatingRow
+        })
+      )
+
+      savedRows.push(...updatedRows)
+    }
+
+    return savedRows.map((row) => this.mapEpisodeRating(row))
   }
 
   async removeSeasonEpisodesWatched(titleId: string, seasonNumber: number) {
@@ -1078,6 +1738,18 @@ export class KinoDatabaseService {
       .eq('user_id', user)
       .eq('title_id', titleId)
       .eq('season_number', seasonNumber)
+
+    if (error) throw error
+  }
+
+  async removeEpisodeRatingById(ratingId: string) {
+    const user = await this.getRequiredUserId()
+
+    const { error } = await this.supabase
+      .from('episode_ratings')
+      .delete()
+      .eq('id', ratingId)
+      .eq('user_id', user)
 
     if (error) throw error
   }
@@ -1109,8 +1781,53 @@ export class KinoDatabaseService {
       .eq('user_id', user)
       .eq('title_id', titleId)
       .eq('season_number', seasonNumber)
+      .order('watched_at', { ascending: false })
 
     if (error) throw error
+
+    const latestByEpisode = new Map<number, EpisodeRatingRow>()
+
+    for (const row of (data ?? []) as EpisodeRatingRow[]) {
+      if (!latestByEpisode.has(row.episode_number)) {
+        latestByEpisode.set(row.episode_number, row)
+      }
+    }
+
+    return Array.from(latestByEpisode.values()).map((row) => this.mapEpisodeRating(row))
+  }
+
+  async getUserSeasonWatchHistory(titleId: string, seasonNumber: number) {
+    const user = await this.getUserId()
+    if (!user) return []
+
+    const { data, error } = await this.supabase
+      .from('episode_ratings')
+      .select('*')
+      .eq('user_id', user)
+      .eq('title_id', titleId)
+      .eq('season_number', seasonNumber)
+      .order('watched_at', { ascending: true })
+
+    if (error) throw error
+
+    return ((data ?? []) as EpisodeRatingRow[]).map((row) => this.mapEpisodeRating(row))
+  }
+
+  async getEpisodeWatchHistory(titleId: string, seasonNumber: number, episodeNumber: number) {
+    const user = await this.getUserId()
+    if (!user) return []
+
+    const { data, error } = await this.supabase
+      .from('episode_ratings')
+      .select('*')
+      .eq('user_id', user)
+      .eq('title_id', titleId)
+      .eq('season_number', seasonNumber)
+      .eq('episode_number', episodeNumber)
+      .order('watched_at', { ascending: true })
+
+    if (error) throw error
+
     return ((data ?? []) as EpisodeRatingRow[]).map((row) => this.mapEpisodeRating(row))
   }
 
@@ -1123,14 +1840,28 @@ export class KinoDatabaseService {
       .select('*')
       .eq('user_id', user)
       .eq('title_id', titleId)
+      .order('watched_at', { ascending: false })
 
     if (error) throw error
-    return ((data ?? []) as EpisodeRatingRow[]).map((row) => this.mapEpisodeRating(row))
+
+    const latestByEpisode = new Map<string, EpisodeRatingRow>()
+
+    for (const row of (data ?? []) as EpisodeRatingRow[]) {
+      const key = `${row.season_number}:${row.episode_number}`
+
+      if (!latestByEpisode.has(key)) {
+        latestByEpisode.set(key, row)
+      }
+    }
+
+    return Array.from(latestByEpisode.values()).map((row) => this.mapEpisodeRating(row))
   }
 
   async getTitleRatingStats(titleId: string, type: MediaType) {
     const rpcName = type === 'tv' ? 'get_series_rating_stats' : 'get_title_rating_stats'
-    const { data, error } = await this.supabase.rpc(rpcName, { p_title_id: titleId })
+    const { data, error } = await this.supabase.rpc(rpcName, {
+      p_title_id: titleId,
+    })
     if (error) throw error
     const rows = (data ?? []) as RatingStatsRow[]
     return this.mapStats(
@@ -1316,7 +2047,9 @@ export class KinoDatabaseService {
           .order('id', { ascending: true })
         if (itemsError) throw itemsError
         const coverInputs = (items ?? []).map((item) => {
-          const title = item.title as unknown as { cover_image: string | null } | null
+          const title = item.title as unknown as {
+            cover_image: string | null
+          } | null
           return {
             addedAt: item.added_at,
             itemId: item.id,
@@ -1461,7 +2194,10 @@ export class KinoDatabaseService {
     })
     if (error) throw error
     if (!data) return null
-    const payload = data as { watchlist: WatchlistRow; items: WatchlistItemRow[] }
+    const payload = data as {
+      watchlist: WatchlistRow
+      items: WatchlistItemRow[]
+    }
     return {
       watchlist: this.mapWatchlist(payload.watchlist),
       items: payload.items
@@ -1474,7 +2210,9 @@ export class KinoDatabaseService {
   }
 
   async leaveWatchlist(watchlistId: string) {
-    const { error } = await this.supabase.rpc('leave_watchlist', { p_watchlist_id: watchlistId })
+    const { error } = await this.supabase.rpc('leave_watchlist', {
+      p_watchlist_id: watchlistId,
+    })
     if (error) throw error
   }
 
@@ -1645,6 +2383,21 @@ export class KinoDatabaseService {
         },
       ]
     })
+  }
+
+  private mapWatchlist(row: WatchlistRow): Watchlist {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      name: row.name,
+      description: row.description ?? undefined,
+      thumbnail: row.thumbnail ?? undefined,
+      visibility: row.visibility,
+      isShared: row.is_shared,
+      shareCode: row.share_code ?? undefined,
+      createdAt: new Date(row.created_at),
+      updatedAt: new Date(row.updated_at),
+    }
   }
 
   private mapActivityReviews(rows: ActivityReviewRow[], actorIds: readonly string[]): Activity[] {
@@ -1867,7 +2620,9 @@ export class KinoDatabaseService {
       genres: row.genres || [],
       cast: row.cast || [],
       director: row.director,
+      production_companies: row.production_companies ?? [],
       runtime: row.runtime,
+      episode_runtime: row.episode_runtime,
       total_seasons: row.total_seasons,
       total_episodes: row.total_episodes,
       seasons_metadata: row.seasons_metadata,
@@ -1887,9 +2642,11 @@ export class KinoDatabaseService {
       genres: row.genres || [],
       cast: row.cast || [],
       director: row.director || undefined,
+      productionCompanies: row.production_companies || [],
       averageRating: 0,
       ratingCount: 0,
       runtime: row.runtime || undefined,
+      episodeRuntime: row.episode_runtime || undefined,
       totalSeasons: row.total_seasons || undefined,
       totalEpisodes: row.total_episodes || undefined,
     }
@@ -1918,8 +2675,19 @@ export class KinoDatabaseService {
       rating: row.rating,
       watchType: row.watch_type,
       watchedAt: new Date(row.watched_at),
+      runtimeMinutes: row.runtime_minutes ?? null,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
+    }
+  }
+
+  private mapWatchlistItem(row: WatchlistItemRow): WatchlistItem {
+    return {
+      id: row.id,
+      watchlistId: row.watchlist_id,
+      titleId: row.title_id,
+      addedAt: new Date(row.added_at),
+      addedBy: row.added_by,
     }
   }
 
@@ -1936,31 +2704,6 @@ export class KinoDatabaseService {
     }
   }
 
-  private mapWatchlist(row: WatchlistRow): Watchlist {
-    return {
-      id: row.id,
-      userId: row.user_id,
-      name: row.name,
-      description: row.description || undefined,
-      thumbnail: row.thumbnail || undefined,
-      visibility: row.visibility || (row.is_shared ? 'shared' : 'private'),
-      isShared: (row.visibility || (row.is_shared ? 'shared' : 'private')) === 'shared',
-      shareCode: row.share_code || undefined,
-      createdAt: new Date(row.created_at),
-      updatedAt: new Date(row.updated_at),
-    }
-  }
-
-  private mapWatchlistItem(row: WatchlistItemRow): WatchlistItem {
-    return {
-      id: row.id,
-      watchlistId: row.watchlist_id,
-      titleId: row.title_id,
-      addedAt: new Date(row.added_at),
-      addedBy: row.added_by,
-    }
-  }
-
   private mapStats(row: RatingStatsRow): TitleRatingStats {
     return {
       averageRating: Number(row.average_rating) || 0,
@@ -1973,6 +2716,108 @@ export class KinoDatabaseService {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
     return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
   }
+}
+
+async function hydrateViewingBreakdownRows(
+  rows: ProfileViewingBreakdownJoinRow[]
+): Promise<ProfileViewingBreakdownJoinRow[]> {
+  const tmdb = getTmdbService()
+  if (!tmdb) return rows
+
+  const missingMovieIds = new Set<number>()
+  const missingCompanyIds = new Set<number>()
+  for (const row of rows) {
+    const title = unwrapJoinedTitle(row.titles)
+    if (!title || title.type !== 'movie') continue
+    const companies = title.production_companies ?? []
+    if (companies.length === 0) {
+      if (title.tmdb_id != null) missingMovieIds.add(title.tmdb_id)
+      continue
+    }
+
+    for (const company of companies) {
+      if (!company.logo_path) missingCompanyIds.add(company.id)
+    }
+  }
+
+  if (missingMovieIds.size === 0 && missingCompanyIds.size === 0) return rows
+
+  const movieCompanies = new Map<
+    number,
+    Array<{
+      id: number
+      name: string
+      logo_path: string | null
+      origin_country?: string | null
+    }>
+  >()
+  const companyLogos = new Map<number, string | null>()
+
+  await Promise.all([
+    ...Array.from(missingMovieIds.values()).map(async (tmdbId) => {
+      try {
+        const details = await tmdb.getMovieDetails(tmdbId)
+        movieCompanies.set(tmdbId, details.production_companies ?? [])
+      } catch {
+        movieCompanies.set(tmdbId, [])
+      }
+    }),
+    ...Array.from(missingCompanyIds.values()).map(async (companyId) => {
+      try {
+        const details = await tmdb.getCompanyDetails(companyId)
+        companyLogos.set(companyId, details.logo_path ?? null)
+      } catch {
+        companyLogos.set(companyId, null)
+      }
+    }),
+  ])
+
+  return rows.map((row) => {
+    const title = unwrapJoinedTitle(row.titles)
+    if (!title || title.type !== 'movie') return row
+    const companies = title.production_companies ?? []
+
+    if (companies.length === 0) {
+      if (title.tmdb_id == null) return row
+
+      const fallbackCompanies = movieCompanies.get(title.tmdb_id) ?? []
+      if (fallbackCompanies.length === 0) return row
+
+      return {
+        ...row,
+        titles: {
+          ...title,
+          production_companies: fallbackCompanies.map((company) => ({
+            ...company,
+            logo_path: company.logo_path ?? companyLogos.get(company.id) ?? null,
+          })),
+        },
+      }
+    }
+
+    const enrichedCompanies = companies.map((company) => ({
+      ...company,
+      logo_path: company.logo_path ?? companyLogos.get(company.id) ?? null,
+    }))
+
+    const hasChanges = enrichedCompanies.some(
+      (company, index) => company.logo_path !== companies[index]?.logo_path
+    )
+    if (!hasChanges) return row
+
+    return {
+      ...row,
+      titles: {
+        ...title,
+        production_companies: enrichedCompanies,
+      },
+    }
+  })
+}
+
+function unwrapJoinedTitle(title: ProfileViewingBreakdownJoinRow['titles']) {
+  if (Array.isArray(title)) return title[0] ?? null
+  return title ?? null
 }
 
 function getNodeEnvironment() {

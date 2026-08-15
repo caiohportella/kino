@@ -7,7 +7,7 @@ import {
   type PersonRelationshipCache,
 } from '../../../../lib/search/providers/person-relationship-cache.ts'
 import { createTmdbSearchProvider } from '../../../../lib/search/providers/tmdb.ts'
-import { createUpstashVectorProvider } from '../../../../lib/search/providers/upstash-vector.ts'
+import { createSupabaseUserSearchFallback } from '../../../../lib/search/providers/users.ts'
 import {
   createFallbackSearchRateLimiter,
   createMemorySearchRateLimiter,
@@ -16,11 +16,13 @@ import {
   searchClientKey,
 } from '../../../../lib/search/rate-limit.ts'
 import { createSearchRouteHandler } from '../../../../lib/search/route-handler.ts'
-import {
-  readRedisServerEnv,
-  readTmdbServerApiKey,
-  readVectorServerEnv,
-} from '../../../../lib/search/server-env.ts'
+import { readRedisServerEnv, readTmdbServerApiKey } from '../../../../lib/search/server-env.ts'
+import { createRedisSearchClient } from '../../../../lib/search/upstash/client.ts'
+import { createPersonIndexer } from '../../../../lib/search/upstash/person-indexer.ts'
+import { createTitleIndexer } from '../../../../lib/search/upstash/title-indexer.ts'
+import { createRedisTitleSearchProvider } from '../../../../lib/search/upstash/title-search-provider.ts'
+import { createRedisUserSearchProvider } from '../../../../lib/search/upstash/user-search-provider.ts'
+import { createServerSupabaseClient } from '../../../../lib/supabase/server.ts'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -60,9 +62,12 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const vectorConfig = readVectorServerEnv()
     const redisConfig = readRedisServerEnv()
+    const redis = redisConfig ? createRedisSearchClient(redisConfig) : undefined
+    const supabase = await createServerSupabaseClient()
     const tmdb = createTmdbSearchProvider({ apiKey: tmdbApiKey, fetch: globalThis.fetch })
+    const titleIndexer = redisConfig ? createTitleIndexer(redisConfig) : undefined
+    const personIndexer = redisConfig ? createPersonIndexer(redisConfig) : undefined
     let relationships: PersonRelationshipCache | undefined
     if (redisConfig) {
       relationships = createPersonRelationshipCache({
@@ -88,19 +93,29 @@ export async function POST(request: Request): Promise<Response> {
         },
       })
     }
+
+    const titleSearch = redis
+      ? createRedisTitleSearchProvider({
+          redis,
+          defaultLimit: 20,
+        })
+      : undefined
+    const userSearch = createRedisUserSearchProvider({
+      ...(redis ? { redis } : {}),
+      defaultLimit: 20,
+      searchUsersFallback: createSupabaseUserSearchFallback(supabase),
+    })
+
     const gateway = createSearchGateway({
       tmdb,
       telemetry: eventSink,
       ...(relationships ? { relationships } : {}),
-      ...(vectorConfig
-        ? {
-            vector: createUpstashVectorProvider({
-              ...vectorConfig,
-              fetch: globalThis.fetch,
-            }),
-          }
-        : {}),
+      ...(titleSearch ? { vector: titleSearch } : {}),
+      ...(titleIndexer ? { titleIndexer } : {}),
+      ...(personIndexer ? { personIndexer } : {}),
+      users: userSearch,
     })
+
     return createSearchRouteHandler({
       gateway,
       rateLimiter:

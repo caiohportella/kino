@@ -2,9 +2,12 @@ import type { MediaType } from '@kino/core'
 import { ImageResponse } from 'next/og'
 import type { NextRequest } from 'next/server'
 import { createElement, type ReactElement } from 'react'
+
+import { isSupportedLanguage } from '@/lib/i18n-shared'
 import { FallbackOg, getOgImageOptions, TitleOg } from '@/lib/og'
 import { safeImageData } from '@/lib/og-images'
 import { getTitlePresentation } from '@/lib/seo'
+import { getRequestLanguage } from '@/lib/server-localization'
 import { getTitleSeoData } from '@/lib/server-tmdb'
 
 export const runtime = 'nodejs'
@@ -14,6 +17,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const tmdbId = Number(id)
   const logo = await safeImageData(new URL('/kino-logo.png', request.url).toString())
   const type: MediaType = request.nextUrl.searchParams.get('type') === 'tv' ? 'tv' : 'movie'
+  const requestedLanguage = request.nextUrl.searchParams.get('language')
+  const language =
+    requestedLanguage && isSupportedLanguage(requestedLanguage)
+      ? requestedLanguage
+      : await getRequestLanguage()
 
   if (!Number.isFinite(tmdbId) || tmdbId <= 0) {
     return image(
@@ -26,7 +34,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   try {
-    const details = await getTitleSeoData(tmdbId, type, 'en')
+    const details = await getTitleSeoData(tmdbId, type, language)
     const presentation = getTitlePresentation(details)
     const [backdrop, poster] = await Promise.all([
       safeImageData(details.backdropImage),

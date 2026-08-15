@@ -1,8 +1,10 @@
+import { TMDbService } from '@kino/core'
 import {
   LOCALIZED_TITLE_BATCH_SCHEMA_VERSION,
   type LocalizedTitleBatchInput,
   type LocalizedTitleBatchItem,
   type LocalizedTitleBatchResponse,
+  localeBaseLanguage,
   type ResolvedLocalizedTitleSummary,
   selectLocalizedImage,
 } from '@kino/core/localization'
@@ -10,6 +12,7 @@ import {
 const DEFAULT_CACHE_TTL_MS = 1000 * 60 * 60 * 24
 const DEFAULT_CONCURRENCY = 6
 const MAX_CACHE_ENTRIES = 2_000
+const TMDB_API_BASE = 'https://api.themoviedb.org/3'
 
 export interface LocalizedTitleProviderResult {
   readonly backdrops: readonly ProviderImage[]
@@ -26,6 +29,7 @@ interface ProviderImage {
   readonly aspect_ratio?: number | null
   readonly file_path: string | null
   readonly height?: number | null
+  readonly iso_3166_1?: string | null
   readonly iso_639_1: string | null
   readonly vote_average?: number | null
   readonly vote_count?: number | null
@@ -60,6 +64,17 @@ export function createLocalizedTitleBatchService(options: ServiceOptions) {
       input: LocalizedTitleBatchInput,
       signal?: AbortSignal
     ): Promise<LocalizedTitleBatchResponse> {
+      const debugItem = input.items.find((item) => item.tmdbId === 399057)
+
+      if (debugItem) {
+        console.log('[localized-batch:received]', {
+          item: debugItem,
+          locale: input.locale,
+          region: input.region,
+          cacheKey: cacheKey(debugItem, input),
+          cached: cache.get(cacheKey(debugItem, input)),
+        })
+      }
       const summaries: Array<ResolvedLocalizedTitleSummary | undefined> = new Array(
         input.items.length
       )
@@ -102,6 +117,26 @@ export function createLocalizedTitleBatchService(options: ServiceOptions) {
                 placeholderPath: null,
                 tmdbDefaultPath: providerTitle.defaultPosterPath,
               })
+              if (current.item.tmdbId === 399057) {
+                console.log('[localized-poster-debug]', {
+                  locale: input.locale,
+                  region: input.region,
+
+                  originalLanguage: providerTitle.originalLanguage,
+
+                  defaultPosterPath: providerTitle.defaultPosterPath,
+
+                  selectedPoster,
+
+                  posters: providerTitle.posters.map((poster) => ({
+                    filePath: poster.file_path,
+                    language: poster.iso_639_1,
+                    region: poster.iso_3166_1,
+                    voteAverage: poster.vote_average,
+                    voteCount: poster.vote_count,
+                  })),
+                })
+              }
               const selectedBackdrop = selectLocalizedImage({
                 candidates: providerTitle.backdrops.map(toLocalizedImageCandidate),
                 kind: 'backdrop',
@@ -155,6 +190,12 @@ export function createLocalizedTitleBatchService(options: ServiceOptions) {
   }
 }
 
+export function createTmdbLocalizedTitleBatchService(apiKey: string) {
+  return createLocalizedTitleBatchService({
+    fetchTitle: (item, context, signal) => fetchLocalizedTitle(apiKey, item, context, signal),
+  })
+}
+
 export function createLocalizedTitleRateLimiter(options: {
   readonly limit: number
   readonly windowMs: number
@@ -164,7 +205,10 @@ export function createLocalizedTitleRateLimiter(options: {
     check(clientId: string, currentTime = Date.now()) {
       const current = windows.get(clientId)
       if (!current || current.resetAt <= currentTime) {
-        windows.set(clientId, { count: 1, resetAt: currentTime + options.windowMs })
+        windows.set(clientId, {
+          count: 1,
+          resetAt: currentTime + options.windowMs,
+        })
         return true
       }
       if (current.count >= options.limit) return false
@@ -180,6 +224,7 @@ function toLocalizedImageCandidate(image: ProviderImage) {
     filePath: image.file_path,
     height: image.height,
     language: image.iso_639_1,
+    region: image.iso_3166_1,
     voteAverage: image.vote_average,
     voteCount: image.vote_count,
     width: image.width,
@@ -199,4 +244,62 @@ function setBoundedCache(cache: Map<string, CacheEntry>, key: string, value: Cac
     if (oldest) cache.delete(oldest)
   }
   cache.set(key, value)
+}
+
+async function fetchLocalizedTitle(
+  apiKey: string,
+  item: LocalizedTitleBatchItem,
+  context: Pick<LocalizedTitleBatchInput, 'locale' | 'region'>,
+  signal?: AbortSignal
+): Promise<LocalizedTitleProviderResult> {
+  const tmdb = new TMDbService(apiKey)
+
+  const baseLanguage = localeBaseLanguage(context.locale)
+
+  tmdb.setLanguage(baseLanguage)
+
+  const details =
+    item.type === 'movie'
+      ? await tmdb.getMovieDetails(item.tmdbId)
+      : await tmdb.getTVDetails(item.tmdbId)
+
+  signal?.throwIfAborted()
+
+  const originalLanguage =
+    'original_language' in details && typeof details.original_language === 'string'
+      ? details.original_language
+      : null
+  const includeLanguages = [baseLanguage, originalLanguage, 'null']
+
+  const imagesUrl = new URL(`${TMDB_API_BASE}/${item.type}/${item.tmdbId}/images`)
+
+  imagesUrl.searchParams.set('api_key', apiKey)
+  imagesUrl.searchParams.set('include_image_language', includeLanguages.join(','))
+
+  const imagesResponse = await fetch(imagesUrl, { signal })
+
+  if (!imagesResponse.ok) {
+    throw new Error(`TMDb images request failed: ${imagesResponse.status}`)
+  }
+
+  const images = (await imagesResponse.json()) as {
+    backdrops?: LocalizedTitleProviderResult['backdrops']
+    posters?: LocalizedTitleProviderResult['posters']
+  }
+
+  return {
+    backdrops: images.backdrops ?? [],
+    backdropPath: details.backdrop_path,
+    defaultBackdropPath: details.backdrop_path,
+    defaultPosterPath: details.poster_path,
+    originalLanguage,
+    posters: images.posters ?? [],
+    title: (item.type === 'movie' ? details.title : details.name) ?? '',
+    year: releaseYear(item.type === 'movie' ? details.release_date : details.first_air_date),
+  }
+}
+
+function releaseYear(date: string | undefined) {
+  const year = Number.parseInt(date?.slice(0, 4) || '', 10)
+  return Number.isFinite(year) ? year : null
 }

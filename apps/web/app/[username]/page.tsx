@@ -1,13 +1,14 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Metadata } from 'next'
 import { notFound, permanentRedirect } from 'next/navigation'
-import { ProfileView } from '@/components/profile-view'
+import { ProfileView } from '@/components/profile/profile-view'
 import {
   isReservedProfileRoute,
   normalizeProfileUsername,
   profileOgPath,
 } from '@/lib/profile-routes'
 import { absoluteUrl } from '@/lib/seo'
+import { getServerMetadataContext, pageMetadata } from '@/lib/server-metadata'
 
 async function getProfile(username: string) {
   if (isReservedProfileRoute(username)) return null
@@ -35,6 +36,7 @@ export async function generateMetadata({
   params: Promise<{ username: string }>
 }): Promise<Metadata> {
   const routeParams = await params
+  const { locale, t } = await getServerMetadataContext()
   const username = normalizeProfileUsername(routeParams.username)
   if (!username || isReservedProfileRoute(username)) return {}
 
@@ -55,41 +57,30 @@ export async function generateMetadata({
   const canonical = absoluteUrl(`/${encodeURIComponent(canonicalUsername)}`)
   const title =
     profile?.display_name ||
-    (profile ? canonicalUsername : lookupFailed ? 'Profile unavailable' : 'Profile not found')
-  const description =
-    profile?.bio ||
     (profile
-      ? `See @${canonicalUsername}'s movies, series, ratings, and diary on Kino.`
+      ? canonicalUsername
       : lookupFailed
-        ? `The Kino profile @${canonicalUsername} could not be loaded.`
-        : `The Kino profile @${canonicalUsername} does not exist.`)
+        ? t('metadata.profileUnavailable')
+        : t('metadata.profileNotFound'))
+  const description =
+    profile?.bio || t('metadata.profileDescription', { username: canonicalUsername })
   const image = absoluteUrl(profileOgPath(canonicalUsername))
 
-  return {
+  return pageMetadata({
+    canonical,
+    description: profile || !lookupFailed ? description : t('metadata.profileUnavailable'),
+    image: {
+      alt: t('metadata.profileImageAlt', { name: title }),
+      height: 630,
+      type: 'image/png',
+      url: image,
+      width: 1200,
+    },
+    index: Boolean(profile),
+    locale,
     title,
-    description,
-    alternates: { canonical },
-    openGraph: {
-      title,
-      description,
-      url: canonical,
-      type: 'profile',
-      images: [
-        {
-          url: image,
-          width: 1200,
-          height: 630,
-          alt: profile ? `${title}'s Kino profile` : 'Kino profile unavailable',
-        },
-      ],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description,
-      images: [image],
-    },
-  }
+    type: 'profile',
+  })
 }
 
 export default async function UsernameProfilePage({

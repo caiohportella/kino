@@ -64,13 +64,23 @@ export function toWebSearchGroups(
           backdrop_path: null,
           genre_ids: [],
           media_type: mediaType,
+          popularity: entity.popularity ?? 0,
+          ...(entity.cast === undefined ? {} : { cast: entity.cast }),
+          ...(entity.numberOfSeasons === undefined
+            ? {}
+            : { number_of_seasons: entity.numberOfSeasons }),
+          ...(entity.endDate === undefined ? {} : { last_air_date: entity.endDate }),
           name: mediaType === 'tv' ? model.localizedTitle : undefined,
           overview: model.semanticContext ?? '',
           poster_path: model.localizedPoster,
           release_date:
-            mediaType === 'movie' && model.releaseYear ? `${model.releaseYear}-01-01` : '',
+            mediaType === 'movie'
+              ? (entity.startDate ?? (model.releaseYear ? `${model.releaseYear}-01-01` : ''))
+              : '',
           first_air_date:
-            mediaType === 'tv' && model.releaseYear ? `${model.releaseYear}-01-01` : '',
+            mediaType === 'tv'
+              ? (entity.startDate ?? (model.releaseYear ? `${model.releaseYear}-01-01` : ''))
+              : '',
           title: mediaType === 'movie' ? model.localizedTitle : undefined,
           ...(model.displayRating === undefined ? {} : { vote_average: model.displayRating }),
           vote_count: entity.voteCount ?? 0,

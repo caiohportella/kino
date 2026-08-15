@@ -10,21 +10,13 @@ import {
 const publicScope = { kind: 'public' }
 
 test('maps every progressive invalidation descriptor to canonical query keys', () => {
-  const descriptors = [
+  const cases = [
     {
-      descriptor: {
-        kind: 'identity',
-        profileId: 'profile-a',
-        visibilityScope: publicScope,
-      },
+      descriptor: { kind: 'identity', profileId: 'profile-a', visibilityScope: publicScope },
       expected: [['v1', 'profile', 'identity', 'profile-a', 'public']],
     },
     {
-      descriptor: {
-        kind: 'relationship',
-        profileId: 'profile-a',
-        viewerId: 'viewer-a',
-      },
+      descriptor: { kind: 'relationship', profileId: 'profile-a', viewerId: 'viewer-a' },
       expected: [['v1', 'profile', 'relationship', 'profile-a', 'viewer-a']],
     },
     {
@@ -44,40 +36,56 @@ test('maps every progressive invalidation descriptor to canonical query keys', (
       expected: [['v1', 'profile', 'watched-series', 'profile-a', 'public']],
     },
     {
-      descriptor: {
-        kind: 'statistics',
-        profileId: 'profile-a',
-        visibilityScope: publicScope,
-      },
+      descriptor: { kind: 'statistics', profileId: 'profile-a', visibilityScope: publicScope },
       expected: [['v1', 'profile', 'statistics', 'profile-a', 'public']],
     },
     {
       descriptor: {
-        kind: 'watchlists',
+        kind: 'lifetime-stats',
         profileId: 'profile-a',
         visibilityScope: publicScope,
       },
+      expected: [['v1', 'profile', 'lifetime-stats', 'profile-a', 'public']],
+    },
+    {
+      descriptor: { kind: 'media-stats', profileId: 'profile-a', visibilityScope: publicScope },
+      expected: [['v1', 'profile', 'media-stats', 'profile-a', 'public']],
+    },
+    {
+      descriptor: {
+        kind: 'viewing-breakdown-stats',
+        profileId: 'profile-a',
+        visibilityScope: publicScope,
+      },
+      expected: [['v1', 'profile', 'viewing-breakdown-stats', 'profile-a', 'public']],
+    },
+    {
+      descriptor: { kind: 'genre-stats', profileId: 'profile-a', visibilityScope: publicScope },
+      expected: [['v1', 'profile', 'genre-stats', 'profile-a', 'public']],
+    },
+    {
+      descriptor: { kind: 'rating-stats', profileId: 'profile-a', visibilityScope: publicScope },
+      expected: [['v1', 'profile', 'rating-stats', 'profile-a', 'public']],
+    },
+    {
+      descriptor: { kind: 'monthly-recap', profileId: 'profile-a', visibilityScope: publicScope },
+      expected: [['v1', 'profile', 'monthly-recap', 'profile-a', 'public']],
+    },
+    {
+      descriptor: { kind: 'watchlists', profileId: 'profile-a', visibilityScope: publicScope },
       expected: [['v1', 'profile', 'watchlists', 'profile-a', 'public']],
     },
     {
-      descriptor: {
-        kind: 'reviews',
-        profileId: 'profile-a',
-        visibilityScope: publicScope,
-      },
+      descriptor: { kind: 'reviews', profileId: 'profile-a', visibilityScope: publicScope },
       expected: [['v1', 'profile', 'reviews', 'profile-a', 'public']],
     },
     {
-      descriptor: {
-        kind: 'ratings',
-        profileId: 'profile-a',
-        visibilityScope: publicScope,
-      },
+      descriptor: { kind: 'ratings', profileId: 'profile-a', visibilityScope: publicScope },
       expected: [['v1', 'profile', 'ratings', 'profile-a', 'public']],
     },
   ]
 
-  for (const { descriptor, expected } of descriptors) {
+  for (const { descriptor, expected } of cases) {
     assert.deepEqual(profileInvalidationKeys(descriptor), expected)
   }
 })
@@ -112,6 +120,16 @@ test('maps profile mutations to the smallest correct descriptor sets', () => {
         'watched-movies',
         'statistics',
         'statistics',
+        'lifetime-stats',
+        'lifetime-stats',
+        'genre-stats',
+        'genre-stats',
+        'viewing-breakdown-stats',
+        'viewing-breakdown-stats',
+        'rating-stats',
+        'rating-stats',
+        'monthly-recap',
+        'monthly-recap',
         'ratings',
         'ratings',
       ],
@@ -128,6 +146,16 @@ test('maps profile mutations to the smallest correct descriptor sets', () => {
         'watched-series',
         'statistics',
         'statistics',
+        'lifetime-stats',
+        'lifetime-stats',
+        'genre-stats',
+        'genre-stats',
+        'viewing-breakdown-stats',
+        'viewing-breakdown-stats',
+        'rating-stats',
+        'rating-stats',
+        'monthly-recap',
+        'monthly-recap',
         'ratings',
         'ratings',
       ],
@@ -163,7 +191,15 @@ test('maps profile mutations to the smallest correct descriptor sets', () => {
         viewerId: 'viewer-a',
         visibilityScope: authenticatedScope,
       },
-      expectedKinds: ['relationship', 'statistics', 'statistics', 'statistics', 'statistics'],
+      expectedKinds: [
+        'relationship',
+        'statistics',
+        'statistics',
+        'lifetime-stats',
+        'lifetime-stats',
+        'statistics',
+        'statistics',
+      ],
     },
     {
       mutation: {
@@ -205,8 +241,8 @@ test('follow descriptors keep canonical profile and viewer ownership', () => {
     viewerId: 'viewer-a',
   })
   assert.deepEqual(descriptors[3], {
-    kind: 'statistics',
-    profileId: 'viewer-a',
+    kind: 'lifetime-stats',
+    profileId: 'profile-a',
     visibilityScope: { kind: 'public' },
   })
 })

@@ -6,6 +6,7 @@ import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigat
 import { EmptyState } from '@/components/kino'
 import { TitleSkeleton } from '@/components/skeletons/page-skeletons'
 import { TitleActions } from '@/components/title/title-actions'
+import { MoreLikeThis } from '@/components/title/title-context'
 import { getUpcomingSeason, TitleHeader } from '@/components/title/title-header'
 import {
   CommunityRatingsPanel,
@@ -13,8 +14,8 @@ import {
   TitleSynopsisAndRating,
 } from '@/components/title/title-metadata'
 import { SeasonTabs } from '@/components/title/title-seasons'
+import { TitleSection } from '@/components/title/title-section'
 import { TitleSidebar } from '@/components/title/title-sidebar'
-import { Card } from '@/components/ui/card'
 import { useTitleActions } from '@/hooks/title/use-title-actions'
 import { ANON_TITLE_ID, useTitleData } from '@/hooks/title/use-title-data'
 import { storeAuthRedirect } from '@/lib/auth-redirect'
@@ -28,10 +29,13 @@ export function TitlePage() {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
+
   const type = (searchParams.get('type') === 'tv' ? 'tv' : 'movie') as MediaType
   const tmdbId = parseResourceSegment(params.id).id
+
   const user = useAuthStore((state) => state.user)
   const language = useSettingsStore((state) => state.language)
+
   const { t } = useTranslation()
 
   const {
@@ -42,7 +46,12 @@ export function TitlePage() {
     statsQuery,
     nowPlayingQuery,
     contextQuery,
-  } = useTitleData({ tmdbId, type, language, userId: user?.id })
+  } = useTitleData({
+    tmdbId,
+    type,
+    language,
+    userId: user?.id,
+  })
 
   const reviewAuthor = currentProfileQuery.data ? toReviewAuthor(currentProfileQuery.data) : null
 
@@ -54,11 +63,15 @@ export function TitlePage() {
 
   function requestAuthForCurrentTitle() {
     const query = searchParams.toString()
+
     storeAuthRedirect(`${pathname}${query ? `?${query}` : ''}`)
+
     router.push('/auth/login')
   }
 
-  if (titleQuery.isLoading) return <TitleSkeleton label={t('common.loading')} />
+  if (titleQuery.isLoading) {
+    return <TitleSkeleton label={t('common.loading')} />
+  }
 
   if (titleQuery.error || !title) {
     return (
@@ -77,14 +90,25 @@ export function TitlePage() {
 
   const userData = userDataQuery.data
   const personalRating = userData?.userRating
+
   const currentUserRating =
     personalRating?.userId === user?.id ? Number(personalRating?.rating ?? 0) : 0
-  const ticketsUrl = `https://www.ingresso.com.br/busca/resultado?q=${encodeURIComponent(title.title)}`
+
+  const ticketsUrl = `https://www.ingresso.com.br/busca/resultado?q=${encodeURIComponent(
+    title.title
+  )}`
+
   const isNowPlayingInBrazil =
     nowPlayingQuery.data?.some((movie) => movie.id === title.tmdbId) ?? false
+
   const upcomingSeason = getUpcomingSeason(title)
+
   const canUsePersonalActions = Boolean(user && title.id !== ANON_TITLE_ID)
-  const shareUrl = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
+
+  const query = searchParams.toString()
+  const shareUrl = `${pathname}${query ? `?${query}` : ''}`
+
+  const hasSeasons = title.type === 'tv' && Boolean(title.totalSeasons)
 
   return (
     <div className="content-frame">
@@ -106,66 +130,67 @@ export function TitlePage() {
         upcomingSeason={upcomingSeason}
       />
 
-      <div className="grid w-full min-w-0 max-w-full items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <main className="grid w-full min-w-0 max-w-full items-start gap-6">
-          <TitleSynopsisAndRating
-            currentUserRating={currentUserRating}
-            deleteMovieEntryMutation={deleteMovieEntryMutation}
-            onAuthRequired={requestAuthForCurrentTitle}
-            rateMutation={rateMutation}
-            title={title}
-            user={user}
-          />
+      <div className="mt-8 grid w-full min-w-0 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_300px] xl:gap-12 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <main className="min-w-0">
+          <TitleSection>
+            <TitleSynopsisAndRating
+              currentUserRating={currentUserRating}
+              deleteMovieEntryMutation={deleteMovieEntryMutation}
+              onAuthRequired={requestAuthForCurrentTitle}
+              rateMutation={rateMutation}
+              title={title}
+              user={user}
+            />
+          </TitleSection>
 
-          {title.type === 'tv' && title.totalSeasons ? (
-            <Card className="p-5 md:p-6">
+          {hasSeasons ? (
+            <TitleSection>
               <SeasonTabs
                 onAuthRequired={requestAuthForCurrentTitle}
                 title={title}
                 tmdbId={title.tmdbId}
-                userCanRate={Boolean(user && title.id !== ANON_TITLE_ID)}
+                userCanRate={canUsePersonalActions}
                 userId={user?.id}
               />
-            </Card>
+            </TitleSection>
           ) : null}
 
-          {title.type === 'movie' ? (
-            <>
-              <CommunityRatingsPanel
-                showFollowed={Boolean(user)}
-                stats={statsQuery.data}
-                titleId={title.id}
-                type={title.type}
-              />
-              <TitleDiscoverySection
-                contextQuery={contextQuery}
-                currentUserRating={currentUserRating}
-                onAuthRequired={requestAuthForCurrentTitle}
-                reviewAuthor={reviewAuthor}
-                reviewAuthorLoading={Boolean(user && currentProfileQuery.isLoading)}
-                title={title}
-                user={user}
-              />
-            </>
-          ) : null}
+          <TitleSection>
+            <CommunityRatingsPanel
+              embedded
+              showFollowed={Boolean(user)}
+              stats={statsQuery.data}
+              titleId={title.id}
+              type={title.type}
+            />
+          </TitleSection>
+
+          <TitleSection className="pb-8">
+            <TitleDiscoverySection
+              contextQuery={contextQuery}
+              currentUserRating={currentUserRating}
+              onAuthRequired={requestAuthForCurrentTitle}
+              reviewAuthor={reviewAuthor}
+              reviewAuthorLoading={Boolean(user && currentProfileQuery.isLoading)}
+              title={title}
+              user={user}
+            />
+          </TitleSection>
         </main>
 
-        <TitleSidebar contextQuery={contextQuery} stats={statsQuery.data} title={title} />
+        <aside className="min-w-0 lg:sticky lg:top-24">
+          <TitleSidebar contextQuery={contextQuery} stats={statsQuery.data} title={title} />
+        </aside>
       </div>
 
-      {title.type === 'tv' ? (
-        <div className="mt-6 grid w-full min-w-0 max-w-full gap-6">
-          <TitleDiscoverySection
-            contextQuery={contextQuery}
-            currentUserRating={currentUserRating}
-            onAuthRequired={requestAuthForCurrentTitle}
-            reviewAuthor={reviewAuthor}
-            reviewAuthorLoading={Boolean(user && currentProfileQuery.isLoading)}
-            title={title}
-            user={user}
-          />
-        </div>
-      ) : null}
+      <TitleSection className="pb-8">
+        <MoreLikeThis
+          embedded
+          error={contextQuery.data?.errors.recommendations || contextQuery.isError}
+          items={contextQuery.data?.recommendations}
+          loading={contextQuery.isLoading}
+        />
+      </TitleSection>
     </div>
   )
 }

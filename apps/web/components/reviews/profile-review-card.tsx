@@ -1,9 +1,9 @@
 import type { ProfileReview } from '@kino/core'
 import { Heart } from 'lucide-react'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Poster } from '@/components/kino'
-import { RatingStars } from '@/components/rating-stars'
+import { RatingStars } from '@/components/media/rating-stars'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,9 +15,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { useTranslation } from '@/lib/i18n'
+import { resolveLocalizedTitlePresentation } from '@/lib/localized-title-presentation'
 import { titlePath } from '@/lib/routes'
 import { getTmdb } from '@/lib/services'
+import { useLocalizedTitles } from '@/lib/use-localized-titles'
 import { cn } from '@/lib/utils'
+import { ProfileReviewSkeleton } from './profile-review-skeleton'
 import { ReviewAuthor } from './review-author'
 import { ReviewEditor } from './review-editor'
 import { ReviewOwnerActions } from './review-owner-actions'
@@ -44,30 +47,59 @@ export function ProfileReviewCard({
   const { t } = useTranslation()
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const href = titlePath(review.title.tmdbId, review.title.name, review.title.mediaType)
-  const posterUrl = getTmdb().getImageUrl(review.title.posterUrl, 'w300')
+  const localizedRequest = useMemo(
+    () => ({ tmdbId: review.title.tmdbId, type: review.title.mediaType }),
+    [review.title.mediaType, review.title.tmdbId]
+  )
+  const localizedTitles = useLocalizedTitles([localizedRequest])
+  const localizedTitle = resolveLocalizedTitlePresentation({
+    data: localizedTitles.data,
+    errors: localizedTitles.errors,
+    isError: localizedTitles.isError,
+    missing: localizedTitles.missing,
+    request: localizedRequest,
+    unknownTitle: t('reviews.titleUnavailable'),
+  })
+
+  if (localizedTitles.isPending) {
+    return (
+      <div aria-busy="true">
+        <ProfileReviewSkeleton />
+      </div>
+    )
+  }
+
+  const displayTitle =
+    localizedTitle.status === 'ready' ? localizedTitle.title : t('reviews.titleUnavailable')
+  const href = titlePath(review.title.tmdbId, displayTitle, review.title.mediaType)
+  const posterUrl = getTmdb().getImageUrl(
+    localizedTitle.posterPath || review.title.posterUrl,
+    'w300'
+  )
 
   return (
     <article className="group relative grid h-full min-h-56 grid-cols-[76px_minmax(0,1fr)] gap-4 overflow-hidden rounded-md border border-white/10 bg-white/2.5 p-4 transition-colors hover:border-kino-accent/35 hover:bg-white/4">
       <Link
-        aria-label={t('reviews.openForTitle', { title: review.title.name })}
+        aria-label={t('reviews.openForTitle', { title: displayTitle })}
         className="focus-ring absolute inset-0 rounded-md"
         href={href}
       />
       <div className="pointer-events-none relative">
-        <Poster src={posterUrl} title={review.title.name} />
+        <Poster src={posterUrl} title={displayTitle} />
       </div>
       <div className="relative min-w-0">
-        <div className="pointer-events-none pr-16">
+        {/* Title gets its own bottom margin (mb-4) instead of relying on the
+            reviewer row's top margin — makes it read as a distinct block */}
+        <div className="pointer-events-none mb-4 pr-16">
           <h3 className="wrap-break-word font-semibold text-kino-text">
-            {review.title.name}
-            {review.title.year ? (
-              <span className="font-normal text-kino-muted"> ({review.title.year})</span>
+            {displayTitle}
+            {localizedTitle.year ? (
+              <span className="font-normal text-kino-muted"> ({localizedTitle.year})</span>
             ) : null}
           </h3>
         </div>
 
-        <div className="relative z-10 mt-3 flex items-start justify-between gap-2">
+        <div className="relative z-10 flex items-start justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <ReviewAuthor author={review.author} size="sm" />
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-kino-muted">
@@ -93,13 +125,13 @@ export function ProfileReviewCard({
           ) : null}
         </div>
 
-        <p className="mt-2 text-xs text-kino-subtle">
+        <p className="mt-0.5 text-xs text-kino-subtle">
           {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(
             new Date(review.createdAt)
           )}
         </p>
 
-        <div className="relative z-10 mt-3">
+        <div className="mt-3 min-h-0 flex-1 overflow-hidden">
           {editing ? (
             <ReviewEditor
               initialContent={review.content}
@@ -112,13 +144,13 @@ export function ProfileReviewCard({
               pending={pendingOwnerAction}
             />
           ) : (
-            <p className="line-clamp-5 wrap-break-word whitespace-pre-wrap text-sm leading-6 text-kino-text md:line-clamp-4">
+            <p className="line-clamp-2 overflow-hidden wrap-break-word whitespace-pre-wrap text-sm leading-6 text-kino-text">
               {review.content}
             </p>
           )}
         </div>
 
-        <div className="relative z-10 mt-3 flex items-center gap-2 text-sm">
+        <div className="relative z-10 mt-4 flex items-center gap-2 border-t border-white/10 pt-3 text-sm">
           {!review.isViewerReview ? (
             <button
               aria-pressed={review.likedByViewer}

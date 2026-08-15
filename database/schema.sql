@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS titles (
   genres JSONB DEFAULT '[]'::jsonb,
   cast JSONB DEFAULT '[]'::jsonb,
   director JSONB,
+  production_companies JSONB DEFAULT '[]'::jsonb,
   runtime INTEGER, -- For movies
   total_seasons INTEGER, -- For TV shows
   tmdb_data JSONB, -- Store full TMDb response for caching
@@ -70,15 +71,21 @@ CREATE TABLE IF NOT EXISTS episode_ratings (
   title_id UUID NOT NULL REFERENCES titles(id) ON DELETE CASCADE,
   season_number INTEGER NOT NULL,
   episode_number INTEGER NOT NULL,
-  rating NUMERIC(2, 1) NOT NULL
+  rating NUMERIC(2, 1),
     CONSTRAINT episode_ratings_rating_range_step_check
     CHECK (
-      rating BETWEEN 0.5 AND 5
-      AND rating * 2 = round(rating * 2)
-    ),
+      rating IS NULL
+      OR (
+        rating BETWEEN 0.5 AND 5
+        AND rating * 2 = round(rating * 2)
+    )
+  ),
   watch_type TEXT NOT NULL CHECK (watch_type IN ('first-time', 'rewatch')),
   watched_at TIMESTAMPTZ NOT NULL,
   notes TEXT,
+  runtime_minutes INTEGER,
+  CONSTRAINT episode_ratings_runtime_minutes_check
+  CHECK (runtime_minutes IS NULL OR runtime_minutes > 0),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id, title_id, season_number, episode_number, watched_at)
@@ -269,8 +276,8 @@ SECURITY DEFINER
 SET search_path = public
 STABLE
 AS $$
-  SELECT watchlist_id 
-  FROM watchlist_collaborators 
+  SELECT watchlist_id
+  FROM watchlist_collaborators
   WHERE user_id = p_user_id;
 $$;
 
@@ -293,45 +300,45 @@ $$;
 -- Watchlists: Users can read public/shared or their own, manage their own
 CREATE POLICY "Watchlists are visible to permitted viewers" ON watchlists FOR SELECT
   USING (
-    user_id = auth.uid() 
+    user_id = auth.uid()
     OR visibility = 'public'
     OR id IN (SELECT get_user_collaborated_watchlist_ids(auth.uid()))
   );
 CREATE POLICY "Users can insert own watchlists" ON watchlists FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own watchlists" ON watchlists FOR UPDATE 
+CREATE POLICY "Users can update own watchlists" ON watchlists FOR UPDATE
   USING (user_id = auth.uid() OR is_watchlist_editor(id))
   WITH CHECK (user_id = auth.uid() OR is_watchlist_editor(id));
 CREATE POLICY "Users can delete own watchlists" ON watchlists FOR DELETE USING (auth.uid() = user_id);
 
 -- Watchlist items: Users can read items from accessible watchlists, manage if owner/collaborator
-CREATE POLICY "Users can view items from accessible watchlists" ON watchlist_items FOR SELECT 
+CREATE POLICY "Users can view items from accessible watchlists" ON watchlist_items FOR SELECT
   USING (watchlist_id IN (
-    SELECT id FROM watchlists 
+    SELECT id FROM watchlists
     WHERE user_id = auth.uid() OR visibility = 'public' OR id IN (
       SELECT watchlist_id FROM watchlist_collaborators WHERE user_id = auth.uid()
     )
   ));
-CREATE POLICY "Users can insert items to accessible watchlists" ON watchlist_items FOR INSERT 
+CREATE POLICY "Users can insert items to accessible watchlists" ON watchlist_items FOR INSERT
   WITH CHECK (watchlist_id IN (
-    SELECT id FROM watchlists 
+    SELECT id FROM watchlists
     WHERE user_id = auth.uid() OR id IN (
-      SELECT watchlist_id FROM watchlist_collaborators 
+      SELECT watchlist_id FROM watchlist_collaborators
       WHERE user_id = auth.uid() AND can_edit = TRUE
     )
   ));
-CREATE POLICY "Users can delete own watchlist items" ON watchlist_items FOR DELETE 
+CREATE POLICY "Users can delete own watchlist items" ON watchlist_items FOR DELETE
   USING (added_by = auth.uid());
 
 -- Watchlist collaborators: Users can view/manage collaborators for their watchlists
-CREATE POLICY "Users can view collaborators of accessible watchlists" ON watchlist_collaborators FOR SELECT 
+CREATE POLICY "Users can view collaborators of accessible watchlists" ON watchlist_collaborators FOR SELECT
   USING (watchlist_id IN (
     SELECT id FROM watchlists WHERE user_id = auth.uid() OR is_shared = TRUE
   ));
-CREATE POLICY "Watchlist owners can add collaborators" ON watchlist_collaborators FOR INSERT 
+CREATE POLICY "Watchlist owners can add collaborators" ON watchlist_collaborators FOR INSERT
   WITH CHECK (watchlist_id IN (
     SELECT id FROM watchlists WHERE user_id = auth.uid()
   ));
-CREATE POLICY "Watchlist owners can remove collaborators" ON watchlist_collaborators FOR DELETE 
+CREATE POLICY "Watchlist owners can remove collaborators" ON watchlist_collaborators FOR DELETE
   USING (watchlist_id IN (
     SELECT id FROM watchlists WHERE user_id = auth.uid()
   ));
@@ -354,17 +361,17 @@ RETURNS TABLE (
 BEGIN
   RETURN QUERY
   WITH stats AS (
-    SELECT 
+    SELECT
       COALESCE(AVG(rating), 0) as avg_rating,
       COUNT(DISTINCT user_id) as total_count
     FROM title_ratings
     WHERE title_id = p_title_id
   ),
   breakdown AS (
-    SELECT 
+    SELECT
       jsonb_object_agg(rating, count) as stars
     FROM (
-      SELECT 
+      SELECT
         rating,
         COUNT(*) as count
       FROM title_ratings
@@ -372,7 +379,7 @@ BEGIN
       GROUP BY rating
     ) ratings
   )
-  SELECT 
+  SELECT
     ROUND(stats.avg_rating::NUMERIC, 1) as average_rating,
     stats.total_count::BIGINT as total_ratings,
     COALESCE(breakdown.stars, '{}'::jsonb) as star_breakdown
@@ -392,10 +399,10 @@ RETURNS TABLE (
 ) AS $$
 BEGIN
   RETURN QUERY
-  SELECT 
+  SELECT
     COALESCE(AVG(rating)::NUMERIC, 0) as average_rating,
     COUNT(DISTINCT episode_number)::BIGINT as rated_episodes,
-    (SELECT COUNT(*) FROM episode_ratings 
+    (SELECT COUNT(*) FROM episode_ratings
      WHERE title_id = p_title_id AND season_number = p_season_number)::BIGINT as total_episodes
   FROM episode_ratings
   WHERE title_id = p_title_id AND season_number = p_season_number;
@@ -420,7 +427,7 @@ USING ( bucket_id = 'avatars' );
 CREATE POLICY "Authenticated users can upload avatars"
 ON storage.objects FOR INSERT
 WITH CHECK (
-  bucket_id = 'avatars' 
+  bucket_id = 'avatars'
   AND auth.role() = 'authenticated'
   AND (name LIKE (auth.uid() || '/%'))
 );
@@ -429,7 +436,7 @@ WITH CHECK (
 CREATE POLICY "Users can update own avatars"
 ON storage.objects FOR UPDATE
 USING (
-  bucket_id = 'avatars' 
+  bucket_id = 'avatars'
   AND auth.uid() = owner
 );
 
@@ -437,6 +444,6 @@ USING (
 CREATE POLICY "Users can delete own avatars"
 ON storage.objects FOR DELETE
 USING (
-  bucket_id = 'avatars' 
+  bucket_id = 'avatars'
   AND auth.uid() = owner
 );

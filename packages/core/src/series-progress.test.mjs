@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { getEpisodeKey, resolveReleasedSeriesProgress } from './use-cases.ts'
+import {
+  applyReleasedSeriesProgress,
+  findNextKnownSeason,
+  getEpisodeKey,
+  resolveReleasedSeriesProgress,
+} from './use-cases.ts'
 
 const now = new Date(2026, 6, 12, 12)
 const episode = (season, number, airDate) => ({
@@ -37,7 +42,11 @@ test('episodes airing today are available', () => {
     watched(getEpisodeKey(1, 1)),
     now
   )
-  assert.deepEqual(progress.nextEpisode, { season: 1, episode: 2, air_date: '2026-07-12' })
+  assert.deepEqual(progress.nextEpisode, {
+    season: 1,
+    episode: 2,
+    air_date: '2026-07-12',
+  })
   assert.equal(progress.isCaughtUp, false)
 })
 
@@ -93,6 +102,7 @@ test('missing and invalid air dates are excluded', () => {
   )
   assert.equal(progress.releasedEpisodeCount, 0)
   assert.equal(progress.nextEpisode, null)
+  assert.equal(progress.isCaughtUp, false)
 })
 
 test('specials and placeholder episode numbers are excluded', () => {
@@ -114,4 +124,110 @@ test('a newly released episode makes a caught-up series eligible again', () => {
   assert.equal(beforeAirDate.isCaughtUp, true)
   assert.equal(afterAirDate.isCaughtUp, false)
   assert.equal(afterAirDate.nextEpisode?.episode, 2)
+})
+
+test('caught-up series can expose an announced season without episodes or an air date', () => {
+  const nextSeason = findNextKnownSeason({
+    is_caught_up: true,
+    watched_episode_keys: [
+      getEpisodeKey(1, 1),
+      getEpisodeKey(1, 2),
+      getEpisodeKey(2, 1),
+      getEpisodeKey(2, 2),
+    ],
+    seasons_metadata: [
+      {
+        season_number: 1,
+        episode_count: 2,
+        air_date: '2024-01-01',
+      },
+      {
+        season_number: 2,
+        episode_count: 2,
+        air_date: '2025-01-01',
+      },
+      {
+        season_number: 3,
+        episode_count: 0,
+        air_date: null,
+      },
+    ],
+  })
+
+  assert.equal(nextSeason?.season, 3)
+  assert.equal(nextSeason?.air_date, undefined)
+})
+
+test('caught-up series exposes the next scheduled season', () => {
+  const nextSeason = findNextKnownSeason({
+    is_caught_up: true,
+    watched_episode_keys: [getEpisodeKey(1, 1), getEpisodeKey(2, 1)],
+    seasons_metadata: [
+      {
+        season_number: 1,
+        episode_count: 1,
+        air_date: '2024-01-01',
+      },
+      {
+        season_number: 2,
+        episode_count: 1,
+        air_date: '2025-01-01',
+      },
+      {
+        season_number: 3,
+        episode_count: 8,
+        air_date: '2027-03-10',
+      },
+    ],
+  })
+
+  assert.equal(nextSeason?.season, 3)
+  assert.equal(nextSeason?.air_date, '2027-03-10')
+})
+
+test('series that are not caught up do not expose an announced season', () => {
+  const nextSeason = findNextKnownSeason({
+    is_caught_up: false,
+    watched_episode_keys: [getEpisodeKey(1, 1)],
+    seasons_metadata: [
+      {
+        season_number: 1,
+        episode_count: 2,
+        air_date: '2024-01-01',
+      },
+      {
+        season_number: 2,
+        episode_count: 0,
+        air_date: null,
+      },
+    ],
+  })
+
+  assert.equal(nextSeason, null)
+})
+
+test('next known season is based on the highest watched season', () => {
+  const nextSeason = findNextKnownSeason({
+    is_caught_up: true,
+    watched_episode_keys: [getEpisodeKey(1, 1), getEpisodeKey(2, 1), getEpisodeKey(2, 2)],
+    seasons_metadata: [
+      {
+        season_number: 1,
+        episode_count: 1,
+        air_date: '2024-01-01',
+      },
+      {
+        season_number: 2,
+        episode_count: 2,
+        air_date: '2025-01-01',
+      },
+      {
+        season_number: 3,
+        episode_count: 0,
+        air_date: null,
+      },
+    ],
+  })
+
+  assert.equal(nextSeason?.season, 3)
 })

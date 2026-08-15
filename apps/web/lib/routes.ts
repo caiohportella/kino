@@ -53,6 +53,32 @@ export function watchlistCoverPath(id: string, cacheKey?: string) {
   return cacheKey ? `${path}?v=${encodeURIComponent(cacheKey)}` : path
 }
 
+export function profileStatsPath(username: string) {
+  return `/${encodeURIComponent(username)}/stats`
+}
+
+export function profileStatsRecapPath(username: string, year: number, month: number) {
+  return `/${encodeURIComponent(username)}/stats/recap/${year}/${String(month).padStart(2, '0')}`
+}
+
+export function profileStatsRecapImagePath(
+  username: string,
+  year: number,
+  month: number,
+  query?: Record<string, string | number | undefined>
+) {
+  const path = `/api/${encodeURIComponent(username)}/stats/recap/${year}/${String(month).padStart(2, '0')}`
+  const params = new URLSearchParams()
+
+  for (const [key, value] of Object.entries(query ?? {})) {
+    if (value !== undefined && value !== '') {
+      params.set(key, String(value))
+    }
+  }
+
+  return params.size ? `${path}?${params.toString()}` : path
+}
+
 export function parseWatchlistSegment(segment: string) {
   const id = segment.slice(0, 36)
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)

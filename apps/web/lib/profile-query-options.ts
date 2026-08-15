@@ -1,9 +1,17 @@
 import type {
   FollowRelationship,
   NextEpisodeCandidate,
+  ProfileGenreStat,
+  ProfileLifetimeRecap,
+  ProfileLifetimeStats,
+  ProfileMediaStats,
+  ProfileMonthlyRecap,
+  ProfileRatingStats,
   ProfileReviewOptions,
   ProfileReviewsPage,
+  ProfileViewingBreakdownStats,
   PublicWatchlistSummary,
+  UIDiaryEntry,
   UserProfile,
   WatchedMovie,
   WatchedSeries,
@@ -23,11 +31,25 @@ export interface ProfileQueryService {
     profileId: string,
     options?: ProfileReviewOptions
   ): Promise<ProfileReviewsPage>
+  getProfileLifetimeStatsByProfileId(profileId: string): Promise<ProfileLifetimeStats>
+  getProfileLifetimeRecapByProfileId?(profileId: string): Promise<ProfileLifetimeRecap>
+  getProfileGenreStatsByProfileId?(profileId: string, limit?: number): Promise<ProfileGenreStat[]>
+  getProfileMediaStatsByProfileId?(profileId: string): Promise<ProfileMediaStats>
+  getProfileViewingBreakdownStatsByProfileId?(
+    profileId: string
+  ): Promise<ProfileViewingBreakdownStats>
+  getProfileRatingStatsByProfileId?(profileId: string): Promise<ProfileRatingStats>
+  getProfileMonthlyRecapByProfileId?(
+    profileId: string,
+    year: number,
+    month: number
+  ): Promise<ProfileMonthlyRecap>
   getPublicWatchlists(profileId: string): Promise<PublicWatchlistSummary[]>
   getPublicProfileStatsByProfileId(profileId: string): Promise<PublicProfileStats | null>
   getUserProfile(profileId: string): Promise<UserProfile | null>
   getUserProfileByUsername(username: string): Promise<UserProfile | null>
   getWatchedMovies(profileId: string): Promise<WatchedMovie[]>
+  getDiaryEntries(profileId: string, limit?: number): Promise<UIDiaryEntry[]>
   getWatchedSeries(profileId: string): Promise<ProfileWatchedSeries[]>
 }
 
@@ -141,6 +163,24 @@ export function profileWatchedMoviesQueryOptions(input: {
   )
 }
 
+export function profileDiaryEntriesQueryOptions(input: {
+  profileId: string
+  service: ProfileQueryService
+  visibilityScope: VisibilityScope
+  limit?: number
+}) {
+  return sectionOptions(
+    profileQueryKeys.diaryEntries({
+      profileId: input.profileId,
+      visibilityScope: input.visibilityScope,
+      filters: input.limit ? { limit: input.limit } : undefined,
+    }),
+    () => input.service.getDiaryEntries(input.profileId, input.limit),
+    profileCachePolicies.diaryEntries,
+    input
+  )
+}
+
 export function profileWatchedSeriesQueryOptions(input: {
   profileId: string
   service: ProfileQueryService
@@ -214,6 +254,169 @@ export function profileStatisticsQueryOptions(input: {
       return { publicStats, counts }
     },
     profileCachePolicies.statistics,
+    input
+  )
+}
+
+export function profileLifetimeStatisticsQueryOptions(input: {
+  profileId: string
+  service: ProfileQueryService
+  visibilityScope: VisibilityScope
+}) {
+  return sectionOptions(
+    profileQueryKeys.lifetimeStats(input),
+    () => input.service.getProfileLifetimeStatsByProfileId(input.profileId),
+    profileCachePolicies.lifetimeStats,
+    input
+  )
+}
+
+export function profileGenreStatisticsQueryOptions(input: {
+  profileId: string
+  service: ProfileQueryService
+  visibilityScope: VisibilityScope
+  limit?: number
+}) {
+  return sectionOptions(
+    profileQueryKeys.genreStats(input),
+    async () => input.service.getProfileGenreStatsByProfileId?.(input.profileId) ?? [],
+    profileCachePolicies.genreStats,
+    input
+  )
+}
+
+export function profileMediaStatisticsQueryOptions(input: {
+  profileId: string
+  service: ProfileQueryService
+  visibilityScope: VisibilityScope
+}) {
+  return sectionOptions(
+    profileQueryKeys.mediaStats(input),
+    async () =>
+      input.service.getProfileMediaStatsByProfileId?.(input.profileId) ?? {
+        seriesWatched: 0,
+        movieRatings: { average: null, ratedCount: 0 },
+        seriesRatings: { average: null, ratedCount: 0 },
+      },
+    profileCachePolicies.mediaStats,
+    input
+  )
+}
+
+export function profileViewingBreakdownStatisticsQueryOptions(input: {
+  profileId: string
+  service: ProfileQueryService
+  visibilityScope: VisibilityScope
+}) {
+  return sectionOptions(
+    profileQueryKeys.viewingBreakdownStats(input),
+    async () =>
+      input.service.getProfileViewingBreakdownStatsByProfileId?.(input.profileId) ?? {
+        movieTimeWatchedMinutes: 0,
+        tvTimeWatchedMinutes: 0,
+        averageMovieRuntimeMinutes: 0,
+        averageEpisodesPerSeries: 0,
+        longestBingeEpisodes: 0,
+        longestMovieStreakDays: 0,
+        longestSeriesStreakDays: 0,
+        studioStats: [],
+        weekdayMediaSplit: {
+          movies: 0,
+          series: 0,
+          moviePercentage: 0,
+          seriesPercentage: 0,
+          dominantType: null,
+        },
+        weekendMediaSplit: {
+          movies: 0,
+          series: 0,
+          moviePercentage: 0,
+          seriesPercentage: 0,
+          dominantType: null,
+        },
+      },
+    profileCachePolicies.viewingBreakdownStats,
+    input
+  )
+}
+
+export function profileRatingStatisticsQueryOptions(input: {
+  profileId: string
+  service: ProfileQueryService
+  visibilityScope: VisibilityScope
+}) {
+  return sectionOptions(
+    profileQueryKeys.ratingStats(input),
+    async () =>
+      input.service.getProfileRatingStatsByProfileId?.(input.profileId) ?? {
+        averageRating: null,
+        movieAverageRating: null,
+        seriesAverageRating: null,
+        distribution: [],
+        totalRatings: 0,
+        fiveStarRate: 0,
+        mostRatedGenre: null,
+        highestRatedGenre: null,
+        highestRatedDecade: null,
+        highestRatedStudio: null,
+        highestRatedActor: null,
+        highestRatedActress: null,
+        highestRatedMovie: null,
+        lowestRatedMovie: null,
+        highestRatedSeries: null,
+        lowestRatedSeries: null,
+      },
+    profileCachePolicies.ratingStats,
+    input
+  )
+}
+
+export function profileMonthlyRecapQueryOptions(input: {
+  profileId: string
+  service: ProfileQueryService
+  visibilityScope: VisibilityScope
+  year: number
+  month: number
+}) {
+  return sectionOptions(
+    profileQueryKeys.monthlyRecap(input),
+    async () =>
+      input.service.getProfileMonthlyRecapByProfileId?.(input.profileId, input.year, input.month) ??
+      ({
+        activeDays: 0,
+        averageRating: null,
+        dailyActivity: [],
+        episodesWatched: 0,
+        finishedSeries: [],
+        highestRated: null,
+        lowestRated: null,
+        highestRatedStudio: null,
+        highestRatedActor: null,
+        highestRatedActress: null,
+        highestRatedGenre: null,
+        highestRatedDecade: null,
+        month: input.month,
+        moviesWatched: 0,
+        mostWatchedStudio: null,
+        mostWatchedSeries: [],
+        previousMonthComparison: {
+          episodesDelta: 0,
+          moviesDelta: 0,
+          ratingsDelta: 0,
+          timeWatchedMinutesDelta: 0,
+        },
+        ratingsMade: 0,
+        rewatches: 0,
+        timeWatchedMinutes: 0,
+        topActor: null,
+        topGenres: [],
+        topRatedMovies: [],
+        topRatedSeries: [],
+        topTitles: [],
+        uniqueTitlesWatched: 0,
+        year: input.year,
+      } satisfies ProfileMonthlyRecap),
+    profileCachePolicies.monthlyRecap,
     input
   )
 }

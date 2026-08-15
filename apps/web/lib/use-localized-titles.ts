@@ -2,6 +2,7 @@
 
 import type { MediaType } from '@kino/core'
 import { LOCALIZED_TITLE_GC_TIME, LOCALIZED_TITLE_STALE_TIME } from '@kino/core/cache'
+import { getLocale, getRegion } from '@kino/core/locale-config'
 import { LOCALIZED_TITLE_BATCH_SCHEMA_VERSION } from '@kino/core/localization'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
@@ -31,7 +32,8 @@ export function useLocalizedTitles(items: LocalizedTitleRequest[]) {
   const localeStatus = useSettingsStore((state) => state.localeStatus)
   const uniqueItems = useMemo(() => normalizeLocalizedItems(items), [items])
   const queryClient = useQueryClient()
-  const region = localeRegion(language)
+  const locale = getLocale(language)
+  const region = getRegion(language)
 
   const batchQuery = useQuery({
     enabled: localeStatus !== 'resolving' && uniqueItems.length > 0,
@@ -42,7 +44,7 @@ export function useLocalizedTitles(items: LocalizedTitleRequest[]) {
         {
           schemaVersion: LOCALIZED_TITLE_BATCH_SCHEMA_VERSION,
           items: uniqueItems,
-          locale: language,
+          locale,
           region,
         },
         requestLocalizedTitleBatch,
@@ -51,7 +53,7 @@ export function useLocalizedTitles(items: LocalizedTitleRequest[]) {
     queryKey: [
       'localized-title-batch',
       LOCALIZED_TITLE_BATCH_SCHEMA_VERSION,
-      language,
+      locale,
       region,
       uniqueItems.map(localizedTitleKey).join(','),
     ],
@@ -99,16 +101,4 @@ function normalizeLocalizedItems(items: LocalizedTitleRequest[]) {
     const rightKey = localizedTitleKey(right)
     return leftKey.localeCompare(rightKey)
   })
-}
-
-function localeRegion(language: string) {
-  return (
-    {
-      en: 'US',
-      fr: 'FR',
-      it: 'IT',
-      no: 'NO',
-      pt: 'BR',
-    }[language] ?? 'US'
-  )
 }

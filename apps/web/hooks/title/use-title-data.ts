@@ -3,7 +3,7 @@
 import type { MediaType, TitleDetails } from '@kino/core'
 import { transformMovieToTitleDetails, transformTVToTitleDetails } from '@kino/core'
 import { useQuery } from '@tanstack/react-query'
-import type { TitleContextData } from '@/components/title-context'
+import type { TitleContextData } from '@/components/title/title-context'
 import { db, getTmdb } from '@/lib/services'
 
 export const ANON_TITLE_ID = '00000000-0000-0000-0000-000000000000'
@@ -58,6 +58,12 @@ export function useTitleData({
           throw error
         }
       }
+
+      void fetch('/api/v1/search/sync-title', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ tmdbId, type }),
+      }).catch(() => undefined)
 
       return {
         ...details,

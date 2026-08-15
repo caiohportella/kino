@@ -1,10 +1,12 @@
 'use client'
 
-import type { MediaType, SearchResult, TMDbGenre, TMDbTitle } from '@kino/core'
+import { getLocale, getRegion, type SearchResult, TMDbTitle } from '@kino/core'
 import { searchQueryKeys } from '@kino/core/cache'
 import { SEARCH_SCHEMA_VERSION_V2 } from '@kino/core/search'
 import { useQuery } from '@tanstack/react-query'
-import { AlertCircle, SlidersHorizontal, X } from 'lucide-react'
+import { AlertCircle, X } from 'lucide-react'
+import Link from 'next/link'
+import { usePathname, useSearchParams } from 'next/navigation'
 import {
   type KeyboardEvent,
   type MutableRefObject,
@@ -13,112 +15,132 @@ import {
   useRef,
   useState,
 } from 'react'
-import { EmptyState } from '@/components/kino'
-import { MediaCard } from '@/components/media-card'
-import { PageHeader } from '@/components/page-header'
-import { ProfileSearchCard } from '@/components/profile-search-card'
+import { EmptyState, Poster } from '@/components/kino'
+import { AppPagination } from '@/components/layout/app-pagination'
+import { PageHeader } from '@/components/layout/page-header'
+import { ProfileSearchCard } from '@/components/profile/profile-search-card'
 import { SearchSkeleton } from '@/components/skeletons/page-skeletons'
 import { Button } from '@/components/ui/button'
-import { SegmentedControl } from '@/components/ui/segmented-control'
+import { useMediaPoster } from '@/hooks/use-media-poster'
 import { useTranslation } from '@/lib/i18n'
 import { personPath } from '@/lib/routes'
 import { createSearchGatewayClient } from '@/lib/search/client'
 import { toWebSearchGroups } from '@/lib/search/presentation'
-import { getTmdb } from '@/lib/services'
 import { cn } from '@/lib/utils'
-import { useLibraryStore } from '@/stores/library-store'
 import { useSettingsStore } from '@/stores/settings-store'
 
-const MIN_QUERY_LENGTH = 2
-const SEARCH_LIMIT = 12
-const AUTOCOMPLETE_LIMIT = 5
+const MIN_QUERY_LENGTH = 1
+const SEARCH_LIMIT = 50
+
 const searchGateway = createSearchGatewayClient()
 
 export default function SearchPage() {
   const language = useSettingsStore((state) => state.language)
   const localeStatus = useSettingsStore((state) => state.localeStatus)
   const { t } = useTranslation()
-  const queryText = useLibraryStore((state) => state.query)
-  const setQuery = useLibraryStore((state) => state.setQuery)
-  const mediaType = useLibraryStore((state) => state.mediaType)
-  const setMediaType = useLibraryStore((state) => state.setMediaType)
-  const minRating = useLibraryStore((state) => state.minRating)
-  const setMinRating = useLibraryStore((state) => state.setMinRating)
-  const genreIds = useLibraryStore((state) => state.genreIds)
-  const toggleGenre = useLibraryStore((state) => state.toggleGenre)
-  const clearFilters = useLibraryStore((state) => state.clearFilters)
-  const [showFilters, setShowFilters] = useState(false)
-  const [debouncedQuery, setDebouncedQuery] = useState(queryText)
-  const [searchPage, setSearchPage] = useState(1)
-  const [submittedQuery, setSubmittedQuery] = useState('')
+
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  const initialQuery = searchParams.get('q') ?? ''
+
+  const initialPage = (() => {
+    const value = Number(searchParams.get('page'))
+
+    return Number.isInteger(value) && value > 0 ? value : 1
+  })()
+
+  const [queryText, setQueryText] = useState(initialQuery)
+  const [debouncedQuery, setDebouncedQuery] = useState(initialQuery.trim())
+  const [searchPage, setSearchPage] = useState(initialPage)
   const [activeIndex, setActiveIndex] = useState(-1)
+
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [_, setCaretAtEnd] = useState(true)
+
   const resultRefs = useRef<Array<HTMLAnchorElement | null>>([])
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
-      setDebouncedQuery(queryText.trim())
+      const nextQuery = queryText.trim()
+
+      setDebouncedQuery(nextQuery)
       setSearchPage(1)
-    }, 350)
-    return () => window.clearTimeout(timeout)
-  }, [queryText])
+      setActiveIndex(-1)
+      resultRefs.current = []
 
-  const searching = debouncedQuery.length >= MIN_QUERY_LENGTH
-  const mode = submittedQuery === debouncedQuery ? 'full' : 'autocomplete'
-  const searchLimit = mode === 'full' ? SEARCH_LIMIT : AUTOCOMPLETE_LIMIT
-  const genresQuery = useQuery({
-    queryKey: ['genres', language],
-    queryFn: async () => {
-      const tmdb = getTmdb()
-      tmdb.setLanguage(language)
-      const [movie, tv] = await Promise.all([tmdb.getGenres('movie'), tmdb.getGenres('tv')])
-      const merged = new Map<number, TMDbGenre>()
-      for (const genre of [...movie, ...tv]) merged.set(genre.id, genre)
-      return Array.from(merged.values()).sort((a, b) => a.name.localeCompare(b.name))
-    },
-    enabled: localeStatus !== 'resolving',
-  })
+      const params = new URLSearchParams()
 
-  const discoveryQuery = useQuery({
-    queryKey: ['discover-search', language, mediaType, minRating, genreIds.join(',')],
-    queryFn: async () => {
-      const tmdb = getTmdb()
-      tmdb.setLanguage(language)
-      const params: Record<string, string> = { sort_by: 'popularity.desc' }
-      if (genreIds.length) params.with_genres = genreIds.join(',')
-      if (minRating > 0) {
-        params['vote_average.gte'] = String(minRating)
-        params['vote_count.gte'] = '50'
+      if (nextQuery) {
+        params.set('q', nextQuery)
       }
-      const types: MediaType[] = mediaType === 'all' ? ['movie', 'tv'] : [mediaType]
-      return (await Promise.all(types.map((type) => tmdb.discoverMedia(type, params))))
-        .flat()
-        .sort((a, b) => b.vote_average - a.vote_average)
-    },
-    enabled: localeStatus !== 'resolving' && !searching,
-  })
+
+      const query = params.toString()
+
+      window.history.replaceState(
+        window.history.state,
+        '',
+        query ? `${pathname}?${query}` : pathname
+      )
+    }, 350)
+
+    return () => window.clearTimeout(timeout)
+  }, [pathname, queryText])
+
+  useEffect(() => {
+    function handlePopState() {
+      const params = new URLSearchParams(window.location.search)
+
+      const nextQuery: string = params.get('q') ?? ''
+
+      const pageParam = params.get('page')
+      const pageValue = pageParam ? Number(pageParam) : 1
+
+      const nextPage = Number.isInteger(pageValue) && pageValue > 0 ? pageValue : 1
+
+      setQueryText(nextQuery)
+      setDebouncedQuery(nextQuery.trim())
+      setSearchPage(nextPage)
+      setActiveIndex(-1)
+      resultRefs.current = []
+    }
+
+    window.addEventListener('popstate', handlePopState)
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [])
+  const searching = debouncedQuery.length >= MIN_QUERY_LENGTH
 
   const searchQuery = useQuery({
     queryKey: searching
       ? searchQueryKeys.results({
-          filters: { limit: searchLimit, mediaType, mode, schemaVersion: SEARCH_SCHEMA_VERSION_V2 },
-          locale: language,
-          page: mode === 'full' ? searchPage : 1,
+          filters: {
+            limit: SEARCH_LIMIT,
+            mediaType: 'all',
+            mode: 'full',
+            schemaVersion: SEARCH_SCHEMA_VERSION_V2,
+          },
+          locale: getLocale(language),
+          page: searchPage,
           query: debouncedQuery,
-          region: localeRegion(language),
+          region: getRegion(language),
           scope: { kind: 'public' },
         })
       : searchQueryKeys.resultsRoot(),
+
     queryFn: ({ signal }) =>
       searchGateway
         .search(
           {
             schemaVersion: SEARCH_SCHEMA_VERSION_V2,
+            mode: 'full',
             query: debouncedQuery,
-            locale: language,
-            region: localeRegion(language),
-            mediaTypes: mediaType === 'all' ? undefined : [mediaType === 'tv' ? 'series' : 'movie'],
-            page: mode === 'full' ? searchPage : 1,
-            limit: searchLimit,
+            locale: getLocale(language),
+            region: getRegion(language),
+            page: searchPage,
+            limit: SEARCH_LIMIT,
           },
           signal
         )
@@ -142,7 +164,9 @@ export default function SearchPage() {
             },
           })
         ),
+
     enabled: localeStatus !== 'resolving' && searching,
+
     retry: 1,
     staleTime: 60_000,
   })
@@ -160,177 +184,231 @@ export default function SearchPage() {
     [searchQuery.data]
   )
 
-  const filteredDiscovery = (discoveryQuery.data || []).filter((item) => {
-    if (mediaType !== 'all' && item.media_type !== mediaType) return false
-    if (minRating > 0 && item.vote_average < minRating) return false
-    return !genreIds.length || genreIds.every((id) => item.genre_ids?.includes(id))
-  }) as TMDbTitle[]
-
   function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (!flatResults.length) return
+
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault()
+
       const offset = event.key === 'ArrowDown' ? 1 : -1
+
       const next = (activeIndex + offset + flatResults.length) % flatResults.length
+
       setActiveIndex(next)
-      resultRefs.current[next]?.scrollIntoView({ block: 'nearest' })
-    } else if (event.key === 'Enter') {
-      if (activeIndex >= 0) resultRefs.current[activeIndex]?.click()
-      else {
-        setSubmittedQuery(debouncedQuery)
-        setSearchPage(1)
-      }
-    } else if (event.key === 'Escape') {
-      setQuery('')
-      setActiveIndex(-1)
+
+      resultRefs.current[next]?.scrollIntoView({
+        block: 'nearest',
+      })
+
+      return
+    }
+
+    if (event.key === 'Enter' && activeIndex >= 0) {
+      event.preventDefault()
+      resultRefs.current[activeIndex]?.click()
     }
   }
 
+  function updatePage(nextPage: number) {
+    setSearchPage(nextPage)
+    setActiveIndex(-1)
+    resultRefs.current = []
+
+    const params = new URLSearchParams()
+
+    if (debouncedQuery) {
+      params.set('q', debouncedQuery)
+    }
+
+    if (nextPage > 1) {
+      params.set('page', String(nextPage))
+    }
+
+    const query = params.toString()
+
+    window.history.replaceState(window.history.state, '', query ? `${pathname}?${query}` : pathname)
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    })
+  }
+
   let resultIndex = 0
+
+  function updateCaretState() {
+    const input = inputRef.current
+
+    if (!input) {
+      setCaretAtEnd(true)
+      return
+    }
+
+    setCaretAtEnd(
+      input.selectionStart === queryText.length && input.selectionEnd === queryText.length
+    )
+  }
+
   return (
     <div>
       <div className="content-frame" data-search-controls>
         <PageHeader
-          action={
-            <Button
-              aria-controls="search-filters"
-              aria-expanded={showFilters}
-              onClick={() => setShowFilters((v) => !v)}
-              variant="secondary"
-            >
-              <SlidersHorizontal size={16} />
-              {t('search.filters')}
-            </Button>
-          }
-          title={t('search.title')}
+          eyebrow={t('search.results')}
+          title={debouncedQuery ? `“${debouncedQuery}”` : t('search.title')}
         />
-        <div className="mb-5 grid gap-3 md:grid-cols-[1fr_auto]">
-          <label className="grid gap-2 text-sm font-semibold text-kino-text" htmlFor="search">
-            {t('search.title')}
-            <input
-              aria-activedescendant={activeIndex >= 0 ? `search-result-${activeIndex}` : undefined}
-              aria-controls="global-search-results"
-              aria-expanded={searching}
-              aria-haspopup="listbox"
-              autoComplete="off"
-              className="min-h-11 w-full rounded-md border border-white/10 bg-kino-surface px-3 text-base text-kino-text outline-none transition-colors placeholder:text-kino-muted focus:border-kino-accent"
-              id="search"
-              onChange={(event) => {
-                setSubmittedQuery('')
-                if (event.target.value.trim()) {
-                  resetDiscoveryOnlyFilters({ genreIds, setMinRating, toggleGenre })
-                }
-                setQuery(event.target.value)
-                setActiveIndex(-1)
-                resultRefs.current = []
-              }}
-              onKeyDown={handleSearchKeyDown}
-              placeholder={t('search.placeholder')}
-              role="combobox"
-              value={queryText}
-            />
-          </label>
-          <div className="flex items-end">
-            <Button
-              onClick={() => {
-                setQuery('')
-                clearFilters()
-              }}
-              variant="ghost"
-            >
-              <X size={16} />
-              {t('search.clear')}
-            </Button>
-          </div>
-        </div>
 
-        {showFilters && !searching ? (
-          <SearchFilters
-            genres={genresQuery.data || []}
-            genreIds={genreIds}
-            mediaType={mediaType}
-            minRating={minRating}
-            setMediaType={(value) => {
-              setSearchPage(1)
-              setMediaType(value)
-            }}
-            setMinRating={setMinRating}
-            t={t}
-            toggleGenre={toggleGenre}
-          />
-        ) : null}
+        <div className="mb-8">
+          <label className="grid gap-2 text-sm font-semibold text-kino-text" htmlFor="search">
+            <span className="sr-only">{t('search.title')}</span>
+
+            <div className="relative">
+              <input
+                aria-activedescendant={
+                  activeIndex >= 0 ? `search-result-${activeIndex}` : undefined
+                }
+                aria-controls="full-search-results"
+                aria-expanded={searching}
+                aria-haspopup="listbox"
+                autoComplete="off"
+                className="
+                  min-h-11 w-full rounded-md
+                  border border-white/10
+                  bg-kino-surface
+                  px-3 pr-11
+                  text-base text-kino-text
+                  outline-none
+                  transition-colors
+                  placeholder:text-kino-muted
+                  focus:border-kino-accent
+                "
+                id="search"
+                ref={inputRef}
+                onChange={(event) => {
+                  setQueryText(event.target.value)
+                  setActiveIndex(-1)
+                  setCaretAtEnd(true)
+                }}
+                onClick={updateCaretState}
+                onKeyUp={updateCaretState}
+                onSelect={updateCaretState}
+                onKeyDown={handleSearchKeyDown}
+                placeholder={t('search.placeholder')}
+                role="combobox"
+                value={queryText}
+              />
+
+              {queryText ? (
+                <Button
+                  aria-label={t('search.clear')}
+                  className="absolute right-1 top-1/2 -translate-y-1/2"
+                  onClick={() => {
+                    setQueryText('')
+                    setDebouncedQuery('')
+                    setSearchPage(1)
+                    setActiveIndex(-1)
+                    resultRefs.current = []
+
+                    window.history.replaceState(window.history.state, '', pathname)
+                  }}
+                  size="icon"
+                  variant="ghost"
+                >
+                  <X size={16} />
+                </Button>
+              ) : null}
+            </div>
+          </label>
+        </div>
       </div>
 
       <section
-        data-search-results
         className="content-frame min-w-0"
-        id="global-search-results"
+        data-search-results
+        id="full-search-results"
         role={searching ? 'listbox' : undefined}
       >
-        {(searching ? searchQuery.isLoading : discoveryQuery.isLoading) ? (
-          <SearchSkeleton label={t('search.loading')} />
-        ) : null}
+        {searching && searchQuery.isLoading ? <SearchSkeleton label={t('search.loading')} /> : null}
+
         {searching && searchQuery.error ? (
           <RetryState onRetry={() => searchQuery.refetch()} t={t} />
         ) : null}
+
+        {!searching && queryText.trim().length > 0 ? (
+          <div className="py-12 text-center text-sm text-kino-muted">
+            {t('search.minimumCharacters', {
+              count: MIN_QUERY_LENGTH,
+            })}
+          </div>
+        ) : null}
+
         {searching && searchQuery.data ? (
-          <div className="grid gap-8">
+          <div className="grid gap-14 lg:gap-16">
             <SearchGroup
-              entityType="title"
-              label={t('search.movies')}
-              results={searchQuery.data.groups.movies}
-              failed={searchQuery.data.failed.movies}
-              startIndex={resultIndex}
-              refs={resultRefs}
               activeIndex={activeIndex}
+              entityType="title"
+              failed={searchQuery.data.failed.movies}
+              label={t('search.movies')}
               onRetry={() => searchQuery.refetch()}
+              refs={resultRefs}
+              results={searchQuery.data.groups.movies}
+              startIndex={resultIndex}
               t={t}
             />
+
             {(() => {
               resultIndex += searchQuery.data.groups.movies.length
+
               return null
             })()}
+
             <SearchGroup
-              entityType="title"
-              label={t('search.tvShows')}
-              results={searchQuery.data.groups.series}
-              failed={searchQuery.data.failed.series}
-              startIndex={resultIndex}
-              refs={resultRefs}
               activeIndex={activeIndex}
+              entityType="title"
+              failed={searchQuery.data.failed.series}
+              label={t('search.tvShows')}
               onRetry={() => searchQuery.refetch()}
+              refs={resultRefs}
+              results={searchQuery.data.groups.series}
+              startIndex={resultIndex}
               t={t}
             />
+
             {(() => {
               resultIndex += searchQuery.data.groups.series.length
+
               return null
             })()}
+
             <SearchGroup
-              entityType="person"
-              label={t('search.people')}
-              results={searchQuery.data.groups.people}
-              failed={searchQuery.data.failed.people}
-              startIndex={resultIndex}
-              refs={resultRefs}
               activeIndex={activeIndex}
+              entityType="person"
+              failed={searchQuery.data.failed.people}
+              label={t('search.people')}
               onRetry={() => searchQuery.refetch()}
+              refs={resultRefs}
+              results={searchQuery.data.groups.people}
+              startIndex={resultIndex}
               t={t}
             />
+
             {(() => {
               resultIndex += searchQuery.data.groups.people.length
+
               return null
             })()}
+
             <SearchGroup
-              entityType="user"
-              label={t('search.users')}
-              results={searchQuery.data.groups.users}
-              failed={searchQuery.data.failed.users}
-              startIndex={resultIndex}
-              refs={resultRefs}
               activeIndex={activeIndex}
+              entityType="user"
+              failed={searchQuery.data.failed.users}
+              label={t('search.users')}
               onRetry={() => searchQuery.refetch()}
+              refs={resultRefs}
+              results={searchQuery.data.groups.users}
+              startIndex={resultIndex}
               t={t}
             />
+
             {!flatResults.length && !Object.values(searchQuery.data.failed).some(Boolean) ? (
               <EmptyState
                 body={t('search.noResultsHint')}
@@ -339,35 +417,59 @@ export default function SearchPage() {
                 variant="search"
               />
             ) : null}
-            {mode === 'full' && (searchPage > 1 || searchQuery.data.nextPage) ? (
-              <div className="flex justify-center gap-3">
-                <Button
-                  disabled={searchPage <= 1 || searchQuery.isFetching}
-                  onClick={() => setSearchPage((current) => Math.max(1, current - 1))}
-                  variant="secondary"
-                >
-                  ←
-                </Button>
-                <Button
-                  disabled={!searchQuery.data.nextPage || searchQuery.isFetching}
-                  onClick={() => setSearchPage(searchQuery.data!.nextPage!)}
-                  variant="secondary"
-                >
-                  →
-                </Button>
-              </div>
+
+            {searchPage > 1 || searchQuery.data.nextPage ? (
+              <AppPagination
+                label={t('search.pages')}
+                onPageChange={updatePage}
+                page={searchPage}
+                totalPages={
+                  searchQuery.data.nextPage
+                    ? Math.max(searchPage + 1, searchQuery.data.nextPage)
+                    : searchPage
+                }
+              />
             ) : null}
           </div>
         ) : null}
-        {!searching && !discoveryQuery.isLoading ? (
-          <div className="poster-grid">
-            {filteredDiscovery.map((item) => (
-              <MediaCard item={item} key={`${item.media_type}-${item.id}`} />
-            ))}
-          </div>
+
+        {!queryText.trim() ? (
+          <div className="py-12 text-center text-sm text-kino-muted">{t('search.placeholder')}</div>
         ) : null}
       </section>
     </div>
+  )
+}
+
+function SearchTitleResult({
+  active,
+  id,
+  item,
+  linkRef,
+  role,
+}: {
+  active?: boolean
+  id?: string
+  item: TMDbTitle
+  linkRef?: (node: HTMLAnchorElement | null) => void
+  role?: string
+}) {
+  const { href, poster, prefetch, title, year } = useMediaPoster(item)
+
+  return (
+    <Link
+      aria-selected={active}
+      className={cn('group min-w-0 focus-ring', active && 'rounded-md ring-2 ring-kino-accent/40')}
+      href={href}
+      id={id}
+      onFocus={prefetch}
+      onMouseEnter={prefetch}
+      onTouchStart={prefetch}
+      ref={linkRef}
+      role={role}
+    >
+      <Poster className="w-full rounded-md" details={{ year }} src={poster} title={title} />
+    </Link>
   )
 }
 
@@ -392,18 +494,25 @@ function SearchGroup({
   onRetry: () => void
   t: ReturnType<typeof useTranslation>['t']
 }) {
-  if (!failed && !results.length) return null
+  if (!failed && !results.length) {
+    return null
+  }
+
   const gridClassName =
     entityType === 'title'
       ? 'poster-grid'
       : 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
 
   return (
-    <section aria-labelledby={`group-${entityType}`}>
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-kino-text" id={`group-${entityType}`}>
+    <section aria-labelledby={`search-group-${entityType}-${startIndex}`} className="scroll-mt-24">
+      <div className="mb-5 flex items-end justify-between border-b border-white/10 pb-3">
+        <h2
+          className="text-xl font-bold tracking-tight text-kino-text"
+          id={`search-group-${entityType}-${startIndex}`}
+        >
           {label}
         </h2>
+
         {failed ? (
           <Button onClick={onRetry} size="sm" variant="ghost">
             <AlertCircle size={15} />
@@ -411,12 +520,14 @@ function SearchGroup({
           </Button>
         ) : null}
       </div>
+
       {failed ? (
         <p className="text-sm text-kino-muted">{t('search.sectionFailed')}</p>
       ) : (
         <div className={gridClassName}>
           {results.map((result, offset) => {
             const index = startIndex + offset
+
             const common = {
               active: activeIndex === index,
               id: `search-result-${index}`,
@@ -425,14 +536,22 @@ function SearchGroup({
               },
               role: 'option',
             }
+
             if (result.kind === 'title') {
-              return <MediaCard {...common} item={result.media} key={`title-${result.id}`} />
+              return (
+                <SearchTitleResult
+                  {...common}
+                  item={result.media}
+                  key={`title-${result.mediaType}-${result.id}`}
+                />
+              )
             }
+
             return (
               <ProfileSearchCard
                 {...common}
-                avatarUrl={result.avatarUrl}
-                backgroundUrl={result.backgroundUrl}
+                avatarUrl={result.avatarUrl ?? undefined}
+                backgroundUrl={result.backgroundUrl ?? undefined}
                 entityLabel={result.kind === 'user' ? t('search.user') : t('search.person')}
                 href={
                   result.kind === 'person'
@@ -465,110 +584,10 @@ function RetryState({
   return (
     <div className="grid justify-items-start gap-3 rounded-md border border-white/10 p-5">
       <p className="text-sm text-kino-muted">{t('search.searchFailed')}</p>
+
       <Button onClick={onRetry} variant="secondary">
         {t('search.retry')}
       </Button>
     </div>
-  )
-}
-
-function localeRegion(locale: string) {
-  return (
-    {
-      en: 'US',
-      fr: 'FR',
-      it: 'IT',
-      no: 'NO',
-      pt: 'BR',
-    }[locale] ?? 'US'
-  )
-}
-
-function resetDiscoveryOnlyFilters({
-  genreIds,
-  setMinRating,
-  toggleGenre,
-}: {
-  genreIds: number[]
-  setMinRating: (value: number) => void
-  toggleGenre: (id: number) => void
-}) {
-  setMinRating(0)
-  for (const genreId of genreIds) toggleGenre(genreId)
-}
-
-function SearchFilters({
-  genres,
-  genreIds,
-  mediaType,
-  minRating,
-  setMediaType,
-  setMinRating,
-  t,
-  toggleGenre,
-}: {
-  genres: TMDbGenre[]
-  genreIds: number[]
-  mediaType: 'all' | MediaType
-  minRating: number
-  setMediaType: (value: 'all' | MediaType) => void
-  setMinRating: (value: number) => void
-  t: ReturnType<typeof useTranslation>['t']
-  toggleGenre: (id: number) => void
-}) {
-  return (
-    <aside
-      className="mb-6 grid gap-5 rounded-md border border-white/10 bg-kino-panel p-5"
-      id="search-filters"
-    >
-      <div>
-        <div className="mb-2 text-sm font-semibold text-kino-text">{t('search.mediaType')}</div>
-        <SegmentedControl
-          onChange={setMediaType}
-          options={[
-            { label: t('search.all'), value: 'all' },
-            { label: t('search.movies'), value: 'movie' },
-            { label: t('search.tvShows'), value: 'tv' },
-          ]}
-          value={mediaType}
-        />
-      </div>
-      <label className="grid gap-2 text-sm text-kino-muted">
-        <span className="font-semibold text-kino-text">
-          {t('search.minimumRating')}: {minRating || t('search.any')}
-        </span>
-        <input
-          max={9}
-          min={0}
-          onChange={(event) => setMinRating(Number(event.target.value))}
-          step={1}
-          type="range"
-          value={minRating}
-        />
-      </label>
-      <div>
-        <div className="mb-3 text-sm font-semibold text-kino-text">{t('search.genres')}</div>
-        <div className="flex flex-wrap gap-2">
-          {genres.map((genre) => {
-            const active = genreIds.includes(genre.id)
-            return (
-              <button
-                className={cn(
-                  'rounded-md border px-2.5 py-1.5 text-xs font-semibold',
-                  active
-                    ? 'border-kino-accent bg-kino-accent text-black'
-                    : 'border-white/10 bg-white/4 text-kino-muted hover:text-kino-text'
-                )}
-                key={genre.id}
-                onClick={() => toggleGenre(genre.id)}
-                type="button"
-              >
-                {genre.name}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-    </aside>
   )
 }

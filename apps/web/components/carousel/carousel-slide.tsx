@@ -3,6 +3,7 @@ import { getDisplayTitle, getReleaseYear, getTMDbImageUrl } from '@kino/core'
 import Image from 'next/image'
 import Link from 'next/link'
 
+import { useTranslation } from '@/lib/i18n'
 import { titlePath } from '@/lib/routes'
 
 type CarouselSlideProps = {
@@ -11,6 +12,7 @@ type CarouselSlideProps = {
 }
 
 export function CarouselSlide({ active, item }: CarouselSlideProps) {
+  const { t } = useTranslation()
   const title = getDisplayTitle(item)
   const year = getReleaseYear(item)
   const type = item.media_type === 'tv' ? 'tv' : 'movie'
@@ -44,7 +46,8 @@ export function CarouselSlide({ active, item }: CarouselSlideProps) {
 
         <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
           <p className="mb-1 text-xs font-medium uppercase tracking-[0.2em] text-kino-muted">
-            {type === 'tv' ? 'Series' : 'Movie'} · {year || 'TBA'}
+            {type === 'tv' ? t('common.tv') : t('common.movie')} ·{' '}
+            {year || t('common.releaseYearUnknown')}
           </p>
 
           <h3 className="max-w-xl text-2xl font-bold text-white sm:text-3xl">{title}</h3>

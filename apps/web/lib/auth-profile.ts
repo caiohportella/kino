@@ -2,6 +2,7 @@
 
 import type { User } from '@supabase/supabase-js'
 import { type AuthProfileStatus, createAuthProfileEnsurer } from '@/lib/auth-profile-resolution'
+import { syncCurrentUserSearchProfile } from '@/lib/search/upstash/user-sync-client'
 import { supabase } from '@/lib/supabase/client'
 
 export type { AuthProfileStatus } from '@/lib/auth-profile-resolution'
@@ -28,4 +29,5 @@ export async function ensureUserProfileFromAuthUser(
   }
 
   await ensureUserProfile(user, onStatus)
+  await syncCurrentUserSearchProfile('upsert').catch(() => undefined)
 }

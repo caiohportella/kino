@@ -1,4 +1,4 @@
-import { localeBaseLanguage, normalizeLocale } from './locale.ts'
+import { localeBaseLanguage, localeRegion, normalizeLocale, normalizeRegion } from './locale.ts'
 
 export type LocalizedImageKind = 'poster' | 'backdrop' | 'logo' | 'profile'
 
@@ -27,6 +27,7 @@ export interface LocalizedImageCandidate {
   readonly id?: string | null
   readonly language: string | null
   readonly quality?: number | null
+  readonly region?: string | null
   readonly voteAverage?: number | null
   readonly voteCount?: number | null
   readonly width?: number | null
@@ -51,14 +52,20 @@ export interface LocalizedImageSelection {
 interface ImageTier {
   readonly fallbackReason: LocalizedImageFallbackReason
   readonly languageTier: LocalizedImageLanguageTier
-  readonly matches: (language: string | null | undefined) => boolean
+  readonly matches: (
+    language: string | null | undefined,
+    region: string | null | undefined
+  ) => boolean
 }
 
-type ImageQualityCandidate = Omit<LocalizedImageCandidate, 'language'> & { filePath: string }
+type ImageQualityCandidate = Omit<LocalizedImageCandidate, 'language'> & {
+  filePath: string
+}
 
 export function selectLocalizedImage(input: SelectLocalizedImageInput): LocalizedImageSelection {
   const locale = normalizeLocale(input.locale)
   const baseLanguage = localeBaseLanguage(locale)
+  const requestedRegion = localeRegion(locale)
   const fallbackLocale = normalizeOptionalLocale(input.fallbackLocale)
   const originalLanguage = normalizeOptionalLocale(input.originalLanguage)
   const candidates = input.candidates
@@ -68,13 +75,16 @@ export function selectLocalizedImage(input: SelectLocalizedImageInput): Localize
     .map((candidate) => ({
       ...candidate,
       language: normalizeCandidateLocale(candidate.language),
+      region: normalizeCandidateRegion(candidate.region),
     }))
 
   const tiers: readonly ImageTier[] = [
     {
       fallbackReason: null,
       languageTier: 'exact',
-      matches: (language) => language === locale,
+      matches: (language, region) =>
+        (language === locale && (region === null || region === requestedRegion)) ||
+        (language === baseLanguage && requestedRegion !== null && region === requestedRegion),
     },
     {
       fallbackReason: 'base-language',
@@ -100,7 +110,7 @@ export function selectLocalizedImage(input: SelectLocalizedImageInput): Localize
 
   for (const tier of tiers) {
     const selected = candidates
-      .filter((candidate) => tier.matches(candidate.language))
+      .filter((candidate) => tier.matches(candidate.language, candidate.region))
       .sort((left, right) => compareQuality(left, right, input.kind))[0]
 
     if (selected) {
@@ -145,6 +155,15 @@ function normalizeCandidateLocale(locale: string | null): string | null | undefi
   if (!locale?.trim()) return null
   try {
     return normalizeLocale(locale)
+  } catch {
+    return undefined
+  }
+}
+
+function normalizeCandidateRegion(region: string | null | undefined): string | null | undefined {
+  if (!region?.trim()) return null
+  try {
+    return normalizeRegion(region)
   } catch {
     return undefined
   }

@@ -10,9 +10,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, CheckCircle2, Eye, Save, Star, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Confetti from 'react-confetti'
-import { FollowedEpisodeRatingRows } from '@/components/followed-ratings'
 import { ProgressBar } from '@/components/kino'
-import { RatingStars } from '@/components/rating-stars'
+import { RatingStars } from '@/components/media/rating-stars'
+import { FollowedEpisodeRatingRows } from '@/components/profile/followed-ratings'
 import { SeasonSelector } from '@/components/season-selector'
 import { MediaModalSkeleton } from '@/components/skeletons/page-skeletons'
 import {
@@ -284,12 +284,30 @@ function SeasonEpisodes({
     queryFn: () => db.getUserSeasonRatings(title.id, seasonNumber),
     enabled: userCanRate,
   })
+  const historyKey = ['season-watch-history', title.id, seasonNumber, userId] as const
+
+  const historyQuery = useQuery({
+    queryKey: historyKey,
+    queryFn: () => db.getUserSeasonWatchHistory(title.id, seasonNumber),
+    enabled: userCanRate,
+  })
   const followedRatingsQuery = useFollowedEpisodeRatings(title.id, seasonNumber, Boolean(userId))
 
   const ratings = useMemo(
     () => new Map((ratingsQuery.data || []).map((rating) => [rating.episodeNumber, rating])),
     [ratingsQuery.data]
   )
+  const historyByEpisode = useMemo(() => {
+    const grouped = new Map<number, EpisodeRating[]>()
+
+    for (const rating of historyQuery.data || []) {
+      const current = grouped.get(rating.episodeNumber) ?? []
+      current.push(rating)
+      grouped.set(rating.episodeNumber, current)
+    }
+
+    return grouped
+  }, [historyQuery.data])
   const seasonRatingSummary = useMemo(
     () => calculateSeasonRatingSummary(ratingsQuery.data || []),
     [ratingsQuery.data]
@@ -304,15 +322,29 @@ function SeasonEpisodes({
 
   function refreshRelatedQueries() {
     queryClient.invalidateQueries({ queryKey: ratingsKey })
+    queryClient.invalidateQueries({ queryKey: historyKey })
+
     queryClient.invalidateQueries({
       queryKey: ['title-stats', title.id, title.type],
     })
+
     queryClient.invalidateQueries({ queryKey: ['profile', userId] })
   }
 
   function syncSavedRatings(savedRatings: EpisodeRating[]) {
     const mergedRatings = mergeEpisodeRatings(ratingsQuery.data || [], savedRatings)
     queryClient.setQueryData(ratingsKey, mergedRatings)
+    queryClient.setQueryData<EpisodeRating[]>(historyKey, (current = []) => {
+      const byId = new Map(current.map((rating) => [rating.id, rating]))
+
+      for (const rating of savedRatings) {
+        byId.set(rating.id, rating)
+      }
+
+      return Array.from(byId.values()).sort(
+        (left, right) => left.watchedAt.getTime() - right.watchedAt.getTime()
+      )
+    })
 
     const mergedEpisodeNumbers = new Set(mergedRatings.map((rating) => rating.episodeNumber))
     const completedSeason =
@@ -321,6 +353,26 @@ function SeasonEpisodes({
       watchableEpisodes.every((episode) => mergedEpisodeNumbers.has(episode.episode_number))
 
     onRatingsChanged(savedRatings, completedSeason)
+    refreshRelatedQueries()
+  }
+
+  function handleRewatchRemoved(ratingId: string, episodeNumber: number) {
+    const currentHistory = queryClient.getQueryData<EpisodeRating[]>(historyKey) ?? []
+
+    const nextHistory = currentHistory.filter((rating) => rating.id !== ratingId)
+
+    queryClient.setQueryData(historyKey, nextHistory)
+
+    const latestRemaining = nextHistory
+      .filter((rating) => rating.episodeNumber === episodeNumber)
+      .sort((left, right) => right.watchedAt.getTime() - left.watchedAt.getTime())[0]
+
+    queryClient.setQueryData<EpisodeRating[]>(ratingsKey, (current = []) => {
+      const withoutEpisode = current.filter((rating) => rating.episodeNumber !== episodeNumber)
+
+      return latestRemaining ? [...withoutEpisode, latestRemaining] : withoutEpisode
+    })
+
     refreshRelatedQueries()
   }
 
@@ -342,6 +394,8 @@ function SeasonEpisodes({
         syncSavedRatings(savedRatings)
       } else {
         queryClient.setQueryData(ratingsKey, [])
+        queryClient.setQueryData(historyKey, [])
+
         onSeasonCleared(seasonNumber)
         refreshRelatedQueries()
       }
@@ -351,8 +405,8 @@ function SeasonEpisodes({
   if (seasonQuery.isLoading) return <MediaModalSkeleton label={t('common.loading')} />
 
   return (
-    <section className="mt-5 grid gap-4">
-      <div className="rounded-md border border-white/10 bg-white/3 p-4">
+    <section className="grid gap-4">
+      <div className="pt-5">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="grid gap-3">
             <h3 className="text-lg font-semibold text-kino-text">
@@ -411,9 +465,9 @@ function SeasonEpisodes({
                   {t('seasons.unmarkSeasonWatched')}
                 </Button>
               )
-            ) : (
+            ) : watchableEpisodes.length > 0 ? (
               <Button
-                disabled={seasonWatchedMutation.isPending || watchableEpisodes.length === 0}
+                disabled={seasonWatchedMutation.isPending}
                 onClick={() => {
                   if (!userCanRate) {
                     onAuthRequired()
@@ -426,8 +480,9 @@ function SeasonEpisodes({
                 <CheckCircle2 size={16} />
                 {t('modals.markWatched')}
               </Button>
-            )}
-            {!fullSeasonWatched ? (
+            ) : null}
+
+            {watchableEpisodes.length > 0 ? (
               <Button
                 disabled={watchableEpisodes.length === 0}
                 onClick={() => {
@@ -435,6 +490,7 @@ function SeasonEpisodes({
                     onAuthRequired()
                     return
                   }
+
                   setRateSeasonOpen(true)
                 }}
               >
@@ -455,6 +511,12 @@ function SeasonEpisodes({
         <div className="grid gap-3">
           {episodes.map((episode) => {
             const existingRating = ratings.get(episode.episode_number)
+            const watchHistory = historyByEpisode.get(episode.episode_number) ?? []
+
+            const originalWatch = watchHistory[0]
+            const latestRewatch = [...watchHistory]
+              .reverse()
+              .find((rating) => rating.watchType === 'rewatch')
             const isWatched = Boolean(existingRating)
             const isUnaired = isUnairedEpisode(episode)
             const still = getTmdb().getImageUrl(episode.still_path, 'w300')
@@ -468,7 +530,7 @@ function SeasonEpisodes({
             return (
               <article
                 className={cn(
-                  'grid gap-3 rounded-md border border-white/10 bg-white/[0.035] p-3 md:items-center',
+                  'group grid gap-3 border-t border-white/[0.07] px-1 py-4 transition-colors hover:bg-white/2.5 md:items-center',
                   showStill ? 'md:grid-cols-[92px_1fr_auto]' : 'md:grid-cols-[1fr_auto]'
                 )}
                 key={episode.id}
@@ -503,11 +565,17 @@ function SeasonEpisodes({
                         : formatDate(episode.air_date)}
                     </p>
                   ) : null}
-                  {existingRating ? (
+                  {originalWatch ? (
                     <p className="mt-2 flex items-center gap-1.5 text-xs text-kino-muted">
                       <CalendarDays aria-hidden="true" size={14} />
                       <span>
-                        {t('seasons.watchedOn')} {formatKinoDate(existingRating.watchedAt)}
+                        {t('seasons.watchedOn')} {formatKinoDate(originalWatch.watchedAt)}
+                        {latestRewatch ? (
+                          <>
+                            {' · '}
+                            {t('diary.rewatch')} {formatKinoDate(latestRewatch.watchedAt)}
+                          </>
+                        ) : null}
                       </span>
                     </p>
                   ) : null}
@@ -524,7 +592,7 @@ function SeasonEpisodes({
                     }
                   />
                 </div>
-                <div className="flex items-center gap-2 md:justify-end">
+                <div className="flex w-full items-center justify-between gap-2 md:w-auto md:min-w-48">
                   {isWatched ? (
                     <button
                       aria-label={`Edit rating for episode ${episode.episode_number}`}
@@ -582,7 +650,17 @@ function SeasonEpisodes({
                                       (rating) => rating.episodeNumber !== episode.episode_number
                                     )
                                 )
+
+                                queryClient.setQueryData<EpisodeRating[]>(
+                                  historyKey,
+                                  (current = []) =>
+                                    current.filter(
+                                      (rating) => rating.episodeNumber !== episode.episode_number
+                                    )
+                                )
+
                                 onEpisodeRemoved(seasonNumber, episode.episode_number)
+
                                 refreshRelatedQueries()
                               })
                             }}
@@ -593,17 +671,13 @@ function SeasonEpisodes({
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
-                  ) : (
+                  ) : isUnaired ? null : (
                     <Tooltip>
                       <TooltipTrigger
                         render={
                           <Button
                             aria-label={watchLabel}
-                            className={cn(
-                              'text-kino-muted hover:text-kino-text',
-                              isUnaired && 'cursor-not-allowed opacity-50'
-                            )}
-                            disabled={isUnaired}
+                            className="text-kino-muted hover:text-kino-text"
                             onClick={() => {
                               if (!userCanRate) {
                                 onAuthRequired()
@@ -636,6 +710,7 @@ function SeasonEpisodes({
         onOpenChange={(open) => {
           if (!open) setSelectedEpisode(null)
         }}
+        onRewatchRemoved={handleRewatchRemoved}
         onSaved={(savedRating) => syncSavedRatings([savedRating])}
         seasonNumber={seasonNumber}
         title={title}
@@ -700,6 +775,7 @@ function EpisodeActionDialog({
   seasonNumber,
   onOpenChange,
   onSaved,
+  onRewatchRemoved,
 }: {
   episode: TMDbEpisode | null
   existingRating: EpisodeRating | undefined
@@ -707,6 +783,7 @@ function EpisodeActionDialog({
   seasonNumber: number
   onOpenChange: (open: boolean) => void
   onSaved: (rating: EpisodeRating) => void
+  onRewatchRemoved: (ratingId: string, episodeNumber: number) => void
 }) {
   const { t } = useTranslation()
   const [rating, setRating] = useState(existingRating?.rating || 0)
@@ -722,13 +799,29 @@ function EpisodeActionDialog({
   const mutation = useMutation({
     mutationFn: async () => {
       if (!episode) return
+      const creatingRewatch =
+        existingRating != null && existingRating.watchType !== 'rewatch' && watchType === 'rewatch'
+
+      const removingRewatch = existingRating?.watchType === 'rewatch' && watchType === 'first-time'
+
+      if (removingRewatch && existingRating) {
+        await db.removeEpisodeRatingById(existingRating.id)
+
+        onRewatchRemoved(existingRating.id, episode.episode_number)
+
+        return
+      }
+
       return db.rateEpisode(
         title.id,
         seasonNumber,
         episode.episode_number,
         rating > 0 ? rating : null,
         watchType,
-        watchedAt
+        watchedAt,
+        undefined,
+        creatingRewatch ? undefined : existingRating?.id,
+        episode.runtime
       )
     },
     onSuccess: (savedRating) => {
@@ -788,7 +881,17 @@ function EpisodeActionDialog({
               checked={watchType === 'rewatch'}
               className="h-5 w-5 accent-kino-accent"
               disabled={mutation.isPending}
-              onChange={(event) => setWatchType(event.target.checked ? 'rewatch' : 'first-time')}
+              onChange={(event) => {
+                const isRewatch = event.target.checked
+
+                setWatchType(isRewatch ? 'rewatch' : 'first-time')
+
+                if (isRewatch && existingRating?.watchType !== 'rewatch') {
+                  setWatchedAt(new Date())
+                } else if (!isRewatch && existingRating) {
+                  setWatchedAt(existingRating.watchedAt)
+                }
+              }}
               type="checkbox"
             />
           </label>

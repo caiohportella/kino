@@ -232,6 +232,58 @@ test('isolates canonical profile sections by profile, viewer, scope, page, filte
     'authenticated',
     'profile-viewer',
   ])
+  assert.deepEqual(profileQueryKeys.lifetimeStats({ profileId, visibilityScope }), [
+    'v1',
+    'profile',
+    'lifetime-stats',
+    'profile-a',
+    'authenticated',
+    'profile-viewer',
+  ])
+  assert.deepEqual(profileQueryKeys.mediaStats({ profileId, visibilityScope }), [
+    'v1',
+    'profile',
+    'media-stats',
+    'profile-a',
+    'authenticated',
+    'profile-viewer',
+  ])
+  assert.deepEqual(profileQueryKeys.viewingBreakdownStats({ profileId, visibilityScope }), [
+    'v1',
+    'profile',
+    'viewing-breakdown-stats',
+    'profile-a',
+    'authenticated',
+    'profile-viewer',
+  ])
+  assert.deepEqual(profileQueryKeys.genreStats({ profileId, visibilityScope }), [
+    'v1',
+    'profile',
+    'genre-stats',
+    'profile-a',
+    'authenticated',
+    'profile-viewer',
+  ])
+  assert.deepEqual(profileQueryKeys.ratingStats({ profileId, visibilityScope }), [
+    'v1',
+    'profile',
+    'rating-stats',
+    'profile-a',
+    'authenticated',
+    'profile-viewer',
+  ])
+  assert.deepEqual(
+    profileQueryKeys.monthlyRecap({ profileId, visibilityScope, year: 2026, month: 8 }),
+    ['v1', 'profile', 'monthly-recap', 'profile-a', 2026, 8, 'authenticated', 'profile-viewer']
+  )
+  assert.deepEqual(profileQueryKeys.monthlyRecapRoot({ profileId, visibilityScope }), [
+    'v1',
+    'profile',
+    'monthly-recap',
+    'profile-a',
+    'authenticated',
+    'profile-viewer',
+  ])
 
   const availability = profileQueryKeys.availability({
     filters: { season: 2 },
@@ -320,6 +372,13 @@ test('constructs typed invalidation descriptors without executing cache mutation
       visibilityScope: publicScope,
     }),
     { kind: 'ratings', profileId: 'profile-a', visibilityScope: publicScope }
+  )
+  assert.deepEqual(
+    createProfileInvalidationDescriptor('lifetime-stats', {
+      profileId: 'profile-a',
+      visibilityScope: publicScope,
+    }),
+    { kind: 'lifetime-stats', profileId: 'profile-a', visibilityScope: publicScope }
   )
 })
 

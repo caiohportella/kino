@@ -1,13 +1,20 @@
 'use client'
 
+import de from '@kino/i18n/generated/de-DE.json'
+import en from '@kino/i18n/generated/en-GB.json'
+import es from '@kino/i18n/generated/es-ES.json'
+import fr from '@kino/i18n/generated/fr-FR.json'
+import it from '@kino/i18n/generated/it-IT.json'
+import no from '@kino/i18n/generated/nb-NO.json'
+import pt from '@kino/i18n/generated/pt-BR.json'
 import { cloneElement, isValidElement, type ReactNode } from 'react'
-import type { KinoLanguage } from '@/stores/settings-store'
 import { useSettingsStore } from '@/stores/settings-store'
-import en from '../../../locales/en/translation.json'
-import fr from '../../../locales/fr/translation.json'
-import it from '../../../locales/it/translation.json'
-import no from '../../../locales/no/translation.json'
-import pt from '../../../locales/pt/translation.json'
+import {
+  getLocale,
+  getRegion,
+  type KinoLanguage,
+  SUPPORTED_LANGUAGES,
+} from '../../../packages/core/src/locale-config'
 import { getPluralTranslationKey } from './i18n-plural'
 
 export type TranslationResource = Record<string, unknown>
@@ -28,15 +35,11 @@ export const resources: Record<KinoLanguage, TranslationResource> = {
   it,
   no,
   pt,
+  de,
+  es,
 }
 
-export const supportedLanguages = [
-  'en',
-  'fr',
-  'it',
-  'no',
-  'pt',
-] as const satisfies readonly KinoLanguage[]
+export const supportedLanguages = SUPPORTED_LANGUAGES
 
 export function isSupportedLanguage(language: string): language is KinoLanguage {
   return supportedLanguages.includes(language as KinoLanguage)
@@ -75,9 +78,10 @@ export function useTranslation() {
 
 export function useLocale() {
   const language = useSettingsStore((state) => state.language)
+
   return {
-    locale: language,
-    region: language === 'pt' ? 'BR' : language === 'no' ? 'NO' : 'US',
+    locale: getLocale(language),
+    region: getRegion(language),
   }
 }
 
@@ -98,7 +102,7 @@ function resolveTranslationTemplate(
   options: TranslationOptions | RichTranslationOptions
 ) {
   const resolvedKey = getPluralTranslationKey(
-    language,
+    getLocale(language),
     key,
     typeof options.count === 'number' ? options.count : undefined
   )
@@ -111,7 +115,7 @@ function resolveTranslationTemplate(
 }
 
 function interpolate(template: string, options: TranslationOptions) {
-  return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_match, token: string) => {
+  return template.replace(/{{\s*(\w+)(?:\s*,\s*number)?\s*}}/g, (_match, token: string) => {
     const value = options[token]
     return value === undefined || value === null ? '' : String(value)
   })
@@ -119,7 +123,7 @@ function interpolate(template: string, options: TranslationOptions) {
 
 function interpolateRich(template: string, options: RichTranslationOptions) {
   const parts: ReactNode[] = []
-  const pattern = /\{\{\s*(\w+)\s*\}\}/g
+  const pattern = /{{\s*(\w+)(?:\s*,\s*number)?\s*}}/g
   let lastIndex = 0
   let tokenIndex = 0
 

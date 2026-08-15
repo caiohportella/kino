@@ -16,7 +16,7 @@ export function WatchlistProfileCover({ images }: { images: Array<CoverImage | n
 
   return (
     <div style={canvas}>
-      {posters.length === 0 ? <EmptyCover /> : <PosterLayout posters={posters.slice(0, 6)} />}
+      {posters.length === 0 ? <EmptyCover /> : <CoverLayout posters={posters.slice(0, 6)} />}
       <div
         style={{
           position: 'absolute',
@@ -29,14 +29,16 @@ export function WatchlistProfileCover({ images }: { images: Array<CoverImage | n
   )
 }
 
-function PosterLayout({ posters }: { posters: CoverImage[] }) {
-  if (posters.length === 1) return <Poster image={posters[0]!} />
+function CoverLayout({ posters }: { posters: CoverImage[] }) {
+  if (posters.length === 1) {
+    return <CoverTile image={posters[0]!} />
+  }
 
   if (posters.length === 2) {
     return (
       <Row>
         {posters.map((image, index) => (
-          <Poster height="100%" image={image} key={index} width="50%" />
+          <CoverTile height="100%" image={image} key={index} width="50%" />
         ))}
       </Row>
     )
@@ -45,10 +47,18 @@ function PosterLayout({ posters }: { posters: CoverImage[] }) {
   if (posters.length === 3) {
     return (
       <Row>
-        <Poster height="100%" image={posters[0]!} width="50%" />
-        <div style={{ display: 'flex', width: '50%', height: '100%', flexDirection: 'column' }}>
-          <Poster height="50%" image={posters[1]!} />
-          <Poster height="50%" image={posters[2]!} />
+        <CoverTile height="100%" image={posters[0]!} width="50%" />
+
+        <div
+          style={{
+            display: 'flex',
+            width: '50%',
+            height: '100%',
+            flexDirection: 'column',
+          }}
+        >
+          <CoverTile height="50%" image={posters[1]!} />
+          <CoverTile height="50%" image={posters[2]!} />
         </div>
       </Row>
     )
@@ -56,10 +66,11 @@ function PosterLayout({ posters }: { posters: CoverImage[] }) {
 
   const tileCount = posters.length === 4 ? 4 : 6
   const tiles = Array.from({ length: tileCount }, (_, index) => posters[index % posters.length])
+
   return (
     <Row wrap>
       {tiles.map((image, index) => (
-        <Poster
+        <CoverTile
           height={tileCount === 4 ? '50%' : '33.34%'}
           image={image!}
           key={index}
@@ -85,7 +96,7 @@ function Row({ children, wrap = false }: { children: ReactNode; wrap?: boolean }
   )
 }
 
-function Poster({
+function CoverTile({
   height = '100%',
   image,
   width = '100%',
