@@ -45,14 +45,19 @@ test('lifetime recap route uses the shared story composition contract', async ()
     new URL('../app/api/[username]/stats/recap/lifetime/route.ts', import.meta.url),
     'utf8'
   )
+  const helper = await readFile(
+    new URL('./profile-lifetime-recap-story.ts', import.meta.url),
+    'utf8'
+  )
+  const storySource = `${route}\n${helper}`
 
   assert.match(route, /getProfileLifetimeRecapByProfileId/)
   assert.match(route, /created_at/)
-  assert.match(route, /sinceBeginning/)
-  assert.match(route, /lifetimeHeadline/)
-  assert.match(route, /kinoTimeYears|kinoTimeMonths|kinoTimeDays/)
-  assert.match(route, /movieRunnersUp[\s\S]*index \+ 2/)
-  assert.match(route, /seriesRunnersUp[\s\S]*index \+ 2/)
+  assert.match(storySource, /sinceBeginning/)
+  assert.match(storySource, /lifetimeHeadline/)
+  assert.match(storySource, /kinoTimeYears|kinoTimeMonths|kinoTimeDays/)
+  assert.match(storySource, /movieRunnersUp[\s\S]*index \+ 2/)
+  assert.match(storySource, /seriesRunnersUp[\s\S]*index \+ 2/)
   assert.doesNotMatch(route, /StatsPills/)
   assert.doesNotMatch(route, /toFixed\(1\).*\/ 5/)
 })

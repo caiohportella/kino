@@ -1,13 +1,4 @@
-import {
-  getTMDbImageUrl,
-  KinoDatabaseService,
-  localeRegion,
-  type ProfileLifetimeRecap,
-} from '@kino/core'
-import {
-  LOCALIZED_TITLE_BATCH_SCHEMA_VERSION,
-  type LocalizedTitleBatchItem,
-} from '@kino/core/localization'
+import { getTMDbImageUrl, KinoDatabaseService, type ProfileLifetimeRecap } from '@kino/core'
 import { createClient } from '@supabase/supabase-js'
 import { ImageResponse } from 'next/og'
 import { createElement } from 'react'
@@ -15,6 +6,15 @@ import { createElement } from 'react'
 import { createTmdbLocalizedTitleBatchService } from '@/lib/localized-title-batch-server'
 import { loadOgFonts } from '@/lib/og-fonts'
 import { safeImageData } from '@/lib/og-images'
+import {
+  buildLifetimeLocalizationRequest,
+  buildLifetimePosterPreloadItems,
+  formatKinoMembership,
+  getDisplayedLifetimeStoryItems,
+  getLifetimeFeaturedMoviePills,
+  getLifetimeFeaturedSeriesPills,
+  type DisplayedLifetimeStoryItems,
+} from '@/lib/profile-lifetime-recap-story'
 import {
   StoryFeaturedSection,
   StoryFooter,
@@ -108,34 +108,13 @@ async function localizeLifetimeRecap(
     return recap
   }
 
-  const items: LocalizedTitleBatchItem[] = [
-    ...recap.topRatedMovies.map((item) => ({
-      tmdbId: item.tmdbId,
-      type: 'movie' as const,
-    })),
-    ...recap.topRatedSeries.map((item) => ({
-      tmdbId: item.tmdbId,
-      type: 'tv' as const,
-    })),
-  ]
+  const request = buildLifetimeLocalizationRequest(getDisplayedLifetimeStoryItems(recap), language)
 
-  const uniqueItems = Array.from(
-    new Map(items.map((item) => [`${item.type}:${item.tmdbId}`, item])).values()
-  )
-
-  if (uniqueItems.length === 0) return recap
+  if (request.items.length === 0) return recap
 
   localizedTitleService ??= createTmdbLocalizedTitleBatchService(apiKey)
 
-  const localized = await localizedTitleService.resolve(
-    {
-      schemaVersion: LOCALIZED_TITLE_BATCH_SCHEMA_VERSION,
-      items: uniqueItems,
-      locale: language,
-      region: localeRegion(language) ?? 'US',
-    },
-    signal
-  )
+  const localized = await localizedTitleService.resolve(request, signal)
 
   const summaries = new Map(
     localized.summaries.map((summary) => [`${summary.mediaType}:${summary.id}`, summary])
@@ -143,7 +122,7 @@ async function localizeLifetimeRecap(
 
   function localizeItem<T extends LifetimeTitle>(
     item: T,
-    type: LocalizedTitleBatchItem['type']
+    type: 'movie' | 'tv'
   ): T {
     const summary = summaries.get(`${type}:${item.tmdbId}`)
 
@@ -163,44 +142,10 @@ async function localizeLifetimeRecap(
   }
 }
 
-function getDisplayedStoryItems(recap: ProfileLifetimeRecap) {
-  const featuredMovie = recap.topRatedMovies[0] ?? null
-  const featuredSeries = recap.topRatedSeries[0] ?? null
-
-  const movieRunnersUp = recap.topRatedMovies.slice(1, 4).map((item, index) => ({
-    item,
-    rank: index + 2,
-  }))
-
-  const seriesRunnersUp = recap.topRatedSeries.slice(1, 4).map((item, index) => ({
-    item,
-    rank: index + 2,
-  }))
-
-  return {
-    featuredMovie,
-    featuredSeries,
-    movieRunnersUp,
-    seriesRunnersUp,
-  }
-}
-
-async function preloadPosterImages(recap: ProfileLifetimeRecap): Promise<PosterImages> {
-  const { featuredMovie, featuredSeries, movieRunnersUp, seriesRunnersUp } =
-    getDisplayedStoryItems(recap)
-
-  const items = [
-    ...(featuredMovie ? [featuredMovie] : []),
-    ...(featuredSeries ? [featuredSeries] : []),
-    ...movieRunnersUp.map(({ item }) => item),
-    ...seriesRunnersUp.map(({ item }) => item),
-  ]
-
-  const uniqueItems = Array.from(new Map(items.map((item) => [item.titleId, item])).values())
-
+async function preloadPosterImages(displayed: DisplayedLifetimeStoryItems): Promise<PosterImages> {
   return new Map(
     await Promise.all(
-      uniqueItems.map(async (item) => {
+      buildLifetimePosterPreloadItems(displayed).map(async (item) => {
         if (!item.coverImage) {
           return [item.titleId, null] as const
         }
@@ -257,7 +202,8 @@ export async function GET(
 
   const rawRecap = await service.getProfileLifetimeRecapByProfileId(profile.id)
   const recap = await localizeLifetimeRecap(rawRecap, language, request.signal)
-  const posterImages = await preloadPosterImages(recap)
+  const displayed = getDisplayedLifetimeStoryItems(recap)
+  const posterImages = await preloadPosterImages(displayed)
 
   const requestUrl = new URL(request.url)
   const host = requestUrl.host
@@ -335,6 +281,7 @@ export async function GET(
       logoUrl,
       posterImages,
       recap,
+      displayed,
     }),
     {
       width: 1080,
@@ -355,6 +302,7 @@ function StoryImage({
   localizedHighestRatedGenre,
   localizedMostRatedGenre,
   highestRatedDecadeLabel,
+  displayed,
   logoUrl,
   posterImages,
   recap,
@@ -365,12 +313,12 @@ function StoryImage({
   localizedHighestRatedGenre: string
   localizedMostRatedGenre: string
   highestRatedDecadeLabel: string
+  displayed: DisplayedLifetimeStoryItems
   logoUrl: string
   posterImages: PosterImages
   recap: ProfileLifetimeRecap
 }) {
-  const { featuredMovie, featuredSeries, movieRunnersUp, seriesRunnersUp } =
-    getDisplayedStoryItems(recap)
+  const { featuredMovie, featuredSeries, movieRunnersUp, seriesRunnersUp } = displayed
 
   const watchTime = formatWatchTimeCompact(recap.timeWatchedMinutes, language)
 
@@ -477,40 +425,12 @@ function getFeaturedMovieStoryItem(
   posterImages: PosterImages
 ): StoryFeaturedItem {
   const title = item?.title ?? labels.topMovie
-  const rating =
-    item?.rating != null
-      ? new Intl.NumberFormat(language, {
-          maximumFractionDigits: 1,
-        }).format(item.rating)
-      : null
-
-  const pills = [
-    rating
-      ? {
-          id: 'rating',
-          text: `${labels.ratingShort} ${rating}`,
-        }
-      : null,
-    item && item.count > 0
-      ? {
-          id: 'diary-count',
-          text: `${labels.watchedTimes} ${item.count}×`,
-        }
-      : null,
-  ].filter(
-    (
-      pill
-    ): pill is {
-      id: string
-      text: string
-    } => Boolean(pill)
-  )
 
   return {
     imageSrc: item ? (posterImages.get(item.titleId) ?? null) : null,
     label: labels.topMovie,
     meta: item?.watchTimeMinutes ? formatWatchTimeCompact(item.watchTimeMinutes, language) : null,
-    pills,
+    pills: getLifetimeFeaturedMoviePills(item, labels, language),
     title,
   }
 }
@@ -522,41 +442,12 @@ function getFeaturedSeriesStoryItem(
   posterImages: PosterImages
 ): StoryFeaturedItem {
   const title = item?.title ?? labels.topSeries
-  const rating =
-    item?.rating != null
-      ? new Intl.NumberFormat(language, {
-          maximumFractionDigits: 1,
-        }).format(item.rating)
-      : null
-  const watchedEpisodeCount = item?.watchedEpisodeCount ?? item?.count ?? null
-
-  const pills = [
-    rating
-      ? {
-          id: 'rating',
-          text: `${labels.ratingShort} ${rating}`,
-        }
-      : null,
-    watchedEpisodeCount != null && watchedEpisodeCount > 0
-      ? {
-          id: 'episodes',
-          text: `${watchedEpisodeCount} ${labels.episodesWatched.toLocaleLowerCase(language)}`,
-        }
-      : null,
-  ].filter(
-    (
-      pill
-    ): pill is {
-      id: string
-      text: string
-    } => Boolean(pill)
-  )
 
   return {
     imageSrc: item ? (posterImages.get(item.titleId) ?? null) : null,
     label: labels.topSeries,
     meta: item?.watchTimeMinutes ? formatWatchTimeCompact(item.watchTimeMinutes, language) : null,
-    pills,
+    pills: getLifetimeFeaturedSeriesPills(item, labels, language),
     title,
   }
 }
@@ -668,78 +559,4 @@ function StatsGrid({
       })
     )
   )
-}
-
-function formatKinoMembership(
-  createdAt: string,
-  t: (key: string, values?: Record<string, string | number>) => string
-) {
-  const created = new Date(createdAt)
-  const now = new Date()
-  const safeCreated = Number.isNaN(created.getTime()) ? now : created
-  const duration = getElapsedCalendarDuration(safeCreated, now)
-  const createdYear = safeCreated.getFullYear()
-
-  const kinoTime =
-    duration.years >= 1
-      ? t('stats.story.kinoTimeYears', { count: duration.years })
-      : duration.months >= 1
-        ? t('stats.story.kinoTimeMonths', { count: duration.months })
-        : t('stats.story.kinoTimeDays', { count: duration.days })
-
-  return {
-    kinoTime,
-    memberSince: t('stats.story.memberSince', { year: createdYear }),
-  }
-}
-
-function getElapsedCalendarDuration(start: Date, end: Date) {
-  if (start > end) {
-    return {
-      years: 0,
-      months: 0,
-      days: 0,
-    }
-  }
-
-  const years = fullCalendarYearsBetween(start, end)
-  const months = fullCalendarMonthsBetween(start, end)
-  const days = Math.max(
-    0,
-    Math.floor((startOfDay(end).getTime() - startOfDay(start).getTime()) / 86_400_000)
-  )
-
-  return {
-    years,
-    months,
-    days,
-  }
-}
-
-function fullCalendarYearsBetween(start: Date, end: Date) {
-  let years = end.getFullYear() - start.getFullYear()
-  const anniversary = new Date(start)
-  anniversary.setFullYear(start.getFullYear() + years)
-
-  if (anniversary > end) {
-    years -= 1
-  }
-
-  return Math.max(0, years)
-}
-
-function fullCalendarMonthsBetween(start: Date, end: Date) {
-  let months = (end.getFullYear() - start.getFullYear()) * 12 + end.getMonth() - start.getMonth()
-  const anniversary = new Date(start)
-  anniversary.setMonth(start.getMonth() + months)
-
-  if (anniversary > end) {
-    months -= 1
-  }
-
-  return Math.max(0, months)
-}
-
-function startOfDay(value: Date) {
-  return new Date(value.getFullYear(), value.getMonth(), value.getDate())
 }
