@@ -305,6 +305,7 @@ test('resolves locale-sensitive media presentation without changing entity ident
     summary: 'A família Corleone muda de mãos.',
     imageUrl: 'https://image.tmdb.org/t/p/w500/poster-pt.jpg',
     year: 1972,
+    startDate: '1972-03-14',
     locale: 'pt-BR',
     popularity: 170.5,
     voteCount: 20_798,

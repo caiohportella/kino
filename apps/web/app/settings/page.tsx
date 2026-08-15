@@ -1,5 +1,6 @@
 'use client'
 
+import type { KinoLanguage } from '@kino/core/locale-config'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Camera,
@@ -15,21 +16,24 @@ import {
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { BannerPickerDialog } from '@/components/banner-picker-dialog'
+import { ProtectedContentGate } from '@/components/auth/protected-content-gate'
+import { ProtectedEmpty } from '@/components/auth/protected-empty'
 import { EmptyState } from '@/components/kino'
-import { PageHeader } from '@/components/page-header'
-import { ProtectedContentGate } from '@/components/protected-content-gate'
-import { ProtectedEmpty } from '@/components/protected-empty'
+import { PageHeader } from '@/components/layout/page-header'
+import { BannerPickerDialog } from '@/components/profile/banner-picker-dialog'
+import { ProfileStatSummaryCard } from '@/components/profile/profile-stat-summary-card'
 import { SettingsSkeleton } from '@/components/skeletons/page-skeletons'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { useProfileMediaStats, useProfileStats } from '@/hooks/use-profile-stats'
 import { useTranslation } from '@/lib/i18n'
 import { invalidateProfileMutation } from '@/lib/profile-invalidation'
+import { profileStatsPath } from '@/lib/routes'
+import { syncCurrentUserSearchProfile } from '@/lib/search/upstash/user-sync-client'
 import { db } from '@/lib/services'
 import { useAuthStore } from '@/stores/auth-store'
-import type { KinoLanguage } from '@/stores/settings-store'
 import { useSettingsStore } from '@/stores/settings-store'
 
 const languages: {
@@ -38,10 +42,17 @@ const languages: {
   nativeName: string
   englishName?: string
 }[] = [
-  { code: 'pt', flag: '🇧🇷', nativeName: 'Português (Brasil)', englishName: 'Portuguese' },
+  {
+    code: 'pt',
+    flag: '🇧🇷',
+    nativeName: 'Português (Brasil)',
+    englishName: 'Portuguese',
+  },
   { code: 'en', flag: '🇺🇸', nativeName: 'English' },
   { code: 'fr', flag: '🇫🇷', nativeName: 'Français', englishName: 'French' },
   { code: 'it', flag: '🇮🇹', nativeName: 'Italiano', englishName: 'Italian' },
+  { code: 'de', flag: '🇩🇪', nativeName: 'Deutsch', englishName: 'German' },
+  { code: 'es', flag: '🇪🇸', nativeName: 'Español', englishName: 'Spanish' },
   { code: 'no', flag: '🇳🇴', nativeName: 'Norsk', englishName: 'Norwegian' },
 ]
 
@@ -68,6 +79,28 @@ export default function SettingsPage() {
     queryFn: () => db.getUserProfile(user!.id),
     enabled: Boolean(user),
   })
+  const statsQuery = useProfileStats(
+    user
+      ? {
+          profileId: user.id,
+          service: db,
+          visibilityScope: { kind: 'authenticated', userId: user.id },
+        }
+      : undefined
+  )
+
+  const mediaStatsQuery = useProfileMediaStats(
+    user
+      ? {
+          profileId: user.id,
+          service: db,
+          visibilityScope: {
+            kind: 'authenticated',
+            userId: user.id,
+          },
+        }
+      : undefined
+  )
 
   useEffect(() => {
     if (!profileQuery.data && user) {
@@ -101,13 +134,16 @@ export default function SettingsPage() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile-settings', user?.id] })
+      queryClient.invalidateQueries({
+        queryKey: ['profile-settings', user?.id],
+      })
       if (user?.id) {
         void invalidateProfileMutation(queryClient, {
           kind: 'identity',
           profileId: user.id,
           visibilityScope: { kind: 'authenticated', userId: user.id },
         })
+        void syncCurrentUserSearchProfile('upsert').catch(() => undefined)
       }
       router.push(`/${username.trim()}`)
     },
@@ -123,7 +159,12 @@ export default function SettingsPage() {
   })
 
   const deleteAccountMutation = useMutation({
-    mutationFn: () => db.deleteUserAccount(),
+    mutationFn: async () => {
+      if (user?.id) {
+        await syncCurrentUserSearchProfile('delete').catch(() => undefined)
+      }
+      await db.deleteUserAccount()
+    },
     onSuccess: async () => {
       await signOut()
       queryClient.clear()
@@ -134,6 +175,7 @@ export default function SettingsPage() {
   })
 
   const selectedLanguage = languages.find((item) => item.code === language) ?? languages[0]!
+  const currentUsername = profileQuery.data?.username || username
 
   return (
     <ProtectedContentGate
@@ -145,10 +187,14 @@ export default function SettingsPage() {
       resolution={resolution}
       unauthenticatedFallback={<ProtectedEmpty />}
     >
-      <div className="content-frame">
+      <div className="content-frame pb-24 lg:pb-0">
         <PageHeader
           action={
-            <Button disabled={saveMutation.isPending} onClick={() => saveMutation.mutate()}>
+            <Button
+              className="hidden lg:inline-flex"
+              disabled={saveMutation.isPending}
+              onClick={() => saveMutation.mutate()}
+            >
               <Save size={16} />
               {saveMutation.isPending ? t('common.loading') : t('common.save')}
             </Button>
@@ -157,91 +203,127 @@ export default function SettingsPage() {
           title={t('settings.editProfile')}
         />
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-          <Card className="grid gap-5 p-5">
-            <div className="grid gap-4 md:grid-cols-[112px_1fr] md:items-end">
-              <div className="relative h-28 w-28">
-                <div className="grid h-28 w-28 place-items-center overflow-hidden rounded-full border border-white/10 bg-kino-surface shadow-soft">
-                  {avatarFile ? (
-                    <img
-                      alt=""
-                      className="h-full w-full object-cover"
-                      src={URL.createObjectURL(avatarFile)}
-                    />
-                  ) : avatarUrl ? (
-                    <img alt="" className="h-full w-full object-cover" src={avatarUrl} />
-                  ) : (
-                    <span className="text-3xl font-semibold text-kino-muted">K</span>
-                  )}
-                </div>
-                <input
-                  accept="image/*"
-                  className="peer sr-only"
-                  id="avatar-upload"
-                  onChange={(event) => setAvatarFile(event.target.files?.[0] || null)}
-                  type="file"
-                />
-                <label
-                  aria-label="Edit profile picture"
-                  className="absolute bottom-1 right-1 grid h-9 w-9 cursor-pointer place-items-center rounded-full border border-white/20 bg-black/75 text-white shadow-[0_8px_24px_rgb(0_0_0/0.35)] transition duration-200 hover:scale-105 hover:bg-black/90 peer-focus-visible:outline peer-focus-visible:outline-offset-2 peer-focus-visible:outline-kino-accent"
-                  htmlFor="avatar-upload"
-                  title="Edit profile picture"
-                >
-                  <Camera size={17} />
-                </label>
-              </div>
-
-              <div className="grid gap-4">
-                <Field
-                  label={t('settings.displayName')}
-                  onChange={(event) => setDisplayName(event.target.value)}
-                  value={displayName}
-                />
-                <Field
-                  label={t('settings.username')}
-                  onChange={(event) => setUsername(event.target.value)}
-                  value={username}
-                />
-              </div>
-            </div>
-
-            <TextArea
-              label={t('settings.bio')}
-              onChange={(event) => setBio(event.target.value)}
-              value={bio}
-            />
-            <section className="grid gap-3">
-              <div>
-                <h2 className="text-sm font-semibold text-kino-text">{t('modals.selectBanner')}</h2>
-                <p className="mt-1 text-xs text-kino-muted">{t('settings.tapToSetBanner')}</p>
-              </div>
-              <div className="aspect-5/2 overflow-hidden rounded-md border border-white/10 bg-kino-panel">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px] xl:grid-cols-[minmax(0,1fr)_460px]">
+          <div className="min-w-0">
+            <Card className="overflow-hidden p-0">
+              {/* Banner */}
+              <div className="relative h-36 bg-kino-panel sm:h-44">
                 {bannerUrl ? (
                   <img alt="" className="h-full w-full object-cover" src={bannerUrl} />
                 ) : (
-                  <div className="grid h-full place-items-center bg-[linear-gradient(135deg,rgb(29_185_84/0.16),rgb(255_255_255/0.05)_45%,rgb(0_0_0/0.18))] text-sm font-semibold text-kino-muted">
-                    {t('settings.tapToSetBanner')}
-                  </div>
+                  <div className="h-full w-full bg-[linear-gradient(120deg,rgb(29_185_84/0.16),rgb(255_255_255/0.05)_48%,rgb(0_0_0/0.22))]" />
                 )}
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <Button onClick={() => setBannerDialogOpen(true)} variant="secondary">
-                  <ImagePlus size={16} />
-                  {t('modals.bannerFromGallery')}
-                </Button>
-                {bannerUrl ? (
-                  <Button onClick={() => setBannerUrl('')} variant="ghost">
-                    <Trash2 size={16} />
-                    {t('common.remove')}
-                  </Button>
-                ) : null}
-              </div>
-            </section>
 
-            {error ? <p className="text-sm text-red-300">{error}</p> : null}
-          </Card>
+                {/* Banner actions */}
+                <div className="absolute right-3 top-3 flex items-center gap-2">
+                  <Button
+                    className="border-white/15 bg-black/60 text-white backdrop-blur-md hover:bg-black/75"
+                    onClick={() => setBannerDialogOpen(true)}
+                    size="sm"
+                    variant="outline"
+                  >
+                    <ImagePlus size={15} />
+                    <span className="hidden sm:inline">{t('modals.bannerFromGallery')}</span>
+                  </Button>
+
+                  {bannerUrl ? (
+                    <Button
+                      aria-label={t('common.remove')}
+                      className="border-white/15 bg-black/60 text-red-300 backdrop-blur-md hover:bg-red-500/15 hover:text-red-200"
+                      onClick={() => setBannerUrl('')}
+                      size="icon"
+                      variant="outline"
+                    >
+                      <Trash2 size={15} />
+                    </Button>
+                  ) : null}
+                </div>
+
+                {/* Avatar */}
+                <div className="absolute -bottom-10 left-5 sm:left-6">
+                  <div className="relative h-24 w-24">
+                    <div className="h-24 w-24 overflow-hidden rounded-full border-4 border-kino-panel bg-kino-surface shadow-soft">
+                      {avatarFile ? (
+                        <img
+                          alt=""
+                          className="h-full w-full object-cover"
+                          src={URL.createObjectURL(avatarFile)}
+                        />
+                      ) : avatarUrl ? (
+                        <img alt="" className="h-full w-full object-cover" src={avatarUrl} />
+                      ) : (
+                        <div className="grid h-full place-items-center text-2xl font-semibold text-kino-muted">
+                          {displayName?.trim().charAt(0).toUpperCase() || 'K'}
+                        </div>
+                      )}
+                    </div>
+
+                    <input
+                      accept="image/*"
+                      className="peer sr-only"
+                      id="avatar-upload"
+                      onChange={(event) => setAvatarFile(event.target.files?.[0] || null)}
+                      type="file"
+                    />
+
+                    <label
+                      aria-label={t('settings.editProfile')}
+                      className="absolute -bottom-0.5 -right-0.5 grid size-8 cursor-pointer place-items-center rounded-full border-[3px] border-kino-panel bg-kino-accent text-black transition-transform hover:scale-105 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-kino-accent"
+                      htmlFor="avatar-upload"
+                    >
+                      <Camera size={14} strokeWidth={2.5} />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Profile fields */}
+              <div className="px-5 pb-5 pt-14 sm:px-6 sm:pb-6">
+                <div className="grid gap-4">
+                  <Field
+                    label={t('settings.displayName')}
+                    onChange={(event) => setDisplayName(event.target.value)}
+                    value={displayName}
+                  />
+
+                  <Field
+                    label={t('settings.username')}
+                    onChange={(event) => setUsername(event.target.value)}
+                    value={username}
+                  />
+
+                  <div>
+                    <TextArea
+                      label={t('settings.bio')}
+                      maxLength={160}
+                      onChange={(event) => setBio(event.target.value)}
+                      value={bio}
+                    />
+
+                    <div className="mt-1.5 text-right text-[11px] tabular-nums text-kino-muted">
+                      {bio.length} / 160
+                    </div>
+                  </div>
+
+                  {error ? <p className="text-sm text-red-300">{error}</p> : null}
+                </div>
+              </div>
+            </Card>
+          </div>
 
           <aside className="grid content-start gap-5">
+            <ProfileStatSummaryCard
+              error={statsQuery.isError || mediaStatsQuery.isError}
+              href={profileStatsPath(currentUsername)}
+              loading={statsQuery.isPending || mediaStatsQuery.isPending}
+              onRetry={() => {
+                void statsQuery.refetch()
+                void mediaStatsQuery.refetch()
+              }}
+              stats={statsQuery.data}
+              mediaStats={mediaStatsQuery.data}
+            />
+
             <Card className="grid gap-3 p-5">
               <h2 className="text-lg font-semibold text-kino-text">{t('settings.language')}</h2>
               <Popover>
@@ -327,7 +409,7 @@ export default function SettingsPage() {
             </Card>
 
             <Card className="grid gap-3 p-5">
-              <h2 className="text-lg font-semibold text-kino-text">{t('profile.title')}</h2>
+              <h2 className="text-lg font-semibold text-kino-text">{t('settings.account')}</h2>
               <Button
                 onClick={async () => {
                   await signOut()
@@ -352,10 +434,24 @@ export default function SettingsPage() {
                 onClick={() => deleteAccountMutation.mutate()}
                 variant="destructive"
               >
+                <Trash2 size={16} />
                 {t('settings.deleteAccount')}
               </Button>
             </Card>
           </aside>
+        </div>
+
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/85 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl lg:hidden">
+          <div className="mx-auto max-w-7xl">
+            <Button
+              className="w-full"
+              disabled={saveMutation.isPending}
+              onClick={() => saveMutation.mutate()}
+            >
+              <Save size={16} />
+              {saveMutation.isPending ? t('common.loading') : t('common.save')}
+            </Button>
+          </div>
         </div>
 
         <BannerPickerDialog

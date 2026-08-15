@@ -1,6 +1,6 @@
 'use client'
 
-import { localeRegion, SearchResult } from '@kino/core'
+import { getLocale, getRegion, SearchResult } from '@kino/core'
 import { SEARCH_SCHEMA_VERSION_V2 } from '@kino/core/search'
 import { useQuery } from '@tanstack/react-query'
 import { Search, X } from 'lucide-react'
@@ -155,8 +155,8 @@ export function GlobalSearch({
             schemaVersion: SEARCH_SCHEMA_VERSION_V2,
             mode: 'autocomplete',
             query: debouncedQuery,
-            locale: language,
-            region: localeRegion(language) ?? undefined,
+            locale: getLocale(language),
+            region: getRegion(language),
             page: 1,
             limit: 8,
           },

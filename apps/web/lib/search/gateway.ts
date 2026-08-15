@@ -233,19 +233,26 @@ async function resolvePresentation(
   signal: AbortSignal | undefined,
   timeoutMs: number,
   telemetry: SearchGatewayEventSink | undefined,
-  now: () => number
+  now: () => number,
+  bestEffort = false
 ): Promise<SearchResponse> {
   if (!context || response.results.length === 0) return response
   const startedAt = now()
   try {
     const presentedResults = await Promise.all(
       response.results.map(async (result): Promise<SearchResultV1 | SearchResultV2> => {
-        const entity = await tmdb.resolvePresentation(
-          result.entity,
-          context,
-          providerSignal(signal, timeoutMs)
-        )
-        return { ...result, entity }
+        try {
+          const entity = await tmdb.resolvePresentation(
+            result.entity,
+            context,
+            providerSignal(signal, timeoutMs)
+          )
+          return { ...result, entity }
+        } catch (error) {
+          throwIfCancelled(signal)
+          if (!bestEffort) throw error
+          return result
+        }
       })
     )
     publishStage(telemetry, 'tmdb_presentation', 'success', now() - startedAt, {
@@ -497,7 +504,6 @@ export function createSearchGateway(dependencies: CreateSearchGatewayDependencie
         request.page ?? 1,
         request.limit ?? DEFAULT_RESULT_LIMIT
       )
-      if (autocomplete) return withUsers
       return resolvePresentation(
         withUsers,
         dependencies.tmdb,
@@ -508,9 +514,10 @@ export function createSearchGateway(dependencies: CreateSearchGatewayDependencie
             }
           : undefined,
         signal,
-        providerTimeoutMs,
+        autocomplete ? autocompleteProviderTimeoutMs : providerTimeoutMs,
         dependencies.telemetry,
-        now
+        now,
+        autocomplete
       )
     },
   }

@@ -63,11 +63,6 @@ export function FeaturedSearchResult({
   const seasonCount = formatSeasonCount(
     typeof result.media.number_of_seasons === 'number' ? result.media.number_of_seasons : null
   )
-  const rating =
-    typeof result.media.vote_average === 'number' && Number.isFinite(result.media.vote_average)
-      ? result.media.vote_average.toFixed(1)
-      : null
-  const voteCount = formatCompactNumber(result.media.vote_count)
   const endYear = extractYear(result.media.last_air_date ?? null) // TV only, fine if undefined for movies
   const dateRange = formatDateRange(result.year, endYear)
   const cast = formatCast(result.media.cast)
@@ -123,13 +118,6 @@ export function FeaturedSearchResult({
             </svg>
             {t('search.bestMatch')}
           </span>
-          {rating ? (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-medium text-kino-text">
-              <span className="text-amber-400">★</span>
-              {rating}
-              {voteCount ? <span className="text-kino-muted">· {voteCount}</span> : null}
-            </span>
-          ) : null}
         </div>
 
         <h3 className="truncate text-base font-semibold tracking-tight text-kino-text group-hover:text-kino-accent">

@@ -195,6 +195,25 @@ function localizedPresentation(
         ? value.first_air_date
         : undefined
   )
+  const credits = isRecord(value.credits) ? value.credits : undefined
+  const cast = Array.isArray(credits?.cast)
+    ? credits.cast
+        .map((member) => {
+          if (!isRecord(member)) return undefined
+          return text(member.name)
+        })
+        .filter((member): member is string => typeof member === 'string')
+        .slice(0, 3)
+    : undefined
+  const numberOfSeasons =
+    entity.entityType === 'series' ? positiveInteger(value.number_of_seasons) : undefined
+  const startDate =
+    entity.entityType === 'movie'
+      ? text(value.release_date)
+      : entity.entityType === 'series'
+        ? text(value.first_air_date)
+        : undefined
+  const endDate = entity.entityType === 'series' ? text(value.last_air_date) : undefined
   const popularity = finiteNumber(value.popularity)
   const voteCount = finiteNumber(value.vote_count)
   const tmdbVoteAverage = finiteNumber(value.vote_average)
@@ -204,6 +223,10 @@ function localizedPresentation(
     ...(summary === undefined ? {} : { summary }),
     ...(poster === undefined ? {} : { imageUrl: poster }),
     ...(releaseYear === undefined ? {} : { year: releaseYear }),
+    ...(cast === undefined ? {} : { cast }),
+    ...(numberOfSeasons === undefined ? {} : { numberOfSeasons }),
+    ...(startDate === undefined ? {} : { startDate }),
+    ...(endDate === undefined ? {} : { endDate }),
     locale,
     ...(popularity === undefined ? {} : { popularity }),
     ...(voteCount === undefined ? {} : { voteCount }),
@@ -306,6 +329,7 @@ export function createTmdbSearchProvider(
         {
           language: normalizeLocale(context.locale),
           region: context.region,
+          append_to_response: 'credits',
         },
         signal
       )

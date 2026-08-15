@@ -79,7 +79,7 @@ test('uses sufficient vector candidates without calling TMDB search', async () =
   )
 })
 
-test('autocomplete returns sufficient vector results without TMDB hydration or person expansion', async () => {
+test('autocomplete returns sufficient vector results without TMDB search or person expansion', async () => {
   let tmdbSearchCalls = 0
   let presentationCalls = 0
   let creditCalls = 0
@@ -109,13 +109,39 @@ test('autocomplete returns sufficient vector results without TMDB hydration or p
 
   const response = await gateway.search({ ...autocompleteRequest, query: 'game' })
   assert.equal(tmdbSearchCalls, 0)
-  assert.equal(presentationCalls, 0)
+  assert.equal(presentationCalls, 2)
   assert.equal(creditCalls, 0)
   assert.equal(response.fallback, 'none')
   assert.deepEqual(
     response.results.map((result) => result.entity.tmdbId),
     [1399, 68784]
   )
+})
+
+test('autocomplete resolves localized title presentation for the requested locale', async () => {
+  const gateway = createSearchGateway({
+    vector: {
+      search: async () => vectorResult(semantic(1399, 'A Minha Namorada Tem Amnésia', 0.96)),
+    },
+    tmdb: {
+      ...tmdbProvider(),
+      resolvePresentation: async (entity, context) => ({
+        ...entity,
+        title: context.locale === 'pt-BR' ? 'Como Se Fosse a Primeira Vez' : entity.title,
+        locale: context.locale,
+      }),
+    },
+    minimumVectorResults: 1,
+  })
+
+  const response = await gateway.search({
+    ...autocompleteRequest,
+    locale: 'pt-BR',
+    region: 'BR',
+    query: 'como se fosse a primeira vez',
+  })
+
+  assert.equal(response.results[0]?.entity.title, 'Como Se Fosse a Primeira Vez')
 })
 
 test('autocomplete falls back to TMDB search when vector results are insufficient', async () => {
@@ -140,7 +166,7 @@ test('autocomplete falls back to TMDB search when vector results are insufficien
 
   const response = await gateway.search({ ...autocompleteRequest, query: 'Alien' })
   assert.equal(tmdbSearchCalls, 1)
-  assert.equal(presentationCalls, 0)
+  assert.equal(presentationCalls, 2)
   assert.equal(response.results.length > 0, true)
 })
 
