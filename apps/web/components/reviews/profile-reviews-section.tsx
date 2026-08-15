@@ -14,6 +14,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { ProfileReviewCard } from './profile-review-card'
 import { ProfileReviewSkeleton } from './profile-review-skeleton'
 import { ProfileReviewsDialog } from './profile-reviews-dialog'
+import { ReviewCard } from './review-card'
 import { ReviewsCarousel, ReviewsCarouselSlide } from './reviews-carousel'
 
 export function ProfileReviewsSection({ username }: { username: string }) {
@@ -41,9 +42,10 @@ export function ProfileReviewsSection({ username }: { username: string }) {
   }
 
   const renderReview = (review: ProfileReview) => (
-    <ProfileReviewCard
-      canLike={Boolean(user)}
+    <ReviewCard
       key={review.id}
+      context="profile"
+      canLike={Boolean(user)}
       onAuthRequired={onAuthRequired}
       onDelete={async () => {
         try {

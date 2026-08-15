@@ -240,16 +240,41 @@ export function ProfileSkeleton({ label = 'Loading' }: { label?: string }) {
 
 export function SettingsSkeleton({ label = 'Loading' }: { label?: string }) {
   return (
-    <div aria-busy="true" className="content-frame grid max-w-4xl gap-6" role="status">
+    <div aria-busy="true" className="content-frame grid gap-6" role="status">
       <ScreenReaderLoading label={label} />
       <HeadingSkeleton />
-      <Skeleton className="h-44 w-full" />
-      <div className="grid gap-4">
-        {Array.from({ length: 4 }, (_, index) => (
-          <Skeleton className="h-11 w-full" key={index} />
-        ))}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="grid gap-6">
+          <div className="grid gap-4 rounded-md border border-white/10 bg-white/3 p-5">
+            <div className="grid gap-4 md:grid-cols-[112px_minmax(0,1fr)]">
+              <Skeleton className="size-28 rounded-full" />
+              <div className="grid gap-4">
+                <Skeleton className="h-11 w-full" />
+                <Skeleton className="h-11 w-full" />
+                <Skeleton className="h-28 w-full" />
+              </div>
+            </div>
+          </div>
+          <div className="grid gap-3 rounded-md border border-white/10 bg-white/3 p-5">
+            <Skeleton className="h-4 w-36" />
+            <Skeleton className="aspect-[3.2/1] w-full rounded-md" />
+            <div className="flex flex-wrap gap-3">
+              <Skeleton className="h-10 w-40" />
+              <Skeleton className="h-10 w-24" />
+            </div>
+          </div>
+        </div>
+        <div className="grid gap-5">
+          <div className="grid grid-cols-2 gap-3 rounded-md border border-white/10 bg-white/3 p-5">
+            {Array.from({ length: 4 }, (_, index) => (
+              <Skeleton className="h-24 w-full rounded-md" key={index} />
+            ))}
+          </div>
+          <Skeleton className="h-36 w-full rounded-md" />
+          <Skeleton className="h-32 w-full rounded-md" />
+          <Skeleton className="h-40 w-full rounded-md" />
+        </div>
       </div>
-      <Skeleton className="h-32 w-full" />
     </div>
   )
 }

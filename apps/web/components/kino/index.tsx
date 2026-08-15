@@ -1,6 +1,12 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
+export interface PosterDetails {
+  year?: number | string | null
+  completed?: boolean
+  upcomingSeasonLabel?: string | null
+}
+
 export function EmptyState({
   title,
   body,
@@ -132,23 +138,70 @@ export function Poster({
   alt,
   className,
   children,
+  details,
+  artworkOverlay,
 }: {
   src: string | null | undefined
   title: string
   alt?: string
   className?: string
   children?: ReactNode
+  details?: PosterDetails
+  artworkOverlay?: ReactNode
 }) {
+  const artwork = (
+    <div className="relative">
+      <div
+        className={cn(
+          'relative aspect-2/3 w-full overflow-hidden rounded-md bg-white/6',
+          className
+        )}
+      >
+        {src ? (
+          <img alt={alt || title} className="h-full w-full object-cover" loading="lazy" src={src} />
+        ) : (
+          <div className="grid h-full place-items-center px-3 text-center text-xs font-semibold text-kino-muted">
+            {title}
+          </div>
+        )}
+        {children}
+      </div>
+
+      {artworkOverlay}
+    </div>
+  )
+
+  if (!details) {
+    return artwork
+  }
+
   return (
-    <div className={cn('relative aspect-2/3 w-full overflow-hidden rounded bg-white/6', className)}>
-      {src ? (
-        <img alt={alt || title} className="h-full w-full object-cover" loading="lazy" src={src} />
-      ) : (
-        <div className="grid h-full place-items-center px-3 text-center text-xs font-semibold text-kino-muted">
+    <div className="grid min-w-0 gap-3">
+      {artwork}
+
+      <div className="min-w-0">
+        <h3 className="line-clamp-2 h-10 text-sm font-semibold leading-5 text-kino-text transition-colors group-hover:text-kino-accent">
           {title}
+        </h3>
+
+        <div className="mt-1 flex min-h-5 items-center justify-between gap-2 text-xs text-kino-muted">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span>{details.year ?? '—'}</span>
+
+            {details.completed ? (
+              <span aria-label="Completed" className="font-semibold text-kino-accent">
+                ✓
+              </span>
+            ) : null}
+          </span>
+
+          {details.upcomingSeasonLabel ? (
+            <span className="shrink-0 rounded-full border border-kino-accent/30 bg-kino-accent/10 px-2 py-0.5 font-medium text-kino-accent">
+              {details.upcomingSeasonLabel}
+            </span>
+          ) : null}
         </div>
-      )}
-      {children}
+      </div>
     </div>
   )
 }

@@ -3,7 +3,7 @@ import { Heart } from 'lucide-react'
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { Poster } from '@/components/kino'
-import { RatingStars } from '@/components/rating-stars'
+import { RatingStars } from '@/components/media/rating-stars'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -125,17 +125,13 @@ export function ProfileReviewCard({
           ) : null}
         </div>
 
-        {/* Date is metadata about the reviewer row directly above it, so it
-            stays close (mt-0.5) rather than at the same distance as the title gap */}
         <p className="mt-0.5 text-xs text-kino-subtle">
           {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(
             new Date(review.createdAt)
           )}
         </p>
 
-        {/* Body gets a clearly larger gap (mt-4) than the date's, marking it
-            as the next section rather than another metadata line */}
-        <div className="relative z-10 mt-4">
+        <div className="mt-3 min-h-0 flex-1 overflow-hidden">
           {editing ? (
             <ReviewEditor
               initialContent={review.content}
@@ -148,14 +144,12 @@ export function ProfileReviewCard({
               pending={pendingOwnerAction}
             />
           ) : (
-            <p className="line-clamp-5 wrap-break-word whitespace-pre-wrap text-sm leading-6 text-kino-text md:line-clamp-4">
+            <p className="line-clamp-2 overflow-hidden wrap-break-word whitespace-pre-wrap text-sm leading-6 text-kino-text">
               {review.content}
             </p>
           )}
         </div>
 
-        {/* Footer separated with a hairline + its own top padding, so likes
-            read as an action zone rather than a trailing line of the review */}
         <div className="relative z-10 mt-4 flex items-center gap-2 border-t border-white/10 pt-3 text-sm">
           {!review.isViewerReview ? (
             <button

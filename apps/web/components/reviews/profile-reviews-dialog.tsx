@@ -1,5 +1,5 @@
 import type { ProfileReview } from '@kino/core'
-import { DisplayTitle } from '@/components/display-title'
+import { DisplayTitle } from '@/components/media/display-title'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,

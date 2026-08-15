@@ -134,12 +134,11 @@ function CalendarNav({
   const span = displayYears.to - displayYears.from + 1
   const previousDisabled =
     view === 'years'
-      ? Boolean(startMonth && new Date(displayYears.from - span, 11, 31) < startMonth)
+      ? Boolean(startMonth && displayYears.from <= startMonth.getFullYear())
       : !previousMonth
+
   const nextDisabled =
-    view === 'years'
-      ? Boolean(endMonth && new Date(displayYears.to + 1, 0, 1) > endMonth)
-      : !nextMonth
+    view === 'years' ? Boolean(endMonth && displayYears.to >= endMonth.getFullYear()) : !nextMonth
 
   return (
     <nav className={cn('flex items-center', className)}>
@@ -151,11 +150,25 @@ function CalendarNav({
         disabled={previousDisabled}
         onClick={() => {
           if (view === 'years') {
-            onDisplayYearsChange((current) => ({
-              from: current.from - span,
-              to: current.to - span,
-            }))
-          } else if (previousMonth) goToMonth(previousMonth)
+            onDisplayYearsChange((current) => {
+              const minimumYear = startMonth?.getFullYear()
+              const nextFrom = current.from - span
+
+              if (minimumYear !== undefined && nextFrom < minimumYear) {
+                return {
+                  from: minimumYear,
+                  to: minimumYear + span - 1,
+                }
+              }
+
+              return {
+                from: nextFrom,
+                to: current.to - span,
+              }
+            })
+          } else if (previousMonth) {
+            goToMonth(previousMonth)
+          }
         }}
         size="icon-sm"
         type="button"
@@ -169,11 +182,25 @@ function CalendarNav({
         disabled={nextDisabled}
         onClick={() => {
           if (view === 'years') {
-            onDisplayYearsChange((current) => ({
-              from: current.from + span,
-              to: current.to + span,
-            }))
-          } else if (nextMonth) goToMonth(nextMonth)
+            onDisplayYearsChange((current) => {
+              const maximumYear = endMonth?.getFullYear()
+              const nextTo = current.to + span
+
+              if (maximumYear !== undefined && nextTo > maximumYear) {
+                return {
+                  from: maximumYear - span + 1,
+                  to: maximumYear,
+                }
+              }
+
+              return {
+                from: current.from + span,
+                to: nextTo,
+              }
+            })
+          } else if (nextMonth) {
+            goToMonth(nextMonth)
+          }
         }}
         size="icon-sm"
         type="button"

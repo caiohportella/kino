@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { FooterSocialLinks } from '@/components/footer-social-links'
 import { KinoLogo } from '@/components/kino-logo'
+import { FooterSocialLinks } from '@/components/layout/footer-social-links'
 import { useTranslation } from '@/lib/i18n'
 
 export function LandingFooter() {
@@ -13,7 +13,7 @@ export function LandingFooter() {
       <div className="landing-section flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Link className="block w-fit" href="/">
-            <KinoLogo width={92} />
+            <KinoLogo className="w-fit" />
           </Link>
           <p className="text-sm text-kino-muted">{t('landing.footer.tagline')}</p>
         </div>

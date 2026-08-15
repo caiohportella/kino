@@ -1,6 +1,5 @@
 import type { MediaType, PublicUserSummary, Review } from '@kino/core'
 import { useToast } from '@/components/toast-provider'
-import { Card } from '@/components/ui/card'
 import {
   useCreateReviewMutation,
   useDeleteReviewMutation,
@@ -45,6 +44,7 @@ export function ReviewsSection({
   const like = useReviewLikeMutation(titleId)
 
   const reviews = query.data?.items ?? []
+  const totalCount = query.data?.totalCount ?? 0
 
   const viewerReview = reviews.find((review) => review.isViewerReview)
 
@@ -57,6 +57,7 @@ export function ReviewsSection({
 
   const renderReview = (review: Review) => (
     <ReviewCard
+      context="title"
       canLike={Boolean(author)}
       key={review.id}
       onAuthRequired={onAuthRequired}
@@ -112,15 +113,15 @@ export function ReviewsSection({
   )
 
   return (
-    <Card className="min-w-0 p-5 md:p-6">
-      <div className="mb-5 flex items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold text-kino-text">{t('reviews.title')}</h2>
+    <section className="min-w-0">
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="flex min-w-0 items-baseline gap-2.5">
+          <h2 className="text-xl font-semibold text-kino-text">{t('reviews.title')}</h2>
+        </div>
 
-        <ReviewsDialog
-          renderReview={renderReview}
-          titleId={titleId}
-          totalCount={query.data?.totalCount ?? 0}
-        />
+        {totalCount > 0 ? (
+          <ReviewsDialog renderReview={renderReview} titleId={titleId} totalCount={totalCount} />
+        ) : null}
       </div>
 
       {query.isLoading || authorLoading ? (
@@ -138,11 +139,7 @@ export function ReviewsSection({
       {query.isError ? <p className="text-sm text-red-300">{t('reviews.loadFailure')}</p> : null}
 
       {!query.isLoading && !authorLoading && !viewerReview && author ? (
-        <div className="mb-5 grid gap-3 rounded-md border border-white/10 bg-white/2.5 p-4">
-          {!query.data?.totalCount ? (
-            <p className="text-sm text-kino-muted">{t('reviews.empty.authenticated')}</p>
-          ) : null}
-
+        <div className={totalCount > 0 ? 'mb-5' : undefined}>
           <ReviewComposer
             author={author}
             onPublish={async (content) => {
@@ -171,13 +168,9 @@ export function ReviewsSection({
         </div>
       ) : null}
 
-      {!query.isLoading &&
-      !authorLoading &&
-      !author &&
-      !viewerAuthenticated &&
-      !query.data?.totalCount ? (
+      {!query.isLoading && !authorLoading && !author && !viewerAuthenticated && !totalCount ? (
         <button
-          className="focus-ring rounded-md text-left text-sm text-kino-muted hover:text-kino-text"
+          className="focus-ring rounded-md text-left text-sm text-kino-muted transition-colors hover:text-kino-text"
           onClick={onAuthRequired}
           type="button"
         >
@@ -196,6 +189,6 @@ export function ReviewsSection({
           ))}
         </ReviewsCarousel>
       ) : null}
-    </Card>
+    </section>
   )
 }
