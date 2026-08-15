@@ -7,6 +7,8 @@
     "dev": "pnpm dev:web",
     "dev:mobile": "pnpm --filter @kino/mobile start",
     "dev:web": "pnpm --filter @kino/web dev",
+    "biome": "biome check .",
+    "biome:fix": "biome check --write .",
     "build": "pnpm build:web",
     "build:web": "pnpm --filter @kino/web build",
     "typecheck": "pnpm -r --if-present typecheck",
@@ -20,9 +22,13 @@
     "ios": "pnpm --filter @kino/mobile ios",
     "web": "pnpm dev:web",
     "mobile:web": "pnpm --filter @kino/mobile web",
-    "native:prebuild": "pnpm --filter @kino/mobile native:prebuild"
+    "native:prebuild": "pnpm --filter @kino/mobile native:prebuild",
+    "quality": "pnpm biome check . && pnpm lint && pnpm typecheck && pnpm test && pnpm build:web",
+    "quality:fix": "node scripts/quality-fix.mjs",
+    "quality:web": "node scripts/quality-web.mjs"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.3.13"
+    "@biomejs/biome": "2.3.13",
+    "@tolgee/cli": "^2.20.0"
   }
 }
