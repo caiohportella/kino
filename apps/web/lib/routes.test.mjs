@@ -4,6 +4,7 @@ import {
   isCanonicalResourceSegment,
   parseResourceSegment,
   personPath,
+  profileStatsPath,
   slugify,
   titlePath,
 } from './routes.ts'
@@ -21,6 +22,7 @@ test('keeps the numeric id as the lookup source', () => {
 test('builds canonical public paths', () => {
   assert.equal(titlePath(238, 'The Godfather', 'movie'), '/title/238-the-godfather?type=movie')
   assert.equal(personPath(3084, 'Marlon Brando'), '/person/3084-marlon-brando')
+  assert.equal(profileStatsPath('Kino Fan'), '/Kino%20Fan/stats')
 })
 
 test('detects missing and incorrect slugs for permanent redirects', () => {
