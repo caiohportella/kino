@@ -1653,6 +1653,7 @@ export class DatabaseService {
       rating: row.rating,
       watchType: row.watch_type,
       watchedAt: new Date(row.watched_at),
+      runtimeMinutes: row.runtime_minutes,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
     }

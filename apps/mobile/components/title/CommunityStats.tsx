@@ -1,24 +1,24 @@
-import { useEffect, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { Text, View } from 'react-native'
-import { dbService } from '~/services/database'
-import type { TitleRatingStats } from '~/types'
-import { RatingStars } from '../common/RatingStars'
-import { Skeleton } from '../common/Skeleton'
-import { StarBreakdown } from '../common/StarBreakdown'
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Text, View } from "react-native";
+import { dbService } from "~/services/database";
+import type { TitleRatingStats } from "~/types";
+import { RatingStars } from "../common/RatingStars";
+import { Skeleton } from "../common/Skeleton";
+import { StarBreakdown } from "../common/StarBreakdown";
 
 interface CommunityStatsProps {
-  titleId: string
-  type: 'movie' | 'tv'
-  refreshKey?: number
+  titleId: string;
+  type: "movie" | "tv";
+  refreshKey?: number;
 }
 
 function CommunityStatsSkeleton() {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
   return (
     <View className="mb-8 mt-6">
       <Text className="mb-4 text-xl font-bold text-text-primary">
-        {t('title.communityRatings')}
+        {t("title.communityRatings")}
       </Text>
       <View className="mb-4 flex-row items-center">
         <Skeleton.Rect width={80} height={48} className="mr-4" />
@@ -31,59 +31,63 @@ function CommunityStatsSkeleton() {
         {[...Array(5)].map((_, i) => (
           <View key={i} className="flex-row items-center">
             <Skeleton.Text width={40} />
-            <Skeleton.Rect width={'70%'} height={8} className="ml-2" />
+            <Skeleton.Rect width={"70%"} height={8} className="ml-2" />
           </View>
         ))}
       </View>
     </View>
-  )
+  );
 }
 
-export function CommunityStats({ titleId, type, refreshKey }: CommunityStatsProps) {
-  const { t } = useTranslation()
-  const [stats, setStats] = useState<TitleRatingStats | null>(null)
-  const [loading, setLoading] = useState(true)
+export function CommunityStats({
+  titleId,
+  type,
+  refreshKey,
+}: CommunityStatsProps) {
+  const { t } = useTranslation();
+  const [stats, setStats] = useState<TitleRatingStats | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
-      setLoading(true)
+      setLoading(true);
       try {
-        let fetchedStats: TitleRatingStats
-        if (type === 'movie') {
-          fetchedStats = await dbService.getTitleRatingStats(titleId)
+        let fetchedStats: TitleRatingStats;
+        if (type === "movie") {
+          fetchedStats = await dbService.getTitleRatingStats(titleId);
         } else {
-          fetchedStats = await dbService.getSeriesRatingStats(titleId)
+          fetchedStats = await dbService.getSeriesRatingStats(titleId);
         }
-        setStats(fetchedStats)
+        setStats(fetchedStats);
       } catch (error) {
-        console.error('Failed to fetch community stats', error)
+        console.error("Failed to fetch community stats", error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchStats()
-  }, [titleId, type])
+    fetchStats();
+  }, [titleId, type]);
 
   if (loading) {
-    return <CommunityStatsSkeleton />
+    return <CommunityStatsSkeleton />;
   }
 
   if (!stats || stats.totalRatings === 0) {
     return (
       <View className="mb-8 mt-6">
         <Text className="mb-4 text-xl font-bold text-text-primary">
-          {t('title.communityRatings')}
+          {t("title.communityRatings")}
         </Text>
-        <Text className="text-text-secondary">{t('title.noRatingsYet')}</Text>
+        <Text className="text-text-secondary">{t("title.noRatingsYet")}</Text>
       </View>
-    )
+    );
   }
 
   return (
     <View className="mb-8 mt-6">
       <Text className="mb-4 text-xl font-bold text-text-primary">
-        {t('title.communityRatings')}
+        {t("title.communityRatings")}
       </Text>
       <View className="mb-4 flex-row items-center">
         <Text className="mr-4 text-4xl font-bold text-text-primary">
@@ -92,11 +96,14 @@ export function CommunityStats({ titleId, type, refreshKey }: CommunityStatsProp
         <View>
           <RatingStars rating={stats.averageRating} readonly size={20} />
           <Text className="mt-1 text-sm text-text-secondary">
-            {stats.totalRatings} {t('title.ratings')}
+            {stats.totalRatings} {t("title.ratings")}
           </Text>
         </View>
       </View>
-      <StarBreakdown stats={stats.starBreakdown} totalRatings={stats.totalRatings} />
+      <StarBreakdown
+        stats={stats.starBreakdown}
+        totalRatings={stats.totalRatings}
+      />
     </View>
-  )
+  );
 }

@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { QueryClient } from '@tanstack/query-core'
 import {
   LOCALIZED_TITLE_GC_TIME,
   LOCALIZED_TITLE_STALE_TIME,
-} from '../../../packages/core/src/cache/policies.ts'
+} from '@kino/core/cache'
+import { QueryClient } from '@tanstack/query-core'
 import {
   seedTitleSummary,
   titleDetailsQueryOptions,

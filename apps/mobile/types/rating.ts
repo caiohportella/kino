@@ -18,9 +18,10 @@ export interface EpisodeRating {
   titleId: string
   seasonNumber: number
   episodeNumber: number
-  rating: number | null // 1-5 stars, or null if just watched
+  rating: number | null
   watchType: WatchType
   watchedAt: Date
+  runtimeMinutes: number | null
   createdAt: Date
   updatedAt: Date
 }
