@@ -1,10 +1,12 @@
-import en from '@locales/en/translation.json'
-import fr from '@locales/fr/translation.json'
-import it from '@locales/it/translation.json'
-import no from '@locales/no/translation.json'
-import pt from '@locales/pt/translation.json'
+import type { KinoLanguage } from '@kino/core/locale-config'
+import de from '@kino/i18n/generated/de-DE.json'
+import en from '@kino/i18n/generated/en-GB.json'
+import es from '@kino/i18n/generated/es-ES.json'
+import fr from '@kino/i18n/generated/fr-FR.json'
+import it from '@kino/i18n/generated/it-IT.json'
+import no from '@kino/i18n/generated/nb-NO.json'
+import pt from '@kino/i18n/generated/pt-BR.json'
 import { cookies, headers } from 'next/headers'
-import type { KinoLanguage } from '@/stores/settings-store'
 import { isSupportedLanguage } from './i18n-shared'
 
 const dictionaries = {
@@ -13,6 +15,8 @@ const dictionaries = {
   it,
   no,
   pt,
+  de,
+  es,
 } as const
 
 export async function getRequestLanguage(): Promise<KinoLanguage> {
@@ -58,7 +62,7 @@ export async function getTranslations(language: KinoLanguage) {
     }
 
     if (typeof value !== 'string') return key
-    return value.replace(/\{\{\s*(\w+)\s*\}\}/g, (_match, token: string) =>
+    return value.replace(/\{\{\s*(\w+)(?:\s*,\s*number)?\s*\}\}/g, (_match, token: string) =>
       options[token] === undefined ? '' : String(options[token])
     )
   }

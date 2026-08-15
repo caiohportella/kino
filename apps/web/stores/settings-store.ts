@@ -8,7 +8,7 @@ import {
   type WebLocaleReadinessStatus,
 } from '@/lib/locale-readiness'
 
-export type KinoLanguage = 'en' | 'pt' | 'fr' | 'it' | 'no'
+import { type KinoLanguage, SUPPORTED_LANGUAGES } from '../../../packages/core/src/locale-config'
 
 interface SettingsState {
   hydrateLanguage: () => Promise<void>
@@ -59,5 +59,5 @@ const settingsLocaleReadiness = createWebLocaleReadiness({
     await useSettingsStore.persist.rehydrate()
     return useSettingsStore.getState().language
   },
-  supportedLocales: ['en', 'pt', 'fr', 'it', 'no'],
+  supportedLocales: SUPPORTED_LANGUAGES,
 })

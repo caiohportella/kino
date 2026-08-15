@@ -7,7 +7,8 @@
       "@/*": ["./*"],
       "@locales/*": ["../../locales/*"],
       "@kino/core": ["../../packages/core/src"],
-      "@kino/core/*": ["../../packages/core/src/*"]
+      "@kino/core/*": ["../../packages/core/src/*"],
+      "@kino/i18n/*": ["../../packages/i18n/*"]
     }
   },
   "include": [

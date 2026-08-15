@@ -1,14 +1,17 @@
+import { KinoLanguage } from '@kino/core/locale-config'
 import type { Metadata } from 'next'
 import { absoluteUrl, SITE_NAME, socialImage } from './seo'
 import { getRequestLanguage, getTranslations } from './server-localization'
 
 const OPEN_GRAPH_LOCALES = {
   en: 'en_US',
+  pt: 'pt_BR',
   fr: 'fr_FR',
   it: 'it_IT',
   no: 'nb_NO',
-  pt: 'pt_BR',
-} as const
+  es: 'es_ES',
+  de: 'de_DE',
+} as const satisfies Record<KinoLanguage, string>
 
 export async function getServerMetadataContext() {
   const language = await getRequestLanguage()
