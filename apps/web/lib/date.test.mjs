@@ -3,15 +3,17 @@ import test from 'node:test'
 import { formatLocalizedDate, formatLocalizedRelativeTime } from './date.ts'
 
 test('date-only activity values stay on the authored calendar day', () => {
-  assert.equal(
-    formatLocalizedDate('2026-07-28', 'en-US', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      timeZone: 'America/Sao_Paulo',
-    }),
-    'Jul 28, 2026'
-  )
+  for (const timeZone of ['America/Sao_Paulo', 'UTC', 'Pacific/Kiritimati', 'America/Adak']) {
+    assert.equal(
+      formatLocalizedDate('2026-07-28', 'en-US', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        timeZone,
+      }),
+      'Jul 28, 2026'
+    )
+  }
 })
 
 test('relative activity time uses localized singular and plural translation keys', () => {

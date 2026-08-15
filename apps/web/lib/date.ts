@@ -31,7 +31,16 @@ export function formatLocalizedDate(
   locale: string,
   options: Intl.DateTimeFormatOptions = { dateStyle: 'medium' }
 ) {
-  const date = parseLocalizedDate(value)
+  const dateOnly = parseCalendarDate(value)
+
+  if (dateOnly) {
+    return new Intl.DateTimeFormat(locale, {
+      ...options,
+      timeZone: 'UTC',
+    }).format(dateOnly)
+  }
+
+  const date = parseInstantDate(value)
 
   if (!date || Number.isNaN(date.getTime())) {
     return typeof value === 'string' ? value : ''
@@ -40,18 +49,34 @@ export function formatLocalizedDate(
   return new Intl.DateTimeFormat(locale, options).format(date)
 }
 
-function parseLocalizedDate(value: LocalizedDateInput) {
+function parseCalendarDate(value: LocalizedDateInput) {
+  if (typeof value !== 'string') return null
+
+  const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!dateOnlyMatch) return null
+
+  const [, year, month, day] = dateOnlyMatch
+  return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)))
+}
+
+function parseInstantDate(value: LocalizedDateInput) {
   if (value instanceof Date) return value
   if (typeof value === 'number') return new Date(value)
   if (typeof value !== 'string') return null
 
-  const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
-  if (dateOnlyMatch) {
-    const [, year, month, day] = dateOnlyMatch
-    return new Date(Number(year), Number(month) - 1, Number(day))
+  return new Date(value)
+}
+
+function parseRelativeDate(value: LocalizedDateInput) {
+  if (typeof value === 'string') {
+    const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+    if (dateOnlyMatch) {
+      const [, year, month, day] = dateOnlyMatch
+      return new Date(Number(year), Number(month) - 1, Number(day))
+    }
   }
 
-  return new Date(value)
+  return parseInstantDate(value)
 }
 
 function localeBase(locale: string) {
@@ -63,7 +88,7 @@ export function formatCompactRelativeTime(
   locale: string,
   now: Date = new Date()
 ) {
-  const date = parseLocalizedDate(value)
+  const date = parseRelativeDate(value)
   if (!date || Number.isNaN(date.getTime())) return ''
 
   const units = COMPACT_RELATIVE_TIME_UNITS[localeBase(locale)] ?? EN_RELATIVE_TIME_UNITS
@@ -90,7 +115,7 @@ export function formatLocalizedRelativeTime(
   translate: (key: string, options?: { count?: number }) => string,
   now: Date = new Date()
 ) {
-  const date = parseLocalizedDate(value)
+  const date = parseRelativeDate(value)
   if (!date || Number.isNaN(date.getTime())) return translate('activity.justNow')
 
   const diffMs = Math.max(0, now.getTime() - date.getTime())
