@@ -1265,6 +1265,10 @@ function summarizeProfileActivity(input: {
 
   let ratingsCount = 0;
   let rewatches = 0;
+  const ratingRowsForSummary = [
+    ...movieRatingRows,
+    ...episodeRatingRows,
+  ].filter((row) => isRatingWithinRange(row, monthRange));
 
   /*
    * Aggregate rating events per title.
@@ -1283,7 +1287,7 @@ function summarizeProfileActivity(input: {
 
   const ratingValues: number[] = [];
 
-  for (const row of [...movieRatingRows, ...episodeRatingRows]) {
+  for (const row of ratingRowsForSummary) {
     const rating = normalizeRating(row.rating);
 
     if (rating == null) {
@@ -1655,10 +1659,7 @@ function summarizeProfileActivity(input: {
           right.count - left.count || left.name.localeCompare(right.name),
       ),
 
-    ratedHighlights: calculateRatedHighlights(
-      [...movieRatingRows, ...episodeRatingRows],
-      2,
-    ),
+    ratedHighlights: calculateRatedHighlights(ratingRowsForSummary, 2),
 
     finishedSeries: Array.from(finishedSeries.values()).sort(
       (left, right) =>
@@ -1675,6 +1676,20 @@ function isWithinRange(watchedAt: Date, monthRange?: MonthRange) {
   }
 
   return watchedAt >= monthRange.start && watchedAt < monthRange.end;
+}
+
+function isRatingWithinRange(row: RatingEventRow, monthRange?: MonthRange) {
+  if (!monthRange) {
+    return true;
+  }
+
+  const watchedAt = Date.parse(row.watched_at);
+
+  if (Number.isNaN(watchedAt)) {
+    return false;
+  }
+
+  return isWithinRange(new Date(row.watched_at), monthRange);
 }
 
 function addGenreConsumption(

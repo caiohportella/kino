@@ -1317,6 +1317,72 @@ test("monthly highest-rated categories use only the supplied current-month rows"
   assert.equal(recap.highestRatedActor, null);
 });
 
+test("month-bounded recaps ignore out-of-range rating rows", () => {
+  const inMonthWatch = movieDiaryRow(
+    "aug-watch",
+    "2026-08-02T12:00:00.000Z",
+    100,
+    "first-time",
+    {
+      title: "August Watch",
+      genres: [{ id: 1, name: "Drama" }],
+    },
+  );
+  const inMonthRatingA = ratedMovieRow(
+    "aug-a",
+    4,
+    "2026-08-03T00:00:00.000Z",
+    {
+      title: "August A",
+      genres: [{ id: 1, name: "Drama" }],
+    },
+  );
+  const inMonthRatingB = ratedMovieRow(
+    "aug-b",
+    3,
+    "2026-08-04T00:00:00.000Z",
+    {
+      title: "August B",
+      genres: [{ id: 1, name: "Drama" }],
+    },
+  );
+  const outOfMonthRating = ratedMovieRow(
+    "aug-watch",
+    5,
+    "2026-07-31T00:00:00.000Z",
+    {
+      title: "August Watch",
+      genres: [{ id: 2, name: "Comedy" }],
+    },
+  );
+
+  const recap = buildProfileMonthlyRecap({
+    year: 2026,
+    month: 8,
+    current: {
+      diaryRows: [inMonthWatch],
+      movieRatingRows: [inMonthRatingA, inMonthRatingB, outOfMonthRating],
+      episodeRatingRows: [],
+    },
+    previous: {
+      diaryRows: [],
+      movieRatingRows: [],
+      episodeRatingRows: [],
+    },
+  });
+
+  assert.equal(recap.ratingsMade, 2);
+  assert.equal(recap.averageRating, 3.5);
+  assert.equal(recap.topTitles[0].rating, null);
+  assert.deepEqual(
+    recap.topRatedMovies.map((item) => item.titleId),
+    [],
+  );
+  assert.equal(recap.highestRatedGenre?.id, 1);
+  assert.equal(recap.highestRatedGenre?.titleCount, 2);
+  assert.equal(recap.highestRatedGenre?.average, 3.5);
+});
+
 test("monthly highest-rated fields do not replace most-watched exposure fields", () => {
   const movieA = ratedMovieRow("movie-a", 5, "2026-08-02T00:00:00.000Z");
   const movieB = ratedMovieRow("movie-b", 4.5, "2026-08-03T00:00:00.000Z");
