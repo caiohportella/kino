@@ -70,5 +70,3 @@ function formatDelta(value: number) {
 
   return `${sign}${value}`
 }
-
-

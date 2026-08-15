@@ -20,13 +20,7 @@ export type StoryRankedItem = {
   title: string
 }
 
-export function StoryTopBar({
-  eyebrow,
-  logoUrl,
-}: {
-  eyebrow: string
-  logoUrl: string
-}) {
+export function StoryTopBar({ eyebrow, logoUrl }: { eyebrow: string; logoUrl: string }) {
   return createElement(
     'div',
     {
@@ -65,13 +59,7 @@ export function StoryTopBar({
   )
 }
 
-export function StoryHeader({
-  eyebrow,
-  title,
-}: {
-  eyebrow: string
-  title: string
-}) {
+export function StoryHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
   return createElement(
     'div',
     {

@@ -8,9 +8,18 @@ type OwnedProfileMutation = {
 }
 
 export type ProfileMutationInvalidation =
-  | ({ readonly kind: 'rating-diary'; readonly mediaType: 'movie' | 'tv' } & OwnedProfileMutation)
   | ({
-      readonly kind: 'identity' | 'banner' | 'review' | 'subscription' | 'watchlist'
+      readonly kind: 'rating-diary'
+      readonly mediaType: 'movie' | 'tv'
+    } & OwnedProfileMutation)
+  | ({
+      readonly kind:
+        | 'identity'
+        | 'banner'
+        | 'review'
+        | 'subscription'
+        | 'watchlist'
+        | 'lifetime-stats'
     } & OwnedProfileMutation)
   | ({
       readonly kind: 'follow'
@@ -41,11 +50,18 @@ export function profileMutationInvalidationDescriptors(
       return [
         ...scoped(mutation.mediaType === 'movie' ? 'watched-movies' : 'watched-series'),
         ...scoped('statistics'),
+        ...scoped('lifetime-stats'),
+        ...scoped('genre-stats'),
+        ...scoped('viewing-breakdown-stats'),
+        ...scoped('rating-stats'),
+        ...scoped('monthly-recap'),
         ...scoped('ratings'),
       ]
     case 'identity':
     case 'banner':
       return scoped('identity')
+    case 'lifetime-stats':
+      return scoped('lifetime-stats')
     case 'watchlist':
     case 'subscription':
       return scoped('watchlists')
@@ -59,6 +75,7 @@ export function profileMutationInvalidationDescriptors(
           viewerId: mutation.viewerId,
         },
         ...scoped('statistics'),
+        ...scoped('lifetime-stats'),
         ...scoped('statistics', mutation.viewerId),
       ]
     default:
@@ -95,6 +112,18 @@ export function profileInvalidationKeys(
       return [profileQueryKeys.watchedSeriesRoot(descriptor)]
     case 'statistics':
       return [profileQueryKeys.statistics(descriptor)]
+    case 'lifetime-stats':
+      return [profileQueryKeys.lifetimeStats(descriptor)]
+    case 'genre-stats':
+      return [profileQueryKeys.genreStats(descriptor)]
+    case 'media-stats':
+      return [profileQueryKeys.mediaStats(descriptor)]
+    case 'viewing-breakdown-stats':
+      return [profileQueryKeys.viewingBreakdownStats(descriptor)]
+    case 'rating-stats':
+      return [profileQueryKeys.ratingStats(descriptor)]
+    case 'monthly-recap':
+      return [profileQueryKeys.monthlyRecapRoot(descriptor)]
     case 'watchlists':
       return [profileQueryKeys.watchlistsRoot(descriptor)]
     case 'reviews':

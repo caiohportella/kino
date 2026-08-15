@@ -1,14 +1,9 @@
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
 import test from 'node:test'
-
-async function readLocale(locale) {
-  const url = new URL(`../../../locales/${locale}/translation.json`, import.meta.url)
-  return JSON.parse(await readFile(url, 'utf8'))
-}
+import { readLocale } from './test-locale-utils.mjs'
 
 function interpolationTokens(value) {
-  return [...value.matchAll(/{{\s*([^}\s]+)\s*}}/g)].map((match) => match[1]).sort()
+  return [...value.matchAll(/{{\s*(\w+)(?:\s*,\s*number)?\s*}}/g)].map((match) => match[1]).sort()
 }
 
 test('English and Portuguese provide the profile slice status vocabulary', async () => {
@@ -26,7 +21,7 @@ test('English and Portuguese provide the profile slice status vocabulary', async
 test('Portuguese like-count regression keeps locale parity and interpolation tokens', async () => {
   const [english, portuguese] = await Promise.all([readLocale('en'), readLocale('pt')])
 
-  assert.equal(portuguese.reviews.likeCount_one, '{{count}} curtidas')
+  assert.match(portuguese.reviews.likeCount_one, /^{{\s*count(?:\s*,\s*number)?\s*}} curtidas$/)
   for (const key of ['likeCount_one', 'likeCount_other']) {
     assert.deepEqual(
       interpolationTokens(portuguese.reviews[key]),

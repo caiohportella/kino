@@ -1,12 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Metadata } from 'next'
 import { notFound, permanentRedirect } from 'next/navigation'
-import { ProfileView } from '@/components/profile/profile-view'
-import {
-  isReservedProfileRoute,
-  normalizeProfileUsername,
-  profileOgPath,
-} from '@/lib/profile-routes'
+import { ProfileStatsPage } from '@/components/profile/profile-stats-page'
+import { isReservedProfileRoute, normalizeProfileUsername } from '@/lib/profile-routes'
+import { profileStatsPath } from '@/lib/routes'
 import { absoluteUrl } from '@/lib/seo'
 import { getServerMetadataContext, pageMetadata } from '@/lib/server-metadata'
 
@@ -46,7 +43,7 @@ export async function generateMetadata({
     profile = await getProfile(username)
   } catch (error) {
     lookupFailed = true
-    console.error('[profile-metadata] profile lookup failed', {
+    console.error('[profile-stats-metadata] profile lookup failed', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stage: 'profile-lookup',
       username,
@@ -54,36 +51,29 @@ export async function generateMetadata({
   }
 
   const canonicalUsername = profile?.username || username
-  const canonical = absoluteUrl(`/${encodeURIComponent(canonicalUsername)}`)
-  const title =
+  const canonical = absoluteUrl(profileStatsPath(canonicalUsername))
+  const displayName =
     profile?.display_name ||
     (profile
       ? canonicalUsername
       : lookupFailed
         ? t('metadata.profileUnavailable')
         : t('metadata.profileNotFound'))
-  const description =
-    profile?.bio || t('metadata.profileDescription', { username: canonicalUsername })
-  const image = absoluteUrl(profileOgPath(canonicalUsername))
 
   return pageMetadata({
     canonical,
-    description: profile || !lookupFailed ? description : t('metadata.profileUnavailable'),
-    image: {
-      alt: t('metadata.profileImageAlt', { name: title }),
-      height: 630,
-      type: 'image/png',
-      url: image,
-      width: 1200,
-    },
+    description:
+      profile || !lookupFailed
+        ? t('metadata.profileStatsDescription', { username: canonicalUsername })
+        : t('metadata.profileUnavailable'),
     index: Boolean(profile),
     locale,
-    title,
+    title: t('metadata.profileStatsTitle', { name: displayName }),
     type: 'profile',
   })
 }
 
-export default async function UsernameProfilePage({
+export default async function UsernameStatsPage({
   params,
 }: {
   params: Promise<{ username: string }>
@@ -97,7 +87,14 @@ export default async function UsernameProfilePage({
   const profile = await getProfile(normalizedUsername)
   if (!profile) notFound()
   if (profile.username !== normalizedUsername) {
-    permanentRedirect(`/${encodeURIComponent(profile.username)}`)
+    permanentRedirect(profileStatsPath(profile.username))
   }
-  return <ProfileView username={normalizedUsername} />
+
+  return (
+    <ProfileStatsPage
+      displayName={profile.display_name || profile.username || normalizedUsername}
+      profileId={profile.id}
+      username={profile.username || normalizedUsername}
+    />
+  )
 }

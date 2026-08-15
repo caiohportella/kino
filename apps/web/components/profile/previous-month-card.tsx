@@ -1,14 +1,14 @@
-import { ArrowDown, ArrowUp, Minus } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { getComparisonTone, type PreviousMonthComparisonRow } from "@/lib/monthly-comparison";
+import { ArrowDown, ArrowUp, Minus } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
+import { getComparisonTone, type PreviousMonthComparisonRow } from '@/lib/monthly-comparison'
 
 type PreviousMonthCardProps = {
-  title: string;
-  rows: PreviousMonthComparisonRow[];
-  hasActivity: boolean;
-  emptyLabel: string;
-};
+  title: string
+  rows: PreviousMonthComparisonRow[]
+  hasActivity: boolean
+  emptyLabel: string
+}
 
 export function PreviousMonthCard({
   title,
@@ -19,9 +19,7 @@ export function PreviousMonthCard({
   return (
     <Card className="gap-0 rounded-xl border-white/10 bg-kino-surface p-0 shadow-none">
       <CardHeader className="gap-1 px-6 pt-6">
-        <CardTitle className="text-sm font-bold text-kino-text">
-          {title}
-        </CardTitle>
+        <CardTitle className="text-sm font-bold text-kino-text">{title}</CardTitle>
       </CardHeader>
 
       <CardContent className="px-6 pb-6 pt-3">
@@ -40,19 +38,19 @@ export function PreviousMonthCard({
         )}
       </CardContent>
     </Card>
-  );
+  )
 }
 
 function ComparisonRow({ label, value, delta }: { label: string; value: string; delta: number }) {
-  const tone = getComparisonTone(delta);
-  const Icon = tone === "positive" ? ArrowUp : tone === "negative" ? ArrowDown : Minus;
+  const tone = getComparisonTone(delta)
+  const Icon = tone === 'positive' ? ArrowUp : tone === 'negative' ? ArrowDown : Minus
   const valueClassName =
-    tone === "positive"
-      ? "text-kino-accent"
-      : tone === "negative"
-        ? "text-kino-muted/80"
-        : "text-kino-muted";
-  const iconClassName = valueClassName;
+    tone === 'positive'
+      ? 'text-kino-accent'
+      : tone === 'negative'
+        ? 'text-kino-muted/80'
+        : 'text-kino-muted'
+  const iconClassName = valueClassName
 
   return (
     <div className="flex items-center justify-between gap-4 py-3">
@@ -64,5 +62,5 @@ function ComparisonRow({ label, value, delta }: { label: string; value: string; 
         <span className={valueClassName}>{value}</span>
       </span>
     </div>
-  );
+  )
 }

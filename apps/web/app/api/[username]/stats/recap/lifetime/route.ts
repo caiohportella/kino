@@ -9,23 +9,23 @@ import { safeImageData } from '@/lib/og-images'
 import {
   buildLifetimeLocalizationRequest,
   buildLifetimePosterPreloadItems,
+  type DisplayedLifetimeStoryItems,
   formatKinoMembership,
   getDisplayedLifetimeStoryItems,
   getLifetimeFeaturedMoviePills,
   getLifetimeFeaturedSeriesPills,
-  type DisplayedLifetimeStoryItems,
 } from '@/lib/profile-lifetime-recap-story'
 import {
+  type StoryFeaturedItem,
   StoryFeaturedSection,
   StoryFooter,
   StoryHeader,
-  StoryRankedSections,
-  StoryStatTile,
-  StoryStatsOverview,
-  StoryTopBar,
-  type StoryFeaturedItem,
   type StoryImageData,
   type StoryRankedItem,
+  StoryRankedSections,
+  StoryStatsOverview,
+  StoryStatTile,
+  StoryTopBar,
 } from '@/lib/profile-recap-story'
 import { isReservedProfileRoute, normalizeProfileUsername } from '@/lib/profile-routes'
 import { formatWatchTimeCompact } from '@/lib/profile-stats'
@@ -120,10 +120,7 @@ async function localizeLifetimeRecap(
     localized.summaries.map((summary) => [`${summary.mediaType}:${summary.id}`, summary])
   )
 
-  function localizeItem<T extends LifetimeTitle>(
-    item: T,
-    type: 'movie' | 'tv'
-  ): T {
+  function localizeItem<T extends LifetimeTitle>(item: T, type: 'movie' | 'tv'): T {
     const summary = summaries.get(`${type}:${item.tmdbId}`)
 
     if (!summary) return item
@@ -234,7 +231,7 @@ export async function GET(
   const labels: StoryLabels = {
     lifetimeRecap: t('stats.lifetimeRecap'),
     lifetimeHeadline: t('stats.story.lifetimeHeadline', { name }),
-    sinceBeginning: t('stats.story.sinceBeginning'),
+    sinceBeginning: t('stats.story.sinceBeginning', { defaultValue: 'membro desde ' }),
 
     topMovie: t('stats.story.topMovie'),
     topSeries: t('stats.story.topSeries'),

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   type ProfileQueryService,
   profileIdentityQueryOptions,
+  profileLifetimeStatisticsQueryOptions,
   profileRatingsQueryOptions,
   profileRelationshipQueryOptions,
   profileReviewsQueryOptions,
@@ -56,6 +57,7 @@ export function useProfileSections(
   const watchedMoviesOptions = profileWatchedMoviesQueryOptions(resolvedInput)
   const watchedSeriesOptions = profileWatchedSeriesQueryOptions(resolvedInput)
   const statisticsOptions = profileStatisticsQueryOptions(resolvedInput)
+  const lifetimeStatisticsOptions = profileLifetimeStatisticsQueryOptions(resolvedInput)
   const watchlistsOptions = profileWatchlistsQueryOptions(resolvedInput)
   const reviewsOptions = profileReviewsQueryOptions(resolvedInput)
   const enabled = Boolean(input)
@@ -68,6 +70,7 @@ export function useProfileSections(
     watchedMovies: useQuery({ ...watchedMoviesOptions, enabled }),
     watchedSeries: useQuery({ ...watchedSeriesOptions, enabled }),
     statistics: useQuery({ ...statisticsOptions, enabled }),
+    lifetimeStats: useQuery({ ...lifetimeStatisticsOptions, enabled }),
     watchlists: useQuery({ ...watchlistsOptions, enabled }),
     reviews: useQuery({ ...reviewsOptions, enabled }),
   }

@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useTranslation } from '@/lib/i18n'
 import { buildMonthlyWatchCalendar } from '@/lib/monthly-watch-calendar'
 import { formatProfileMonth } from '@/lib/profile-recap'
-import { formatWatchTimeAccessible, formatWatchTimeCompact } from '@/lib/profile-stats'
+import { formatWatchTimeCompact } from '@/lib/profile-stats'
 import { cn } from '@/lib/utils'
 import { PROFILE_ACTIVITY_LEVEL_COLORS } from './profile-activity-heatmap'
 
@@ -52,8 +52,8 @@ function CalendarSummaryCard({
   detail?: string
 }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-kino-muted">
+    <div className="rounded-xl border border-white/10 bg-white/3 p-4">
+      <div className="text-[11px] font-semibold uppercase tracking-widest text-kino-muted">
         {label}
       </div>
 
@@ -87,14 +87,14 @@ export function MonthlyWatchCalendar({
 
   const weekdays = useMemo(() => weekdayLabels(i18n.language), [i18n.language])
   const numberFormatter = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language])
-  const monthLabel = useMemo(() => formatProfileMonth(year, month, i18n.language), [i18n.language, month, year])
+  const monthLabel = useMemo(
+    () => formatProfileMonth(year, month, i18n.language),
+    [i18n.language, month, year]
+  )
 
-  const activeDaysValue = `${numberFormatter.format(model.activeDays)} ${t(
-    'stats.duration.days',
-    {
-      count: model.activeDays,
-    }
-  )}`
+  const activeDaysValue = `${numberFormatter.format(model.activeDays)} ${t('stats.duration.days', {
+    count: model.activeDays,
+  })}`
 
   const longestStreakValue = `${numberFormatter.format(model.longestStreak)} ${t(
     'stats.duration.days',
@@ -187,7 +187,9 @@ export function MonthlyWatchCalendar({
                         ? `${numberFormatter.format(activity.episodesWatched)} ${t('stats.episodesWatched')}`
                         : t('stats.noEpisodes')
                       : ''
-                    const duration = activity ? formatWatchTimeAccessible(activity.minutes, t) : ''
+                    const duration = activity
+                      ? formatWatchTimeCompact(activity.minutes, i18n.language, t)
+                      : ''
 
                     const activityLabel = activity
                       ? t('stats.calendarDayLabel', { date, movies, episodes, duration })
@@ -199,9 +201,13 @@ export function MonthlyWatchCalendar({
                           'relative flex aspect-square flex-col rounded-[12px] border p-1.5 text-left transition-transform',
                           hasActivity
                             ? 'border-white/10 text-white hover:-translate-y-0.5 focus-visible:-translate-y-0.5'
-                            : 'border-white/[0.05] bg-white/[0.03] text-kino-muted'
+                            : 'border-white/5 bg-white/3 text-kino-muted'
                         )}
-                        style={activity ? { backgroundColor: PROFILE_ACTIVITY_LEVEL_COLORS[cell.level] } : undefined}
+                        style={
+                          activity
+                            ? { backgroundColor: PROFILE_ACTIVITY_LEVEL_COLORS[cell.level] }
+                            : undefined
+                        }
                       >
                         <div className="flex items-start justify-between gap-1">
                           <span
@@ -241,7 +247,9 @@ export function MonthlyWatchCalendar({
                           </div>
                         ) : null}
 
-                        {isMostActive ? <span className="sr-only">{t('stats.mostActiveDayIndicator')}</span> : null}
+                        {isMostActive ? (
+                          <span className="sr-only">{t('stats.mostActiveDayIndicator')}</span>
+                        ) : null}
                       </div>
                     )
 
@@ -274,7 +282,8 @@ export function MonthlyWatchCalendar({
                             <div className="text-sm font-medium text-kino-text">{date}</div>
 
                             <div className="text-xs text-kino-muted">
-                              {numberFormatter.format(activity.moviesWatched)} {t('stats.moviesWatched')}
+                              {numberFormatter.format(activity.moviesWatched)}{' '}
+                              {t('stats.moviesWatched')}
                             </div>
 
                             <div className="text-xs text-kino-muted">

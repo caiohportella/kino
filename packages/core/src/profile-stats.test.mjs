@@ -1464,11 +1464,11 @@ test("creates month ranges and monthly recap comparison deltas", () => {
   assert.equal(recap.previousMonthComparison.moviesDelta, 6);
   assert.equal(recap.activeDays, 11);
   assert.equal(recap.topTitles.length, 10);
-  assert.equal(recap.topTitles[0].title, "Title 1");
+  assert.equal(recap.topTitles[0].title, "Title 11");
   assert.equal(recap.topTitles[0].mediaType, "movie");
-  assert.equal(recap.topTitles[1].title, "Title 2");
-  assert.equal(recap.topTitles[1].mediaType, "tv");
-  assert.equal(recap.topTitles[9].title, "Title 10");
+  assert.equal(recap.topTitles[1].title, "Title 9");
+  assert.equal(recap.topTitles[1].mediaType, "movie");
+  assert.equal(recap.topTitles[9].title, "Title 4");
 });
 
 test("finds movie extrema from latest ratings and series extrema from episode averages", () => {

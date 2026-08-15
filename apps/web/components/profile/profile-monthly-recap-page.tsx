@@ -2,10 +2,10 @@
 
 import type { ProfileMonthlyRecap } from '@kino/core'
 import { getTMDbImageUrl } from '@kino/core'
-import { ArrowLeft, ArrowRight, Download, Loader2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Download, Loader2, Star } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { ReactNode } from 'react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -16,10 +16,26 @@ import { formatProfileMonth, profileStoryFilename, shiftMonth } from '@/lib/prof
 import { formatWatchTimeCompact } from '@/lib/profile-stats'
 import { profileStatsRecapImagePath, profileStatsRecapPath } from '@/lib/routes'
 import { db } from '@/lib/services'
+import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
 import { HeroStat } from './hero-stat'
-import { HighsAndLowsCard } from './highs-and-lows-card'
 import { MonthlyWatchCalendar } from './monthly-watch-calendar'
 import { PreviousMonthCard } from './previous-month-card'
+
+type RecapMediaType = 'movie' | 'tv'
+
+type LocalizableRecapTitle = {
+  tmdbId: number
+  title: string
+  coverImage?: string | null
+}
+
+type PresentedRecapTitle = {
+  title: string
+  coverImage: string | null
+  rating: number | null
+}
+
+type LocalizedTitleData = ReturnType<typeof useLocalizedTitles>['data']
 
 export function ProfileMonthlyRecapPage({
   profileId,
@@ -51,8 +67,60 @@ export function ProfileMonthlyRecapPage({
   const currentLabel = formatProfileMonth(year, month, i18n.language)
   const previous = shiftMonth(year, month, -1)
   const next = shiftMonth(year, month, 1)
-
   const data = recap.data
+
+  const localizedTitleRequests = useMemo(() => {
+    if (!data) return []
+
+    const requests: Array<{ tmdbId: number; type: RecapMediaType }> = [
+      ...data.topRatedMovies.map((item) => ({
+        tmdbId: item.tmdbId,
+        type: 'movie' as const,
+      })),
+      ...data.topRatedSeries.map((item) => ({
+        tmdbId: item.tmdbId,
+        type: 'tv' as const,
+      })),
+      ...data.topTitles.map((item) => ({
+        tmdbId: item.tmdbId,
+        type: item.mediaType,
+      })),
+      ...data.mostWatchedSeries.map((item) => ({
+        tmdbId: item.tmdbId,
+        type: 'tv' as const,
+      })),
+      ...data.finishedSeries.map((item) => ({
+        tmdbId: item.tmdbId,
+        type: 'tv' as const,
+      })),
+      ...(data.highestRated
+        ? [
+            {
+              tmdbId: data.highestRated.tmdbId,
+              type: data.highestRated.mediaType,
+            },
+          ]
+        : []),
+      ...(data.lowestRated
+        ? [
+            {
+              tmdbId: data.lowestRated.tmdbId,
+              type: data.lowestRated.mediaType,
+            },
+          ]
+        : []),
+    ]
+
+    return Array.from(
+      new Map(requests.map((request) => [`${request.type}:${request.tmdbId}`, request])).values()
+    )
+  }, [data])
+
+  const localizedTitles = useLocalizedTitles(localizedTitleRequests)
+
+  const pagePending =
+    recap.isPending ||
+    Boolean(data && localizedTitleRequests.length > 0 && localizedTitles.isPending)
 
   const previousTotals = data
     ? {
@@ -83,6 +151,20 @@ export function ProfileMonthlyRecapPage({
         formatTimeDelta: (minutes) => formatWatchTimeDelta(minutes, i18n.language),
       })
     : []
+
+  const localizedHighestRated = data?.highestRated
+    ? {
+        ...presentRecapTitle(data.highestRated, data.highestRated.mediaType, localizedTitles.data),
+        rating: data.highestRated.rating,
+      }
+    : null
+
+  const localizedLowestRated = data?.lowestRated
+    ? {
+        ...presentRecapTitle(data.lowestRated, data.lowestRated.mediaType, localizedTitles.data),
+        rating: data.lowestRated.rating,
+      }
+    : null
 
   async function downloadStoryImage() {
     setDownloading(true)
@@ -133,7 +215,7 @@ export function ProfileMonthlyRecapPage({
               <Button
                 aria-label={t('common.previous')}
                 className="size-8"
-                disabled={recap.isPending}
+                disabled={pagePending}
                 onClick={() =>
                   router.push(profileStatsRecapPath(username, previous.year, previous.month))
                 }
@@ -146,7 +228,7 @@ export function ProfileMonthlyRecapPage({
               <Button
                 aria-label={t('common.next')}
                 className="size-8"
-                disabled={recap.isPending}
+                disabled={pagePending}
                 onClick={() => router.push(profileStatsRecapPath(username, next.year, next.month))}
                 size="icon"
                 variant="secondary"
@@ -155,40 +237,25 @@ export function ProfileMonthlyRecapPage({
               </Button>
             </div>
           </div>
-
-          <p className="mt-2 max-w-xl text-sm leading-5 text-kino-muted">
-            {data ? (
-              <>
-                {displayName ? `${displayName} · ` : ''}
-
-                {t('stats.recapIntro', {
-                  movies: data.moviesWatched,
-                  episodes: data.episodesWatched,
-                  days: data.activeDays,
-                })}
-              </>
-            ) : (
-              displayName
-            )}
-          </p>
         </div>
       </header>
-      
-      {recap.isPending ? (
+
+      {downloadError ? (
+        <p aria-live="polite" className="text-sm text-kino-muted">
+          {downloadError}
+        </p>
+      ) : null}
+
+      {pagePending ? (
         <div aria-busy="true" className="grid gap-5" role="status">
           <span className="sr-only">{t('common.loading')}</span>
-
           <Skeleton className="h-52 w-full rounded-xl" />
-
           <Skeleton className="h-80 w-full rounded-xl" />
-
           <div className="grid gap-5 lg:grid-cols-2">
             <Skeleton className="h-60 w-full rounded-xl" />
             <Skeleton className="h-60 w-full rounded-xl" />
           </div>
-
-          <div className="grid gap-5 lg:grid-cols-3">
-            <Skeleton className="h-72 w-full rounded-xl" />
+          <div className="grid gap-5 lg:grid-cols-2">
             <Skeleton className="h-72 w-full rounded-xl" />
             <Skeleton className="h-72 w-full rounded-xl" />
           </div>
@@ -197,7 +264,6 @@ export function ProfileMonthlyRecapPage({
         <Card className="gap-0 rounded-xl border-white/10 bg-kino-surface p-0 shadow-none">
           <CardContent className="grid gap-3 p-5">
             <p className="text-sm text-kino-muted">{t('common.tryAgain')}</p>
-
             <Button onClick={() => void recap.refetch()} variant="secondary">
               {t('common.retry')}
             </Button>
@@ -205,66 +271,32 @@ export function ProfileMonthlyRecapPage({
         </Card>
       ) : data ? (
         <div className="grid gap-5">
-          <section className="rounded-[14px] border border-white/10 bg-kino-surface px-6 py-7 md:px-8">
-            <p className="max-w-2xl text-xl font-semibold leading-snug text-kino-text md:text-[21px]">
-              {t('stats.recapSentence', {
-                movies: data.moviesWatched,
-                episodes: data.episodesWatched,
-                days: data.activeDays,
-              })}
-            </p>
-
-            <div className="mt-4">
-              <div className="text-[42px] font-bold leading-none tracking-tight text-kino-accent">
-                {formatWatchTimeCompact(data.timeWatchedMinutes, i18n.language)}
-              </div>
-
-              <div className="mt-2 text-xs font-bold uppercase tracking-[0.14em] text-kino-muted">
-                {t('stats.timeWatched')}
-              </div>
-            </div>
-
-            <div className="mt-6 grid grid-cols-2 gap-y-5 border-t border-white/10 pt-5 sm:grid-cols-4">
-              <HeroStat
-                label={t('stats.moviesWatched')}
-                locale={i18n.language}
-                value={data.moviesWatched}
-              />
-
-              <HeroStat
-                label={t('stats.episodesWatched')}
-                locale={i18n.language}
-                value={data.episodesWatched}
-              />
-
-              <HeroStat
-                label={t('stats.ratingsMade')}
-                locale={i18n.language}
-                value={data.ratingsMade}
-              />
-
-              <HeroStat
-                label={t('stats.activeDays')}
-                locale={i18n.language}
-                value={data.activeDays}
-              />
-            </div>
-          </section>
+          <MonthOverview data={data} locale={i18n.language} />
 
           <MonthlyWatchCalendar dailyActivity={data.dailyActivity} month={month} year={year} />
 
+          <TopTitlesCard
+            data={data}
+            locale={i18n.language}
+            localizedTitles={localizedTitles.data}
+          />
+
           <div className="grid gap-5 lg:grid-cols-2">
-            <HighsAndLowsCard
-              description={t('stats.highsAndLowsDescription')}
-              emptyLabel={t('stats.noActivity')}
-              highestRated={data.highestRated}
-              highestRatedLabel={t('stats.highestRated')}
-              lowestRated={data.lowestRated}
-              lowestRatedLabel={t('stats.lowestRated')}
-              movieLabel={t('common.movie')}
-              seriesLabel={t('common.series')}
-              title={t('stats.highsAndLows')}
+            <SeriesThisMonthCard
+              data={data}
+              locale={i18n.language}
+              localizedTitles={localizedTitles.data}
             />
+
+            <RatingSummaryCard
+              averageRating={data.averageRating}
+              highestRated={localizedHighestRated}
+              locale={i18n.language}
+              lowestRated={localizedLowestRated}
+              ratingsMade={data.ratingsMade}
+            />
+
+            <TasteCard data={data} locale={i18n.language} />
 
             <PreviousMonthCard
               emptyLabel={t('stats.noPreviousMonthActivity')}
@@ -275,154 +307,11 @@ export function ProfileMonthlyRecapPage({
           </div>
 
           <Card className="gap-0 rounded-xl border-white/10 bg-kino-surface p-0 shadow-none">
-            <CardHeader className="gap-1 px-6 pt-6">
-              <CardTitle className="text-sm font-bold text-kino-text">
-                {t('stats.topTitles')}
-              </CardTitle>
-            </CardHeader>
-
-            <CardContent className="grid gap-6 px-6 pb-6 pt-4 lg:grid-cols-2">
-              <div className="grid content-start gap-3">
-                <SubsectionTitle>{t('stats.moviesWatched')}</SubsectionTitle>
-
-                {data.topRatedMovies.length > 0 ? (
-                  data.topRatedMovies.map((item, index) => (
-                    <TopTitleRow
-                      index={index}
-                      item={item}
-                      key={item.titleId}
-                      subtitle={t('stats.moviesWatched')}
-                    />
-                  ))
-                ) : (
-                  <p className="text-sm text-kino-muted">{t('stats.noActivity')}</p>
-                )}
-              </div>
-
-              <div className="grid content-start gap-3 border-t border-white/10 pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
-                <SubsectionTitle>{t('stats.episodesWatched')}</SubsectionTitle>
-
-                {data.topRatedSeries.length > 0 ? (
-                  data.topRatedSeries.map((item, index) => (
-                    <TopTitleRow
-                      index={index}
-                      item={item}
-                      key={item.titleId}
-                      subtitle={t('stats.episodesWatched')}
-                    />
-                  ))
-                ) : (
-                  <p className="text-sm text-kino-muted">{t('stats.noActivity')}</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid gap-5 lg:grid-cols-3">
-            <Card className="gap-0 rounded-xl border-white/10 bg-kino-surface p-0 shadow-none">
-              <CardHeader className="gap-1 px-6 pt-6">
-                <CardTitle className="text-sm font-bold text-kino-text">
-                  {t('stats.yourGenres')}
-                </CardTitle>
-              </CardHeader>
-
-              <CardContent className="grid gap-4 px-6 pb-6 pt-4">
-                {data.topGenres.length > 0 ? (
-                  data.topGenres.map((item) => (
-                    <div className="grid gap-1.5" key={item.genreId}>
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="font-medium text-kino-text">{item.name}</span>
-
-                        <span className="text-xs text-kino-muted">
-                          {new Intl.NumberFormat(i18n.language, {
-                            maximumFractionDigits: 0,
-                          }).format(item.percentage)}
-                          %
-                        </span>
-                      </div>
-
-                      <div className="h-1.5 overflow-hidden rounded-full bg-white/6">
-                        <div
-                          className="h-full rounded-full bg-(--chart-1)"
-                          style={{
-                            width: `${Math.min(100, Math.max(item.percentage, 2))}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-kino-muted">{t('stats.noActivity')}</p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="gap-0 rounded-xl border-white/10 bg-kino-surface p-0 shadow-none">
-              <CardHeader className="gap-1 px-6 pt-6">
-                <CardTitle className="text-sm font-bold text-kino-text">
-                  {t('stats.tvThisMonth')}
-                </CardTitle>
-              </CardHeader>
-
-              <CardContent className="grid gap-3 px-6 pb-6 pt-4">
-                {data.mostWatchedSeries.length > 0 ? (
-                  data.mostWatchedSeries.map((item) => (
-                    <div
-                      className="flex items-center justify-between gap-4 border-b border-white/[0.07] py-2 last:border-b-0"
-                      key={item.titleId}
-                    >
-                      <span className="min-w-0 truncate text-sm font-medium text-kino-text">
-                        {item.title}
-                      </span>
-
-                      <span className="shrink-0 text-sm font-semibold text-kino-accent">
-                        {new Intl.NumberFormat(i18n.language).format(item.count)}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-kino-muted">{t('stats.noActivity')}</p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="gap-0 rounded-xl border-white/10 bg-kino-surface p-0 shadow-none">
-              <CardHeader className="gap-1 px-6 pt-6">
-                <CardTitle className="text-sm font-bold text-kino-text">
-                  {t('stats.mostWatchedStudio')}
-                </CardTitle>
-              </CardHeader>
-
-              <CardContent className="px-6 pb-6 pt-4">
-                {data.mostWatchedStudio ? (
-                  <div className="flex items-center gap-4">
-                    <StudioLogo studio={data.mostWatchedStudio} />
-
-                    <div className="min-w-0">
-                      <div className="truncate text-base font-semibold text-kino-text">
-                        {data.mostWatchedStudio.name}
-                      </div>
-
-                      <div className="mt-1 text-xs text-kino-muted">
-                        {new Intl.NumberFormat(i18n.language).format(data.mostWatchedStudio.count)}{' '}
-                        {t('stats.moviesWatched')}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-kino-muted">{t('stats.noActivity')}</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card className="gap-0 rounded-xl border-white/10 bg-kino-surface p-0 shadow-none">
             <CardContent className="grid gap-5 p-6 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
               <div className="flex h-31 w-17.5 shrink-0 flex-col justify-between rounded-[10px] border border-white/10 bg-[radial-gradient(circle_at_50%_10%,rgba(29,185,84,0.22),transparent_45%),linear-gradient(180deg,#181a19,#111312)] px-2 py-2.5">
                 <span className="text-[7px] font-semibold uppercase tracking-[0.08em] text-white/40">
                   {currentLabel}
                 </span>
-
                 <span className="text-[11px] font-extrabold text-kino-accent">
                   {formatWatchTimeCompact(data.timeWatchedMinutes, i18n.language)}
                 </span>
@@ -430,19 +319,17 @@ export function ProfileMonthlyRecapPage({
 
               <div className="min-w-0">
                 <h2 className="text-sm font-bold text-kino-text">{t('stats.shareStoryImage')}</h2>
-
                 <p className="mt-1 max-w-xl text-sm leading-5 text-kino-muted">
                   {t('stats.storyImageDescription')}
                 </p>
               </div>
 
-              <Button disabled={downloading || recap.isPending} onClick={downloadStoryImage}>
+              <Button disabled={downloading || pagePending} onClick={downloadStoryImage}>
                 {downloading ? (
                   <Loader2 className="animate-spin" size={16} />
                 ) : (
                   <Download size={16} />
                 )}
-
                 {downloading ? t('stats.generatingImage') : t('stats.downloadStoryImage')}
               </Button>
             </CardContent>
@@ -453,9 +340,321 @@ export function ProfileMonthlyRecapPage({
   )
 }
 
-type RecapItem =
-  | ProfileMonthlyRecap['topRatedMovies'][number]
-  | ProfileMonthlyRecap['topRatedSeries'][number]
+function MonthOverview({ data, locale }: { data: ProfileMonthlyRecap; locale: string }) {
+  const { t } = useTranslation()
+
+  return (
+    <section className="rounded-[14px] border border-white/10 bg-kino-surface px-6 py-7 md:px-8">
+      <p className="max-w-2xl text-xl font-semibold leading-snug text-kino-text md:text-[21px]">
+        {t('stats.recapSentence', {
+          movies: data.moviesWatched,
+          episodes: data.episodesWatched,
+          days: data.activeDays,
+        })}
+      </p>
+
+      <div className="mt-4">
+        <div className="text-[42px] font-bold leading-none tracking-tight text-kino-accent">
+          {formatWatchTimeCompact(data.timeWatchedMinutes, locale)}
+        </div>
+        <div className="mt-2 text-xs font-bold uppercase tracking-[0.14em] text-kino-muted">
+          {t('stats.timeWatched')}
+        </div>
+      </div>
+
+      <div className="mt-6 grid grid-cols-2 gap-y-5 border-t border-white/10 pt-5 sm:grid-cols-4">
+        <HeroStat label={t('stats.moviesWatched')} locale={locale} value={data.moviesWatched} />
+        <HeroStat label={t('stats.episodesWatched')} locale={locale} value={data.episodesWatched} />
+        <HeroStat label={t('stats.ratingsMade')} locale={locale} value={data.ratingsMade} />
+        <HeroStat label={t('stats.activeDays')} locale={locale} value={data.activeDays} />
+      </div>
+    </section>
+  )
+}
+
+function TopTitlesCard({
+  data,
+  locale,
+  localizedTitles,
+}: {
+  data: ProfileMonthlyRecap
+  locale: string
+  localizedTitles: LocalizedTitleData
+}) {
+  const { t } = useTranslation()
+
+  return (
+    <Card className="gap-0 rounded-xl border-white/10 bg-kino-surface p-0 shadow-none">
+      <CardHeader className="gap-1 px-6 pt-6">
+        <CardTitle className="text-sm font-bold text-kino-text">{t('stats.topTitles')}</CardTitle>
+      </CardHeader>
+
+      <CardContent className="grid gap-6 px-6 pb-6 pt-4 lg:grid-cols-2">
+        <div className="grid content-start gap-3">
+          <SubsectionTitle>{t('stats.moviesWatched')}</SubsectionTitle>
+          {data.topRatedMovies.length > 0 ? (
+            data.topRatedMovies.map((item, index) => {
+              const presentation = presentRecapTitle(item, 'movie', localizedTitles)
+              return (
+                <TopTitleRow
+                  coverImage={presentation.coverImage}
+                  index={index}
+                  key={item.titleId}
+                  locale={locale}
+                  rating={item.rating}
+                  subtitle={t('stats.moviesWatched')}
+                  title={presentation.title}
+                />
+              )
+            })
+          ) : (
+            <p className="text-sm text-kino-muted">{t('stats.noActivity')}</p>
+          )}
+        </div>
+
+        <div className="grid content-start gap-3 border-t border-white/10 pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+          <SubsectionTitle>{t('stats.episodesWatched')}</SubsectionTitle>
+          {data.topRatedSeries.length > 0 ? (
+            data.topRatedSeries.map((item, index) => {
+              const presentation = presentRecapTitle(item, 'tv', localizedTitles)
+              return (
+                <TopTitleRow
+                  coverImage={presentation.coverImage}
+                  index={index}
+                  key={item.titleId}
+                  locale={locale}
+                  rating={item.rating}
+                  subtitle={t('stats.episodesWatched')}
+                  title={presentation.title}
+                />
+              )
+            })
+          ) : (
+            <p className="text-sm text-kino-muted">{t('stats.noActivity')}</p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function SeriesThisMonthCard({
+  data,
+  locale,
+  localizedTitles,
+}: {
+  data: ProfileMonthlyRecap
+  locale: string
+  localizedTitles: LocalizedTitleData
+}) {
+  const { t } = useTranslation()
+
+  return (
+    <Card className="gap-0 rounded-xl border-white/10 bg-kino-surface p-0 shadow-none">
+      <CardHeader className="gap-1 px-6 pt-6">
+        <CardTitle className="text-sm font-bold text-kino-text">{t('stats.tvThisMonth')}</CardTitle>
+      </CardHeader>
+
+      <CardContent className="grid gap-1 px-6 pb-6 pt-4">
+        {data.mostWatchedSeries.length > 0 ? (
+          data.mostWatchedSeries.map((item) => {
+            const percentage = item.percentageOfTvTime ?? 0
+            const presentation = presentRecapTitle(item, 'tv', localizedTitles)
+
+            return (
+              <div
+                className="flex items-center gap-3 border-b border-white/[0.07] py-3 last:border-b-0"
+                key={item.titleId}
+              >
+                <PosterThumbnail image={presentation.coverImage} title={presentation.title} />
+
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold text-kino-text">
+                    {presentation.title}
+                  </div>
+
+                  <div className="mt-1 text-xs text-kino-muted">
+                    {new Intl.NumberFormat(locale).format(item.count)} {t('stats.episodesWatched')}
+                    {' · '}
+                    {formatWatchTimeCompact(item.watchTimeMinutes ?? 0, locale)}
+                  </div>
+
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/6">
+                    <div
+                      className="h-full rounded-full bg-kino-accent"
+                      style={{
+                        width: `${Math.min(100, Math.max(percentage, 2))}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <span className="shrink-0 text-sm font-semibold tabular-nums text-kino-accent">
+                  {new Intl.NumberFormat(locale, {
+                    maximumFractionDigits: 0,
+                  }).format(percentage)}
+                  %
+                </span>
+              </div>
+            )
+          })
+        ) : (
+          <p className="text-sm text-kino-muted">{t('stats.noActivity')}</p>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function RatingSummaryCard({
+  averageRating,
+  highestRated,
+  locale,
+  lowestRated,
+  ratingsMade,
+}: {
+  averageRating: number | null
+  highestRated: PresentedRecapTitle | null
+  locale: string
+  lowestRated: PresentedRecapTitle | null
+  ratingsMade: number
+}) {
+  const { t } = useTranslation()
+
+  return (
+    <Card className="gap-0 rounded-xl border-white/10 bg-kino-surface p-0 shadow-none">
+      <CardHeader className="gap-1 px-6 pt-6">
+        <CardTitle className="text-sm font-bold text-kino-text">
+          {t('stats.highsAndLows')}
+        </CardTitle>
+        <p className="text-xs text-kino-muted">
+          {new Intl.NumberFormat(locale).format(ratingsMade)} {t('stats.ratingsMade')}
+        </p>
+      </CardHeader>
+
+      <CardContent className="grid gap-4 px-6 pb-6 pt-4">
+        {averageRating != null ? (
+          <div className="grid w-fit gap-0.5">
+            <RatingValue
+              className="text-xl font-bold text-kino-accent"
+              locale={locale}
+              rating={averageRating}
+              starSize={15}
+            />
+            <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-kino-muted">
+              {t('stats.averageRating')}
+            </span>
+          </div>
+        ) : null}
+
+        <div className="grid">
+          <RatedTitleRow
+            emptyLabel={t('stats.noActivity')}
+            item={highestRated}
+            label={t('stats.highestRated')}
+            locale={locale}
+          />
+          <RatedTitleRow
+            emptyLabel={t('stats.noActivity')}
+            item={lowestRated}
+            label={t('stats.lowestRated')}
+            locale={locale}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function RatedTitleRow({
+  emptyLabel,
+  item,
+  label,
+  locale,
+}: {
+  emptyLabel: string
+  item: PresentedRecapTitle | null
+  label: string
+  locale: string
+}) {
+  if (!item) {
+    return (
+      <div className="border-b border-white/[0.07] py-3 last:border-b-0">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-kino-muted">
+          {label}
+        </div>
+        <div className="mt-1 text-sm text-kino-muted">{emptyLabel}</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-3 border-b border-white/[0.07] py-3 last:border-b-0">
+      <PosterThumbnail image={item.coverImage} title={item.title} />
+      <div className="min-w-0 flex-1">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-kino-muted">
+          {label}
+        </div>
+        <div className="mt-1 truncate text-sm font-semibold text-kino-text">{item.title}</div>
+      </div>
+      {item.rating != null ? (
+        <RatingValue
+          className="shrink-0 text-sm font-semibold text-kino-accent"
+          locale={locale}
+          rating={item.rating}
+          starSize={13}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function TasteCard({ data, locale }: { data: ProfileMonthlyRecap; locale: string }) {
+  const { t } = useTranslation()
+
+  return (
+    <Card className="gap-0 rounded-xl border-white/10 bg-kino-surface p-0 shadow-none">
+      <CardHeader className="gap-1 px-6 pt-6">
+        <CardTitle className="text-sm font-bold text-kino-text">{t('stats.yourGenres')}</CardTitle>
+      </CardHeader>
+
+      <CardContent className="grid gap-4 px-6 pb-6 pt-4">
+        {data.topGenres.length > 0 ? (
+          data.topGenres.map((item) => {
+            const genreLabel = t(`genres.${item.genreId}`, {
+              defaultValue: item.name,
+            })
+
+            return (
+              <div className="grid gap-1.5" key={item.genreId}>
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="font-medium text-kino-text">{genreLabel}</span>
+                  <span className="text-xs tabular-nums text-kino-muted">
+                    {new Intl.NumberFormat(locale, {
+                      maximumFractionDigits: 0,
+                    }).format(item.percentage)}
+                    %
+                  </span>
+                </div>
+
+                <div className="h-1.5 overflow-hidden rounded-full bg-white/6">
+                  <div
+                    className="h-full rounded-full bg-(--chart-1)"
+                    style={{
+                      width: `${Math.min(100, Math.max(item.percentage, 2))}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )
+          })
+        ) : (
+          <p className="text-sm text-kino-muted">{t('stats.noActivity')}</p>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
 
 function SubsectionTitle({ children }: { children: ReactNode }) {
   return (
@@ -466,29 +665,38 @@ function SubsectionTitle({ children }: { children: ReactNode }) {
 }
 
 function TopTitleRow({
+  coverImage,
   index,
-  item,
+  locale,
+  rating,
   subtitle,
+  title,
 }: {
+  coverImage: string | null
   index: number
-  item: RecapItem
+  locale: string
+  rating: number | null
   subtitle: string
+  title: string
 }) {
   return (
     <div className="flex items-center gap-3 py-1">
       <div className="w-4 shrink-0 text-xs font-semibold text-kino-muted/60">{index + 1}</div>
-
-      <PosterThumbnail image={item.coverImage ?? null} title={item.title} />
-
+      <PosterThumbnail image={coverImage} title={title} />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-semibold text-kino-text">{item.title}</div>
-
+        <div className="truncate text-sm font-semibold text-kino-text">{title}</div>
         <div className="text-xs text-kino-muted">{subtitle}</div>
       </div>
-
-      <div className="shrink-0 text-sm font-semibold text-kino-accent">
-        {item.rating != null ? formatRating(item.rating) : '—'}
-      </div>
+      {rating != null ? (
+        <RatingValue
+          className="shrink-0 text-sm font-semibold text-kino-accent"
+          locale={locale}
+          rating={rating}
+          starSize={13}
+        />
+      ) : (
+        <span className="shrink-0 text-sm text-kino-muted">—</span>
+      )}
     </div>
   )
 }
@@ -511,32 +719,49 @@ function PosterThumbnail({ title, image }: { title: string; image: string | null
   )
 }
 
-function StudioLogo({ studio }: { studio: NonNullable<ProfileMonthlyRecap['mostWatchedStudio']> }) {
-  const logoUrl = getTMDbImageUrl(studio.logoPath, 'w300')
-
+function RatingValue({
+  className,
+  locale,
+  rating,
+  starSize = 13,
+}: {
+  className?: string
+  locale: string
+  rating: number
+  starSize?: number
+}) {
   return (
-    <div className="flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/10 bg-white p-2">
-      {logoUrl ? (
-        <img alt={`${studio.name} logo`} className="h-full w-full object-contain" src={logoUrl} />
-      ) : (
-        <div className="text-xs font-bold uppercase tracking-widest text-black/60">
-          {studio.name.slice(0, 2)}
-        </div>
-      )}
-    </div>
+    <span className={`inline-flex items-center gap-1 leading-none tabular-nums ${className ?? ''}`}>
+      <span>
+        {new Intl.NumberFormat(locale, {
+          maximumFractionDigits: 1,
+        }).format(rating)}
+      </span>
+      <Star aria-hidden="true" className="shrink-0 fill-current" size={starSize} strokeWidth={0} />
+    </span>
   )
 }
 
-function formatRating(rating: number) {
-  const whole = Math.floor(rating)
+function presentRecapTitle<T extends LocalizableRecapTitle>(
+  item: T,
+  type: RecapMediaType,
+  localizedTitles: LocalizedTitleData
+) {
+  const localized =
+    localizedTitles?.[
+      localizedTitleKey({
+        tmdbId: item.tmdbId,
+        type,
+      })
+    ]
 
-  const hasHalf = Math.abs(rating - whole) >= 0.25 && Math.abs(rating - whole) < 0.75
-
-  return `${whole}${hasHalf ? '.5' : ''}★`
+  return {
+    title: localized?.title ?? item.title,
+    coverImage: localized?.posterPath ?? item.coverImage ?? null,
+  }
 }
 
 function formatWatchTimeDelta(minutes: number, locale: string) {
   const sign = minutes > 0 ? '+' : minutes < 0 ? '−' : ''
-
   return `${sign}${formatWatchTimeCompact(Math.abs(minutes), locale)}`
 }

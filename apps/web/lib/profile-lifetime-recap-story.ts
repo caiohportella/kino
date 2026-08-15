@@ -93,11 +93,7 @@ export function buildLifetimePosterPreloadItems(
   }))
 }
 
-export function formatKinoMembership(
-  createdAt: string,
-  t: Translator,
-  now = new Date()
-) {
+export function formatKinoMembership(createdAt: string, t: Translator, now = new Date()) {
   const created = new Date(createdAt)
   const safeCreated = Number.isNaN(created.getTime()) ? now : created
   const duration = getElapsedCalendarDuration(safeCreated, now)
@@ -105,14 +101,14 @@ export function formatKinoMembership(
 
   const kinoTime =
     duration.years >= 1
-      ? t('stats.story.kinoTimeYears', { count: duration.years })
+      ? t('stats.story.kinoTimeYears', { count: duration.years, defaultValue: 'anos' })
       : duration.months >= 1
-        ? t('stats.story.kinoTimeMonths', { count: duration.months })
-        : t('stats.story.kinoTimeDays', { count: duration.days })
+        ? t('stats.story.kinoTimeMonths', { count: duration.months, defaultValue: 'meses' })
+        : t('stats.story.kinoTimeDays', { count: duration.days, defaultValue: 'dias' })
 
   return {
     kinoTime,
-    memberSince: t('stats.story.memberSince', { year: createdYear }),
+    memberSince: t('stats.story.memberSince', { year: createdYear, defaultValue: 'membro desde ' }),
   }
 }
 

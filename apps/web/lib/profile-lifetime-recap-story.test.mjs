@@ -4,10 +4,10 @@ import test from 'node:test'
 import {
   buildLifetimeLocalizationRequest,
   buildLifetimePosterPreloadItems,
-  getLifetimeFeaturedMoviePills,
-  getLifetimeFeaturedSeriesPills,
   formatKinoMembership,
   getDisplayedLifetimeStoryItems,
+  getLifetimeFeaturedMoviePills,
+  getLifetimeFeaturedSeriesPills,
 } from './profile-lifetime-recap-story.ts'
 
 function title(overrides) {
@@ -249,26 +249,35 @@ test('Kino membership formats days, months, years, and member-since year with in
     return key
   }
 
-  assert.deepEqual(formatKinoMembership('2026-08-10T12:00:00Z', t, new Date('2026-08-15T12:00:00Z')), {
-    kinoTime: '5 days',
-    memberSince: 'Since 2026',
-  })
-  assert.deepEqual(formatKinoMembership('2026-06-15T12:00:00Z', t, new Date('2026-08-15T12:00:00Z')), {
-    kinoTime: '2 months',
-    memberSince: 'Since 2026',
-  })
-  assert.deepEqual(formatKinoMembership('2024-08-15T12:00:00Z', t, new Date('2026-08-15T12:00:00Z')), {
-    kinoTime: '2 years',
-    memberSince: 'Since 2024',
-  })
+  assert.deepEqual(
+    formatKinoMembership('2026-08-10T12:00:00Z', t, new Date('2026-08-15T12:00:00Z')),
+    {
+      kinoTime: '5 days',
+      memberSince: 'Since 2026',
+    }
+  )
+  assert.deepEqual(
+    formatKinoMembership('2026-06-15T12:00:00Z', t, new Date('2026-08-15T12:00:00Z')),
+    {
+      kinoTime: '2 months',
+      memberSince: 'Since 2026',
+    }
+  )
+  assert.deepEqual(
+    formatKinoMembership('2024-08-15T12:00:00Z', t, new Date('2026-08-15T12:00:00Z')),
+    {
+      kinoTime: '2 years',
+      memberSince: 'Since 2024',
+    }
+  )
 
   assert.deepEqual(calls, [
-    ['stats.story.kinoTimeDays', { count: 5 }],
-    ['stats.story.memberSince', { year: 2026 }],
-    ['stats.story.kinoTimeMonths', { count: 2 }],
-    ['stats.story.memberSince', { year: 2026 }],
-    ['stats.story.kinoTimeYears', { count: 2 }],
-    ['stats.story.memberSince', { year: 2024 }],
+    ['stats.story.kinoTimeDays', { count: 5, defaultValue: 'dias' }],
+    ['stats.story.memberSince', { year: 2026, defaultValue: 'membro desde ' }],
+    ['stats.story.kinoTimeMonths', { count: 2, defaultValue: 'meses' }],
+    ['stats.story.memberSince', { year: 2026, defaultValue: 'membro desde ' }],
+    ['stats.story.kinoTimeYears', { count: 2, defaultValue: 'anos' }],
+    ['stats.story.memberSince', { year: 2024, defaultValue: 'membro desde ' }],
   ])
 })
 

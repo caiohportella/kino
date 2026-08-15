@@ -14,19 +14,19 @@ import { createElement } from 'react'
 import { createTmdbLocalizedTitleBatchService } from '@/lib/localized-title-batch-server'
 import { loadOgFonts } from '@/lib/og-fonts'
 import { safeImageData } from '@/lib/og-images'
+import { formatProfileMonth } from '@/lib/profile-recap'
 import {
+  type StoryFeaturedItem,
   StoryFeaturedSection,
   StoryFooter,
   StoryHeader,
-  StoryRankedSections,
-  StoryStatTile,
-  StoryStatsOverview,
-  StoryTopBar,
-  type StoryFeaturedItem,
   type StoryImageData,
   type StoryRankedItem,
+  StoryRankedSections,
+  StoryStatsOverview,
+  StoryStatTile,
+  StoryTopBar,
 } from '@/lib/profile-recap-story'
-import { formatProfileMonth } from '@/lib/profile-recap'
 import { isReservedProfileRoute, normalizeProfileUsername } from '@/lib/profile-routes'
 import { formatWatchTimeCompact } from '@/lib/profile-stats'
 import { getRequestLanguage, getTranslations } from '@/lib/server-localization'
@@ -66,7 +66,9 @@ type StoryLabels = {
 
 type FeaturedMovie = StoryMonthlyRecap['topRatedMovies'][number]
 type FeaturedSeries = StoryMonthlyRecap['mostWatchedSeries'][number]
-type RankedItem = StoryMonthlyRecap['topRatedMovies'][number] | StoryMonthlyRecap['topRatedSeries'][number]
+type RankedItem =
+  | StoryMonthlyRecap['topRatedMovies'][number]
+  | StoryMonthlyRecap['topRatedSeries'][number]
 
 export const runtime = 'nodejs'
 
