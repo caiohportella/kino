@@ -129,3 +129,24 @@ test('filter writes preserve collection and reset page', async () => {
   })
   assert.equal(roundTrip.page, 1)
 })
+
+test('filter writes remove Quick Watch TV media type while preserving rating', async () => {
+  const { writeDiscoverFilterUrl } = await import('../../discover/discover-url-state.ts')
+  const { parseDiscoverCollection } = await import('../../discover/collections.ts')
+
+  const collection = parseDiscoverCollection('quick-watch')
+  const next = writeDiscoverFilterUrl(
+    readParams('collection=quick-watch&page=3&rating=7'),
+    {
+      mediaType: 'tv',
+      genreIds: [],
+      minRating: 8,
+    },
+    collection,
+  )
+
+  assert.deepEqual(toObject(next), {
+    collection: 'quick-watch',
+    rating: '8',
+  })
+})

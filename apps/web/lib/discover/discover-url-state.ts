@@ -73,7 +73,10 @@ export function writeDiscoverFilterUrl(
     params.delete("collection");
   }
 
-  if (next.mediaType !== "all") {
+  if (
+    next.mediaType !== "all" &&
+    (!collection || collection.criteria[next.mediaType])
+  ) {
     params.set("type", next.mediaType);
   } else {
     params.delete("type");
