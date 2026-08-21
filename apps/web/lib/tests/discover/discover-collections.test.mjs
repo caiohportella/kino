@@ -91,3 +91,40 @@ test('quick watch does not build a tv query', async () => {
     null,
   )
 })
+
+test('something weird keeps a collection-only genre mix', async () => {
+  const { buildDiscoverCollectionParams, parseDiscoverCollection } = await import('../../discover/collections.ts')
+
+  const params = buildDiscoverCollectionParams(
+    parseDiscoverCollection('something-weird'),
+    'movie',
+  )
+
+  assert.equal(params.with_genres, '14|27|878|9648')
+  assert.equal(params['popularity.lte'], '35')
+  assert.equal(params['vote_average.gte'], '6')
+})
+
+test('new this month uses an explicit date window deterministically', async () => {
+  const { buildDiscoverCollectionParams, parseDiscoverCollection } = await import('../../discover/collections.ts')
+
+  const dateWindow = {
+    start: '2024-02-10',
+    end: '2024-02-19',
+  }
+
+  const first = buildDiscoverCollectionParams(
+    parseDiscoverCollection('new-this-month'),
+    'movie',
+    { dateWindow },
+  )
+  const second = buildDiscoverCollectionParams(
+    parseDiscoverCollection('new-this-month'),
+    'movie',
+    { dateWindow },
+  )
+
+  assert.equal(first['release_date.gte'], '2024-02-10')
+  assert.equal(first['release_date.lte'], '2024-02-19')
+  assert.deepEqual(second, first)
+})

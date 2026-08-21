@@ -11,6 +11,7 @@ type MediaType = "movie" | "tv";
 
 type DiscoverCollectionCriteria = {
   genres?: number[];
+  genreAnyOf?: number[];
   voteAverageGte?: number;
   voteCountGte?: number;
   popularityGte?: number;
@@ -24,6 +25,7 @@ type DiscoverCollectionCriteria = {
   includeAdult?: boolean;
   includeVideo?: boolean;
   includeNullFirstAirDates?: boolean;
+  dateWindowField?: "release_date" | "first_air_date";
 };
 
 type DiscoverCollectionDefinition = {
@@ -39,6 +41,15 @@ export type DiscoverCollectionFilters = {
   mediaType: "all" | "movie" | "tv";
   genreIds: number[];
   minRating: number;
+};
+
+export type DiscoverCollectionDateWindow = {
+  start: string;
+  end: string;
+};
+
+type DiscoverCollectionBuildOptions = {
+  dateWindow?: DiscoverCollectionDateWindow | null;
 };
 
 const COLLECTIONS: Record<DiscoverCollectionId, DiscoverCollectionDefinition> = {
@@ -164,7 +175,7 @@ const COLLECTIONS: Record<DiscoverCollectionId, DiscoverCollectionDefinition> = 
     descriptionKey: "discover.collections.somethingWeird.description",
     criteria: {
       movie: {
-        genres: [14, 27, 878, 9648],
+        genreAnyOf: [14, 27, 878, 9648],
         voteAverageGte: 6.0,
         voteCountGte: 75,
         popularityLte: 35,
@@ -173,7 +184,7 @@ const COLLECTIONS: Record<DiscoverCollectionId, DiscoverCollectionDefinition> = 
         includeVideo: false,
       },
       tv: {
-        genres: [14, 27, 878, 9648],
+        genreAnyOf: [14, 27, 878, 9648],
         voteAverageGte: 6.0,
         voteCountGte: 75,
         popularityLte: 35,
@@ -188,43 +199,29 @@ const COLLECTIONS: Record<DiscoverCollectionId, DiscoverCollectionDefinition> = 
     titleKey: "discover.collections.newThisMonth.title",
     descriptionKey: "discover.collections.newThisMonth.description",
     criteria: {
-      movie: buildCurrentMonthCriteria("release_date"),
-      tv: buildCurrentMonthCriteria("first_air_date"),
+      movie: {
+        dateWindowField: "release_date",
+        voteAverageGte: 6.0,
+        voteCountGte: 25,
+        popularityGte: 1,
+        sortBy: "popularity.desc",
+        includeAdult: false,
+        includeVideo: false,
+      },
+      tv: {
+        dateWindowField: "first_air_date",
+        voteAverageGte: 6.0,
+        voteCountGte: 25,
+        popularityGte: 1,
+        sortBy: "popularity.desc",
+        includeAdult: false,
+        includeNullFirstAirDates: false,
+      },
     },
   },
 };
 
 const COLLECTION_IDS = new Set<DiscoverCollectionId>(Object.keys(COLLECTIONS) as DiscoverCollectionId[]);
-
-function buildCurrentMonthCriteria(dateField: "release_date" | "first_air_date") {
-  const now = new Date();
-
-  const start = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
-  );
-  const end = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  );
-
-  return {
-    ...(dateField === "release_date"
-      ? {
-          releaseDateGte: start.toISOString().slice(0, 10),
-          releaseDateLte: end.toISOString().slice(0, 10),
-          includeVideo: false,
-        }
-      : {
-          firstAirDateGte: start.toISOString().slice(0, 10),
-          firstAirDateLte: end.toISOString().slice(0, 10),
-          includeNullFirstAirDates: false,
-        }),
-    voteAverageGte: 6.0,
-    voteCountGte: 25,
-    popularityGte: 1,
-    sortBy: "popularity.desc",
-    includeAdult: false,
-  };
-}
 
 function cloneParams(params: Record<string, string>) {
   return { ...params };
@@ -255,6 +252,30 @@ function mergeGenreLists(
   return normalizeGenres([...(collectionGenres ?? []), ...userGenres]);
 }
 
+function buildGenreFilter(
+  criteria: DiscoverCollectionCriteria,
+  userGenres: number[],
+) {
+  const requiredGenres = mergeGenreLists(criteria.genres, userGenres);
+  const optionalGenres = normalizeGenres(criteria.genreAnyOf ?? []);
+
+  if (optionalGenres.length === 0) {
+    return requiredGenres.length > 0 ? requiredGenres.join(",") : undefined;
+  }
+
+  const userGenreOverlap = userGenres.some((genreId) => optionalGenres.includes(genreId));
+
+  if (userGenreOverlap) {
+    return requiredGenres.length > 0 ? requiredGenres.join(",") : undefined;
+  }
+
+  if (requiredGenres.length === 0) {
+    return optionalGenres.join("|");
+  }
+
+  return `${requiredGenres.join(",")},${optionalGenres.join("|")}`;
+}
+
 function maxDefined(...values: Array<number | undefined>) {
   const defined = values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
 
@@ -268,6 +289,9 @@ function maxDefined(...values: Array<number | undefined>) {
 function buildParamsForCriteria(
   criteria: DiscoverCollectionCriteria,
   page?: number,
+  options?: DiscoverCollectionBuildOptions & {
+    userGenres?: number[];
+  },
 ) {
   const params: Record<string, string> = {};
 
@@ -281,11 +305,17 @@ function buildParamsForCriteria(
   setIfDefined(params, "vote_count.gte", criteria.voteCountGte);
   setIfDefined(params, "popularity.gte", criteria.popularityGte);
   setIfDefined(params, "popularity.lte", criteria.popularityLte);
-  setIfDefined(params, "with_genres", criteria.genres?.join(","));
-  setIfDefined(params, "release_date.gte", criteria.releaseDateGte);
-  setIfDefined(params, "release_date.lte", criteria.releaseDateLte);
-  setIfDefined(params, "first_air_date.gte", criteria.firstAirDateGte);
-  setIfDefined(params, "first_air_date.lte", criteria.firstAirDateLte);
+  setIfDefined(params, "with_genres", buildGenreFilter(criteria, options?.userGenres ?? []));
+
+  if (criteria.dateWindowField && options?.dateWindow) {
+    setIfDefined(params, `${criteria.dateWindowField}.gte`, options.dateWindow.start);
+    setIfDefined(params, `${criteria.dateWindowField}.lte`, options.dateWindow.end);
+  } else {
+    setIfDefined(params, "release_date.gte", criteria.releaseDateGte);
+    setIfDefined(params, "release_date.lte", criteria.releaseDateLte);
+    setIfDefined(params, "first_air_date.gte", criteria.firstAirDateGte);
+    setIfDefined(params, "first_air_date.lte", criteria.firstAirDateLte);
+  }
 
   return params;
 }
@@ -303,15 +333,6 @@ function tightenCollectionParams(
 
   if (mediaType === "movie" && params.include_video === undefined) {
     params.include_video = "false";
-  }
-
-  const existingGenres = params.with_genres ? params.with_genres.split(",").map((value) => Number(value)) : [];
-  const genres = mergeGenreLists(existingGenres, filters.genreIds);
-
-  if (genres.length > 0) {
-    params.with_genres = genres.join(",");
-  } else {
-    delete params.with_genres;
   }
 
   const existingMinRating = params["vote_average.gte"]
@@ -354,6 +375,7 @@ export function parseDiscoverCollection(
 export function buildDiscoverCollectionParams(
   collection: DiscoverCollection,
   mediaType: MediaType,
+  options?: DiscoverCollectionBuildOptions,
 ): Record<string, string> | null {
   const criteria = collection.criteria[mediaType];
 
@@ -361,13 +383,14 @@ export function buildDiscoverCollectionParams(
     return null;
   }
 
-  return buildParamsForCriteria(criteria);
+  return buildParamsForCriteria(criteria, undefined, options);
 }
 
 export function mergeDiscoverCriteria(input: {
   collection: DiscoverCollection | null;
   filters: DiscoverCollectionFilters;
   page: number;
+  dateWindow?: DiscoverCollectionDateWindow | null;
 }): {
   requests: Array<{ type: MediaType; params: Record<string, string> }>;
   queryKey: readonly unknown[];
@@ -382,13 +405,16 @@ export function mergeDiscoverCriteria(input: {
       : [input.filters.mediaType];
 
   for (const type of types) {
-    const collectionParams = input.collection
-      ? buildDiscoverCollectionParams(input.collection, type)
-      : buildParamsForCriteria({});
+    const criteria = input.collection?.criteria[type];
 
-    if (!collectionParams) {
+    if (input.collection && !criteria) {
       continue;
     }
+
+    const collectionParams = buildParamsForCriteria(criteria ?? {}, undefined, {
+      dateWindow: input.dateWindow ?? null,
+      userGenres: normalizedGenres,
+    });
 
     const params = tightenCollectionParams(
       collectionParams,
