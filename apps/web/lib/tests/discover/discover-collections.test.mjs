@@ -45,6 +45,44 @@ test('normal and collection states use different query keys', async () => {
   assert.notDeepEqual(normal.queryKey, curated.queryKey)
 })
 
+test('query keys use effective collection rating criteria', async () => {
+  const { mergeDiscoverCriteria, parseDiscoverCollection } = await import('../../discover/collections.ts')
+
+  const collection = parseDiscoverCollection('hidden-gems')
+  const baseline = mergeDiscoverCriteria({
+    collection,
+    filters: { mediaType: 'movie', genreIds: [], minRating: 0 },
+    page: 1,
+  })
+  const redundantRating = mergeDiscoverCriteria({
+    collection,
+    filters: { mediaType: 'movie', genreIds: [], minRating: 6 },
+    page: 1,
+  })
+
+  assert.deepEqual(redundantRating.requests, baseline.requests)
+  assert.deepEqual(redundantRating.queryKey, baseline.queryKey)
+})
+
+test('quick watch query keys collapse incompatible tv state', async () => {
+  const { mergeDiscoverCriteria, parseDiscoverCollection } = await import('../../discover/collections.ts')
+
+  const collection = parseDiscoverCollection('quick-watch')
+  const allMedia = mergeDiscoverCriteria({
+    collection,
+    filters: { mediaType: 'all', genreIds: [], minRating: 0 },
+    page: 1,
+  })
+  const movieOnly = mergeDiscoverCriteria({
+    collection,
+    filters: { mediaType: 'movie', genreIds: [], minRating: 0 },
+    page: 1,
+  })
+
+  assert.deepEqual(allMedia.requests, movieOnly.requests)
+  assert.deepEqual(allMedia.queryKey, movieOnly.queryKey)
+})
+
 test('quick watch does not build a tv query', async () => {
   const { buildDiscoverCollectionParams, parseDiscoverCollection } = await import('../../discover/collections.ts')
 

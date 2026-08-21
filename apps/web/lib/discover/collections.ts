@@ -326,6 +326,17 @@ function tightenCollectionParams(
   return params;
 }
 
+function buildRequestQueryKey(
+  requests: Array<{ type: MediaType; params: Record<string, string> }>,
+) {
+  return requests.map(({ type, params }) => [
+    type,
+    Object.keys(params)
+      .sort()
+      .map((key) => [key, params[key]]),
+  ]);
+}
+
 export function parseDiscoverCollection(
   value: string | null,
 ): DiscoverCollection | null {
@@ -362,12 +373,6 @@ export function mergeDiscoverCriteria(input: {
   queryKey: readonly unknown[];
 } {
   const collectionId = input.collection?.id ?? null;
-  const collectionSignature = input.collection
-    ? {
-        movie: buildDiscoverCollectionParams(input.collection, "movie"),
-        tv: buildDiscoverCollectionParams(input.collection, "tv"),
-      }
-    : null;
   const normalizedGenres = normalizeGenres(input.filters.genreIds);
   const normalizedPage = Number.isFinite(input.page) && input.page > 0 ? Math.floor(input.page) : 1;
   const requests: Array<{ type: MediaType; params: Record<string, string> }> = [];
@@ -406,11 +411,7 @@ export function mergeDiscoverCriteria(input: {
     queryKey: [
       "discover-collections",
       collectionId,
-      collectionSignature,
-      input.filters.mediaType,
-      normalizedGenres,
-      input.filters.minRating,
-      normalizedPage,
+      buildRequestQueryKey(requests),
     ],
   };
 }
