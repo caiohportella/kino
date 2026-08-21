@@ -9,10 +9,12 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
+import { ActiveDiscoverCollection } from "@/components/discover/active-discover-collection";
 import {
   type DiscoverFilterState,
   DiscoverFilters,
 } from "@/components/discover/discover-filters";
+import { ExploreCollections } from "@/components/discover/explore-collections";
 import { Poster } from "@/components/kino";
 import { useMediaPoster } from "@/hooks/title/use-media-poster";
 import { useTranslation } from "@/lib/localization/i18n";
@@ -21,7 +23,6 @@ import { TrendingCarousel } from "../carousel/trending-carousel";
 import { AppPagination } from "../layout/app-pagination";
 import { MediaSection } from "../media/media-section";
 import { MobileDiscoverFilters } from "../layout/mobile-discover-filters";
-import { DiscoverExploreShortcuts } from "./discover-explore-shortcuts";
 import {
   mergePopularNow,
   resolveDiscoverPrimaryRow,
@@ -34,12 +35,13 @@ import {
   DiscoverSectionDescriptor,
 } from "@/lib/discover/section-ordering";
 import {
-  type DiscoverCollection,
+  type DiscoverCollectionId,
   mergeDiscoverCriteria,
 } from "@/lib/discover/collections";
 import {
   normalizeDiscoverFilterState,
   readDiscoverUrlState,
+  writeDiscoverCollectionUrl,
   writeDiscoverFilterUrl,
 } from "@/lib/discover/discover-url-state";
 import { getDiscoverDateWindow } from "@/lib/discover/feed-dates";
@@ -80,31 +82,6 @@ function DiscoverResultCard({ item }: { item: TMDbTitle }) {
       />
     </Link>
   );
-}
-
-function getDiscoverCollectionDefaultTitle(id: DiscoverCollection["id"]) {
-  switch (id) {
-    case "hidden-gems":
-      return "Hidden gems";
-
-    case "quick-watch":
-      return "Quick watch";
-
-    case "90s-essentials":
-      return "90s essentials";
-
-    case "modern-classics":
-      return "Modern classics";
-
-    case "critically-acclaimed":
-      return "Critically acclaimed";
-
-    case "something-weird":
-      return "Something weird";
-
-    case "new-this-month":
-      return "New this month";
-  }
 }
 
 export function DiscoverClient({
@@ -164,7 +141,7 @@ export function DiscoverClient({
     return initialUrlState.page;
   });
 
-  const [activeCollection] = useState<DiscoverCollection | null>(
+  const [activeCollection, setActiveCollection] = useState(
     () => initialUrlState.collection,
   );
 
@@ -181,6 +158,22 @@ export function DiscoverClient({
 
     const query = params.toString();
     const nextUrl = query ? `${pathname}?${query}` : pathname;
+
+    window.history.replaceState(window.history.state, "", nextUrl);
+  }
+
+  function updateCollection(nextId: DiscoverCollectionId | null) {
+    const nextQuery = writeDiscoverCollectionUrl(
+      new URLSearchParams(window.location.search),
+      nextId,
+    );
+    const nextParams = new URLSearchParams(nextQuery);
+    const nextState = readDiscoverUrlState(nextParams, genres);
+    const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+
+    setActiveCollection(nextState.collection);
+    setFilters(nextState.filters);
+    setPage(nextState.page);
 
     window.history.replaceState(window.history.state, "", nextUrl);
   }
@@ -368,15 +361,21 @@ export function DiscoverClient({
   const filteredTitle =
     activeCollection
       ? t(activeCollection.titleKey, {
-          defaultValue: getDiscoverCollectionDefaultTitle(activeCollection.id),
+          defaultValue: activeCollection.defaultTitle,
         })
       : selectedGenreNames.length > 0
       ? selectedGenreNames.join(", ")
       : filters.mediaType === "movie"
-        ? t("search.movies")
-        : filters.mediaType === "tv"
-          ? t("search.tvShows")
-          : t("tabs.home");
+        ? t("search.movies", {
+            defaultValue: "Movies",
+          })
+      : filters.mediaType === "tv"
+          ? t("search.tvShows", {
+              defaultValue: "TV shows",
+            })
+          : t("tabs.home", {
+              defaultValue: "Home",
+            });
 
   return (
     <>
@@ -402,17 +401,27 @@ export function DiscoverClient({
 
       {filtering ? (
         <div className="grid gap-6">
-          <div>
-            <h2 className="text-xl font-semibold text-kino-text">
-              {filteredTitle}
-            </h2>
+          {activeCollection ? (
+            <ActiveDiscoverCollection
+              collection={activeCollection}
+              onClear={() => updateCollection(null)}
+            />
+          ) : (
+            <div>
+              <h2 className="text-xl font-semibold text-kino-text">
+                {filteredTitle}
+              </h2>
+            </div>
+          )}
 
-            {filters.minRating > 0 ? (
-              <p className="mt-1 text-sm text-kino-muted">
-                {t("search.minimumRating")}: {filters.minRating}+
-              </p>
-            ) : null}
-          </div>
+          {filters.minRating > 0 ? (
+            <p className="text-sm text-kino-muted">
+              {t("search.minimumRating", {
+                defaultValue: "Minimum rating",
+              })}
+              : {filters.minRating}+
+            </p>
+          ) : null}
 
           {filteredQuery.isLoading ? (
             <div className="poster-grid">
@@ -568,7 +577,7 @@ export function DiscoverClient({
             }
           })}
 
-          <DiscoverExploreShortcuts genres={genres} onSelect={updateFilters} />
+          <ExploreCollections onSelect={updateCollection} />
         </>
       )}
     </>

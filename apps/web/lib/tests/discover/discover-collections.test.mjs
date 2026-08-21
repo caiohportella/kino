@@ -14,6 +14,59 @@ test('invalid collection ids resolve to null', async () => {
   assert.equal(parseDiscoverCollection(null), null)
 })
 
+test('exports collection cards in stable editorial order with fallback copy', async () => {
+  const { DISCOVER_COLLECTIONS } = await import('../../discover/collections.ts')
+
+  assert.deepEqual(
+    DISCOVER_COLLECTIONS.map((collection) => collection.id),
+    [
+      'hidden-gems',
+      'quick-watch',
+      '90s-essentials',
+      'modern-classics',
+      'critically-acclaimed',
+      'something-weird',
+      'new-this-month',
+    ],
+  )
+  assert.deepEqual(
+    DISCOVER_COLLECTIONS.map((collection) => ({
+      title: collection.defaultTitle,
+      description: collection.defaultDescription,
+    })),
+    [
+      {
+        title: 'Hidden gems',
+        description: 'Underrated movies and series worth finding.',
+      },
+      {
+        title: 'Quick watch',
+        description: 'Shorter movies when you want something great tonight.',
+      },
+      {
+        title: '90s essentials',
+        description: 'Beloved movies and shows from the 1990s.',
+      },
+      {
+        title: 'Modern classics',
+        description: 'Standout favorites from the 2000s and 2010s.',
+      },
+      {
+        title: 'Critically acclaimed',
+        description: 'Top-rated picks with strong audience love.',
+      },
+      {
+        title: 'Something weird',
+        description: 'Offbeat sci-fi, horror, fantasy, and mysteries.',
+      },
+      {
+        title: 'New this month',
+        description: 'Fresh releases and premieres from the last few weeks.',
+      },
+    ],
+  )
+})
+
 test('explicit filters narrow Hidden Gems without replacing its criteria', async () => {
   const { mergeDiscoverCriteria, parseDiscoverCollection } = await import('../../discover/collections.ts')
 
