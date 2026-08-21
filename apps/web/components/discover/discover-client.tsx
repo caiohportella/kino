@@ -15,6 +15,7 @@ import {
   DiscoverFilters,
 } from "@/components/discover/discover-filters";
 import { ExploreCollections } from "@/components/discover/explore-collections";
+import { PersonalizedDiscoverSection } from "@/components/discover/personalized-discover-section";
 import { Poster } from "@/components/kino";
 import { useMediaPoster } from "@/hooks/title/use-media-poster";
 import { useTranslation } from "@/lib/localization/i18n";
@@ -23,13 +24,9 @@ import { TrendingCarousel } from "../carousel/trending-carousel";
 import { AppPagination } from "../layout/app-pagination";
 import { MediaSection } from "../media/media-section";
 import { MobileDiscoverFilters } from "../layout/mobile-discover-filters";
-import {
-  mergePopularNow,
-  resolveDiscoverPrimaryRow,
-} from "@/lib/discover/presentation";
+import { mergePopularNow } from "@/lib/discover/presentation";
 import { DiscoverSeriesUpdateItem } from "@/lib/discover/series-updates";
 import { DiscoverUpdatesSection } from "./discover-updates-section";
-import { DiscoverAffinityRow } from "@/lib/discover/affinity-credits";
 import {
   buildDiscoverSectionOrder,
   DiscoverSectionDescriptor,
@@ -45,19 +42,19 @@ import {
   writeDiscoverFilterUrl,
 } from "@/lib/discover/discover-url-state";
 import { getDiscoverDateWindow } from "@/lib/discover/feed-dates";
+import type { PersonalizedDiscoverRail } from "@/lib/discover/personalization";
 
 interface DiscoverClientProps {
   genres: TMDbGenre[];
   movieGenres: TMDbGenre[];
   tvGenres: TMDbGenre[];
-  forYou: TMDbTitle[];
   trending: CarouselTitle[];
   popularMovies: CarouselTitle[];
   popularTV: CarouselTitle[];
   upcoming: TMDbTitle[];
   rereleases: TMDbTitle[];
   seriesUpdates: DiscoverSeriesUpdateItem[];
-  affinityRows: DiscoverAffinityRow[];
+  personalizedRails: PersonalizedDiscoverRail[];
   personalizedNewReleases: TMDbTitle[];
   personalizedNewSeries: TMDbTitle[];
 }
@@ -85,10 +82,9 @@ function DiscoverResultCard({ item }: { item: TMDbTitle }) {
 }
 
 export function DiscoverClient({
-  affinityRows,
-  forYou,
   genres,
   movieGenres,
+  personalizedRails,
   personalizedNewReleases,
   personalizedNewSeries,
   popularMovies,
@@ -103,19 +99,10 @@ export function DiscoverClient({
 
   const popularNow = mergePopularNow(popularMovies, popularTV, 20);
 
-  const primaryRow = resolveDiscoverPrimaryRow(forYou, popularNow);
-
   const sectionOrder: DiscoverSectionDescriptor[] = buildDiscoverSectionOrder({
-    primaryKind: primaryRow.kind,
+    primaryKind: "popular",
     updatesCount: seriesUpdates.length,
-
-    affinityRows: affinityRows.map((row) => ({
-      key: `${row.kind}:${row.source.id}`,
-      kind: row.kind,
-      averageRating: row.source.averageRating,
-      titleCount: row.source.titleCount,
-      itemCount: row.items.length,
-    })),
+    affinityRows: [],
 
     newReleasesCount: personalizedNewReleases.length,
 
@@ -124,10 +111,6 @@ export function DiscoverClient({
     upcomingCount: upcoming.length,
     rereleasesCount: rereleases.length,
   });
-
-  const affinityRowsByKey = new Map(
-    affinityRows.map((row) => [`${row.kind}:${row.source.id}`, row]),
-  );
 
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -483,17 +466,11 @@ export function DiscoverClient({
               case "primary":
                 return (
                   <MediaSection
-                    items={primaryRow.items}
+                    items={popularNow}
                     key="primary"
-                    title={
-                      section.kind === "for-you"
-                        ? t("home.forYou", {
-                            defaultValue: "For you",
-                          })
-                        : t("home.popularNow", {
-                            defaultValue: "Popular now",
-                          })
-                    }
+                    title={t("home.popularNow", {
+                      defaultValue: "Popular now",
+                    })}
                   />
                 );
 
@@ -502,31 +479,8 @@ export function DiscoverClient({
                   <DiscoverUpdatesSection items={seriesUpdates} key="updates" />
                 );
 
-              case "affinity": {
-                const row = affinityRowsByKey.get(section.key);
-
-                if (!row) {
-                  return null;
-                }
-
-                return (
-                  <MediaSection
-                    items={row.items}
-                    key={`affinity-${section.key}`}
-                    title={
-                      row.kind === "actor"
-                        ? t("home.moreWithPerson", {
-                            defaultValue: "More with {{name}}",
-                            name: row.source.name,
-                          })
-                        : t("home.moreFromPerson", {
-                            defaultValue: "More from {{name}}",
-                            name: row.source.name,
-                          })
-                    }
-                  />
-                );
-              }
+              case "affinity":
+                return null;
 
               case "new-releases":
                 return (
@@ -576,6 +530,8 @@ export function DiscoverClient({
                 return null;
             }
           })}
+
+          <PersonalizedDiscoverSection rails={personalizedRails} />
 
           <ExploreCollections onSelect={updateCollection} />
         </>

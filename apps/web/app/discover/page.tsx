@@ -93,8 +93,6 @@ export default async function DiscoverPage() {
       personalizedRails.find((rail) => rail.kind === "because-you-liked")?.items ??
       [];
 
-    const affinityRows = affinityData.rows;
-
     const { today, recentStart } = getDiscoverDateWindow();
 
     const recentWindow = {
@@ -165,10 +163,9 @@ export default async function DiscoverPage() {
         <PageHeader size="wide" title={t("tabs.home")} />
 
         <DiscoverClient
-          affinityRows={affinityRows}
-          forYou={forYou}
           genres={data.genres}
           movieGenres={data.movieGenres}
+          personalizedRails={personalizedRails}
           personalizedNewReleases={personalizedNewReleases}
           personalizedNewSeries={personalizedNewSeries}
           popularMovies={data.popularMovies}
