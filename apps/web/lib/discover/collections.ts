@@ -263,17 +263,19 @@ function buildGenreFilter(
     return requiredGenres.length > 0 ? requiredGenres.join(",") : undefined;
   }
 
-  const userGenreOverlap = userGenres.some((genreId) => optionalGenres.includes(genreId));
-
-  if (userGenreOverlap) {
-    return requiredGenres.length > 0 ? requiredGenres.join(",") : undefined;
-  }
-
   if (requiredGenres.length === 0) {
     return optionalGenres.join("|");
   }
 
-  return `${requiredGenres.join(",")},${optionalGenres.join("|")}`;
+  const remainingOptionalGenres = optionalGenres.filter(
+    (genreId) => !requiredGenres.includes(genreId),
+  );
+
+  if (remainingOptionalGenres.length === 0) {
+    return requiredGenres.join(",");
+  }
+
+  return `${requiredGenres.join(",")},${remainingOptionalGenres.join("|")}`;
 }
 
 function maxDefined(...values: Array<number | undefined>) {
@@ -293,6 +295,10 @@ function buildParamsForCriteria(
     userGenres?: number[];
   },
 ) {
+  if (criteria.dateWindowField && !options?.dateWindow) {
+    return null;
+  }
+
   const params: Record<string, string> = {};
 
   setIfDefined(params, "sort_by", criteria.sortBy ?? "popularity.desc");
@@ -415,6 +421,10 @@ export function mergeDiscoverCriteria(input: {
       dateWindow: input.dateWindow ?? null,
       userGenres: normalizedGenres,
     });
+
+    if (!collectionParams) {
+      continue;
+    }
 
     const params = tightenCollectionParams(
       collectionParams,

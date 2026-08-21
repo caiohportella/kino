@@ -92,39 +92,53 @@ test('quick watch does not build a tv query', async () => {
   )
 })
 
-test('something weird keeps a collection-only genre mix', async () => {
-  const { buildDiscoverCollectionParams, parseDiscoverCollection } = await import('../../discover/collections.ts')
+test('something weird keeps its bounded genre mix when filters overlap', async () => {
+  const { mergeDiscoverCriteria, parseDiscoverCollection } = await import('../../discover/collections.ts')
 
-  const params = buildDiscoverCollectionParams(
-    parseDiscoverCollection('something-weird'),
-    'movie',
-  )
+  const result = mergeDiscoverCriteria({
+    collection: parseDiscoverCollection('something-weird'),
+    filters: { mediaType: 'movie', genreIds: [27], minRating: 0 },
+    page: 1,
+  })
 
-  assert.equal(params.with_genres, '14|27|878|9648')
-  assert.equal(params['popularity.lte'], '35')
-  assert.equal(params['vote_average.gte'], '6')
+  assert.equal(result.requests.length, 1)
+  assert.equal(result.requests[0].params.with_genres, '27,14|878|9648')
+  assert.equal(result.requests[0].params['popularity.lte'], '35')
+  assert.equal(result.requests[0].params['vote_count.gte'], '75')
 })
 
-test('new this month uses an explicit date window deterministically', async () => {
-  const { buildDiscoverCollectionParams, parseDiscoverCollection } = await import('../../discover/collections.ts')
+test('new this month requires an explicit date window and stays deterministic with one', async () => {
+  const { buildDiscoverCollectionParams, mergeDiscoverCriteria, parseDiscoverCollection } = await import('../../discover/collections.ts')
 
   const dateWindow = {
     start: '2024-02-10',
     end: '2024-02-19',
   }
 
-  const first = buildDiscoverCollectionParams(
-    parseDiscoverCollection('new-this-month'),
-    'movie',
-    { dateWindow },
-  )
-  const second = buildDiscoverCollectionParams(
-    parseDiscoverCollection('new-this-month'),
-    'movie',
-    { dateWindow },
-  )
+  const collection = parseDiscoverCollection('new-this-month')
+  const withoutWindow = buildDiscoverCollectionParams(collection, 'movie')
+  const withoutWindowMerged = mergeDiscoverCriteria({
+    collection,
+    filters: { mediaType: 'movie', genreIds: [], minRating: 0 },
+    page: 1,
+  })
 
-  assert.equal(first['release_date.gte'], '2024-02-10')
-  assert.equal(first['release_date.lte'], '2024-02-19')
+  const first = mergeDiscoverCriteria({
+    collection,
+    filters: { mediaType: 'movie', genreIds: [], minRating: 0 },
+    page: 1,
+    dateWindow,
+  })
+  const second = mergeDiscoverCriteria({
+    collection,
+    filters: { mediaType: 'movie', genreIds: [], minRating: 0 },
+    page: 1,
+    dateWindow,
+  })
+
+  assert.equal(withoutWindow, null)
+  assert.equal(withoutWindowMerged.requests.length, 0)
+  assert.equal(first.requests[0].params['release_date.gte'], '2024-02-10')
+  assert.equal(first.requests[0].params['release_date.lte'], '2024-02-19')
   assert.deepEqual(second, first)
 })
