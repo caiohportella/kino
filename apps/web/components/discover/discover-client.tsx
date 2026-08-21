@@ -38,6 +38,7 @@ import {
   mergeDiscoverCriteria,
 } from "@/lib/discover/collections";
 import {
+  normalizeDiscoverFilterState,
   readDiscoverUrlState,
   writeDiscoverFilterUrl,
 } from "@/lib/discover/discover-url-state";
@@ -326,14 +327,18 @@ export function DiscoverClient({
       ...next,
       genreIds: next.genreIds.filter((id) => validGenreIds.has(id)),
     };
+    const effectiveFilters = normalizeDiscoverFilterState(
+      sanitized,
+      activeCollection,
+    );
 
-    setFilters(sanitized);
+    setFilters(effectiveFilters);
 
     setPage(1);
 
     const params = writeDiscoverFilterUrl(
       new URLSearchParams(window.location.search),
-      sanitized,
+      effectiveFilters,
       activeCollection,
     );
 

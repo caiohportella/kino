@@ -64,6 +64,7 @@ export function writeDiscoverFilterUrl(
   collection: DiscoverCollection | null,
 ): string {
   const params = new URLSearchParams(current);
+  const filters = normalizeDiscoverFilterState(next, collection);
 
   params.delete("page");
 
@@ -74,27 +75,45 @@ export function writeDiscoverFilterUrl(
   }
 
   if (
-    next.mediaType !== "all" &&
-    (!collection || collection.criteria[next.mediaType])
+    filters.mediaType !== "all" &&
+    (!collection || collection.criteria[filters.mediaType])
   ) {
-    params.set("type", next.mediaType);
+    params.set("type", filters.mediaType);
   } else {
     params.delete("type");
   }
 
-  if (next.genreIds.length > 0) {
-    params.set("genres", next.genreIds.join(","));
+  if (filters.genreIds.length > 0) {
+    params.set("genres", filters.genreIds.join(","));
   } else {
     params.delete("genres");
   }
 
-  if (next.minRating > 0) {
-    params.set("rating", String(next.minRating));
+  if (filters.minRating > 0) {
+    params.set("rating", String(filters.minRating));
   } else {
     params.delete("rating");
   }
 
   return params.toString();
+}
+
+export function normalizeDiscoverFilterState(
+  next: DiscoverCollectionFilters,
+  collection: DiscoverCollection | null,
+): DiscoverCollectionFilters {
+  if (
+    next.mediaType === "all" ||
+    !collection ||
+    collection.criteria[next.mediaType]
+  ) {
+    return next;
+  }
+
+  return {
+    ...next,
+    mediaType: "all",
+  };
 }
 
 export function writeDiscoverCollectionUrl(

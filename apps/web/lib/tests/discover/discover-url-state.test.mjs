@@ -150,3 +150,32 @@ test('filter writes remove Quick Watch TV media type while preserving rating', a
     rating: '8',
   })
 })
+
+test('Quick Watch TV filter changes normalize before building live requests', async () => {
+  const { normalizeDiscoverFilterState } = await import('../../discover/discover-url-state.ts')
+  const { mergeDiscoverCriteria, parseDiscoverCollection } = await import('../../discover/collections.ts')
+
+  const collection = parseDiscoverCollection('quick-watch')
+  const filters = normalizeDiscoverFilterState(
+    {
+      mediaType: 'tv',
+      genreIds: [],
+      minRating: 8,
+    },
+    collection,
+  )
+  const criteria = mergeDiscoverCriteria({
+    collection,
+    filters,
+    page: 1,
+  })
+
+  assert.deepEqual(filters, {
+    mediaType: 'all',
+    genreIds: [],
+    minRating: 8,
+  })
+  assert.equal(criteria.requests.length, 1)
+  assert.equal(criteria.requests[0].type, 'movie')
+  assert.equal(criteria.requests[0].params['vote_average.gte'], '8')
+})

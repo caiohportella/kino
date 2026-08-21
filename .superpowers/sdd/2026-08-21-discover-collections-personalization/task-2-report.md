@@ -76,3 +76,41 @@
 ### Concerns
 
 - No blocking concerns for this scoped fix round.
+
+---
+
+## Fix Round 2
+
+### Changed Files
+
+- `apps/web/components/discover/discover-client.tsx`
+- `apps/web/lib/discover/discover-url-state.ts`
+- `apps/web/lib/tests/discover/discover-url-state.test.mjs`
+- `.superpowers/sdd/2026-08-21-discover-collections-personalization/task-2-report.md`
+
+### Validation Summary
+
+- Reproduced the remaining live-state issue with request-path regression coverage: a Quick Watch TV filter change needed to normalize before calling `mergeDiscoverCriteria`.
+- Added `normalizeDiscoverFilterState` so incompatible collection media types collapse to `all` before both URL writing and live client state updates.
+- Updated `DiscoverClient.updateFilters` to call `setFilters` with the same effective filter state used for URL writes.
+- Preserved Quick Watch movie-only request behavior while keeping valid rating filters and page reset semantics.
+
+### Tests Run
+
+- `pnpm --filter web exec node --test lib/tests/discover/discover-url-state.test.mjs`
+- `pnpm --filter web exec tsc --noEmit`
+
+### Test Output
+
+#### Red Phase
+
+- `Quick Watch TV filter changes normalize before building live requests` failed as expected before the helper existed.
+
+#### Green Phase
+
+- Focused URL test: `8` tests run, `8` passed, `0` failed.
+- Typecheck: `pnpm --filter web exec tsc --noEmit` exited `0`.
+
+### Concerns
+
+- No blocking concerns for this scoped fix round.
