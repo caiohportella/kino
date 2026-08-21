@@ -80,16 +80,33 @@ test('clearing collection preserves unrelated filters', async () => {
   })
 })
 
-test('activating collection clears stale page and genre state', async () => {
+test('activating collection preserves genres, resets page, and keeps applicable state', async () => {
   const { writeDiscoverCollectionUrl } = await import('../../discover/discover-url-state.ts')
 
   const next = writeDiscoverCollectionUrl(
-    readParams('type=tv&genres=10759&page=4&rating=7'),
+    readParams('type=movie&genres=18,12&page=4&rating=7'),
     'quick-watch',
   )
 
   assert.deepEqual(toObject(next), {
     collection: 'quick-watch',
+    type: 'movie',
+    genres: '18,12',
+    rating: '7',
+  })
+})
+
+test('activating collection still removes incompatible media type while preserving genres', async () => {
+  const { writeDiscoverCollectionUrl } = await import('../../discover/discover-url-state.ts')
+
+  const next = writeDiscoverCollectionUrl(
+    readParams('type=tv&genres=18&page=4&rating=7'),
+    'quick-watch',
+  )
+
+  assert.deepEqual(toObject(next), {
+    collection: 'quick-watch',
+    genres: '18',
     rating: '7',
   })
 })

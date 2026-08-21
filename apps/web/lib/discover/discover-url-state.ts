@@ -139,7 +139,6 @@ export function writeDiscoverCollectionUrl(
   }
 
   params.set("collection", collection.id);
-  params.delete("genres");
 
   const mediaType = params.get("type");
   const supportedMediaType =
