@@ -1,0 +1,133 @@
+import type { TMDbGenre } from "@kino/core";
+import type {
+  DiscoverCollection,
+  DiscoverCollectionId,
+  DiscoverCollectionFilters,
+} from "./collections.ts";
+import { parseDiscoverCollection } from "./collections.ts";
+
+function sanitizeDiscoverFilters(
+  params: URLSearchParams,
+  genres: TMDbGenre[],
+  collection: DiscoverCollection | null,
+): DiscoverCollectionFilters {
+  const rawMediaType = params.get("type");
+  const rawGenreIds = params.get("genres");
+  const rawRating = Number(params.get("rating"));
+  const mediaType =
+    rawMediaType === "movie" || rawMediaType === "tv" ? rawMediaType : "all";
+  const supportedMediaType =
+    mediaType !== "all" && collection && !collection.criteria[mediaType]
+      ? "all"
+      : mediaType;
+
+  return {
+    mediaType: supportedMediaType,
+    genreIds: rawGenreIds
+      ? rawGenreIds
+          .split(",")
+          .map(Number)
+          .filter(
+            (genreId) =>
+              Number.isInteger(genreId) &&
+              genres.some((genre) => genre.id === genreId),
+          )
+      : [],
+    minRating:
+      Number.isFinite(rawRating) && rawRating >= 0 && rawRating <= 9
+        ? rawRating
+        : 0,
+  };
+}
+
+export function readDiscoverUrlState(
+  params: URLSearchParams,
+  genres: TMDbGenre[],
+): {
+  filters: DiscoverCollectionFilters;
+  collection: DiscoverCollection | null;
+  page: number;
+} {
+  const collection = parseDiscoverCollection(params.get("collection"));
+  const rawPage = Number(params.get("page"));
+
+  return {
+    filters: sanitizeDiscoverFilters(params, genres, collection),
+    collection,
+    page: Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1,
+  };
+}
+
+export function writeDiscoverFilterUrl(
+  current: URLSearchParams,
+  next: DiscoverCollectionFilters,
+  collection: DiscoverCollection | null,
+): string {
+  const params = new URLSearchParams(current);
+
+  params.delete("page");
+
+  if (collection) {
+    params.set("collection", collection.id);
+  } else {
+    params.delete("collection");
+  }
+
+  if (next.mediaType !== "all") {
+    params.set("type", next.mediaType);
+  } else {
+    params.delete("type");
+  }
+
+  if (next.genreIds.length > 0) {
+    params.set("genres", next.genreIds.join(","));
+  } else {
+    params.delete("genres");
+  }
+
+  if (next.minRating > 0) {
+    params.set("rating", String(next.minRating));
+  } else {
+    params.delete("rating");
+  }
+
+  return params.toString();
+}
+
+export function writeDiscoverCollectionUrl(
+  current: URLSearchParams,
+  id: DiscoverCollectionId | null,
+): string {
+  const params = new URLSearchParams(current);
+
+  params.delete("page");
+
+  if (!id) {
+    params.delete("collection");
+
+    return params.toString();
+  }
+
+  const collection = parseDiscoverCollection(id);
+
+  if (!collection) {
+    params.delete("collection");
+
+    return params.toString();
+  }
+
+  params.set("collection", collection.id);
+  params.delete("genres");
+
+  const mediaType = params.get("type");
+  const supportedMediaType =
+    mediaType === "movie" || mediaType === "tv" ? mediaType : null;
+
+  if (mediaType && !supportedMediaType) {
+    params.delete("type");
+  } else if (supportedMediaType && !collection.criteria[supportedMediaType]) {
+    params.delete("type");
+  }
+
+  return params.toString();
+}
