@@ -11,11 +11,11 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 import { getDiscoverAffinityData } from "./server-affinity";
 import {
+  buildPersonalizedDiscoverRails,
   DISCOVER_MIN_PERSONALIZED_RAIL_ITEMS,
   getDiscoverMediaKey,
   rankDiscoverRecommendations,
   selectDiscoverRecommendationSeeds,
-  selectPersonalizedDiscoverRails,
   type DiscoverRecommendationBatch,
   type DiscoverRecommendationSeed,
   type PersonalizedDiscoverRail,
@@ -282,36 +282,11 @@ export async function getPersonalizedDiscoverRails(
     getDiscoverAffinityData(userId, language),
   ]);
 
-  if (recommendationResult.status === "rejected") {
-    console.error(
-      "[discover:personalization] Failed to build personalized recommendations.",
-      recommendationResult.reason,
-    );
-  }
-
-  if (affinityResult.status === "rejected") {
-    console.error(
-      "[discover:personalization] Failed to build personalized affinity rails.",
-      affinityResult.reason,
-    );
-  }
-
-  const recommendations =
-    recommendationResult.status === "fulfilled"
-      ? recommendationResult.value.recommendations
-      : [];
-
-  const seed =
-    recommendationResult.status === "fulfilled"
-      ? recommendationResult.value.seed
-      : null;
-
-  const affinityRows =
-    affinityResult.status === "fulfilled" ? affinityResult.value.rows : [];
-
-  return selectPersonalizedDiscoverRails({
-    recommendations,
-    seed,
-    affinityRows,
+  return buildPersonalizedDiscoverRails({
+    recommendationResult,
+    affinityResult,
+    logError(message, error) {
+      console.error(message, error);
+    },
   });
 }

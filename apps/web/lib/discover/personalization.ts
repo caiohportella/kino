@@ -50,6 +50,23 @@ export type PersonalizedDiscoverRail =
       items: TMDbTitle[];
     };
 
+export type PersonalizedRecommendationRailInput = {
+  recommendations: TMDbTitle[];
+  seed: (TMDbTitle & {
+    media_type: "movie" | "tv";
+  }) | null;
+};
+
+type FulfilledResult<T> = {
+  status: "fulfilled";
+  value: T;
+};
+
+type RejectedResult = {
+  status: "rejected";
+  reason: unknown;
+};
+
 export function getDiscoverMediaKey(mediaType: "movie" | "tv", tmdbId: number) {
   return `${mediaType}:${tmdbId}`;
 }
@@ -291,4 +308,44 @@ export function selectPersonalizedDiscoverRails({
   }
 
   return rails.slice(0, normalizedLimit);
+}
+
+export function buildPersonalizedDiscoverRails({
+  recommendationResult,
+  affinityResult,
+  logError,
+}: {
+  recommendationResult:
+    | FulfilledResult<PersonalizedRecommendationRailInput>
+    | RejectedResult;
+  affinityResult:
+    | FulfilledResult<{
+        rows: DiscoverAffinityRow[];
+      }>
+    | RejectedResult;
+  logError: (message: string, error: unknown) => void;
+}): PersonalizedDiscoverRail[] {
+  if (recommendationResult.status === "rejected") {
+    logError(
+      "[discover:personalization] Failed to build personalized recommendations.",
+      recommendationResult.reason,
+    );
+
+    return [];
+  }
+
+  if (affinityResult.status === "rejected") {
+    logError(
+      "[discover:personalization] Failed to build personalized affinity rails.",
+      affinityResult.reason,
+    );
+
+    return [];
+  }
+
+  return selectPersonalizedDiscoverRails({
+    recommendations: recommendationResult.value.recommendations,
+    seed: recommendationResult.value.seed,
+    affinityRows: affinityResult.value.rows,
+  });
 }

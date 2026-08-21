@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { selectPersonalizedDiscoverRails } from '../../discover/personalization.ts'
+import {
+  buildPersonalizedDiscoverRails,
+  selectPersonalizedDiscoverRails,
+} from '../../discover/personalization.ts'
 
 function title(id, mediaType = 'movie', overrides = {}) {
   return {
@@ -114,4 +117,55 @@ test('preserves the seed/source data needed for localized headings', async () =>
   assert.deepEqual(result[0].seed, seed)
   assert.equal(result[1].affinityKind, 'director')
   assert.deepEqual(result[1].source, directorRow.source)
+})
+
+test('fails closed when either personalization fetch rejects', async () => {
+  const recommendationSeed = title(1000, 'movie', {
+    title: 'Aftersun',
+  })
+  const affinity = affinityRow('director', 44, 8)
+  const logged = []
+
+  const recommendationFailure = buildPersonalizedDiscoverRails({
+    recommendationResult: {
+      status: 'rejected',
+      reason: new Error('recommendations failed'),
+    },
+    affinityResult: {
+      status: 'fulfilled',
+      value: {
+        rows: [affinity],
+      },
+    },
+    logError(message, error) {
+      logged.push({ message, error })
+    },
+  })
+
+  assert.deepEqual(recommendationFailure, [])
+  assert.equal(logged.length, 1)
+  assert.match(logged[0].message, /personalized recommendations/i)
+
+  const affinityFailure = buildPersonalizedDiscoverRails({
+    recommendationResult: {
+      status: 'fulfilled',
+      value: {
+        recommendations: Array.from({ length: 8 }, (_, index) =>
+          title(index + 1)
+        ),
+        seed: recommendationSeed,
+      },
+    },
+    affinityResult: {
+      status: 'rejected',
+      reason: new Error('affinity failed'),
+    },
+    logError(message, error) {
+      logged.push({ message, error })
+    },
+  })
+
+  assert.deepEqual(affinityFailure, [])
+  assert.equal(logged.length, 2)
+  assert.match(logged[1].message, /personalized affinity rails/i)
 })
