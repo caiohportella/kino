@@ -169,3 +169,26 @@ test('fails closed when either personalization fetch rejects', async () => {
   assert.equal(logged.length, 2)
   assert.match(logged[1].message, /personalized affinity rails/i)
 })
+
+test('logs both failures before failing closed when both personalization fetches reject', async () => {
+  const logged = []
+
+  const result = buildPersonalizedDiscoverRails({
+    recommendationResult: {
+      status: 'rejected',
+      reason: new Error('recommendations failed'),
+    },
+    affinityResult: {
+      status: 'rejected',
+      reason: new Error('affinity failed'),
+    },
+    logError(message, error) {
+      logged.push({ message, error })
+    },
+  })
+
+  assert.deepEqual(result, [])
+  assert.equal(logged.length, 2)
+  assert.match(logged[0].message, /personalized recommendations/i)
+  assert.match(logged[1].message, /personalized affinity rails/i)
+})

@@ -325,27 +325,40 @@ export function buildPersonalizedDiscoverRails({
     | RejectedResult;
   logError: (message: string, error: unknown) => void;
 }): PersonalizedDiscoverRail[] {
+  let hasFailure = false;
+
   if (recommendationResult.status === "rejected") {
+    hasFailure = true;
+
     logError(
       "[discover:personalization] Failed to build personalized recommendations.",
       recommendationResult.reason,
     );
-
-    return [];
   }
 
   if (affinityResult.status === "rejected") {
+    hasFailure = true;
+
     logError(
       "[discover:personalization] Failed to build personalized affinity rails.",
       affinityResult.reason,
     );
+  }
 
+  if (hasFailure) {
     return [];
   }
 
+  const fulfilledRecommendationResult = recommendationResult as FulfilledResult<
+    PersonalizedRecommendationRailInput
+  >;
+  const fulfilledAffinityResult = affinityResult as FulfilledResult<{
+    rows: DiscoverAffinityRow[];
+  }>;
+
   return selectPersonalizedDiscoverRails({
-    recommendations: recommendationResult.value.recommendations,
-    seed: recommendationResult.value.seed,
-    affinityRows: affinityResult.value.rows,
+    recommendations: fulfilledRecommendationResult.value.recommendations,
+    seed: fulfilledRecommendationResult.value.seed,
+    affinityRows: fulfilledAffinityResult.value.rows,
   });
 }

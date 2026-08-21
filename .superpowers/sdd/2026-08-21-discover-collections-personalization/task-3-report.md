@@ -148,3 +148,66 @@ Result:
 ### Concerns
 
 - The page still fetches affinity separately for existing Discover sections, so this round only closes the normalized rail contract itself. The remaining duplication is unchanged from the prior Task 3 slice.
+
+## Fix round 2
+
+### Summary
+
+Adjusted the fail-closed helper to log both rejected personalization branches before returning `[]` when recommendation and affinity fetches both fail.
+
+### Changed files
+
+- `apps/web/lib/discover/personalization.ts`
+- `apps/web/lib/tests/discover/discover-personalized-rails.test.mjs`
+
+### What changed
+
+- Updated `buildPersonalizedDiscoverRails(...)` so it:
+  - records whether either branch failed,
+  - logs the recommendation rejection when present,
+  - logs the affinity rejection when present,
+  - returns `[]` only after both logging paths have run.
+- Added a dual-failure regression test that verifies:
+  - the helper still fails closed to `[]`,
+  - both logging messages are emitted in the dual-reject case.
+
+### Tests run
+
+Run:
+
+```powershell
+pnpm --filter web exec node --test lib/tests/discover/discover-personalized-rails.test.mjs lib/tests/discover/discover-personalization.test.mjs
+```
+
+Result:
+
+- 15 tests passed
+- 0 failed
+
+Key output:
+
+```text
+ok 14 - fails closed when either personalization fetch rejects
+ok 15 - logs both failures before failing closed when both personalization fetches reject
+```
+
+Run:
+
+```powershell
+pnpm exec tsc --noEmit
+```
+
+Working directory:
+
+```text
+apps/web
+```
+
+Result:
+
+- Exit code `0`
+- No typecheck output
+
+### Concerns
+
+- No new scope concerns in this round. The remaining Discover-page affinity duplication is unchanged and still outside this fix-only slice.
