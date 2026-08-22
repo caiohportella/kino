@@ -106,6 +106,7 @@ test('activating collection still removes incompatible media type while preservi
 
   assert.deepEqual(toObject(next), {
     collection: 'quick-watch',
+    type: 'tv',
     genres: '18',
     rating: '7',
   })
@@ -147,7 +148,7 @@ test('filter writes preserve collection and reset page', async () => {
   assert.equal(roundTrip.page, 1)
 })
 
-test('filter writes remove Quick Watch TV media type while preserving rating', async () => {
+test('filter writes preserve an explicit Quick Watch TV constraint', async () => {
   const { writeDiscoverFilterUrl } = await import('../../discover/discover-url-state.ts')
   const { parseDiscoverCollection } = await import('../../discover/collections.ts')
 
@@ -164,11 +165,12 @@ test('filter writes remove Quick Watch TV media type while preserving rating', a
 
   assert.deepEqual(toObject(next), {
     collection: 'quick-watch',
+    type: 'tv',
     rating: '8',
   })
 })
 
-test('Quick Watch TV filter changes normalize before building live requests', async () => {
+test('Quick Watch TV filter changes remain explicit and produce no live requests', async () => {
   const { normalizeDiscoverFilterState } = await import('../../discover/discover-url-state.ts')
   const { mergeDiscoverCriteria, parseDiscoverCollection } = await import('../../discover/collections.ts')
 
@@ -188,11 +190,9 @@ test('Quick Watch TV filter changes normalize before building live requests', as
   })
 
   assert.deepEqual(filters, {
-    mediaType: 'all',
+    mediaType: 'tv',
     genreIds: [],
     minRating: 8,
   })
-  assert.equal(criteria.requests.length, 1)
-  assert.equal(criteria.requests[0].type, 'movie')
-  assert.equal(criteria.requests[0].params['vote_average.gte'], '8')
+  assert.equal(criteria.requests.length, 0)
 })

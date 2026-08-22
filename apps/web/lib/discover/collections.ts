@@ -50,6 +50,7 @@ export type DiscoverCollectionDateWindow = {
 
 type DiscoverCollectionBuildOptions = {
   dateWindow?: DiscoverCollectionDateWindow | null;
+  region?: string | null;
 };
 
 const COLLECTIONS: Record<DiscoverCollectionId, DiscoverCollectionDefinition> = {
@@ -325,6 +326,7 @@ function buildParamsForCriteria(
   setIfDefined(params, "vote_count.gte", criteria.voteCountGte);
   setIfDefined(params, "popularity.gte", criteria.popularityGte);
   setIfDefined(params, "popularity.lte", criteria.popularityLte);
+  setIfDefined(params, "region", options?.region);
   setIfDefined(params, "with_genres", buildGenreFilter(criteria, options?.userGenres ?? []));
 
   if (criteria.dateWindowField && options?.dateWindow) {
@@ -411,6 +413,7 @@ export function mergeDiscoverCriteria(input: {
   filters: DiscoverCollectionFilters;
   page: number;
   dateWindow?: DiscoverCollectionDateWindow | null;
+  region?: string | null;
 }): {
   requests: Array<{ type: MediaType; params: Record<string, string> }>;
   queryKey: readonly unknown[];
@@ -433,6 +436,7 @@ export function mergeDiscoverCriteria(input: {
 
     const collectionParams = buildParamsForCriteria(criteria ?? {}, undefined, {
       dateWindow: input.dateWindow ?? null,
+      region: input.region ?? null,
       userGenres: normalizedGenres,
     });
 

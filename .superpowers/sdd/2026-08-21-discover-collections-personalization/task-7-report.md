@@ -69,3 +69,46 @@ Status: Partial pass after scoped verification fixes. Discover collections/perso
 - The exact required `pnpm --filter web test -- lib/tests/discover` command is still red because the package test script runs the broader web test suite, and 9 remaining named failures are outside Task 7 scope.
 - One of those remaining failures, `keeps collection search typing local before committing the URL query`, is collection-related but lives in profile collection filters, not discover collections. I did not change it because the brief limited fixes to regressions caused by this feature.
 - I did not run a live browser/manual UI session for `/discover`; the URL/state verification above is based on fresh test evidence plus direct final-code inspection.
+
+---
+
+## Final review fix wave — 2026-08-22
+
+Status: PASS for the four scoped final-review findings, with fresh focused verification, lint, typecheck, and build evidence.
+
+### Findings fixed
+
+1. Quick Watch URL/state semantics now preserve an explicit `type=tv` selection for `/discover?collection=quick-watch&type=tv`, while still producing zero discover requests and an empty-state result for that unsupported combination.
+2. New This Month now threads the server-derived discover region into collection request params, so region-aware release filtering stays aligned with the active locale.
+3. Normal Discover section order now renders broad/current editorial rails first, then “For You”, then “Explore Collections”, then the generic catalog rails. Filtered and collection modes were left intact.
+4. Generated English discover localization now includes `discover.collections.active.label`, `discover.collections.open`, and `discover.collections.explore.description`, with defaults sourced from shared discover localization helpers instead of inline component-only copy.
+
+### Fresh verification evidence
+
+- Focused Discover regression suite
+  - Command: `node --test --experimental-strip-types lib/tests/discover/discover-url-state.test.mjs lib/tests/discover/discover-collections.test.mjs lib/tests/discover/layout.test.mjs lib/tests/discover/discover-localization.test.mjs`
+  - Result: PASS
+  - Summary: 28 passed, 0 failed
+- Web lint
+  - Command: `pnpm --filter web lint`
+  - Result: PASS with 2 warnings, 0 errors
+  - Warnings:
+    - `components/media/media-row.tsx`: extra `useLayoutEffect` dependency (`hasOverflow`)
+    - `lib/discover/series-updates.ts`: `Array<T>` vs `T[]` style warning
+- Web typecheck
+  - Command: `pnpm --filter web exec tsc --noEmit`
+  - Result: PASS
+- Web production build
+  - Command: `pnpm --filter web build`
+  - Result: PASS
+  - Notes:
+    - Next.js production build completed successfully
+    - `/discover` remains in the generated route output
+    - OG edge bundle report passed for all checked routes
+    - Existing warning remains: edge runtime disables static generation for affected pages
+
+### Final code / state notes
+
+- The final URL/state code now keeps explicit unsupported collection/media combinations visible in the URL state instead of silently normalizing them away, which avoids misleading query semantics while still preventing invalid backend requests.
+- Collection criteria merging now carries `region` for region-sensitive editorial collections, matching the locale-derived behavior already used elsewhere in Discover.
+- No long-running verification process remained after finalization; the fresh build completed cleanly before this report update.

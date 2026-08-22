@@ -113,7 +113,7 @@ test('query keys use effective collection rating criteria', async () => {
   assert.deepEqual(redundantRating.queryKey, baseline.queryKey)
 })
 
-test('quick watch query keys collapse incompatible tv state', async () => {
+test('quick watch TV state remains distinct and produces no requests', async () => {
   const { mergeDiscoverCriteria, parseDiscoverCollection } = await import('../../discover/collections.ts')
 
   const collection = parseDiscoverCollection('quick-watch')
@@ -127,9 +127,16 @@ test('quick watch query keys collapse incompatible tv state', async () => {
     filters: { mediaType: 'movie', genreIds: [], minRating: 0 },
     page: 1,
   })
+  const tvOnly = mergeDiscoverCriteria({
+    collection,
+    filters: { mediaType: 'tv', genreIds: [], minRating: 0 },
+    page: 1,
+  })
 
   assert.deepEqual(allMedia.requests, movieOnly.requests)
   assert.deepEqual(allMedia.queryKey, movieOnly.queryKey)
+  assert.equal(tvOnly.requests.length, 0)
+  assert.notDeepEqual(tvOnly.queryKey, movieOnly.queryKey)
 })
 
 test('quick watch does not build a tv query', async () => {
@@ -190,4 +197,22 @@ test('new this month requires an explicit date window and stays deterministic wi
   assert.equal(first.requests[0].params['release_date.gte'], '2024-02-10')
   assert.equal(first.requests[0].params['release_date.lte'], '2024-02-19')
   assert.deepEqual(second, first)
+})
+
+test('new this month carries the server-derived region into collection requests', async () => {
+  const { mergeDiscoverCriteria, parseDiscoverCollection } = await import('../../discover/collections.ts')
+
+  const result = mergeDiscoverCriteria({
+    collection: parseDiscoverCollection('new-this-month'),
+    filters: { mediaType: 'movie', genreIds: [], minRating: 0 },
+    page: 1,
+    dateWindow: {
+      start: '2024-02-10',
+      end: '2024-02-19',
+    },
+    region: 'BR',
+  })
+
+  assert.equal(result.requests.length, 1)
+  assert.equal(result.requests[0].params.region, 'BR')
 })

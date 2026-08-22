@@ -49,6 +49,7 @@ interface DiscoverClientProps {
   genres: TMDbGenre[];
   movieGenres: TMDbGenre[];
   tvGenres: TMDbGenre[];
+  region: string;
   trending: CarouselTitle[];
   popularMovies: CarouselTitle[];
   popularTV: CarouselTitle[];
@@ -90,6 +91,7 @@ export function DiscoverClient({
   personalizedNewSeries,
   popularMovies,
   popularTV,
+  region,
   rereleases,
   seriesUpdates,
   trending,
@@ -192,8 +194,16 @@ export function DiscoverClient({
         dateWindow: collectionDateWindow,
         filters,
         page,
+        region,
       }),
-    [activeCollection, collectionDateWindow, filters, page],
+    [activeCollection, collectionDateWindow, filters, page, region],
+  );
+
+  const featuredSections = sectionOrder.filter(
+    (section) => section.type === "primary" || section.type === "updates",
+  );
+  const catalogSections = sectionOrder.filter(
+    (section) => section.type !== "primary" && section.type !== "updates",
   );
 
   const filteredQuery = useQuery({
@@ -359,6 +369,83 @@ export function DiscoverClient({
               defaultValue: "Home",
             });
 
+  function renderDiscoverSections(sections: DiscoverSectionDescriptor[]) {
+    return sections.map((section) => {
+      switch (section.type) {
+        case "primary":
+          return (
+            <MediaSection
+              density="comfortable"
+              items={popularNow}
+              key="primary"
+              title={t("home.popularNow", {
+                defaultValue: "Popular now",
+              })}
+            />
+          );
+
+        case "updates":
+          return (
+            <DiscoverUpdatesSection items={seriesUpdates} key="updates" />
+          );
+
+        case "affinity":
+          return null;
+
+        case "new-releases":
+          return (
+            <MediaSection
+              density="comfortable"
+              items={personalizedNewReleases}
+              key="new-releases"
+              title={t("home.newReleases", {
+                defaultValue: "New releases",
+              })}
+            />
+          );
+
+        case "new-series":
+          return (
+            <MediaSection
+              density="comfortable"
+              items={personalizedNewSeries}
+              key="new-series"
+              title={t("home.newSeries", {
+                defaultValue: "New series",
+              })}
+            />
+          );
+
+        case "upcoming":
+          return (
+            <MediaSection
+              density="comfortable"
+              items={upcoming}
+              key="upcoming"
+              title={t("home.upcoming", {
+                defaultValue: "Coming soon",
+              })}
+            />
+          );
+
+        case "rereleases":
+          return (
+            <MediaSection
+              density="comfortable"
+              items={rereleases}
+              key="rereleases"
+              title={t("home.rereleases", {
+                defaultValue: "Back in theaters",
+              })}
+            />
+          );
+
+        default:
+          return null;
+      }
+    });
+  }
+
   return (
     <>
       <div className="mb-10 flex items-center gap-2">
@@ -460,84 +547,13 @@ export function DiscoverClient({
             <TrendingCarousel items={trending} />
           </section>
 
-          {sectionOrder.map((section) => {
-            switch (section.type) {
-              case "primary":
-                return (
-                  <MediaSection
-                    density="comfortable"
-                    items={popularNow}
-                    key="primary"
-                    title={t("home.popularNow", {
-                      defaultValue: "Popular now",
-                    })}
-                  />
-                );
-
-              case "updates":
-                return (
-                  <DiscoverUpdatesSection items={seriesUpdates} key="updates" />
-                );
-
-              case "affinity":
-                return null;
-
-              case "new-releases":
-                return (
-                  <MediaSection
-                    density="comfortable"
-                    items={personalizedNewReleases}
-                    key="new-releases"
-                    title={t("home.newReleases", {
-                      defaultValue: "New releases",
-                    })}
-                  />
-                );
-
-              case "new-series":
-                return (
-                  <MediaSection
-                    density="comfortable"
-                    items={personalizedNewSeries}
-                    key="new-series"
-                    title={t("home.newSeries", {
-                      defaultValue: "New series",
-                    })}
-                  />
-                );
-
-              case "upcoming":
-                return (
-                  <MediaSection
-                    density="comfortable"
-                    items={upcoming}
-                    key="upcoming"
-                    title={t("home.upcoming", {
-                      defaultValue: "Coming soon",
-                    })}
-                  />
-                );
-
-              case "rereleases":
-                return (
-                  <MediaSection
-                    density="comfortable"
-                    items={rereleases}
-                    key="rereleases"
-                    title={t("home.rereleases", {
-                      defaultValue: "Back in theaters",
-                    })}
-                  />
-                );
-
-              default:
-                return null;
-            }
-          })}
+          {renderDiscoverSections(featuredSections)}
 
           <PersonalizedDiscoverSection rails={personalizedRails} />
 
           <ExploreCollections onSelect={updateCollection} />
+
+          {renderDiscoverSections(catalogSections)}
         </>
       )}
     </>

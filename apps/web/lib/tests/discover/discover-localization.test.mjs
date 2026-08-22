@@ -111,6 +111,10 @@ test("discover localization defaults stay inline so the extractor can see them",
     "discover.collections.newThisMonth.title": "New This Month",
     "discover.collections.newThisMonth.description":
       "Recent releases from your region",
+    "discover.collections.active.label": "Collection",
+    "discover.collections.open": "Open collection",
+    "discover.collections.explore.description":
+      "Editorial picks for nights when you want a strong starting point.",
     "discover.personalized.becauseYouLiked": "Because you liked {{title}}",
     "discover.personalized.moreFromDirectors": "More from {{name}}",
     "discover.personalized.exploreMoreGenre": "Explore more {{genre}}",
@@ -147,6 +151,10 @@ test("generated English discover catalog includes the expected collection and pe
     "discover.collections.newThisMonth.title": "New This Month",
     "discover.collections.newThisMonth.description":
       "Recent releases from your region",
+    "discover.collections.active.label": "Collection",
+    "discover.collections.open": "Open collection",
+    "discover.collections.explore.description":
+      "Editorial picks for nights when you want a strong starting point.",
     "discover.personalized.becauseYouLiked": "Because you liked {{title}}",
     "discover.personalized.moreFromDirectors": "More from {{name}}",
     "discover.personalized.exploreMoreGenre": "Explore more {{genre}}",

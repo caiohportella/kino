@@ -170,6 +170,7 @@ export default async function DiscoverPage() {
           personalizedNewSeries={personalizedNewSeries}
           popularMovies={data.popularMovies}
           popularTV={data.popularTV}
+          region={region}
           rereleases={data.rereleases}
           seriesUpdates={seriesUpdates}
           trending={data.trending}

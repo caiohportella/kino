@@ -13,6 +13,13 @@ export function getDiscoverExploreCollectionsLabel(t: TFunction) {
   });
 }
 
+export function getDiscoverExploreCollectionsDescription(t: TFunction) {
+  return t("discover.collections.explore.description", {
+    defaultValue:
+      "Editorial picks for nights when you want a strong starting point.",
+  });
+}
+
 export function getDiscoverCollectionTitle(
   t: TFunction,
   collection: DiscoverCollection,
@@ -88,6 +95,18 @@ export function getDiscoverCollectionDescription(
 export function getDiscoverCollectionClearLabel(t: TFunction) {
   return t("discover.collections.clear", {
     defaultValue: "Clear collection",
+  });
+}
+
+export function getDiscoverCollectionActiveLabel(t: TFunction) {
+  return t("discover.collections.active.label", {
+    defaultValue: "Collection",
+  });
+}
+
+export function getDiscoverCollectionOpenLabel(t: TFunction) {
+  return t("discover.collections.open", {
+    defaultValue: "Open collection",
   });
 }
 

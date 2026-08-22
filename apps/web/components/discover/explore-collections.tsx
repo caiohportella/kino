@@ -6,7 +6,10 @@ import {
   DISCOVER_COLLECTIONS,
   type DiscoverCollectionId,
 } from "@/lib/discover/collections";
-import { getDiscoverExploreCollectionsLabel } from "@/lib/discover/discover-localization";
+import {
+  getDiscoverExploreCollectionsDescription,
+  getDiscoverExploreCollectionsLabel,
+} from "@/lib/discover/discover-localization";
 import { writeDiscoverCollectionUrl } from "@/lib/discover/discover-url-state";
 import { useTranslation } from "@/lib/localization/i18n";
 import { DiscoverCollectionCard } from "./discover-collection-card";
@@ -33,9 +36,7 @@ export function ExploreCollections({
         </h2>
 
         <p className="mt-1 text-sm text-kino-muted">
-          {t("discover.collections.explore.description", {
-            defaultValue: "Editorial picks for nights when you want a strong starting point.",
-          })}
+          {getDiscoverExploreCollectionsDescription(t)}
         </p>
       </div>
 

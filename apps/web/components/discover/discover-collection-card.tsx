@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { DiscoverCollection, DiscoverCollectionId } from "@/lib/discover/collections";
 import {
   getDiscoverCollectionDescription,
+  getDiscoverCollectionOpenLabel,
   getDiscoverCollectionTitle,
 } from "@/lib/discover/discover-localization";
 import { useTranslation } from "@/lib/localization/i18n";
@@ -56,11 +57,7 @@ export function DiscoverCollectionCard({
         </div>
 
         <div className="inline-flex items-center gap-1.5 text-sm font-medium text-kino-text transition-colors group-hover:text-kino-accent">
-          <span>
-            {t("discover.collections.open", {
-              defaultValue: "Open collection",
-            })}
-          </span>
+          <span>{getDiscoverCollectionOpenLabel(t)}</span>
 
           <ChevronRight aria-hidden="true" className="size-4" />
         </div>

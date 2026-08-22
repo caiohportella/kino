@@ -29,3 +29,34 @@ test('trending carousel uses viewport-aware desktop height', async () => {
 
   assert.match(source, /lg:h-\[clamp\(450px,55vh,660px\)\]/)
 })
+
+test('normal discover places personalized and collection sections before catalog rails', async () => {
+  const source = await readFile(
+    new URL('../../../components/discover/discover-client.tsx', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(
+    source,
+    /const featuredSections = sectionOrder\.filter\([\s\S]*?\)\s*[\s\S]*const catalogSections = sectionOrder\.filter\([\s\S]*?\)/,
+  )
+  assert.match(
+    source,
+    /renderDiscoverSections\(featuredSections\)[\s\S]*<PersonalizedDiscoverSection rails=\{personalizedRails\} \/>[\s\S]*<ExploreCollections onSelect=\{updateCollection\} \/>[\s\S]*renderDiscoverSections\(catalogSections\)/,
+  )
+})
+
+test('new this month region comes from the server-derived discover region', async () => {
+  const pageSource = await readFile(
+    new URL('../../../app/discover/page.tsx', import.meta.url),
+    'utf8'
+  )
+  const clientSource = await readFile(
+    new URL('../../../components/discover/discover-client.tsx', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(pageSource, /const region = getRegionForLanguage\(language\);/)
+  assert.match(clientSource, /region: string;/)
+  assert.match(clientSource, /mergeDiscoverCriteria\(\{\s*[\s\S]*region,/)
+})

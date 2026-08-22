@@ -2,6 +2,7 @@
 
 import type { DiscoverCollection } from "@/lib/discover/collections";
 import {
+  getDiscoverCollectionActiveLabel,
   getDiscoverCollectionClearLabel,
   getDiscoverCollectionDescription,
   getDiscoverCollectionTitle,
@@ -22,9 +23,7 @@ export function ActiveDiscoverCollection({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-kino-subtle">
-            {t("discover.collections.active.label", {
-              defaultValue: "Collection",
-            })}
+            {getDiscoverCollectionActiveLabel(t)}
           </p>
 
           <h2 className="mt-2 text-xl font-semibold text-kino-text">

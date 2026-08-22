@@ -9,20 +9,14 @@ import { parseDiscoverCollection } from "./collections.ts";
 function sanitizeDiscoverFilters(
   params: URLSearchParams,
   genres: TMDbGenre[],
-  collection: DiscoverCollection | null,
 ): DiscoverCollectionFilters {
   const rawMediaType = params.get("type");
   const rawGenreIds = params.get("genres");
   const rawRating = Number(params.get("rating"));
   const mediaType =
     rawMediaType === "movie" || rawMediaType === "tv" ? rawMediaType : "all";
-  const supportedMediaType =
-    mediaType !== "all" && collection && !collection.criteria[mediaType]
-      ? "all"
-      : mediaType;
-
   return {
-    mediaType: supportedMediaType,
+    mediaType,
     genreIds: rawGenreIds
       ? rawGenreIds
           .split(",")
@@ -52,7 +46,7 @@ export function readDiscoverUrlState(
   const rawPage = Number(params.get("page"));
 
   return {
-    filters: sanitizeDiscoverFilters(params, genres, collection),
+    filters: sanitizeDiscoverFilters(params, genres),
     collection,
     page: Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1,
   };
@@ -74,10 +68,7 @@ export function writeDiscoverFilterUrl(
     params.delete("collection");
   }
 
-  if (
-    filters.mediaType !== "all" &&
-    (!collection || collection.criteria[filters.mediaType])
-  ) {
+  if (filters.mediaType !== "all") {
     params.set("type", filters.mediaType);
   } else {
     params.delete("type");
@@ -110,10 +101,7 @@ export function normalizeDiscoverFilterState(
     return next;
   }
 
-  return {
-    ...next,
-    mediaType: "all",
-  };
+  return next;
 }
 
 export function writeDiscoverCollectionUrl(
@@ -145,8 +133,6 @@ export function writeDiscoverCollectionUrl(
     mediaType === "movie" || mediaType === "tv" ? mediaType : null;
 
   if (mediaType && !supportedMediaType) {
-    params.delete("type");
-  } else if (supportedMediaType && !collection.criteria[supportedMediaType]) {
     params.delete("type");
   }
 
