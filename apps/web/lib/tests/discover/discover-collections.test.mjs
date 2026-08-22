@@ -14,54 +14,50 @@ test('invalid collection ids resolve to null', async () => {
   assert.equal(parseDiscoverCollection(null), null)
 })
 
-test('exports collection cards in stable editorial order with fallback copy', async () => {
+test('exports collection cards in stable editorial order with key-only discover metadata', async () => {
   const { DISCOVER_COLLECTIONS } = await import('../../discover/collections.ts')
 
   assert.deepEqual(
-    DISCOVER_COLLECTIONS.map((collection) => collection.id),
-    [
-      'hidden-gems',
-      'quick-watch',
-      '90s-essentials',
-      'modern-classics',
-      'critically-acclaimed',
-      'something-weird',
-      'new-this-month',
-    ],
-  )
-  assert.deepEqual(
     DISCOVER_COLLECTIONS.map((collection) => ({
-      title: collection.defaultTitle,
-      description: collection.defaultDescription,
+      id: collection.id,
+      titleKey: collection.titleKey,
+      descriptionKey: collection.descriptionKey,
     })),
     [
       {
-        title: 'Hidden gems',
-        description: 'Underrated movies and series worth finding.',
+        id: 'hidden-gems',
+        titleKey: 'discover.collections.hiddenGems.title',
+        descriptionKey: 'discover.collections.hiddenGems.description',
       },
       {
-        title: 'Quick watch',
-        description: 'Shorter movies when you want something great tonight.',
+        id: 'quick-watch',
+        titleKey: 'discover.collections.quickWatch.title',
+        descriptionKey: 'discover.collections.quickWatch.description',
       },
       {
-        title: '90s essentials',
-        description: 'Beloved movies and shows from the 1990s.',
+        id: '90s-essentials',
+        titleKey: 'discover.collections.ninetiesEssentials.title',
+        descriptionKey: 'discover.collections.ninetiesEssentials.description',
       },
       {
-        title: 'Modern classics',
-        description: 'Standout favorites from the 2000s and 2010s.',
+        id: 'modern-classics',
+        titleKey: 'discover.collections.modernClassics.title',
+        descriptionKey: 'discover.collections.modernClassics.description',
       },
       {
-        title: 'Critically acclaimed',
-        description: 'Top-rated picks with strong audience love.',
+        id: 'critically-acclaimed',
+        titleKey: 'discover.collections.criticallyAcclaimed.title',
+        descriptionKey: 'discover.collections.criticallyAcclaimed.description',
       },
       {
-        title: 'Something weird',
-        description: 'Offbeat sci-fi, horror, fantasy, and mysteries.',
+        id: 'something-weird',
+        titleKey: 'discover.collections.somethingWeird.title',
+        descriptionKey: 'discover.collections.somethingWeird.description',
       },
       {
-        title: 'New this month',
-        description: 'Fresh releases and premieres from the last few weeks.',
+        id: 'new-this-month',
+        titleKey: 'discover.collections.newThisMonth.title',
+        descriptionKey: 'discover.collections.newThisMonth.description',
       },
     ],
   )

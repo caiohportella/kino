@@ -1,5 +1,6 @@
 "use client";
 
+import { getDiscoverForYouLabel } from "@/lib/discover/discover-localization";
 import { useTranslation } from "@/lib/localization/i18n";
 import {
   type PersonalizedDiscoverRail as PersonalizedDiscoverRailData,
@@ -23,9 +24,7 @@ export function PersonalizedDiscoverSection({
     <section className="mb-12 lg:mb-14">
       <div className="mb-5">
         <h2 className="text-xl font-semibold text-kino-text lg:text-2xl">
-          {t("discover.forYou", {
-            defaultValue: "For you",
-          })}
+          {getDiscoverForYouLabel(t)}
         </h2>
       </div>
 

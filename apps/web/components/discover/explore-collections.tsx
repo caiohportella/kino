@@ -6,6 +6,7 @@ import {
   DISCOVER_COLLECTIONS,
   type DiscoverCollectionId,
 } from "@/lib/discover/collections";
+import { getDiscoverExploreCollectionsLabel } from "@/lib/discover/discover-localization";
 import { writeDiscoverCollectionUrl } from "@/lib/discover/discover-url-state";
 import { useTranslation } from "@/lib/localization/i18n";
 import { DiscoverCollectionCard } from "./discover-collection-card";
@@ -28,9 +29,7 @@ export function ExploreCollections({
     <section className="mb-10 border-t border-white/8 pt-7">
       <div className="mb-4">
         <h2 className="text-xl font-semibold text-kino-text">
-          {t("discover.collections.explore.title", {
-            defaultValue: "Explore collections",
-          })}
+          {getDiscoverExploreCollectionsLabel(t)}
         </h2>
 
         <p className="mt-1 text-sm text-kino-muted">

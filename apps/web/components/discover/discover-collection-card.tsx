@@ -3,6 +3,10 @@
 import type { MouseEvent } from "react";
 import Link from "next/link";
 import type { DiscoverCollection, DiscoverCollectionId } from "@/lib/discover/collections";
+import {
+  getDiscoverCollectionDescription,
+  getDiscoverCollectionTitle,
+} from "@/lib/discover/discover-localization";
 import { useTranslation } from "@/lib/localization/i18n";
 import { ChevronRight } from "lucide-react";
 
@@ -43,15 +47,11 @@ export function DiscoverCollectionCard({
       <div className="flex min-h-32 flex-col justify-between gap-5">
         <div className="space-y-2">
           <h3 className="text-base font-semibold text-kino-text">
-            {t(collection.titleKey, {
-              defaultValue: collection.defaultTitle,
-            })}
+            {getDiscoverCollectionTitle(t, collection)}
           </h3>
 
           <p className="text-sm leading-6 text-kino-muted">
-            {t(collection.descriptionKey, {
-              defaultValue: collection.defaultDescription,
-            })}
+            {getDiscoverCollectionDescription(t, collection)}
           </p>
         </div>
 

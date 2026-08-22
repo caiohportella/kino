@@ -32,8 +32,6 @@ type DiscoverCollectionDefinition = {
   id: DiscoverCollectionId;
   titleKey: string;
   descriptionKey: string;
-  defaultTitle: string;
-  defaultDescription: string;
   criteria: Partial<Record<MediaType, DiscoverCollectionCriteria>>;
 };
 
@@ -59,8 +57,6 @@ const COLLECTIONS: Record<DiscoverCollectionId, DiscoverCollectionDefinition> = 
     id: "hidden-gems",
     titleKey: "discover.collections.hiddenGems.title",
     descriptionKey: "discover.collections.hiddenGems.description",
-    defaultTitle: "Hidden gems",
-    defaultDescription: "Underrated movies and series worth finding.",
     criteria: {
       movie: {
         voteAverageGte: 7.1,
@@ -84,9 +80,6 @@ const COLLECTIONS: Record<DiscoverCollectionId, DiscoverCollectionDefinition> = 
     id: "quick-watch",
     titleKey: "discover.collections.quickWatch.title",
     descriptionKey: "discover.collections.quickWatch.description",
-    defaultTitle: "Quick watch",
-    defaultDescription:
-      "Shorter movies when you want something great tonight.",
     criteria: {
       movie: {
         runtimeLte: 100,
@@ -101,10 +94,8 @@ const COLLECTIONS: Record<DiscoverCollectionId, DiscoverCollectionDefinition> = 
   },
   "90s-essentials": {
     id: "90s-essentials",
-    titleKey: "discover.collections.90sEssentials.title",
-    descriptionKey: "discover.collections.90sEssentials.description",
-    defaultTitle: "90s essentials",
-    defaultDescription: "Beloved movies and shows from the 1990s.",
+    titleKey: "discover.collections.ninetiesEssentials.title",
+    descriptionKey: "discover.collections.ninetiesEssentials.description",
     criteria: {
       movie: {
         releaseDateGte: "1990-01-01",
@@ -132,8 +123,6 @@ const COLLECTIONS: Record<DiscoverCollectionId, DiscoverCollectionDefinition> = 
     id: "modern-classics",
     titleKey: "discover.collections.modernClassics.title",
     descriptionKey: "discover.collections.modernClassics.description",
-    defaultTitle: "Modern classics",
-    defaultDescription: "Standout favorites from the 2000s and 2010s.",
     criteria: {
       movie: {
         releaseDateGte: "2000-01-01",
@@ -161,8 +150,6 @@ const COLLECTIONS: Record<DiscoverCollectionId, DiscoverCollectionDefinition> = 
     id: "critically-acclaimed",
     titleKey: "discover.collections.criticallyAcclaimed.title",
     descriptionKey: "discover.collections.criticallyAcclaimed.description",
-    defaultTitle: "Critically acclaimed",
-    defaultDescription: "Top-rated picks with strong audience love.",
     criteria: {
       movie: {
         voteAverageGte: 7.6,
@@ -186,8 +173,6 @@ const COLLECTIONS: Record<DiscoverCollectionId, DiscoverCollectionDefinition> = 
     id: "something-weird",
     titleKey: "discover.collections.somethingWeird.title",
     descriptionKey: "discover.collections.somethingWeird.description",
-    defaultTitle: "Something weird",
-    defaultDescription: "Offbeat sci-fi, horror, fantasy, and mysteries.",
     criteria: {
       movie: {
         genreAnyOf: [14, 27, 878, 9648],
@@ -213,8 +198,6 @@ const COLLECTIONS: Record<DiscoverCollectionId, DiscoverCollectionDefinition> = 
     id: "new-this-month",
     titleKey: "discover.collections.newThisMonth.title",
     descriptionKey: "discover.collections.newThisMonth.description",
-    defaultTitle: "New this month",
-    defaultDescription: "Fresh releases and premieres from the last few weeks.",
     criteria: {
       movie: {
         dateWindowField: "release_date",

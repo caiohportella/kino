@@ -1,6 +1,11 @@
 "use client";
 
 import type { DiscoverCollection } from "@/lib/discover/collections";
+import {
+  getDiscoverCollectionClearLabel,
+  getDiscoverCollectionDescription,
+  getDiscoverCollectionTitle,
+} from "@/lib/discover/discover-localization";
 import { useTranslation } from "@/lib/localization/i18n";
 
 export function ActiveDiscoverCollection({
@@ -23,15 +28,11 @@ export function ActiveDiscoverCollection({
           </p>
 
           <h2 className="mt-2 text-xl font-semibold text-kino-text">
-            {t(collection.titleKey, {
-              defaultValue: collection.defaultTitle,
-            })}
+            {getDiscoverCollectionTitle(t, collection)}
           </h2>
 
           <p className="mt-2 max-w-2xl text-sm leading-6 text-kino-muted">
-            {t(collection.descriptionKey, {
-              defaultValue: collection.defaultDescription,
-            })}
+            {getDiscoverCollectionDescription(t, collection)}
           </p>
         </div>
 
@@ -40,9 +41,7 @@ export function ActiveDiscoverCollection({
           onClick={onClear}
           type="button"
         >
-          {t("discover.collections.clear", {
-            defaultValue: "Clear collection",
-          })}
+          {getDiscoverCollectionClearLabel(t)}
         </button>
       </div>
     </section>

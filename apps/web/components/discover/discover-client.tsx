@@ -24,6 +24,7 @@ import { TrendingCarousel } from "../carousel/trending-carousel";
 import { AppPagination } from "../layout/app-pagination";
 import { MediaSection } from "../media/media-section";
 import { MobileDiscoverFilters } from "../layout/mobile-discover-filters";
+import { getDiscoverCollectionTitle } from "@/lib/discover/discover-localization";
 import { mergePopularNow } from "@/lib/discover/presentation";
 import { DiscoverSeriesUpdateItem } from "@/lib/discover/series-updates";
 import { DiscoverUpdatesSection } from "./discover-updates-section";
@@ -343,9 +344,7 @@ export function DiscoverClient({
 
   const filteredTitle =
     activeCollection
-      ? t(activeCollection.titleKey, {
-          defaultValue: activeCollection.defaultTitle,
-        })
+      ? getDiscoverCollectionTitle(t, activeCollection)
       : selectedGenreNames.length > 0
       ? selectedGenreNames.join(", ")
       : filters.mediaType === "movie"
