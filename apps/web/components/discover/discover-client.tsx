@@ -465,6 +465,7 @@ export function DiscoverClient({
               case "primary":
                 return (
                   <MediaSection
+                    density="comfortable"
                     items={popularNow}
                     key="primary"
                     title={t("home.popularNow", {
@@ -484,6 +485,7 @@ export function DiscoverClient({
               case "new-releases":
                 return (
                   <MediaSection
+                    density="comfortable"
                     items={personalizedNewReleases}
                     key="new-releases"
                     title={t("home.newReleases", {
@@ -495,6 +497,7 @@ export function DiscoverClient({
               case "new-series":
                 return (
                   <MediaSection
+                    density="comfortable"
                     items={personalizedNewSeries}
                     key="new-series"
                     title={t("home.newSeries", {
@@ -506,6 +509,7 @@ export function DiscoverClient({
               case "upcoming":
                 return (
                   <MediaSection
+                    density="comfortable"
                     items={upcoming}
                     key="upcoming"
                     title={t("home.upcoming", {
@@ -517,6 +521,7 @@ export function DiscoverClient({
               case "rereleases":
                 return (
                   <MediaSection
+                    density="comfortable"
                     items={rereleases}
                     key="rereleases"
                     title={t("home.rereleases", {
