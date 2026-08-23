@@ -1,8 +1,8 @@
 import { ImageResponse } from 'next/og'
 import { createElement, type ReactElement } from 'react'
-import { FallbackOg, getOgImageOptions, WatchlistOg } from '@/lib/og'
-import { KINO_OG_LOGO_URL } from '@/lib/og-assets'
-import { safeImageData } from '@/lib/og-images'
+import { FallbackOg, getOgImageOptions, WatchlistOg } from '@/lib/og/og'
+import { KINO_OG_LOGO_URL } from '@/lib/og/og-assets'
+import { safeImageData } from '@/lib/og/og-images'
 import { getPublicWatchlistOgData } from '@/lib/server-supabase'
 
 export const runtime = 'edge'

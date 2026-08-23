@@ -14,11 +14,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { useTranslation } from '@/lib/i18n'
-import { resolveLocalizedTitlePresentation } from '@/lib/localized-title-presentation'
+import { useLocalizedTitles } from '@/hooks/title/use-localized-titles'
+import { useTranslation } from '@/lib/localization/i18n'
+import { resolveLocalizedTitlePresentation } from '@/lib/localization/localized-title-presentation'
 import { titlePath } from '@/lib/routes'
 import { getTmdb } from '@/lib/services'
-import { useLocalizedTitles } from '@/lib/use-localized-titles'
 import { cn } from '@/lib/utils'
 import { ProfileReviewSkeleton } from './profile-review-skeleton'
 import { ReviewAuthor } from './review-author'

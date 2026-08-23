@@ -30,7 +30,7 @@ export function ExternalServiceCard({
           alt=""
           className={cn(
             'shrink-0 object-contain transition-transform group-hover:scale-105',
-            embedded ? 'size-6 rounded-sm' : 'size-8'
+            embedded ? 'size-6' : 'size-8'
           )}
           decoding="async"
           loading="lazy"
@@ -41,7 +41,7 @@ export function ExternalServiceCard({
           className={cn(
             'grid shrink-0 place-items-center',
             icon && 'text-kino-accent',
-            embedded ? 'size-6' : 'size-8'
+            embedded ? 'size-7 rounded-sm' : 'size-8'
           )}
         >
           {icon || label.slice(0, 1)}
@@ -52,7 +52,7 @@ export function ExternalServiceCard({
         className={cn(
           'min-w-0 truncate',
           embedded
-            ? 'text-xs font-medium'
+            ? 'text-sm font-medium'
             : 'line-clamp-2 max-w-full text-xs font-semibold leading-4'
         )}
         title={label}
@@ -68,7 +68,7 @@ export function ExternalServiceCard({
       className={cn(
         'group min-w-0 border border-white/10 text-kino-muted transition-colors hover:border-white/20 hover:text-kino-text focus-ring',
         embedded
-          ? 'flex h-10 max-w-full items-center gap-2 rounded-md px-2.5'
+          ? 'flex h-11 max-w-full items-center gap-2.5 rounded-md px-3'
           : 'flex size-24 flex-col items-center justify-center gap-2 rounded-md p-3 text-center'
       )}
       href={href}

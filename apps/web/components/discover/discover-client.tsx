@@ -1,58 +1,61 @@
 'use client'
 
-import type { CarouselTitle, MediaType, TMDbGenre, TMDbTitle } from '@kino/core'
-import { useQuery } from '@tanstack/react-query'
-import Link from 'next/link'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import type { CarouselTitle, TMDbGenre, TMDbTitle } from '@kino/core'
+import { usePathname, useSearchParams } from 'next/navigation'
+import { useMemo, useState } from 'react'
+
+import { TrendingCarousel } from '@/components/carousel/trending-carousel'
+import { DiscoverCollectionResults } from '@/components/discover/discover-collection-results'
 import { type DiscoverFilterState, DiscoverFilters } from '@/components/discover/discover-filters'
-import { Poster } from '@/components/kino'
-import { useMediaPoster } from '@/hooks/use-media-poster'
-import { useTranslation } from '@/lib/i18n'
-import { getTmdb } from '@/lib/services'
-import { TrendingCarousel } from '../carousel/trending-carousel'
-import { AppPagination } from '../layout/app-pagination'
-import { MediaSection } from '../media/media-section'
-import { MobileDiscoverFilters } from '../mobile/mobile-discover-filters'
+import { DiscoverFriendsActivity } from '@/components/discover/discover-friends-activity'
+import { DiscoverPersonalizedRow } from '@/components/discover/discover-personalized-row'
+import { DiscoverUpdatesSection } from '@/components/discover/discover-updates-section'
+import { ExploreCollections } from '@/components/discover/explore-collections'
+import { FilteredDiscoverResults } from '@/components/discover/filtered-discover-results'
+import { MobileDiscoverFilters } from '@/components/layout/mobile-discover-filters'
+import { MediaSection } from '@/components/media/media-section'
+
+import { usePersonalizedDiscoverRows } from '@/hooks/discover/use-personalized-discover-rows'
+import type { DiscoverCollectionId } from '@/lib/discover/collections'
+import {
+  normalizeDiscoverFilterState,
+  readDiscoverUrlState,
+  writeDiscoverCollectionUrl,
+  writeDiscoverFilterUrl,
+} from '@/lib/discover/discover-url-state'
+import { mergePopularNow } from '@/lib/discover/presentation'
+import {
+  buildDiscoverSectionOrder,
+  type DiscoverSectionDescriptor,
+} from '@/lib/discover/section-ordering'
+import type { DiscoverSeriesUpdateItem } from '@/lib/discover/series-updates'
+import { useTranslation } from '@/lib/localization/i18n'
 
 interface DiscoverClientProps {
   genres: TMDbGenre[]
   movieGenres: TMDbGenre[]
   tvGenres: TMDbGenre[]
-
   trending: CarouselTitle[]
   popularMovies: CarouselTitle[]
   popularTV: CarouselTitle[]
-  nowPlaying: TMDbTitle[]
-  topRated: TMDbTitle[]
   upcoming: TMDbTitle[]
-}
-
-function DiscoverResultCard({ item }: { item: TMDbTitle }) {
-  const { href, poster, prefetch, title, year } = useMediaPoster(item)
-
-  return (
-    <Link
-      className="group min-w-0 focus-ring"
-      href={href}
-      onFocus={prefetch}
-      onMouseEnter={prefetch}
-      onTouchStart={prefetch}
-    >
-      <Poster className="w-full rounded-md" details={{ year }} src={poster} title={title} />
-    </Link>
-  )
+  rereleases: TMDbTitle[]
+  seriesUpdates: DiscoverSeriesUpdateItem[]
+  personalizedNewReleases: TMDbTitle[]
+  personalizedNewSeries: TMDbTitle[]
 }
 
 export function DiscoverClient({
   genres,
   movieGenres,
-  tvGenres,
-  trending,
+  personalizedNewReleases,
+  personalizedNewSeries,
   popularMovies,
   popularTV,
-  nowPlaying,
-  topRated,
+  rereleases,
+  seriesUpdates,
+  trending,
+  tvGenres,
   upcoming,
 }: DiscoverClientProps) {
   const { t } = useTranslation()
@@ -60,149 +63,60 @@ export function DiscoverClient({
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
-  const [page, setPage] = useState(() => {
-    const value = Number(searchParams.get('page'))
+  const popularNow = mergePopularNow(popularMovies, popularTV, 20)
 
-    return Number.isInteger(value) && value > 0 ? value : 1
+  const personalized = usePersonalizedDiscoverRows()
+
+  const sectionOrder: DiscoverSectionDescriptor[] = buildDiscoverSectionOrder({
+    updatesCount: seriesUpdates.length,
+    newReleasesCount: personalizedNewReleases.length,
+    newSeriesCount: personalizedNewSeries.length,
+    upcomingCount: upcoming.length,
+    rereleasesCount: rereleases.length,
   })
 
-  function updatePage(nextPage: number) {
-    setPage(nextPage)
+  const featuredSections = sectionOrder.filter(
+    (section) => section.type === 'primary' || section.type === 'updates'
+  )
 
-    const params = new URLSearchParams(window.location.search)
+  const catalogSections = sectionOrder.filter(
+    (section) => section.type !== 'primary' && section.type !== 'updates'
+  )
 
-    if (nextPage > 1) {
-      params.set('page', String(nextPage))
-    } else {
-      params.delete('page')
-    }
+  const initialUrlState = useMemo(
+    () => readDiscoverUrlState(new URLSearchParams(searchParams), genres),
+    [genres, searchParams]
+  )
 
-    const query = params.toString()
-    const nextUrl = query ? `${pathname}?${query}` : pathname
+  const [activeCollection, setActiveCollection] = useState(() => initialUrlState.collection)
 
-    window.history.replaceState(window.history.state, '', nextUrl)
-  }
+  const [filters, setFilters] = useState<DiscoverFilterState>(() => initialUrlState.filters)
 
-  function filtersFromSearchParams(): DiscoverFilterState {
-    const mediaTypeParam = searchParams.get('type')
-    const genresParam = searchParams.get('genres')
-    const ratingParam = searchParams.get('rating')
+  const hasActiveCollection = activeCollection !== null
 
-    return {
-      mediaType: mediaTypeParam === 'movie' || mediaTypeParam === 'tv' ? mediaTypeParam : 'all',
-
-      genreIds: genresParam
-        ? genresParam
-            .split(',')
-            .map(Number)
-            .filter((id) => Number.isInteger(id) && genres.some((genre) => genre.id === id))
-        : [],
-
-      minRating: (() => {
-        const rating = Number(ratingParam)
-
-        return Number.isFinite(rating) && rating >= 0 && rating <= 9 ? rating : 0
-      })(),
-    }
-  }
-
-  const [filters, setFilters] = useState<DiscoverFilterState>(filtersFromSearchParams)
-
-  const filtering =
+  const hasActiveFilters =
     filters.mediaType !== 'all' || filters.genreIds.length > 0 || filters.minRating > 0
 
-  const filteredQuery = useQuery({
-    queryKey: [
-      'discover-filtered',
-      filters.mediaType,
-      filters.genreIds.join(','),
-      filters.minRating,
-      page,
-    ],
-    queryFn: async () => {
-      const tmdb = getTmdb()
+  const availableGenres =
+    filters.mediaType === 'movie' ? movieGenres : filters.mediaType === 'tv' ? tvGenres : genres
 
-      const params: Record<string, string> = {
-        page: String(page),
-        sort_by: filters.minRating > 0 ? 'vote_average.asc' : 'popularity.desc',
-      }
+  function updateCollection(nextId: DiscoverCollectionId | null) {
+    const nextQuery = writeDiscoverCollectionUrl(
+      new URLSearchParams(window.location.search),
+      nextId
+    )
 
-      if (filters.genreIds.length > 0) {
-        params.with_genres = filters.genreIds.join(',')
-      }
+    const nextParams = new URLSearchParams(nextQuery)
 
-      if (filters.minRating > 0) {
-        params['vote_average.gte'] = String(filters.minRating)
-        params['vote_count.gte'] = '50'
-      }
+    const nextState = readDiscoverUrlState(nextParams, genres)
 
-      const types: MediaType[] = filters.mediaType === 'all' ? ['movie', 'tv'] : [filters.mediaType]
+    const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname
 
-      const responses = await Promise.all(types.map((type) => tmdb.discoverMedia(type, params)))
+    setActiveCollection(nextState.collection)
 
-      const results = responses.flatMap((response) => response.results)
+    setFilters(nextState.filters)
 
-      const movieResults =
-        filters.mediaType === 'all' ? sortResults(responses[0]?.results ?? []) : []
-
-      const tvResults = filters.mediaType === 'all' ? sortResults(responses[1]?.results ?? []) : []
-
-      const singleTypeResults = filters.mediaType === 'all' ? results : sortResults(results)
-
-      const balancedResults: TMDbTitle[] =
-        filters.mediaType === 'all'
-          ? Array.from({
-              length: Math.max(movieResults.length, tvResults.length),
-            }).flatMap((_, index) => {
-              const items: TMDbTitle[] = []
-
-              const movie = movieResults[index]
-              const tv = tvResults[index]
-
-              if (movie) items.push(movie)
-              if (tv) items.push(tv)
-
-              return items
-            })
-          : singleTypeResults
-
-      const totalResults =
-        filters.mediaType === 'all'
-          ? responses.reduce((sum, response) => sum + response.totalResults, 0)
-          : (responses[0]?.totalResults ?? 0)
-
-      const totalPages = Math.max(1, Math.ceil(totalResults / 20))
-
-      function sortResults(items: TMDbTitle[]) {
-        if (filters.minRating <= 0) {
-          return items
-        }
-
-        return [...items].sort((a, b) => {
-          if (a.vote_average !== b.vote_average) {
-            return a.vote_average - b.vote_average
-          }
-
-          return b.vote_count - a.vote_count
-        })
-      }
-
-      const pagedResults = balancedResults.slice(0, 20)
-
-      return {
-        results: pagedResults,
-        totalPages,
-      }
-    },
-    enabled: filtering,
-  })
-
-  function resetFilters() {
-    updateFilters({
-      mediaType: 'all',
-      genreIds: [],
-      minRating: 0,
-    })
+    window.history.replaceState(window.history.state, '', nextUrl)
   }
 
   function updateFilters(next: DiscoverFilterState) {
@@ -216,146 +130,189 @@ export function DiscoverClient({
       genreIds: next.genreIds.filter((id) => validGenreIds.has(id)),
     }
 
-    setFilters(sanitized)
+    /*
+     * Filters and collection browsing are
+     * mutually exclusive.
+     */
+    const effectiveFilters = normalizeDiscoverFilterState(sanitized, null)
 
-    setPage(1)
+    const nextQuery = writeDiscoverFilterUrl(
+      new URLSearchParams(window.location.search),
+      effectiveFilters,
+      null
+    )
 
-    const params = new URLSearchParams()
+    const nextParams = new URLSearchParams(nextQuery)
 
-    if (sanitized.mediaType !== 'all') {
-      params.set('type', sanitized.mediaType)
-    }
+    const nextState = readDiscoverUrlState(nextParams, genres)
 
-    if (sanitized.genreIds.length > 0) {
-      params.set('genres', sanitized.genreIds.join(','))
-    }
+    const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname
 
-    if (sanitized.minRating > 0) {
-      params.set('rating', String(sanitized.minRating))
-    }
+    setActiveCollection(nextState.collection)
 
-    const query = params.toString()
-    const nextUrl = query ? `${pathname}?${query}` : pathname
+    setFilters(nextState.filters)
 
     window.history.replaceState(window.history.state, '', nextUrl)
   }
 
-  const selectedGenreNames = filters.genreIds
-    .map((id) => {
-      const genre = genres.find((item) => item.id === id)
-
-      return t(`genres.${id}`, {
-        defaultValue: genre?.name ?? '',
-      })
+  function resetFilters() {
+    updateFilters({
+      mediaType: 'all',
+      genreIds: [],
+      minRating: 0,
     })
-    .filter(Boolean)
+  }
 
-  const availableGenres =
-    filters.mediaType === 'movie' ? movieGenres : filters.mediaType === 'tv' ? tvGenres : genres
+  function renderDiscoverSections(sections: DiscoverSectionDescriptor[]) {
+    return sections.map((section) => {
+      switch (section.type) {
+        case 'primary':
+          return (
+            <MediaSection
+              density="comfortable"
+              items={popularNow}
+              key="primary"
+              title={t('home.popularNow', {
+                defaultValue: 'Popular now',
+              })}
+            />
+          )
 
-  const filteredTitle =
-    selectedGenreNames.length > 0
-      ? selectedGenreNames.join(', ')
-      : filters.mediaType === 'movie'
-        ? t('search.movies')
-        : filters.mediaType === 'tv'
-          ? t('search.tvShows')
-          : t('tabs.home')
+        case 'updates':
+          return <DiscoverUpdatesSection items={seriesUpdates} key="updates" />
 
-  return (
+        case 'new-releases':
+          return (
+            <MediaSection
+              density="comfortable"
+              items={personalizedNewReleases}
+              key="new-releases"
+              title={t('home.newReleases', {
+                defaultValue: 'New releases',
+              })}
+            />
+          )
+
+        case 'new-series':
+          return (
+            <MediaSection
+              density="comfortable"
+              items={personalizedNewSeries}
+              key="new-series"
+              title={t('home.newSeries', {
+                defaultValue: 'New series',
+              })}
+            />
+          )
+
+        case 'upcoming':
+          return (
+            <MediaSection
+              density="comfortable"
+              items={upcoming}
+              key="upcoming"
+              title={t('home.upcoming', {
+                defaultValue: 'Coming soon',
+              })}
+            />
+          )
+
+        case 'rereleases':
+          return (
+            <MediaSection
+              density="comfortable"
+              items={rereleases}
+              key="rereleases"
+              title={t('home.rereleases', {
+                defaultValue: 'Back in theaters',
+              })}
+            />
+          )
+
+        default:
+          return null
+      }
+    })
+  }
+
+  return hasActiveCollection ? (
+    <DiscoverCollectionResults
+      collection={activeCollection}
+      onClearAction={() => updateCollection(null)}
+    />
+  ) : (
     <>
-      <div className="mb-8 flex items-center gap-2">
-        {/* Desktop */}
-        <div className="hidden md:block">
-          <DiscoverFilters
-            genres={availableGenres}
-            onChange={updateFilters}
-            onReset={resetFilters}
-            value={filters}
-          />
-        </div>
+      <section className="mb-12 lg:mb-14">
+        <TrendingCarousel items={trending} />
+      </section>
 
-        {/* Mobile */}
-        <MobileDiscoverFilters
-          genres={availableGenres}
-          onChange={updateFilters}
-          onReset={resetFilters}
-          value={filters}
-        />
-      </div>
+      <DiscoverFriendsActivity />
 
-      {filtering ? (
-        <div className="grid gap-6">
-          <div>
-            <h2 className="text-xl font-semibold text-kino-text">{filteredTitle}</h2>
+      {renderDiscoverSections(featuredSections)}
 
-            {filters.minRating > 0 ? (
-              <p className="mt-1 text-sm text-kino-muted">
-                {t('search.minimumRating')}: {filters.minRating}+
-              </p>
-            ) : null}
+      {personalized.rows.slice(0, 2).map((row) => (
+        <DiscoverPersonalizedRow key={row.id} row={row} />
+      ))}
+
+      <ExploreCollections onSelectAction={updateCollection} />
+
+      {personalized.rows.slice(2).map((row) => (
+        <DiscoverPersonalizedRow key={row.id} row={row} />
+      ))}
+
+      <section className="mt-14 border-t border-white/8 pt-10 lg:mt-16 lg:pt-12">
+        <div className="mb-8">
+          <div className="mb-5">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-kino-accent">
+              {t('discover.catalog.eyebrow', {
+                defaultValue: 'Explore',
+              })}
+            </p>
+
+            <h2 className="text-2xl font-semibold tracking-tight text-kino-text md:text-3xl">
+              {t('discover.catalog.title', {
+                defaultValue: 'Explore the catalog',
+              })}
+            </h2>
+
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-kino-muted">
+              {t('discover.catalog.description', {
+                defaultValue: 'Browse movies and series by type, genre, and rating.',
+              })}
+            </p>
           </div>
 
-          {filteredQuery.isLoading ? (
-            <div className="poster-grid">
-              {Array.from({ length: 12 }).map((_, index) => (
-                <div className="aspect-2/3 animate-pulse rounded-md bg-white/6" key={index} />
-              ))}
+          <div className="flex items-center gap-2">
+            <div className="hidden md:block">
+              <DiscoverFilters
+                genres={availableGenres}
+                onChange={updateFilters}
+                onReset={resetFilters}
+                value={filters}
+              />
             </div>
-          ) : null}
 
-          {!filteredQuery.isLoading &&
-          !filteredQuery.isError &&
-          filteredQuery.data?.results.length ? (
-            <>
-              <div className="poster-grid">
-                {filteredQuery.data.results.map((item) => (
-                  <DiscoverResultCard item={item} key={`${item.media_type}-${item.id}`} />
-                ))}
-              </div>
-
-              {filteredQuery.data.totalPages > 1 ? (
-                <AppPagination
-                  label={t('search.pages')}
-                  onPageChange={updatePage}
-                  page={page}
-                  totalPages={filteredQuery.data.totalPages}
-                />
-              ) : null}
-            </>
-          ) : null}
-
-          {!filteredQuery.isLoading &&
-          !filteredQuery.isError &&
-          !filteredQuery.data?.results.length ? (
-            <div className="py-12 text-center text-sm text-kino-muted">{t('search.noResults')}</div>
-          ) : null}
-
-          {filteredQuery.isError ? (
-            <div className="py-12 text-center text-sm text-kino-muted">{t('common.failed')}</div>
-          ) : null}
+            <MobileDiscoverFilters
+              genres={availableGenres}
+              onChange={updateFilters}
+              onReset={resetFilters}
+              value={filters}
+            />
+          </div>
         </div>
-      ) : (
-        <>
-          <section className="mb-10">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-kino-text">{t('home.trending')}</h2>
-            </div>
 
-            <TrendingCarousel items={trending} />
-          </section>
-
-          <MediaSection items={popularMovies} title={t('home.popularMovies')} />
-
-          <MediaSection items={popularTV} title={t('home.popularTV')} />
-
-          <MediaSection items={nowPlaying} title={t('home.newReleases')} />
-
-          <MediaSection items={topRated} title={t('home.topRated')} />
-
-          <MediaSection items={upcoming} title={t('home.comingSoon')} />
-        </>
-      )}
+        {hasActiveFilters ? (
+          <FilteredDiscoverResults
+            filters={{
+              mediaType: filters.mediaType,
+              genreIds: filters.genreIds,
+              minRating: filters.minRating,
+            }}
+          />
+        ) : (
+          renderDiscoverSections(catalogSections)
+        )}
+      </section>
     </>
   )
 }

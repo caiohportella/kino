@@ -39,12 +39,12 @@ import {
 } from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { useTranslation } from '@/lib/i18n'
-import { invalidateProfileMutation } from '@/lib/profile-invalidation'
+import type { LocalizedTitleMap } from '@/hooks/title/use-localized-titles'
+import { localizedTitleKey, useLocalizedTitles } from '@/hooks/title/use-localized-titles'
+import { useTranslation } from '@/lib/localization/i18n'
+import { invalidateProfileMutation } from '@/lib/profile/profile-invalidation'
 import { titlePath } from '@/lib/routes'
 import { db, getTmdb } from '@/lib/services'
-import type { LocalizedTitleMap } from '@/lib/use-localized-titles'
-import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 import { useSettingsStore } from '@/stores/settings-store'
@@ -161,7 +161,11 @@ export default function DiaryPage() {
       authLoadingFallback={<DiarySkeleton label={t('common.loading')} />}
       emptyFallback={
         <div className="content-frame">
-          <PageHeader eyebrow={t('diary.title')} title={t('diary.watchDiary')} />
+          <PageHeader
+            title={t('diary.headerPhrase', {
+              defaultValue: "Everything you've watched, in one place.",
+            })}
+          />
           <EmptyState
             action={
               <Link href="/search">
@@ -192,7 +196,11 @@ export default function DiaryPage() {
       unauthenticatedFallback={<ProtectedEmpty />}
     >
       <div className="content-frame">
-        <PageHeader eyebrow={t('diary.title')} title={t('diary.watchDiary')} />
+        <PageHeader
+          title={t('diary.headerPhrase', {
+            defaultValue: "Everything you've watched, in one place.",
+          })}
+        />
 
         {entries.length > 0 ? (
           <DiaryFilters
@@ -548,7 +556,7 @@ function DiaryRow({
               ></TooltipTrigger>
               <TooltipContent>{t('modals.watchedOn')}</TooltipContent>
             </Tooltip>
-            <PopoverContent align="end" className="w-auto p-0">
+            <PopoverContent align="end" className="lg:min-h-12 lg:px-5 lg:text-sm p-0">
               <Calendar
                 defaultMonth={watchedDate}
                 mode="single"
@@ -709,7 +717,7 @@ function DiaryDialog({
                   </Button>
                 }
               ></PopoverTrigger>
-              <PopoverContent align="start" className="w-auto p-0">
+              <PopoverContent align="start" className="lg:min-h-12 lg:px-5 lg:text-sm p-0">
                 <Calendar
                   defaultMonth={watchedAt}
                   mode="single"

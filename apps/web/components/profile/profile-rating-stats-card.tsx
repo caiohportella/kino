@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { type ChartConfig, ChartContainer, ChartTooltip } from '@/components/ui/chart'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useTranslation } from '@/lib/i18n'
-import { getLocalizedGenreName } from '@/lib/localized-genre'
+import { useTranslation } from '@/lib/localization/i18n'
+import { getLocalizedGenreName } from '@/lib/localization/localized-genre'
 
 function ratingLabel(rating: number) {
   const whole = Math.floor(rating)

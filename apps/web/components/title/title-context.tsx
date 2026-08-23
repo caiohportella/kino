@@ -24,8 +24,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useMediaPoster } from '@/hooks/use-media-poster'
-import { useTranslation } from '@/lib/i18n'
+import { useMediaPoster } from '@/hooks/title/use-media-poster'
+import { useTranslation } from '@/lib/localization/i18n'
 import { resolveProviderDestination } from '@/lib/provider-destinations'
 import { cn } from '@/lib/utils'
 
@@ -73,18 +73,28 @@ export function FranchiseTitles({
   const content = (
     <div className="min-w-0">
       {embedded ? (
-        <h2 className="mb-4 text-sm font-semibold text-kino-text">
+        <h2 className="mb-5 text-base font-semibold text-kino-text lg:text-lg">
           {t('title.moreFromFranchise')}
         </h2>
       ) : null}
       {loading ? (
-        <div className="flex gap-4 overflow-hidden">
+        <div className="flex gap-5 overflow-hidden">
           {[0, 1, 2, 3].map((item) => (
-            <Skeleton className="aspect-2/3 w-36 shrink-0 rounded-md" key={item} />
+            <Skeleton
+              className="
+                aspect-2/3 w-40 shrink-0 rounded-md
+                lg:w-[clamp(180px,12vw,220px)]
+              "
+              key={item}
+            />
           ))}
         </div>
       ) : (
-        <MediaRow aria-label={t('title.moreFromFranchise')}>
+        <MediaRow
+          aria-label={t('title.moreFromFranchise')}
+          className="title-franchise-row"
+          overflowAware
+        >
           {items?.map((item) => (
             <TitleContextPoster item={item} key={`${item.media_type}-${item.id}`} />
           ))}
@@ -186,13 +196,15 @@ export function TrailerCard({
         <div className="grid gap-3">
           <DialogTriggerThumbnail embedded label={watchLabel} trailer={trailer} />
 
-          <div className="grid gap-1 px-5 pb-4">
-            <h2 className="text-sm font-semibold text-kino-text">{t('title.watchTrailer')}</h2>
+          <div className="grid gap-1.5 px-5 pb-5 xl:px-6">
+            <h2 className="text-base font-semibold text-kino-text">{t('title.watchTrailer')}</h2>
 
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-kino-text">{trailer.name}</p>
+              <p className="truncate text-sm font-medium text-kino-text xl:text-base">
+                {trailer.name}
+              </p>
 
-              <p className="text-xs text-kino-muted">
+              <p className="text-sm text-kino-muted">
                 {trailer.official ? t('title.officialTrailer') : trailer.type}
               </p>
             </div>
@@ -232,7 +244,7 @@ export function TrailerCard({
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-kino-text">{trailer.name}</p>
 
-            <p className="text-xs text-kino-muted">
+            <p className="text-sm text-kino-muted">
               {trailer.official ? t('title.officialTrailer') : trailer.type}
             </p>
           </div>
@@ -356,7 +368,7 @@ export function WatchProvidersCard({
         <h2
           className={cn(
             embedded
-              ? 'text-sm font-semibold text-kino-text'
+              ? 'text-base font-semibold text-kino-text'
               : 'text-base font-semibold text-kino-text'
           )}
         >
@@ -364,7 +376,7 @@ export function WatchProvidersCard({
         </h2>
 
         {providers?.region ? (
-          <p className="text-xs text-kino-muted">
+          <p className="text-sm text-kino-muted">
             {t('title.availableIn', {
               region: regionName(providers.region),
             })}
@@ -521,16 +533,29 @@ export function MoreLikeThis({
   const content = (
     <div className="min-w-0">
       {embedded ? (
-        <h2 className="mb-4 text-sm font-semibold text-kino-text">{t('title.moreLikeThis')}</h2>
+        <h2 className="mb-5 text-xl font-semibold text-kino-text lg:text-2xl">
+          {t('title.moreLikeThis')}
+        </h2>
       ) : null}
+
       {loading ? (
-        <div className="flex gap-4 overflow-hidden">
-          {[0, 1, 2, 3].map((item) => (
-            <Skeleton className="aspect-2/3 w-36 shrink-0 rounded-md" key={item} />
+        <div className="flex gap-5 overflow-hidden">
+          {Array.from({ length: 8 }, (_, index) => (
+            <Skeleton
+              className="
+                aspect-2/3 w-40 shrink-0 rounded-md
+                lg:w-[clamp(180px,10vw,196px)]
+              "
+              key={index}
+            />
           ))}
         </div>
       ) : items?.length ? (
-        <MediaRow aria-label={t('title.moreLikeThis')}>
+        <MediaRow
+          aria-label={t('title.moreLikeThis')}
+          className="media-row--comfortable"
+          overflowAware
+        >
           {items.map((item) => (
             <TitleContextPoster item={item} key={`${item.media_type}-${item.id}`} />
           ))}

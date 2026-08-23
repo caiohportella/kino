@@ -19,7 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 import { cn } from '@/lib/utils'
 
 export type DiaryFilterState = {
@@ -196,7 +196,7 @@ function RatingFilterDropdown({
           <Button
             aria-label={`${t('diaryFilters.rating')}: ${selectedLabel}`}
             className={cn(
-              'w-full justify-between md:w-auto',
+              'w-full justify-between md:className="min-h-11 whitespace-normal px-4 leading-tight sm:w-auto sm:min-w-36 sm:whitespace-nowrap lg:min-h-12 lg:px-5 lg:text-sm"',
               value !== 'any' &&
                 'border-kino-accent bg-kino-accent text-black hover:border-kino-accent-strong hover:bg-kino-accent-strong hover:text-black'
             )}
@@ -256,7 +256,7 @@ function FilterDropdown({
         render={
           <Button
             className={cn(
-              'w-full justify-between md:w-auto',
+              'w-full justify-between md:className="min-h-11 whitespace-normal px-4 leading-tight sm:w-auto sm:min-w-36 sm:whitespace-nowrap lg:min-h-12 lg:px-5 lg:text-sm"',
               value !== 'any' &&
                 'border-kino-accent bg-kino-accent text-black hover:border-kino-accent-strong hover:bg-kino-accent-strong hover:text-black'
             )}
@@ -309,7 +309,7 @@ function SortDropdown({
         render={
           <Button
             className={cn(
-              'w-full justify-between md:w-auto',
+              'justify-between md:className="min-h-11 whitespace-normal px-4 leading-tight sm:w-auto sm:min-w-36 sm:whitespace-nowrap lg:min-h-12 lg:px-5 lg:text-sm"',
               value !== 'watched-desc' &&
                 'border-kino-accent bg-kino-accent text-black hover:border-kino-accent-strong hover:bg-kino-accent-strong hover:text-black'
             )}

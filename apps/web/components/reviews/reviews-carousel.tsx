@@ -2,7 +2,7 @@
 
 import useEmblaCarousel from 'embla-carousel-react'
 import { type ReactNode, useEffect, useRef } from 'react'
-import { useHorizontalOverflow } from '@/lib/use-horizontal-overflow'
+import { useHorizontalOverflow } from '@/hooks/use-horizontal-overflow'
 
 type ReviewsCarouselProps = {
   children: ReactNode
@@ -44,7 +44,14 @@ export function ReviewsCarousel({ children, className = '' }: ReviewsCarouselPro
 
 export function ReviewsCarouselSlide({ children }: { children: ReactNode }) {
   return (
-    <div className="min-w-0 shrink-0 grow-0 basis-full pl-4 md:basis-1/2">
+    <div
+      className="
+        min-w-0 shrink-0 grow-0
+        basis-[92%] pl-4
+        md:basis-[68%]
+        xl:basis-[54%]
+      "
+    >
       <div className="h-full">{children}</div>
     </div>
   )

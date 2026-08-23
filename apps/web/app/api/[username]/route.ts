@@ -1,9 +1,9 @@
 import { ImageResponse } from 'next/og'
 import { createElement, type ReactElement } from 'react'
 
-import { FallbackOg, getOgImageOptions, ProfileOg } from '@/lib/og'
-import { safeImageData } from '@/lib/og-images'
-import { isReservedProfileRoute, normalizeProfileUsername } from '@/lib/profile-routes'
+import { FallbackOg, getOgImageOptions, ProfileOg } from '@/lib/og/og'
+import { safeImageData } from '@/lib/og/og-images'
+import { isReservedProfileRoute, normalizeProfileUsername } from '@/lib/profile/profile-routes'
 import { getPublicProfileOgDataByUsername } from '@/lib/server-supabase'
 
 export async function GET(request: Request, { params }: { params: Promise<{ username: string }> }) {

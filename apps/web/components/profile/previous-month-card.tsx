@@ -1,7 +1,10 @@
 import { ArrowDown, ArrowUp, Minus } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { getComparisonTone, type PreviousMonthComparisonRow } from '@/lib/monthly-comparison'
+import {
+  getComparisonTone,
+  type PreviousMonthComparisonRow,
+} from '@/lib/profile/monthly-comparison'
 
 type PreviousMonthCardProps = {
   title: string

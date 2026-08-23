@@ -33,19 +33,24 @@ export function TrendingCarousel({ items }: TrendingCarouselProps) {
   const MAX_VISIBLE_BULLETS = 8
   const visibleBulletCount = Math.min(MAX_VISIBLE_BULLETS, items.length)
 
-  const bulletStart = Math.max(
-    0,
-    Math.min(selectedIndex - Math.floor(visibleBulletCount / 2), items.length - visibleBulletCount)
-  )
+  const bulletStart = Math.floor(selectedIndex / MAX_VISIBLE_BULLETS) * MAX_VISIBLE_BULLETS
 
   const visibleBullets = items.slice(bulletStart, bulletStart + visibleBulletCount)
 
   return (
     <section
-      className="group/carousel relative w-full overflow-hidden rounded-2xl bg-kino-surface"
+      className="
+        group/carousel
+        relative
+        h-[clamp(320px,38vw,460px)]
+        w-full
+        overflow-hidden
+        rounded-2xl
+        bg-kino-surface
+        lg:h-[clamp(450px,55vh,660px)]
+      "
       onMouseEnter={pauseAutoplay}
       onMouseLeave={resumeAutoplay}
-      style={{ height: 'clamp(320px, 38vw, 460px)' }}
     >
       <div className="h-full w-full overflow-hidden" ref={emblaRef}>
         <div className="flex h-full touch-pan-y">
@@ -69,7 +74,14 @@ export function TrendingCarousel({ items }: TrendingCarouselProps) {
             <CarouselArrow direction="next" disabled={!canGoNext} onClick={scrollNext} />
           </div>
 
-          <div className="absolute inset-x-0 bottom-3 flex justify-center gap-2 sm:bottom-5">
+          <div
+            className="
+              absolute bottom-4 left-6 right-6
+              flex gap-1.5
+              sm:left-8 sm:right-8
+              lg:left-12 lg:right-12
+            "
+          >
             {visibleBullets.map((item, visibleIndex) => {
               const index = bulletStart + visibleIndex
               const active = index === selectedIndex

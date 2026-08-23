@@ -13,10 +13,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useTranslation } from '@/lib/i18n'
-import { resolveLocalizedTitlePresentation } from '@/lib/localized-title-presentation'
+import { useLocalizedTitles } from '@/hooks/title/use-localized-titles'
+import { useTranslation } from '@/lib/localization/i18n'
+import { resolveLocalizedTitlePresentation } from '@/lib/localization/localized-title-presentation'
 import { getTmdb } from '@/lib/services'
-import { useLocalizedTitles } from '@/lib/use-localized-titles'
 import { useSettingsStore } from '@/stores/settings-store'
 
 export function BannerPickerDialog({

@@ -135,6 +135,10 @@ export interface ProfileListQueryInput extends ProfileQueryInput {
   readonly resource: 'followers' | 'following' | 'reviews' | 'ratings'
 }
 
+export interface ProfileCollectionQueryInput extends ProfileIdentityQueryInput {
+  mediaType: 'movie' | 'tv'
+}
+
 export interface WatchlistQueryInput extends ScopedInput {
   readonly listId: string
 }
@@ -220,6 +224,22 @@ export const profileQueryKeys = {
       requireIdentifier(input.profileId, 'profile id'),
       requireIdentifier(input.viewerId, 'viewer id'),
     ] as const,
+  collection: (input: ProfileCollectionQueryInput) =>
+    [
+      ...PROFILE_ROOT,
+      'collection',
+      requireIdentifier(input.profileId, 'profile id'),
+      ...scopeSegments(input.visibilityScope),
+      input.mediaType,
+    ] as const,
+
+  collectionRoot: (input: ProfileIdentityQueryInput) =>
+    [
+      ...PROFILE_ROOT,
+      'collection',
+      requireIdentifier(input.profileId, 'profile id'),
+      ...scopeSegments(input.visibilityScope),
+    ] as const,
   watchedMovies: (input: ProfileSectionQueryInput) => profileSectionKey('watched-movies', input),
   watchedMoviesRoot: (input: ProfileIdentityQueryInput) =>
     profileSectionRootKey('watched-movies', input),
@@ -240,6 +260,13 @@ export const profileQueryKeys = {
     [
       ...PROFILE_ROOT,
       'lifetime-stats',
+      requireIdentifier(input.profileId, 'profile id'),
+      ...scopeSegments(input.visibilityScope),
+    ] as const,
+  lifetimeRecap: (input: ProfileIdentityQueryInput) =>
+    [
+      ...PROFILE_ROOT,
+      'lifetime-recap',
       requireIdentifier(input.profileId, 'profile id'),
       ...scopeSegments(input.visibilityScope),
     ] as const,

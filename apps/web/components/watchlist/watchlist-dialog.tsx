@@ -4,9 +4,9 @@ import { Button } from '@/components/ui/button'
 import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
 import { ModalDialog as Dialog } from '@/components/ui/modal-dialog'
 import { WatchlistVisibilitySelector } from '@/components/watchlist/watchlist-visibility-selector'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 import { db } from '@/lib/services'
-import { publishWatchlistChange } from '@/lib/watchlist-cache-sync'
+import { publishWatchlistChange } from '@/lib/watchlist/watchlist-cache-sync'
 
 export function WatchlistDialog({
   open,

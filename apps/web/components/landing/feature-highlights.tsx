@@ -3,7 +3,7 @@
 import { BarChart3, Download, Search, Sparkles, Star, Wand2 } from 'lucide-react'
 import { AccentDots } from '@/components/landing/accent-dots'
 import { LandingReveal } from '@/components/landing/landing-reveal'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 
 const highlightCards = [
   {

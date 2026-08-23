@@ -28,6 +28,7 @@
       "following": "Seguindo",
       "you": "Você"
     },
+    "headerPhrase": "Veja o que todo mundo tem assistido.",
     "hourAgo": "{{count}} hora atrás",
     "hoursAgo": "{{count}} horas atrás",
     "justNow": "Agora mesmo",
@@ -139,12 +140,16 @@
   "common": {
     "add": "Adicionar",
     "added": "Adicionado",
+    "back": "Voltar",
     "cancel": "Cancelar",
+    "clear": "Limpar",
     "close": "Fechar",
     "confirm": "Confirmar",
     "copy": "Copiar",
     "copyFailed": "Não foi possível copiar o link",
     "delete": "Apagar",
+    "details": "Detalhes",
+    "done": "Concluído",
     "enterName": "Por favor, insira um nome",
     "enterShareCode": "Por favor, insira um código de compartilhamento",
     "error": "Erro",
@@ -158,10 +163,12 @@
     "linkCopied": "Link copiado",
     "loading": "Carregando...",
     "movie": "Filme",
+    "navigation": "Navegação",
     "new": "Novo",
     "next": "Próxima",
     "notAvailable": "N/D",
     "previous": "Anterior",
+    "releaseYearUnknown": "N/D",
     "remove": "Remover",
     "retry": "Tentar novamente",
     "save": "Salvar",
@@ -170,7 +177,8 @@
     "share": "Compartilhar",
     "success": "Sucesso",
     "tryAgain": "Por favor, tente novamente.",
-    "tv": "TV"
+    "tv": "TV",
+    "user": "Usuário"
   },
   "diary": {
     "addedToDiary": "Adicionado ao diário",
@@ -178,6 +186,7 @@
     "emptyState": "Nenhuma entrada no diário ainda. Comece a assistir e avaliar títulos para construir seu diário!",
     "failedToAddToDiary": "Falha ao adicionar ao diário: {{message}}",
     "firstTime": "Primeira vez",
+    "headerPhrase": "Tudo o que você assistiu, em um só lugar.",
     "loginPrompt": "Faça login para acompanhar seu histórico",
     "ratingLabel": "Avaliação de {{title}}",
     "rewatch": "Reassistido",
@@ -237,6 +246,214 @@
     },
     "stars": "{{count}} estrelas",
     "watchType": "Status da visualização"
+  },
+  "discover": {
+    "catalog": {
+      "description": "Explore filmes e séries por tipo, gênero e nota.",
+      "eyebrow": "Explorar",
+      "title": "Explore o catálogo"
+    },
+    "collections": {
+      "active": "Coleção",
+      "alien": {
+        "description": "Explore os mundos aterrorizantes da franquia Alien.",
+        "groups": {
+          "crossovers": "Crossovers",
+          "original": "A saga original",
+          "origins": "Origens & prelúdios",
+          "releaseOrder": "Ordem de lançamento concluída",
+          "series": "Séries"
+        },
+        "title": "Alien"
+      },
+      "clear": "Limpar coleção",
+      "dc": {
+        "description": "Explore os universos interconectados e interpretações alternativas da DC.",
+        "groups": {
+          "aquaman": "Aquaman",
+          "batman": "Batata",
+          "dceu": "Universo Estendido DC",
+          "dcu": "Universo DC",
+          "flash": "The Flash",
+          "greenLantern": "Lanterna Verde",
+          "joker": "Joker",
+          "shazam": "Shazam",
+          "superman": "Superman",
+          "wonderWoman": "Wonder Woman"
+        },
+        "title": "DC"
+      },
+      "fastAndFurious": {
+        "description": "Siga a saga Fast & Furious, da corrida de rua às missões em todo o mundo.",
+        "groups": {
+          "mainSaga": "A Saga da Velozidade",
+          "releaseOrder": "Ordem de lançamento concluída",
+          "universe": "O universo mais amplo"
+        },
+        "title": "Fast & Furious"
+      },
+      "godfather": {
+        "description": "Siga a família Corleone ao longo de toda a saga criminosa.",
+        "title": "O Poderoso Chefão"
+      },
+      "heading": "Explore as coleções",
+      "jamesBond": {
+        "description": "Siga o 007 em décadas de missões, vilões e espionagem.",
+        "groups": {
+          "classic": "A era clássica",
+          "daltonBrosnan": "Dalton & Brosnan",
+          "danielCraig": "A era de Daniel Craig",
+          "releaseOrder": "Ordem de lançamento concluída",
+          "rogerMoore": "A era de Roger Moore"
+        },
+        "title": "James Bond"
+      },
+      "johnWick": {
+        "description": "Entre no submundo criminoso do universo John Wick.",
+        "groups": {
+          "releaseOrder": "Ordem de lançamento concluída",
+          "saga": "John Wick saga",
+          "universe": "O universo mais amplo"
+        },
+        "title": "John Wick"
+      },
+      "jurassic": {
+        "description": "Retorne a Isla Nublar e explore a franquia Jurassic.",
+        "groups": {
+          "movies": "Filmes",
+          "parkEra": "Era do Parque Jurássico",
+          "releaseOrder": "Ordem de lançamento concluída",
+          "series": "Séries",
+          "worldEra": "Era do Mundo Jurássico"
+        },
+        "title": "Jurassic"
+      },
+      "matrix": {
+        "description": "Entre na Matriz e siga a saga completa.",
+        "groups": {
+          "films": "Filmes"
+        },
+        "title": "The Matrix"
+      },
+      "mcu": {
+        "description": "Explore o Universo Cinematográfico Marvel em ordem cronológica e de lançamento.",
+        "groups": {
+          "chronological": "Ordem cronológica",
+          "movies": "Filmes",
+          "oneShots": "Marvel One-Shots",
+          "releaseOrder": "Ordem de lançamento concluída",
+          "series": "Séries",
+          "whatIf": "O que aconteceria se...?"
+        },
+        "title": "Universo Cinematográfico Marvel"
+      },
+      "middleEarth": {
+        "description": "Viagem pelos contos da Terra-média.",
+        "groups": {
+          "hobbit": "O Hobbit",
+          "lordOfTheRings": "As séries Senhor dos Anéis",
+          "releaseOrder": "Ordem de lançamento concluída",
+          "series": "Séries"
+        },
+        "title": "Terra-média"
+      },
+      "missionImpossible": {
+        "description": "Siga Ethan Hunt pela série completa de Missão Impossível.",
+        "groups": {
+          "releaseOrder": "Ordem de lançamento concluída"
+        },
+        "title": "Missão: Impossível"
+      },
+      "open": "Abrir coleção",
+      "pirates": {
+        "description": "Navegue pelos filmes da saga Piratas do Caribe.",
+        "groups": {
+          "films": "Filmes"
+        },
+        "title": "Piratas do Caribe"
+      },
+      "planetOfTheApes": {
+        "description": "Explore cada era da franquia Planeta dos Macacos.",
+        "groups": {
+          "caesar": "A saga moderna",
+          "originals": "Os filmes originais",
+          "reimagining": "Reimaginando",
+          "releaseOrder": "Ordem de lançamento concluída"
+        },
+        "title": "Planeta dos Macacos"
+      },
+      "rockyCreed": {
+        "description": "Entre no ringue pelas gerações de Rocky e Creed.",
+        "groups": {
+          "creed": "Creed",
+          "releaseOrder": "Ordem de lançamento completa",
+          "rocky": "Rocky"
+        },
+        "title": "Rocky & Creed"
+      },
+      "shrek": {
+        "description": "Retorne a Far Far Away com Shrek, Burro e Pato Donald.",
+        "groups": {
+          "pussInBoots": "Puss in Boots",
+          "releaseOrder": "Ordem de lançamento completa",
+          "shrek": "Shrek"
+        },
+        "title": "Shrek"
+      },
+      "starWars": {
+        "description": "Explore os filmes e séries de uma galáxia muito, muito distante.",
+        "groups": {
+          "movies": "Filmes",
+          "releaseOrder": "Ordem de lançamento concluída",
+          "series": "Séries",
+          "skywalkerSaga": "A Saga Skywalker"
+        },
+        "title": "Star Wars"
+      },
+      "subtitle": "Explore franquias icônicas, sagas e universos cinematográficos.",
+      "toyStory": {
+        "description": "Siga Woody, Buzz e os brinquedos em suas aventuras.",
+        "groups": {
+          "main": "Toy Story",
+          "releaseOrder": "Ordem de lançamento concluída",
+          "spinoffs": "O universo mais amplo da Toy Story"
+        },
+        "title": "Toy Story"
+      },
+      "wizardingWorld": {
+        "description": "Retorne a Hogwarts e explore o mundo bruxo maior.",
+        "groups": {
+          "fantasticBeasts": "Fantastic Beasts",
+          "harryPotter": "Harry Potter",
+          "releaseOrder": "Ordem de lançamento completa"
+        },
+        "title": "Mundo Mágico"
+      }
+    },
+    "filtered": {
+      "bestMatches": "Melhores correspondências",
+      "highlyRated": "Muito bem avaliado",
+      "loadMore": "Carregar mais",
+      "moreToDiscover": "Mais para descobrir",
+      "popular": "Títulos populares agora",
+      "recentlyReleased": "Lançamentos recentes"
+    },
+    "friends": {
+      "allActivity": "Todas as atividades",
+      "description": "Atividades recentes de pessoas que você segue",
+      "rating": "{{rating}} de 5 estrelas",
+      "title": "O que seus amigos estão assistindo",
+      "watched": "Títulos assistidos"
+    },
+    "personalized": {
+      "becauseWatched": "Porque você assistiu {{title}}",
+      "becauseYouLiked": "Porque você gostou deste",
+      "forYou": "Para você",
+      "moreFromDirectors": "Mais dos diretores que você gosta",
+      "moreFromStudio": "Mais do {{studio}}",
+      "moreGenre": "Mais {{genre}} para você"
+    },
+    "signature": "Sempre há algo interessante para assistir."
   },
   "emptyStates": {
     "activityIllustration": "Um rolo de filme com pontos de atividade social",
@@ -314,13 +531,28 @@
     "99": "Documentário"
   },
   "home": {
+    "availableNow": "Disponível agora",
+    "backInTheaters": "De volta aos cinemas",
     "comingSoon": "Em Breve",
+    "episodeShort": "T{{season}}E{{episode}}",
+    "exploreMore": "Explorar mais",
+    "forYou": "Para você",
+    "moreFromPerson": "Mais de {{name}}",
+    "moreWithPerson": "Mais com {{name}}",
+    "newEpisode": "Novo episódio",
     "newReleases": "Novos Lançamentos",
+    "newSeason": "Nova temporada",
+    "newSeries": "Novas séries",
     "oscarMarathon": "Maratona de Indicações ao Oscar",
     "popularMovies": "Filmes Populares",
+    "popularNow": "Títulos populares agora",
     "popularTV": "Séries que Amamos",
+    "rereleases": "De volta aos cinemas",
+    "seasonNumber": "Temporada {{season}}",
     "topRated": "Filmes Mais Bem Avaliados",
-    "trending": "Em Alta Hoje"
+    "trending": "Em Alta Hoje",
+    "upcoming": "Em breve",
+    "updatesForYou": "Atualizações para você"
   },
   "importFlow": {
     "alreadyInDiary": "Já existe no seu diário.",
@@ -332,6 +564,7 @@
     "failedCount": "Falhos: {{count}}",
     "finished": "Importação concluída",
     "firstTime": "Primeira vez",
+    "headerPhrase": "Traga seu histórico de exibição com você.",
     "importFailed": "A importação falhou.",
     "importSelected": "Importar selecionados",
     "importedCount": "Importados: {{count}}",
@@ -474,7 +707,11 @@
     "personNotFound": "Pessoa não encontrada",
     "profileDescription": "Veja os filmes, séries, avaliações e diário de @{{username}} no Kino.",
     "profileImageAlt": "Perfil de {{name}} no Kino",
+    "profileMoviesDescription": "Navegue pelos filmes assistidos por @{{username}} no Kino.",
+    "profileMoviesTitle": "Os filmes de {{name}}",
     "profileNotFound": "Perfil não encontrado",
+    "profileSeriesDescription": "Navegue pelas séries assistidas por @{{username}} no Kino.",
+    "profileSeriesTitle": "{{name}}'s séries",
     "profileStatsDescription": "Estatísticas de exibição vitalícias para @{{username}} no Kino.",
     "profileStatsTitle": "Estatísticas de {{name}}",
     "profileUnavailable": "Perfil indisponível",
@@ -494,6 +731,7 @@
   },
   "modals": {
     "addToWatchlist": "Adicionar à Lista",
+    "addingTitle": "Adicionando",
     "allSeries": "Todas as Séries",
     "askOwnerForCode": "Peça ao dono da lista o código de compartilhamento (ex: A1B2C3D4).",
     "bannerFromGallery": "Escolher da Galeria",
@@ -542,6 +780,7 @@
     "name": "Nome",
     "namePlaceholder": "ex: Maratona de Fim de Semana",
     "newWatchlist": "Nova Lista",
+    "noMatchingWatchlists": "Não foram encontradas listas que correspondam à sua pesquisa.",
     "noWatchlistsFound": "Nenhuma lista encontrada. Crie uma!",
     "optional": "(Opcional)",
     "removeBanner": "Remover Banner",
@@ -549,6 +788,7 @@
     "rewatched": "Reassistido",
     "save": "Salvar",
     "saveChanges": "Salvar Alterações",
+    "searchWatchlists": "Pesquisar suas listas",
     "seasonRatingModal": {
       "rateRemainingPrompt": "Você avaliou a maior parte desta temporada. Por que não avalia os episódios restantes para obter uma pontuação mais precisa?",
       "rateSeason": "Avaliar Temporada",
@@ -573,6 +813,7 @@
     "title": "Esta cena não entrou no corte final."
   },
   "pagination": {
+    "currentPage": "Atual",
     "goToPage": "Ir para a página {{page}}",
     "label": "Paginação",
     "morePages": "Mais páginas",
@@ -661,6 +902,25 @@
     "watchedMovies": "Filmes Assistidos",
     "watchedSeries": "Séries Assistidas"
   },
+  "profileCollections": {
+    "backToProfile": "Voltar para o perfil",
+    "loadErrorBody": "Tentar novamente em um momento.",
+    "loadErrorTitle": "Não foi possível carregar a coleção",
+    "moviesDescription": "Filmes assistidos por {{name}}.",
+    "moviesEmptyBody": "Os filmes assistidos aparecerão aqui.",
+    "moviesEmptyTitle": "Nenhum filme assistido ainda.",
+    "moviesShareText": "Veja os filmes de {{name}} no Kino.",
+    "moviesTitle": "Os filmes de {{name}}",
+    "noMatchesBody": "Tente ajustar ou limpar seus filtros.",
+    "noMatchesTitle": "Nenhum resultado encontrado",
+    "search": "Pesquisar coleção",
+    "searchPlaceholder": "Pesquisar por título...",
+    "seriesDescription": "Séries assistidas por {{name}}.",
+    "seriesEmptyBody": "Os episódios assistidos aparecerão aqui.",
+    "seriesEmptyTitle": "Nenhuma série ainda",
+    "seriesShareText": "Veja as séries de {{name}} no Kino.",
+    "seriesTitle": "{{name}}'s séries"
+  },
   "reviews": {
     "actions": "Ações da resenha",
     "charactersRemaining": "{{count}} caracteres restantes",
@@ -682,7 +942,7 @@
     "fromPeopleYouFollow": "De pessoas que você segue",
     "latest": "Resenhas mais recentes",
     "like": "Curtir resenha",
-    "likeCount_one": "{{count, number}} curtidas",
+    "likeCount_one": "{{count, number}} curtida",
     "likeCount_other": "{{count, number}} curtidas",
     "likeFailure": "Não foi possível atualizar a curtida",
     "loadFailure": "Não foi possível carregar as resenhas.",
@@ -711,19 +971,26 @@
     "any": "Qualquer",
     "bestMatch": "Melhor correspondência",
     "clear": "Limpar",
+    "failed": "Falhou",
     "filters": "Filtros",
+    "filtersDescription": "Descrição (Opcional)",
     "genres": "Gêneros",
+    "headerPhrase": "Encontre sua próxima obsessão.",
     "knownFor": "Conhecido por",
     "loading": "Encontrando a combinação perfeita...",
     "mediaType": "Tipo de mídia",
+    "minimumCharacters": "mínimo de caracteres",
     "minimumRating": "Nota mínima no TMDB",
     "movies": "Filmes",
     "noProfileImage": "Sem imagem de perfil",
     "noResults": "Nenhum resultado encontrado",
     "noResultsHint": "Tente ajustar os filtros ou buscar por outra coisa.",
+    "pages": "Páginas",
     "people": "Pessoas",
     "person": "Pessoa",
     "placeholder": "Buscar títulos, pessoas ou usuários...",
+    "resetFilters": "Redefinir",
+    "results": "Resultados",
     "retry": "Tentar novamente",
     "searchFailed": "Não foi possível carregar a busca.",
     "sectionFailed": "Não foi possível carregar esta seção.",
@@ -775,6 +1042,7 @@
     "deleteDataTitle": "Apagar Dados",
     "displayName": "Nome de Exibição",
     "editProfile": "Editar Perfil",
+    "headerPhrase": "Torne o Kino seu.",
     "import": "Importar",
     "importCreateTitleError": "Não foi possível encontrar um ou mais títulos no TMDb.",
     "importErrors": "Corrija estes primeiro",
@@ -932,30 +1200,39 @@
     "sinceJoining": "Desde que entrou em {{month}} de {{year}}",
     "story": {
       "acrossDays": "em {{days}} dias diferentes.",
-      "definedYourMonth": "Você definiu seu mês",
-      "episodeAbbrev": "ep.",
-      "favorite": "Favorito",
-      "monthHeadline": "O mês de {{name}} no Kino",
-      "monthSummary": "{{movies}} filmes - {{episodes}} episodios - {{days}} dias",
+      "definedYourMonth": "Definiu seu mês",
+      "episodeAbbrev": "ep",
+      "favorite": "Favoritos",
+      "kinoTimeDays_other": "{{count, number}} dias",
+      "kinoTimeDays_one": "{{count, number}} dia",
+      "kinoTimeMonths_other": "{{count, number}} meses",
+      "kinoTimeMonths_one": "{{count, number}} mês",
+      "kinoTimeYears_other": "{{count, number}} anos",
+      "kinoTimeYears_one": "{{count, number}} ano",
+      "lifetimeHeadline": "A jornada de {{name}} no Kino",
+      "memberSince": "Membro desde {{year}}",
+      "monthHeadline": "{{nome}}'s mês no Kino",
+      "monthSummary": "Você assistiu a {{movies}} filmes e {{episodes}} episódios em {{days}} dias.",
       "monthTitle": "Resumo mensal",
-      "otherFavoritesMovies": "Outros favoritos · Filmes",
-      "otherFavoritesSeries": "Outros favoritos · Séries",
+      "otherFavoritesMovies": "Outros favoritos - Filmes",
+      "otherFavoritesSeries": "Outros favoritos - Séries",
       "ratingShort": "Avaliação",
       "seriesWatched": "Séries assistidas",
-      "topActor": "Ator principal",
-      "topGenre": "Gênero principal",
-      "topMovie": "Filme em destaque",
+      "sinceBeginning": "membro desde ",
+      "topActor": "Melhor ator",
+      "topGenre": "Gênero mais assistido",
+      "topMovie": "Melhor filme",
       "topRatedMovies": "Filmes mais bem avaliados",
       "topRatedSeries": "Séries mais bem avaliadas",
-      "topSeries": "Série em destaque",
-      "topStudio": "Estúdio principal",
-      "trackMore": "Acompanhe o seu em kino.app",
-      "trackYoursAt": "Acompanhe o seu em {{host}}",
+      "topSeries": "Séries mais bem avaliadas",
+      "topStudio": "Estúdio de destaque",
+      "trackMore": "Acompanhe os seus em kino.app",
+      "trackYoursAt": "Acompanhe os seus em {{host}}",
       "tvShare": "tempo de TV",
-      "watchedTimes": "Visto",
+      "watchedTimes": "Vistos",
       "youWatched": "Você assistiu"
     },
-    "storyImageDescription": "Baixe uma imagem vertical para Instagram Stories.",
+    "storyImageDescription": "Baixe uma imagem vertical para o Stories do Instagram.",
     "time": "Tempo",
     "timeWatched": "Tempo assistido",
     "title": "Estatísticas",
@@ -1085,6 +1362,7 @@
     "failedToDeleteWatchlist": "Falha ao apagar lista",
     "failedToLeaveWatchlist": "Falha ao sair da lista",
     "failedToRemoveItem": "Falha ao remover item",
+    "headerPhrase": "Salve agora. Assista quando estiver pronto.",
     "itemRemoved": "Título removido",
     "kinoUser": "Usuário Kino",
     "leave": "Sair",
@@ -1100,6 +1378,7 @@
     "notFoundBody": "Esta lista pode ter sido removida ou não está compartilhada com sua conta.",
     "nowPrivate": "A lista agora é privada",
     "nowPublic": "A lista agora é pública",
+    "oneTitle": "1 título",
     "onlyContributorCanRemove": "Somente quem adicionou este título pode removê-lo.",
     "participants": "Participantes",
     "privacyFailed": "Não foi possível atualizar a privacidade",
@@ -1118,13 +1397,18 @@
     "removeFromListTitle": "Remover da Lista",
     "removeTitle": "Remover {{title}}",
     "searchTitles": "Buscar títulos",
+    "shareCode": "Insira seu código de compartilhamento da lista para assistir",
     "shared": "Compartilhada",
     "sharedWatchlist": "Lista compartilhada",
     "sharing": "Compartilhamento da lista",
     "sharingPrivateDescription": "Torne a lista pública para criar um código para amigos.",
     "sharingPublicDescription": "Qualquer pessoa com este código pode entrar e colaborar nesta lista.",
     "title": "Listas",
+    "titleCount": "{{count}} títulos",
     "titleUnavailable": "Título indisponível",
+    "updatedHoursAgo": "{{count}} horas atrás",
+    "updatedLessThanHour": "Menos de 1 hora atrás",
+    "updatedOn": "Atualizado em {{date}}",
     "updatingPrivacy": "Atualizando privacidade...",
     "visibility": "Visibilidade",
     "visibilityDescriptions": {

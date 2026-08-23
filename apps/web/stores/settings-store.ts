@@ -6,7 +6,7 @@ import {
   createWebLocaleReadiness,
   type WebLocaleReadinessError,
   type WebLocaleReadinessStatus,
-} from '@/lib/locale-readiness'
+} from '@/lib/localization/locale-readiness'
 
 import { type KinoLanguage, SUPPORTED_LANGUAGES } from '../../../packages/core/src/locale-config'
 

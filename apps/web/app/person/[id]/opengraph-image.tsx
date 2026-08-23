@@ -1,9 +1,9 @@
 import { getDisplayTitle, getReleaseYear } from '@kino/core'
 import { ImageResponse } from 'next/og'
-import { FallbackOg, getOgImageOptions, OG_SIZE, PersonOg } from '@/lib/og'
-import { safeImageData } from '@/lib/og-images'
+import { FallbackOg, getOgImageOptions, OG_SIZE, PersonOg } from '@/lib/og/og'
+import { safeImageData } from '@/lib/og/og-images'
 import { parseResourceSegment } from '@/lib/routes'
-import { getPersonSeoData } from '@/lib/server-tmdb'
+import { getPersonSeoData } from '@/lib/tmdb/server-tmdb'
 
 export const runtime = 'nodejs'
 export const size = OG_SIZE

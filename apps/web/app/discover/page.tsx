@@ -1,36 +1,146 @@
 import Link from 'next/link'
 
-import { TrendingCarousel } from '@/components/carousel/trending-carousel'
 import { DiscoverClient } from '@/components/discover/discover-client'
-import { DiscoverFilters } from '@/components/discover/discover-filters'
 import { EmptyState } from '@/components/kino'
 import { PageHeader } from '@/components/layout/page-header'
-import { MediaSection } from '@/components/media/media-section'
+import { SignatureHeading } from '@/components/layout/signature-heading'
 import { buttonVariants } from '@/components/ui/button'
-import { getRequestLanguage, getTranslations } from '@/lib/server-localization'
-import { getDiscoverData, getRegionForLanguage } from '@/lib/server-tmdb'
+
+import { getDiscoverDateWindow } from '@/lib/discover/feed-dates'
+import { type DiscoverAffinityData, getDiscoverAffinityData } from '@/lib/discover/server-affinity'
+import {
+  getRecentSeriesReleases,
+  getRelatedReleaseSignals,
+  getRelatedSeriesSignals,
+} from '@/lib/discover/server-related-releases'
+import {
+  buildPersonalizedNewReleases,
+  buildPersonalizedNewSeries,
+} from '@/lib/discover/server-release-relevance'
+import { getPersonalizedSeriesUpdates } from '@/lib/discover/server-series-updates'
+
+import { getRequestLanguage, getTranslations } from '@/lib/localization/server-localization'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { getDiscoverData, getRegionForLanguage } from '@/lib/tmdb/server-tmdb'
 import { cn } from '@/lib/utils'
 
 export default async function DiscoverPage() {
   const language = await getRequestLanguage()
   const t = await getTranslations(language)
 
+  const region = getRegionForLanguage(language)
+
+  const supabase = await createServerSupabaseClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const emptyAffinityData: DiscoverAffinityData = {
+    candidates: {
+      actors: [],
+      directors: [],
+      studios: [],
+    },
+  }
+
   try {
-    const data = await getDiscoverData(language, getRegionForLanguage(language))
+    const [data, seriesUpdates, affinityData] = await Promise.all([
+      getDiscoverData(language, region),
+
+      user
+        ? getPersonalizedSeriesUpdates(user.id, language).catch((error) => {
+            console.error('[discover:series-updates] Failed to build series updates.', error)
+
+            return []
+          })
+        : Promise.resolve([]),
+
+      user
+        ? getDiscoverAffinityData(user.id).catch((error) => {
+            console.error('[discover:affinity] Failed to build affinity data.', error)
+
+            return emptyAffinityData
+          })
+        : Promise.resolve(emptyAffinityData),
+    ])
+
+    const { today, recentStart } = getDiscoverDateWindow()
+
+    const recentWindow = {
+      start: recentStart,
+      end: today,
+    }
+
+    const [relatedReleases, genericNewSeries, relatedSeries] = await Promise.all([
+      user
+        ? getRelatedReleaseSignals({
+            affinityCandidates: affinityData.candidates,
+            language,
+            region,
+            window: recentWindow,
+          }).catch((error) => {
+            console.error('[discover:releases] Failed to build related release signals.', error)
+
+            return []
+          })
+        : Promise.resolve([]),
+
+      getRecentSeriesReleases({
+        language,
+        window: recentWindow,
+      }).catch((error) => {
+        console.error('[discover:series-releases] Failed to fetch recent series.', error)
+
+        return []
+      }),
+
+      user
+        ? getRelatedSeriesSignals({
+            affinityCandidates: affinityData.candidates,
+            language,
+            window: recentWindow,
+          }).catch((error) => {
+            console.error(
+              '[discover:series-releases] Failed to build related series signals.',
+              error
+            )
+
+            return []
+          })
+        : Promise.resolve([]),
+    ])
+
+    const personalizedNewReleases = buildPersonalizedNewReleases({
+      newReleases: data.newReleases,
+      relatedReleases,
+    })
+
+    const personalizedNewSeries = buildPersonalizedNewSeries({
+      newSeries: genericNewSeries,
+      relatedSeries,
+    })
 
     return (
       <div className="content-frame">
-        <PageHeader title={t('tabs.home')} />
+        <SignatureHeading
+          desktopTitle={t('discover.signature', {
+            defaultValue: 'There’s always something worth watching',
+          })}
+          mobileTitle={t('tabs.home')}
+        />
 
         <DiscoverClient
           genres={data.genres}
           movieGenres={data.movieGenres}
-          tvGenres={data.tvGenres}
-          trending={data.trending}
+          personalizedNewReleases={personalizedNewReleases}
+          personalizedNewSeries={personalizedNewSeries}
           popularMovies={data.popularMovies}
           popularTV={data.popularTV}
-          nowPlaying={data.nowPlaying}
-          topRated={data.topRated}
+          rereleases={data.rereleases}
+          seriesUpdates={seriesUpdates}
+          trending={data.trending}
+          tvGenres={data.tvGenres}
           upcoming={data.upcoming}
         />
       </div>

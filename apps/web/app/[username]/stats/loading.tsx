@@ -1,6 +1,6 @@
 import { ProfileStatSummaryCard } from '@/components/profile/profile-stat-summary-card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { getServerMetadataContext } from '@/lib/server-metadata'
+import { getServerMetadataContext } from '@/lib/seo/server-metadata'
 
 export default async function Loading() {
   const { t } = await getServerMetadataContext()

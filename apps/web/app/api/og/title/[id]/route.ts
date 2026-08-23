@@ -3,12 +3,12 @@ import { ImageResponse } from 'next/og'
 import type { NextRequest } from 'next/server'
 import { createElement, type ReactElement } from 'react'
 
-import { isSupportedLanguage } from '@/lib/i18n-shared'
-import { FallbackOg, getOgImageOptions, TitleOg } from '@/lib/og'
-import { safeImageData } from '@/lib/og-images'
-import { getTitlePresentation } from '@/lib/seo'
-import { getRequestLanguage } from '@/lib/server-localization'
-import { getTitleSeoData } from '@/lib/server-tmdb'
+import { isSupportedLanguage } from '@/lib/localization/i18n-shared'
+import { getRequestLanguage } from '@/lib/localization/server-localization'
+import { FallbackOg, getOgImageOptions, TitleOg } from '@/lib/og/og'
+import { safeImageData } from '@/lib/og/og-images'
+import { getTitlePresentation } from '@/lib/seo/seo'
+import { getTitleSeoData } from '@/lib/tmdb/server-tmdb'
 
 export const runtime = 'nodejs'
 

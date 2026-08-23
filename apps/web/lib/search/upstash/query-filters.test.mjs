@@ -23,3 +23,17 @@ test('builds Redis Search smart, fuzzy, should, and boost clauses', () => {
   assert.match(JSON.stringify(buildUserQuery('alice')), /username/)
   assert.match(JSON.stringify(buildUserQuery('alice')), /user/)
 })
+
+test('uses valid Redis Search boost syntax', () => {
+  const title = buildTitleQuery('fight club', {
+    autocomplete: true,
+  })
+
+  const serialized = JSON.stringify(title)
+
+  assert.match(serialized, /"\$boost":1\.4/)
+  assert.match(serialized, /"\$boost":0\.8/)
+
+  assert.doesNotMatch(serialized, /"\$boost":\{"query"/)
+  assert.doesNotMatch(serialized, /"factor":/)
+})

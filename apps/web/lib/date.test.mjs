@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { formatLocalizedDate, formatLocalizedRelativeTime } from './date.ts'
+import {
+  formatLocalizedDate,
+  formatLocalizedRecentDate,
+  formatLocalizedRelativeTime,
+} from './date.ts'
 
 test('date-only activity values stay on the authored calendar day', () => {
   for (const timeZone of ['America/Sao_Paulo', 'UTC', 'Pacific/Kiritimati', 'America/Adak']) {
@@ -27,5 +31,25 @@ test('relative activity time uses localized singular and plural translation keys
   assert.equal(
     formatLocalizedRelativeTime('2026-03-07T12:00:00.000Z', translate, now),
     'activity.monthsAgo:5'
+  )
+})
+
+test('recent dates stay relative through one week then become localized calendar dates', () => {
+  const now = new Date('2026-08-15T12:00:00.000Z')
+  const translate = (key, options = {}) => `${key}:${options.count ?? ''}`
+
+  assert.equal(
+    formatLocalizedRecentDate('2026-08-15T11:30:00.000Z', 'pt-BR', translate, now),
+    'activity.minutesAgo:30'
+  )
+
+  assert.equal(
+    formatLocalizedRecentDate('2026-08-08T12:00:00.000Z', 'pt-BR', translate, now),
+    'activity.weekAgo:1'
+  )
+
+  assert.equal(
+    formatLocalizedRecentDate('2026-08-07T12:00:00.000Z', 'pt-BR', translate, now),
+    '7 Ago. 2026'
   )
 })

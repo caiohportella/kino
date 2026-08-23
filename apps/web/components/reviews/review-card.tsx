@@ -14,11 +14,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { useTranslation } from '@/lib/i18n'
-import { resolveLocalizedTitlePresentation } from '@/lib/localized-title-presentation'
+import { useLocalizedTitles } from '@/hooks/title/use-localized-titles'
+import { formatLocalizedRecentDate } from '@/lib/date'
+import { useLocale, useTranslation } from '@/lib/localization/i18n'
+import { resolveLocalizedTitlePresentation } from '@/lib/localization/localized-title-presentation'
 import { titlePath } from '@/lib/routes'
 import { getTmdb } from '@/lib/services'
-import { useLocalizedTitles } from '@/lib/use-localized-titles'
 import { cn } from '@/lib/utils'
 import { ProfileReviewSkeleton } from './profile-review-skeleton'
 import { ReviewAuthor } from './review-author'
@@ -50,6 +51,7 @@ export function ReviewCard(props: ReviewCardProps) {
     props
 
   const { t } = useTranslation()
+  const { locale } = useLocale()
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -82,11 +84,19 @@ export function ReviewCard(props: ReviewCardProps) {
 
   const titleReview = props.review
   const reviewDate = new Date(titleReview.createdAt)
+  const reviewDateLabel = formatLocalizedRecentDate(titleReview.createdAt, locale, t)
   const edited = titleReview.updatedAt !== titleReview.createdAt
 
   return (
     <>
-      <article className="flex h-full min-w-0 select-text items-start gap-3.5 rounded-md border border-white/10 bg-kino-surface p-4 sm:gap-4 sm:p-5">
+      <article
+        className="
+          flex min-w-0 select-text items-start
+          gap-4 border-b border-white/10
+          py-7
+          sm:gap-5 sm:py-8
+        "
+      >
         <ReviewAuthor author={titleReview.author} size="lg" />
 
         <div className="min-w-0 flex-1">
@@ -100,9 +110,7 @@ export function ReviewCard(props: ReviewCardProps) {
                 </span>
 
                 <time className="text-xs text-kino-subtle" dateTime={reviewDate.toISOString()}>
-                  {new Intl.DateTimeFormat(undefined, {
-                    dateStyle: 'medium',
-                  }).format(reviewDate)}
+                  {reviewDateLabel}
                 </time>
 
                 {edited ? (
@@ -137,7 +145,7 @@ export function ReviewCard(props: ReviewCardProps) {
             ) : null}
           </header>
 
-          <div className="mt-3.5">
+          <div className="mt-4">
             {editing ? (
               <ReviewEditor
                 initialContent={titleReview.content}
@@ -263,6 +271,7 @@ function ProfileReviewLayout({
   onDelete: () => void
 }) {
   const { t } = useTranslation()
+  const { locale } = useLocale()
 
   const localizedRequest = useMemo(
     () => ({
@@ -298,113 +307,110 @@ function ProfileReviewLayout({
   )
 
   const reviewDate = new Date(review.createdAt)
+  const reviewDateLabel = formatLocalizedRecentDate(review.createdAt, locale, t)
+
   const edited = review.updatedAt !== review.createdAt
 
   return (
-    <article className="flex h-63 min-w-0 flex-col overflow-hidden rounded-md border border-white/10 bg-kino-surface p-4 transition-colors hover:border-white/15">
-      {/* Title stays above both poster + review */}
-      <div className="shrink-0">
-        <Link
-          className="focus-ring inline rounded-sm font-semibold text-kino-text transition-colors hover:text-kino-accent"
-          href={href}
-        >
-          {displayTitle}
-        </Link>
+    <article
+      className="
+        grid h-full min-w-0
+        grid-cols-[68px_minmax(0,1fr)]
+        gap-4 border-r border-white/10
+        py-2 pr-5
+        sm:grid-cols-[76px_minmax(0,1fr)]
+        sm:gap-5 sm:pr-6
+      "
+    >
+      <Link
+        aria-label={t('reviews.openForTitle', {
+          title: displayTitle,
+        })}
+        className="focus-ring block self-start rounded-md"
+        href={href}
+      >
+        <Poster
+          className="w-full"
+          showHoverPresentation={false}
+          sizes="76px"
+          src={posterUrl}
+          title={displayTitle}
+        />
+      </Link>
 
-        {localizedTitle.year ? (
-          <span className="ml-1.5 text-sm font-normal text-kino-muted">
-            ({localizedTitle.year})
-          </span>
-        ) : null}
-      </div>
+      <div className="flex min-w-0 flex-col">
+        <header className="flex min-w-0 items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-1">
+              <Link
+                className="focus-ring min-w-0 truncate rounded-sm font-semibold text-kino-text transition-colors hover:text-kino-accent"
+                href={href}
+              >
+                {displayTitle}
+              </Link>
 
-      {/* Poster now begins where reviews.reviewedTitle used to be */}
-      <div className="mt-3 grid min-h-0 flex-1 grid-cols-[64px_minmax(0,1fr)] gap-4">
-        <Link
-          aria-label={t('reviews.openForTitle', {
-            title: displayTitle,
-          })}
-          className="focus-ring block self-start rounded-md"
-          href={href}
-        >
-          <Poster className="w-full" src={posterUrl} title={displayTitle} />
-        </Link>
-
-        <div className="flex min-h-0 min-w-0 flex-col">
-          {/* Author / date / actions */}
-          <header className="flex shrink-0 items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
-                <ReviewAuthor author={review.author} variant="name" />
-
-                <span aria-hidden="true" className="text-kino-subtle">
-                  ·
-                </span>
-
-                <time className="text-xs text-kino-subtle" dateTime={reviewDate.toISOString()}>
-                  {new Intl.DateTimeFormat(undefined, {
-                    dateStyle: 'medium',
-                  }).format(reviewDate)}
-                </time>
-
-                {edited ? (
-                  <>
-                    <span aria-hidden="true" className="text-kino-subtle">
-                      ·
-                    </span>
-
-                    <span className="text-xs text-kino-subtle">{t('reviews.edited')}</span>
-                  </>
-                ) : null}
-              </div>
-
-              {review.rating ? (
-                <div className="mt-1.5">
-                  <RatingStars
-                    label={t('reviews.ratingLabel')}
-                    readonly
-                    size="xs"
-                    value={review.rating}
-                  />
-                </div>
+              {localizedTitle.year ? (
+                <span className="shrink-0 text-sm text-kino-muted">({localizedTitle.year})</span>
               ) : null}
             </div>
 
-            {review.isViewerReview ? (
-              <ReviewOwnerActions
-                disabled={pendingOwnerAction}
-                onDelete={onDelete}
-                onEdit={onEdit}
-              />
-            ) : null}
-          </header>
+            <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              {review.rating ? (
+                <RatingStars
+                  label={t('reviews.ratingLabel')}
+                  readonly
+                  size="xs"
+                  value={review.rating}
+                />
+              ) : null}
 
-          {/* Review body */}
-          <div className="mt-3 min-h-0 flex-1">
-            {editing ? (
-              <ReviewEditor
-                initialContent={review.content}
-                onCancel={onCancelEdit}
-                onSave={async (content) => {
-                  const saved = await onUpdate(content)
+              <time className="text-xs text-kino-subtle" dateTime={reviewDate.toISOString()}>
+                {reviewDateLabel}
+              </time>
 
-                  if (saved) {
-                    onCancelEdit()
-                  }
+              {edited ? (
+                <>
+                  <span aria-hidden="true" className="text-kino-subtle">
+                    ·
+                  </span>
 
-                  return saved
-                }}
-                pending={pendingOwnerAction}
-              />
-            ) : (
-              <p className="line-clamp-4 wrap-break-word whitespace-pre-wrap text-sm leading-6 text-kino-text">
-                {review.content}
-              </p>
-            )}
+                  <span className="text-xs text-kino-subtle">{t('reviews.edited')}</span>
+                </>
+              ) : null}
+            </div>
           </div>
 
-          {/* Always pinned to bottom */}
-          <div className="mt-2 flex shrink-0 items-center border-t border-white/10 pt-2">
+          {review.isViewerReview ? (
+            <ReviewOwnerActions disabled={pendingOwnerAction} onDelete={onDelete} onEdit={onEdit} />
+          ) : null}
+        </header>
+
+        <div className="mt-3 min-h-0 flex-1">
+          {editing ? (
+            <ReviewEditor
+              compact
+              initialContent={review.content}
+              onCancel={onCancelEdit}
+              onSave={async (content) => {
+                const saved = await onUpdate(content)
+
+                if (saved) {
+                  onCancelEdit()
+                }
+
+                return saved
+              }}
+              pending={pendingOwnerAction}
+            />
+          ) : (
+            <p className="line-clamp-4 wrap-break-word whitespace-pre-wrap text-sm leading-6 text-kino-text">
+              {review.content}
+            </p>
+          )}
+        </div>
+
+        {!editing ? (
+          <div className="mt-auto flex shrink-0 items-center pt-3">
             {!review.isViewerReview ? (
               <button
                 aria-label={t(review.likedByViewer ? 'reviews.unlike' : 'reviews.like')}
@@ -447,7 +453,7 @@ function ProfileReviewLayout({
               </div>
             )}
           </div>
-        </div>
+        ) : null}
       </div>
     </article>
   )
@@ -480,7 +486,12 @@ function ExpandableReviewContent({ content }: { content: string }) {
     <div>
       <p
         className={cn(
-          'max-w-[70ch] whitespace-pre-wrap text-sm leading-6 text-kino-text',
+          `
+            w-full max-w-none
+            whitespace-pre-wrap wrap-break-word
+            text-sm leading-6 text-kino-text
+            lg:text-base lg:leading-7
+          `,
           !expanded && 'line-clamp-4'
         )}
         ref={contentRef}

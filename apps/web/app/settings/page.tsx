@@ -27,9 +27,9 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { useProfileMediaStats, useProfileStats } from '@/hooks/use-profile-stats'
-import { useTranslation } from '@/lib/i18n'
-import { invalidateProfileMutation } from '@/lib/profile-invalidation'
+import { useProfileMediaStats, useProfileStats } from '@/hooks/profile/use-profile-stats'
+import { useTranslation } from '@/lib/localization/i18n'
+import { invalidateProfileMutation } from '@/lib/profile/profile-invalidation'
 import { profileStatsPath } from '@/lib/routes'
 import { syncCurrentUserSearchProfile } from '@/lib/search/upstash/user-sync-client'
 import { db } from '@/lib/services'
@@ -199,8 +199,9 @@ export default function SettingsPage() {
               {saveMutation.isPending ? t('common.loading') : t('common.save')}
             </Button>
           }
-          eyebrow={t('common.settings')}
-          title={t('settings.editProfile')}
+          title={t('settings.headerPhrase', {
+            defaultValue: 'Make Kino yours.',
+          })}
         />
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px] xl:grid-cols-[minmax(0,1fr)_460px]">

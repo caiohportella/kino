@@ -124,7 +124,7 @@ export function scoreTitleSearchHit(input: {
   ])
   const score = bounded(input.hit.score)
   const exactTitleBoost = match.exact && normalizeSearchText(title) === query ? 1.6 : 0
-  const exactOriginalTitleBoost = !exactTitleBoost && match.exact ? 1.35 : 0
+  const exactOriginalTitleBoost = !exactTitleBoost && match.exact ? 1.6 : 0
   const prefixTitleBoost = !match.exact && match.prefix ? 1.5 : 0
   const phraseBoost = !match.exact && !match.prefix && match.lexical ? 0.55 : 0
   const pop = popularityBoost(data.popularity ?? legacyMetadata?.popularity)
@@ -156,10 +156,14 @@ export function scoreTitleSearchHit(input: {
       : {}),
     ...(numberValue(data.popularity ?? legacyMetadata?.popularity) === undefined
       ? {}
-      : { popularity: numberValue(data.popularity ?? legacyMetadata?.popularity) }),
+      : {
+          popularity: numberValue(data.popularity ?? legacyMetadata?.popularity),
+        }),
     ...(numberValue(data.voteCount ?? legacyMetadata?.voteCount) === undefined
       ? {}
-      : { voteCount: numberValue(data.voteCount ?? legacyMetadata?.voteCount) }),
+      : {
+          voteCount: numberValue(data.voteCount ?? legacyMetadata?.voteCount),
+        }),
     ...(voteAverage === undefined ? {} : { tmdbVoteAverage: voteAverage }),
     ...(text(data.posterPath ?? legacyMetadata?.posterPath)
       ? { imageUrl: text(data.posterPath ?? legacyMetadata?.posterPath) }
@@ -187,7 +191,14 @@ export function scoreTitleSearchHit(input: {
     voteCountBoost: votes,
     finalScore,
     semanticScore: score,
-    lexicalScore: exactTitleBoost ? 1 : prefixTitleBoost ? 0.92 : match.lexical ? 0.65 : 0,
+    lexicalScore:
+      exactTitleBoost || exactOriginalTitleBoost
+        ? 1
+        : prefixTitleBoost
+          ? 0.92
+          : match.lexical
+            ? 0.65
+            : 0,
     exactMatch: Boolean(exactTitleBoost || exactOriginalTitleBoost),
     prefixMatch: Boolean(prefixTitleBoost),
     debug,

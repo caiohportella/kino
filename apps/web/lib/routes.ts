@@ -1,5 +1,7 @@
 import type { MediaType, OgImageKind } from '@kino/core'
 
+export { isProfileSectionPath } from './profile/profile-routes.ts'
+
 export function slugify(value: string) {
   return value
     .normalize('NFD')
@@ -51,6 +53,14 @@ export function watchlistPath(id: string, name: string) {
 export function watchlistCoverPath(id: string, cacheKey?: string) {
   const path = `/api/og/watchlist/${encodeURIComponent(id)}/cover`
   return cacheKey ? `${path}?v=${encodeURIComponent(cacheKey)}` : path
+}
+
+export function profileMoviesPath(username: string) {
+  return `/${encodeURIComponent(username)}/movies`
+}
+
+export function profileSeriesPath(username: string) {
+  return `/${encodeURIComponent(username)}/series`
 }
 
 export function profileStatsPath(username: string) {

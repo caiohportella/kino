@@ -2,7 +2,7 @@
 
 import { Heart, LoaderCircle } from 'lucide-react'
 import type { ComponentPropsWithoutRef } from 'react'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 import { cn } from '@/lib/utils'
 
 export function ReviewLikeButton({

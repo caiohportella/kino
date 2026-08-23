@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
-import { localizedRouteMetadata } from '@/lib/server-metadata'
+import { localizedPublicRouteMetadata } from '@/lib/seo/server-metadata'
 
 export async function generateMetadata() {
-  return localizedRouteMetadata({
+  return localizedPublicRouteMetadata({
     canonicalPath: '/auth/login',
     descriptionKey: 'metadata.siteDescription',
     titleKey: 'metadata.loginTitle',

@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Globe2, Languages, Laptop, Smartphone } from 'lucide-react'
 import { AccentDots } from '@/components/landing/accent-dots'
 import { LandingReveal } from '@/components/landing/landing-reveal'
-import { supportedLanguages, useTranslation } from '@/lib/i18n'
+import { supportedLanguages, useTranslation } from '@/lib/localization/i18n'
 
 export function CrossPlatformSection() {
   const { t } = useTranslation()

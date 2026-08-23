@@ -13,8 +13,6 @@ const required = [
   'unlike',
   'likeCount_one',
   'likeCount_other',
-  'reviewCount_one',
-  'reviewCount_other',
   'latest',
   'readFull',
   'noReviews',

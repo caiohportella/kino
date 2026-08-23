@@ -24,7 +24,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 import { personPath } from '@/lib/routes'
 
 const EXTERNAL_LOGOS = {
@@ -50,7 +50,7 @@ export function TitleSidebar({
   const hasCredits = Boolean(title.director || title.cast.length)
 
   return (
-    <aside className="title-sidebar w-full min-w-0 max-w-full">
+    <div className="title-sidebar w-full min-w-0 max-w-full">
       <Card className="overflow-hidden border-white/10 bg-white/2.5 p-0" size="sm">
         <TrailerCard
           embedded
@@ -93,12 +93,12 @@ export function TitleSidebar({
           </>
         ) : null}
       </Card>
-    </aside>
+    </div>
   )
 }
 
 function SidebarSection({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`px-5 py-4 ${className}`}>{children}</div>
+  return <div className={`px-5 py-5 xl:px-6 ${className}`}>{children}</div>
 }
 
 function SidebarDivider() {
@@ -106,12 +106,12 @@ function SidebarDivider() {
 }
 
 function SidebarHeading({ children }: { children: ReactNode }) {
-  return <h2 className="text-sm font-semibold text-kino-text">{children}</h2>
+  return <h2 className="text-base font-semibold text-kino-text">{children}</h2>
 }
 
 function SidebarLabel({ children }: { children: ReactNode }) {
   return (
-    <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-kino-subtle">
+    <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-kino-subtle">
       {children}
     </h3>
   )
@@ -136,7 +136,7 @@ function getTitleExternalLinks(title: TitleDetails): ExternalLinkProvider[] {
     links.push({
       href: `https://www.imdb.com/title/${title.externalIds.imdb_id}`,
       brandColor: '#f5c518',
-      iconUrl: '/external/imdb.png',
+      iconUrl: '/external/imdb.svg',
       label: 'IMDb',
     })
   }
@@ -222,7 +222,7 @@ function FullCastDialog({ title }: { title: TitleDetails }) {
       <DialogTrigger
         render={
           <Button
-            className="group mt-1 h-auto w-full justify-between px-1 py-1.5 text-xs font-medium text-kino-muted hover:bg-transparent hover:text-kino-text"
+            className="group mt-1 h-auto w-full justify-between px-1 py-2 text-sm font-medium text-kino-muted hover:bg-transparent hover:text-kino-text"
             size="sm"
             variant="ghost"
           >
@@ -279,12 +279,12 @@ function CreditPersonLink({
   return (
     <Link
       aria-label={t('title.viewPersonProfile', { name: person.name })}
-      className="focus-ring group flex min-w-0 items-center gap-2.5 rounded-md px-1 py-1.5 transition-colors hover:bg-white/4.5"
+      className="focus-ring group flex min-w-0 items-center gap-3 rounded-md px-1 py-2 transition-colors hover:bg-white/4.5"
       href={personPath(person.id, person.name)}
     >
       <div
         className={`grid shrink-0 place-items-center overflow-hidden rounded-md bg-white/6 font-bold text-kino-muted ${
-          large ? 'h-11 w-11 text-xs' : 'h-9 w-9 text-[10px]'
+          large ? 'h-11 w-11 text-xs' : 'h-10 w-10 text-[11px]'
         }`}
       >
         {avatar ? (
@@ -295,12 +295,14 @@ function CreditPersonLink({
       </div>
 
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium text-kino-text transition-colors group-hover:text-kino-accent">
+        <span className="block truncate text-sm font-medium text-kino-text transition-colors group-hover:text-kino-accent xl:text-base">
           {person.name}
         </span>
 
         {roleLabel ? (
-          <span className="mt-0.5 block truncate text-xs text-kino-muted">{roleLabel}</span>
+          <span className="mt-0.5 block truncate text-xs text-kino-muted xl:text-sm">
+            {roleLabel}
+          </span>
         ) : null}
       </span>
     </Link>

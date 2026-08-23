@@ -6,11 +6,11 @@ import { useParams } from 'next/navigation'
 import { EmptyState, Poster } from '@/components/kino'
 import { PageHeader } from '@/components/layout/page-header'
 import { WatchlistsSkeleton } from '@/components/skeletons/page-skeletons'
-import { useTranslation } from '@/lib/i18n'
-import { resolveLocalizedTitlePresentation } from '@/lib/localized-title-presentation'
+import { useLocalizedTitles } from '@/hooks/title/use-localized-titles'
+import { useTranslation } from '@/lib/localization/i18n'
+import { resolveLocalizedTitlePresentation } from '@/lib/localization/localized-title-presentation'
 import { titlePath } from '@/lib/routes'
 import { db, getTmdb } from '@/lib/services'
-import { useLocalizedTitles } from '@/lib/use-localized-titles'
 
 export default function SharedWatchlistPage() {
   const { code } = useParams<{ code: string }>()

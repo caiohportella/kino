@@ -1,8 +1,8 @@
 import { ImageResponse } from 'next/og'
 import { createElement } from 'react'
-import { safeImageData } from '@/lib/og-images'
+import { WatchlistProfileCover } from '@/components/watchlist/watchlist-cover'
+import { safeImageData } from '@/lib/og/og-images'
 import { getPublicWatchlistOgData } from '@/lib/server-supabase'
-import { WatchlistProfileCover } from '@/lib/watchlist-cover'
 
 export const runtime = 'edge'
 

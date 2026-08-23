@@ -1,11 +1,11 @@
 import { ImageResponse } from 'next/og'
-import { FallbackOg, getOgImageOptions, OG_CONTENT_TYPE, OG_SIZE, TitleOg } from '@/lib/og'
-import { KINO_OG_LOGO_URL } from '@/lib/og-assets'
-import { safeImageData } from '@/lib/og-images'
+import { getRequestLanguage } from '@/lib/localization/server-localization'
+import { FallbackOg, getOgImageOptions, OG_CONTENT_TYPE, OG_SIZE, TitleOg } from '@/lib/og/og'
+import { KINO_OG_LOGO_URL } from '@/lib/og/og-assets'
+import { safeImageData } from '@/lib/og/og-images'
 import { parseResourceSegment } from '@/lib/routes'
-import { getTitlePresentation } from '@/lib/seo'
-import { getRequestLanguage } from '@/lib/server-localization'
-import { getTitleSeoDataBySegment } from '@/lib/server-tmdb'
+import { getTitlePresentation } from '@/lib/seo/seo'
+import { getTitleSeoDataBySegment } from '@/lib/tmdb/server-tmdb'
 
 export const runtime = 'nodejs'
 export const size = OG_SIZE

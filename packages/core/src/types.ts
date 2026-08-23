@@ -351,6 +351,30 @@ export interface Watchlist {
   updatedAt: Date
 }
 
+export interface WatchlistPreviewTitle {
+  id: string
+  tmdbId: number
+  type: PersistedTitle['type']
+  title: string
+  coverImage?: string
+  watched: boolean
+}
+
+export interface WatchlistParticipantPreview {
+  id: string
+  username: string
+  displayName?: string
+  avatarUrl?: string
+}
+
+export interface UserWatchlistSummary extends Watchlist {
+  titleCount: number
+  watchedCount: number
+  previewTitles: WatchlistPreviewTitle[]
+  participants: WatchlistParticipantPreview[]
+  lastItemAddedAt?: Date
+}
+
 export type WatchlistVisibility = 'private' | 'shared' | 'public'
 
 export interface PublicWatchlistSummary extends Watchlist {
@@ -635,6 +659,47 @@ export interface ProfileLifetimeRecap {
   highestRatedActress: ProfileRatedCategoryStat | null
   highestRatedGenre: ProfileRatedCategoryStat | null
   highestRatedDecade: ProfileRatedDecadeStat | null
+}
+
+export interface ProfileCollectionWatchEvent {
+  id: string
+  watchedAt: string
+  watchType: WatchType
+  seasonNumber?: number
+  episodeNumber?: number
+  runtimeMinutes?: number | null
+}
+
+export interface ProfileSeriesWatchPass {
+  passNumber: number
+  completedAt: string
+}
+
+export interface ProfileCollectionItem {
+  id: string
+  tmdbId: number
+  mediaType: MediaType
+  title: string
+  originalTitle?: string
+  releaseYear: number | null
+  genres: TMDbGenre[]
+  posterPath: string | null
+  userRating: number | null
+  averageRating: number | null
+  ratingCount: number
+  tmdbRating: number | null
+  tmdbVoteCount: number
+  tmdbPopularity: number
+  runtimeMinutes: number | null
+  latestWatchedAt: string | null
+  latestActivityAt: string | null
+  watchCount: number
+  watchEvents: ProfileCollectionWatchEvent[]
+  seriesPasses: ProfileSeriesWatchPass[]
+  requiredEpisodes?: Array<{
+    seasonNumber: number
+    episodeNumber: number
+  }>
 }
 
 export interface SeasonMetadata {

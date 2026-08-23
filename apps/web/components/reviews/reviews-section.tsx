@@ -6,12 +6,11 @@ import {
   useReviewLikeMutation,
   useTitleReviews,
   useUpdateReviewMutation,
-} from '@/hooks/use-title-reviews'
-import { useTranslation } from '@/lib/i18n'
+} from '@/hooks/title/use-title-reviews'
+import { useTranslation } from '@/lib/localization/i18n'
 import { ReviewCard } from './review-card'
 import { ReviewComposer } from './review-composer'
 import { ReviewSkeleton } from './review-skeleton'
-import { ReviewsCarousel, ReviewsCarouselSlide } from './reviews-carousel'
 import { ReviewsDialog } from './reviews-dialog'
 
 const EMPTY_TITLE_ID = '00000000-0000-0000-0000-000000000000'
@@ -114,9 +113,9 @@ export function ReviewsSection({
 
   return (
     <section className="min-w-0">
-      <div className="mb-4 flex items-center justify-between gap-4">
+      <div className="mb-5 flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-baseline gap-2.5">
-          <h2 className="text-xl font-semibold text-kino-text">{t('reviews.title')}</h2>
+          <h2 className="text-xl font-semibold text-kino-text lg:text-2xl">{t('reviews.title')}</h2>
         </div>
 
         {totalCount > 0 ? (
@@ -125,15 +124,13 @@ export function ReviewsSection({
       </div>
 
       {query.isLoading || authorLoading ? (
-        <ReviewsCarousel>
-          <ReviewsCarouselSlide>
-            <ReviewSkeleton />
-          </ReviewsCarouselSlide>
-
-          <ReviewsCarouselSlide>
-            <ReviewSkeleton />
-          </ReviewsCarouselSlide>
-        </ReviewsCarousel>
+        <div className="border-t border-white/10">
+          {[0, 1, 2].map((item) => (
+            <div className="border-b border-white/10 py-7 sm:py-8" key={item}>
+              <ReviewSkeleton />
+            </div>
+          ))}
+        </div>
       ) : null}
 
       {query.isError ? <p className="text-sm text-red-300">{t('reviews.loadFailure')}</p> : null}
@@ -183,11 +180,7 @@ export function ReviewsSection({
       ) : null}
 
       {!query.isLoading && reviews.length > 0 ? (
-        <ReviewsCarousel>
-          {reviews.map((review) => (
-            <ReviewsCarouselSlide key={review.id}>{renderReview(review)}</ReviewsCarouselSlide>
-          ))}
-        </ReviewsCarousel>
+        <div className="border-t border-white/10">{reviews.map(renderReview)}</div>
       ) : null}
     </section>
   )

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { KinoLogo } from '@/components/kino-logo'
 import { Button } from '@/components/ui/button'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 import { cn } from '@/lib/utils'
 
 export function LandingNav({ showBrand }: { showBrand: boolean }) {

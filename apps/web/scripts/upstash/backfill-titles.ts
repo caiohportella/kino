@@ -31,6 +31,10 @@ async function main() {
           tmdbId: Number(row.tmdb_id),
           type: row.type === 'tv' ? 'tv' : 'movie',
           title: String(row.title ?? ''),
+          originalTitle:
+            typeof tmdbData.original_title === 'string' ? tmdbData.original_title : null,
+
+          originalName: typeof tmdbData.original_name === 'string' ? tmdbData.original_name : null,
           overview: typeof row.synopsis === 'string' ? row.synopsis : null,
           year: Number(row.release_year) || null,
           posterPath: typeof row.cover_image === 'string' ? row.cover_image : null,

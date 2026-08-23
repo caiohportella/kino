@@ -12,7 +12,7 @@ test('OG rendering falls back cleanly when remote fonts are disabled', async () 
   }
 
   try {
-    const { getOgImageOptions } = await import('./og-fonts.ts')
+    const { getOgImageOptions } = await import('./og/og-fonts.ts')
     const options = await getOgImageOptions()
     assert.deepEqual(options.fonts, [])
     assert.equal(options.width, 1200)

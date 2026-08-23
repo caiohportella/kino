@@ -11,10 +11,11 @@ import {
 import { createClient } from '@supabase/supabase-js'
 import { ImageResponse } from 'next/og'
 import { createElement } from 'react'
-import { createTmdbLocalizedTitleBatchService } from '@/lib/localized-title-batch-server'
-import { loadOgFonts } from '@/lib/og-fonts'
-import { safeImageData } from '@/lib/og-images'
-import { formatProfileMonth } from '@/lib/profile-recap'
+import { createTmdbLocalizedTitleBatchService } from '@/lib/localization/localized-title-batch-server'
+import { getRequestLanguage, getTranslations } from '@/lib/localization/server-localization'
+import { loadOgFonts } from '@/lib/og/og-fonts'
+import { safeImageData } from '@/lib/og/og-images'
+import { formatProfileMonth } from '@/lib/profile/profile-recap'
 import {
   type StoryFeaturedItem,
   StoryFeaturedSection,
@@ -26,10 +27,9 @@ import {
   StoryStatsOverview,
   StoryStatTile,
   StoryTopBar,
-} from '@/lib/profile-recap-story'
-import { isReservedProfileRoute, normalizeProfileUsername } from '@/lib/profile-routes'
-import { formatWatchTimeCompact } from '@/lib/profile-stats'
-import { getRequestLanguage, getTranslations } from '@/lib/server-localization'
+} from '@/lib/profile/profile-recap-story'
+import { isReservedProfileRoute, normalizeProfileUsername } from '@/lib/profile/profile-routes'
+import { formatWatchTimeCompact } from '@/lib/profile/profile-stats'
 
 type SafeImageData = StoryImageData
 type PosterImages = Map<string, SafeImageData>

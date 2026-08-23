@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ActivityCalendar } from 'react-activity-calendar'
 import 'react-activity-calendar/tooltips.css'
 import type { HeatmapDatum } from '@/components/ui/heatmap-calendar'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 
 type ProfileActivityCalendarProps = {
   data: HeatmapDatum[]

@@ -3,9 +3,9 @@
 import type { AuthResolution } from '@kino/core/auth'
 import type { Session, User } from '@supabase/supabase-js'
 import { create } from 'zustand'
-import { type AuthProfileStatus, ensureUserProfileFromAuthUser } from '@/lib/auth-profile'
-import { getWebAuthCallbackUrl } from '@/lib/auth-redirect'
-import { createWebAuthResolver } from '@/lib/auth-resolution'
+import { type AuthProfileStatus, ensureUserProfileFromAuthUser } from '@/lib/auth/auth-profile'
+import { getWebAuthCallbackUrl } from '@/lib/auth/auth-redirect'
+import { createWebAuthResolver } from '@/lib/auth/auth-resolution'
 import { supabase } from '@/lib/supabase/client'
 
 interface AuthState {

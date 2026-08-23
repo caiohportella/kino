@@ -21,8 +21,8 @@ import { PageHeader } from '@/components/layout/page-header'
 import { ProfileSearchCard } from '@/components/profile/profile-search-card'
 import { SearchSkeleton } from '@/components/skeletons/page-skeletons'
 import { Button } from '@/components/ui/button'
-import { useMediaPoster } from '@/hooks/use-media-poster'
-import { useTranslation } from '@/lib/i18n'
+import { useMediaPoster } from '@/hooks/title/use-media-poster'
+import { useTranslation } from '@/lib/localization/i18n'
 import { personPath } from '@/lib/routes'
 import { createSearchGatewayClient } from '@/lib/search/client'
 import { toWebSearchGroups } from '@/lib/search/presentation'
@@ -253,8 +253,9 @@ export default function SearchPage() {
     <div>
       <div className="content-frame" data-search-controls>
         <PageHeader
-          eyebrow={t('search.results')}
-          title={debouncedQuery ? `“${debouncedQuery}”` : t('search.title')}
+          title={t('search.headerPhrase', {
+            defaultValue: 'Find your next obsession.',
+          })}
         />
 
         <div className="mb-8">

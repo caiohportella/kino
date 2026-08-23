@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { EmptyState } from '@/components/kino'
 import { Button } from '@/components/ui/button'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 
 type ErrorCode = 401 | 403 | 404 | 500
 

@@ -20,13 +20,13 @@ import {
 } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
-import { useActivityFeed } from '@/hooks/use-activity-feed'
-import { useReviewLikeMutation } from '@/hooks/use-review-like-mutation'
-import type { ActivityFeedCard, ActivityFeedFilter } from '@/lib/activity-feed'
+import { useActivityFeed } from '@/hooks/activity/use-activity-feed'
+import { useReviewLikeMutation } from '@/hooks/reviews/use-review-like-mutation'
+import { localizedTitleKey, useLocalizedTitles } from '@/hooks/title/use-localized-titles'
+import type { ActivityFeedCard, ActivityFeedFilter } from '@/lib/activity/activity-feed'
 import { formatLocalizedDate, formatLocalizedRelativeTime } from '@/lib/date'
-import { useLocale, useTranslation } from '@/lib/i18n'
+import { useLocale, useTranslation } from '@/lib/localization/i18n'
 import { db, getTmdb } from '@/lib/services'
-import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
 import { useAuthStore } from '@/stores/auth-store'
 
 function ActivityFeedItem({
@@ -47,7 +47,9 @@ function ActivityFeedItem({
   viewerId: string | null
 }) {
   const likeMutation = useReviewLikeMutation({ kind: 'activity' })
+
   const canLikeReview = Boolean(viewerId && activity.review && activity.actor.id !== viewerId)
+
   const pendingLike =
     activity.review !== null &&
     likeMutation.isPending &&
@@ -62,6 +64,7 @@ function ActivityFeedItem({
       onAuthRequired={onAuthRequired}
       onLikeReview={() => {
         if (!activity.review) return
+
         likeMutation.mutate({
           authorProfileId: activity.actor.id,
           liked: activity.review.likedByViewer,
@@ -75,23 +78,39 @@ function ActivityFeedItem({
 
 export default function ActivityPage() {
   const user = useAuthStore((state) => state.user)
-  const resolution = useAuthStore((state) => state.resolution ?? { status: 'auth-loading' })
+
+  const resolution = useAuthStore(
+    (state) =>
+      state.resolution ?? {
+        status: 'auth-loading',
+      }
+  )
+
   const { t } = useTranslation()
   const { locale, region } = useLocale()
+
   const [filter, setFilter] = useState<ActivityFeedFilter>('you')
+
   const [page, setPage] = useState(1)
+
   const itemsPerPage = 30
 
   const viewerId = user?.id ?? null
+
   const viewerProfile = useQuery({
     queryKey: ['activity-profile', viewerId],
     queryFn: () => db.getUserProfile(viewerId!),
     enabled: Boolean(viewerId),
   })
+
   const feed = useActivityFeed(viewerId, filter, locale, region, Boolean(viewerId))
+
   const followingFeed = useActivityFeed(viewerId, 'following', locale, region, Boolean(viewerId))
+
   const totalPages = Math.max(1, Math.ceil(feed.items.length / itemsPerPage))
+
   const currentPage = Math.min(page, totalPages)
+
   const paginatedItems = feed.items.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
@@ -107,6 +126,7 @@ export default function ActivityPage() {
         })),
     [paginatedItems]
   )
+
   const localizedTitles = useLocalizedTitles(localizedTitleRequests)
 
   const groupedItems = useMemo(() => {
@@ -149,15 +169,17 @@ export default function ActivityPage() {
           ? 'empty'
           : 'content'
 
-  const feedSubtitleKey =
-    filter === 'you' ? 'activity.feedSubtitleYou' : 'activity.feedSubtitleFollowing'
   const emptyTitleKey = filter === 'you' ? 'activity.emptyYouTitle' : 'activity.emptyFollowingTitle'
+
   const emptyBodyKey = filter === 'you' ? 'activity.emptyYouBody' : 'activity.emptyFollowingBody'
+
   const followingActors = useMemo(() => {
     const uniqueActors = new Map<string, ActivityFeedCard['actor']>()
+
     for (const activity of followingFeed.items) {
       uniqueActors.set(activity.actor.id, activity.actor)
     }
+
     return Array.from(uniqueActors.values())
   }, [followingFeed.items])
 
@@ -170,10 +192,12 @@ export default function ActivityPage() {
               <AvatarImage
                 src={viewerProfile.data?.avatar_url || user?.user_metadata?.avatar_url}
               />
+
               <AvatarFallback className="bg-kino-surface text-kino-text">
                 {t('activity.filters.you').slice(0, 1)}
               </AvatarFallback>
             </Avatar>
+
             <span>{t('activity.filters.you')}</span>
           </span>
         ),
@@ -187,6 +211,7 @@ export default function ActivityPage() {
                 {followingActors.slice(0, 3).map((actor) => (
                   <Avatar className="size-5" key={actor.id} size="sm">
                     <AvatarImage alt="" src={actor.avatarUrl || undefined} />
+
                     <AvatarFallback className="bg-kino-surface text-kino-text">
                       {(actor.displayName || actor.username || '?').slice(0, 1)}
                     </AvatarFallback>
@@ -200,6 +225,7 @@ export default function ActivityPage() {
                 ) : null}
               </AvatarGroup>
             ) : null}
+
             <span>{t('activity.filters.following')}</span>
           </span>
         ),
@@ -227,7 +253,12 @@ export default function ActivityPage() {
       }
       emptyFallback={
         <div className="content-frame">
-          <PageHeader title={t('activity.feedTitle')} body={t(feedSubtitleKey)} />
+          <PageHeader
+            title={t('activity.headerPhrase', {
+              defaultValue: 'See what everyone has been watching.',
+            })}
+          />
+
           <EmptyState
             action={
               <Link href="/search">
@@ -243,7 +274,12 @@ export default function ActivityPage() {
       }
       errorFallback={
         <div className="content-frame">
-          <PageHeader title={t('activity.feedTitle')} body={t(feedSubtitleKey)} />
+          <PageHeader
+            title={t('activity.headerPhrase', {
+              defaultValue: 'See what everyone has been watching.',
+            })}
+          />
+
           <EmptyState
             body={feed.error?.message ?? t('common.tryAgain')}
             title={t('activity.error')}
@@ -261,7 +297,11 @@ export default function ActivityPage() {
       unauthenticatedFallback={<ProtectedEmpty />}
     >
       <div className="content-frame">
-        <PageHeader title={t('activity.feedTitle')} body={t(feedSubtitleKey)} />
+        <PageHeader
+          title={t('activity.headerPhrase', {
+            defaultValue: 'See what everyone has been watching.',
+          })}
+        />
 
         <div className="mb-5 flex items-center justify-between gap-3">
           <SegmentedControl
@@ -290,6 +330,7 @@ export default function ActivityPage() {
               <div className="grid gap-3" key={group.dateKey}>
                 <div className="flex items-center gap-2 text-xs font-medium text-kino-subtle">
                   <CalendarDays aria-hidden="true" size={13} />
+
                   <span>{group.dateLabel}</span>
                 </div>
 
@@ -320,8 +361,9 @@ export default function ActivityPage() {
                             : null
                         }
                         onAuthRequired={() => {
-                          // ProtectedContentGate prevents unauthenticated rendering, but keep
-                          // the callback for the shared like button contract.
+                          // ProtectedContentGate prevents unauthenticated
+                          // rendering, but keep the callback for the
+                          // shared like button contract.
                         }}
                         viewerId={viewerId}
                       />

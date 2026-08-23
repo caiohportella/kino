@@ -10,10 +10,10 @@ import {
   SITE_DESCRIPTION,
   SITE_NAME,
   socialImage,
-} from '@/lib/seo'
-import { getServerMetadataContext } from '@/lib/server-metadata'
-import { getTitleSeoData } from '@/lib/server-tmdb'
+} from '@/lib/seo/seo'
+import { getServerMetadataContext } from '@/lib/seo/server-metadata'
 import { socialMetadataText } from '@/lib/text'
+import { getTitleSeoData } from '@/lib/tmdb/server-tmdb'
 
 type Props = {
   params: Promise<{ id: string }>

@@ -13,7 +13,7 @@ import {
 import { type ReactNode } from 'react'
 import { AccentDots } from '@/components/landing/accent-dots'
 import { showcaseLeftVariants, showcaseRightVariants } from '@/components/landing/motion'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 
 export function PersonalDiarySection() {
   const { t } = useTranslation()

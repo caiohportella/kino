@@ -5,7 +5,7 @@ import { Check, Copy, Globe2, Link2, Lock } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useToast } from '@/components/toast-provider'
 import { Button } from '@/components/ui/button'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 import { cn } from '@/lib/utils'
 
 export function WatchlistSharedBadge({ className }: { className?: string }) {
@@ -15,21 +15,31 @@ export function WatchlistSharedBadge({ className }: { className?: string }) {
 export function WatchlistVisibilityBadge({
   className,
   visibility,
+  variant = 'default',
 }: {
   className?: string
   visibility: WatchlistVisibility
+  variant?: 'default' | 'overlay'
 }) {
   const { t } = useTranslation()
   const Icon = visibility === 'private' ? Lock : visibility === 'shared' ? Link2 : Globe2
+
   return (
     <span
       className={cn(
-        'inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded-md border px-3 py-1 text-xs font-semibold',
-        'border-kino-accent/20 bg-kino-accent/6 text-kino-muted',
+        'inline-flex shrink-0 items-center gap-1.5 rounded-md border text-xs font-semibold',
+        variant === 'overlay'
+          ? 'border-kino-accent/50 bg-black/30 px-2.5 py-1 text-white/85 backdrop-blur-md'
+          : 'min-h-7 border-kino-accent/20 bg-kino-accent/6 px-3 py-1 text-kino-muted',
         className
       )}
     >
-      <Icon aria-hidden="true" size={13} />
+      <Icon
+        aria-hidden="true"
+        className={variant === 'overlay' ? 'text-kino-accent' : undefined}
+        size={variant === 'overlay' ? 12 : 13}
+      />
+
       {t(`watchlists.visibilityLabels.${visibility}`)}
     </span>
   )

@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
-import { ensureServerUserProfile } from '@/lib/auth-profile-server'
-import { getNativeAuthCallbackUrl, isExplicitNativeAuthHandoff } from '@/lib/auth-redirect'
+import { ensureServerUserProfile } from '@/lib/auth/auth-profile-server'
+import { getNativeAuthCallbackUrl, isExplicitNativeAuthHandoff } from '@/lib/auth/auth-redirect'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 function getRequestOrigin(request: NextRequest) {

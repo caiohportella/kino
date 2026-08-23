@@ -166,7 +166,7 @@ CREATE TABLE IF NOT EXISTS watchlist_items (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   watchlist_id UUID NOT NULL REFERENCES watchlists(id) ON DELETE CASCADE,
   title_id UUID NOT NULL REFERENCES titles(id) ON DELETE CASCADE,
-  added_by UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  added_by UUID NOT NULL DEFAULT auth.uid() REFERENCES auth.users(id) ON DELETE CASCADE,
   added_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(watchlist_id, title_id)
 );

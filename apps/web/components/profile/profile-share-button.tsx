@@ -1,7 +1,7 @@
 'use client'
 
 import { ShareButton } from '@/components/share-button'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 
 export function ProfileShareButton({ username }: { username: string }) {
   const { t } = useTranslation()

@@ -1,6 +1,6 @@
 import type { WatchlistVisibility } from '@kino/core'
 import { Globe2, Link2, Lock } from 'lucide-react'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 import { cn } from '@/lib/utils'
 
 const options = [

@@ -6,8 +6,8 @@ import {
   buildSoftwareApplicationSchema,
   buildWebsiteSchema,
   SITE_NAME,
-} from '@/lib/seo'
-import { getServerMetadataContext } from '@/lib/server-metadata'
+} from '@/lib/seo/seo'
+import { getServerMetadataContext } from '@/lib/seo/server-metadata'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 export async function generateMetadata(): Promise<Metadata> {

@@ -4,8 +4,8 @@ import { getReviewAuthorLabel, type PublicUserSummary } from '@kino/core'
 import Link from 'next/link'
 import type { MouseEvent, ReactNode } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { useTranslation } from '@/lib/i18n'
-import { normalizeProfileUsername } from '@/lib/profile-routes'
+import { useTranslation } from '@/lib/localization/i18n'
+import { normalizeProfileUsername } from '@/lib/profile/profile-routes'
 
 export function ReviewAuthor({
   author,

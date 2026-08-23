@@ -10,8 +10,11 @@
     "./auth": "./src/auth/index.ts",
     "./cache": "./src/cache/index.ts",
     "./indexing": "./src/indexing/index.ts",
+    "./locale-config": "./src/locale-config.ts",
     "./localization": "./src/localization/index.ts",
-    "./search": "./src/search/index.ts"
+    "./search": "./src/search/index.ts",
+    "./tmdb": "./src/tmdb.ts",
+    "./types": "./src/types.ts"
   },
   "scripts": {
     "test": "node --test --experimental-strip-types src/*.test.mjs src/**/*.test.mjs",

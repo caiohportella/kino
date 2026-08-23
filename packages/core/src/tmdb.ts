@@ -16,6 +16,23 @@ import type {
   TMDbWatchProviderResponse,
 } from './types.ts'
 
+export type TMDbMovieReleaseDate = {
+  certification: string
+  descriptors?: string[]
+  iso_639_1: string
+  note: string
+  release_date: string
+  type: number
+}
+
+export type TMDbMovieReleaseDatesResponse = {
+  id: number
+  results: Array<{
+    iso_3166_1: string
+    release_dates: TMDbMovieReleaseDate[]
+  }>
+}
+
 const TMDB_API_BASE = 'https://api.themoviedb.org/3'
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p'
 
@@ -105,8 +122,12 @@ export class TMDbService {
     }))
   }
 
-  async getUpcomingMovies() {
-    const data = await this.request<{ results: TMDbTitle[] }>('/movie/upcoming')
+  async getUpcomingMovies(region?: string, language?: string) {
+    const data = await this.request<{ results: TMDbTitle[] }>('/movie/upcoming', {
+      region: region || this.language.split('-')[1] || 'US',
+      ...(language ? { language } : {}),
+    })
+
     return data.results.map((item) => ({
       ...item,
       media_type: 'movie' as const,
@@ -116,6 +137,21 @@ export class TMDbService {
   async getGenres(type: MediaType) {
     const data = await this.request<{ genres: TMDbGenre[] }>(`/genre/${type}/list`)
     return data.genres
+  }
+
+  async searchKeywords(query: string, page = 1) {
+    return this.request<{
+      page: number
+      results: Array<{
+        id: number
+        name: string
+      }>
+      total_pages: number
+      total_results: number
+    }>('/search/keyword', {
+      query,
+      page: String(page),
+    })
   }
 
   async discoverMedia(type: MediaType, params: Record<string, string> = {}) {
@@ -154,6 +190,12 @@ export class TMDbService {
 
   async getTVCredits(tvId: number) {
     return this.request<TMDbCredits>(`/tv/${tvId}/credits`)
+  }
+
+  async getMovieReleaseDates(movieId: number) {
+    return this.request<TMDbMovieReleaseDatesResponse>(`/movie/${movieId}/release_dates`, {
+      language: '',
+    })
   }
 
   async getVideos(type: MediaType, id: number) {

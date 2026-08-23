@@ -2,8 +2,11 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   isCanonicalResourceSegment,
+  isProfileSectionPath,
   parseResourceSegment,
   personPath,
+  profileMoviesPath,
+  profileSeriesPath,
   profileStatsPath,
   slugify,
   titlePath,
@@ -15,7 +18,10 @@ test('creates deterministic accent-free slugs', () => {
 })
 
 test('keeps the numeric id as the lookup source', () => {
-  assert.deepEqual(parseResourceSegment('238-the-godfather'), { id: 238, slug: 'the-godfather' })
+  assert.deepEqual(parseResourceSegment('238-the-godfather'), {
+    id: 238,
+    slug: 'the-godfather',
+  })
   assert.deepEqual(parseResourceSegment('238'), { id: 238, slug: '' })
 })
 
@@ -23,6 +29,14 @@ test('builds canonical public paths', () => {
   assert.equal(titlePath(238, 'The Godfather', 'movie'), '/title/238-the-godfather?type=movie')
   assert.equal(personPath(3084, 'Marlon Brando'), '/person/3084-marlon-brando')
   assert.equal(profileStatsPath('Kino Fan'), '/Kino%20Fan/stats')
+  assert.equal(profileMoviesPath('Kino Fan'), '/Kino%20Fan/movies')
+
+  assert.equal(profileSeriesPath('Kino Fan'), '/Kino%20Fan/series')
+})
+
+test('re-exports the authenticated profile section matcher', () => {
+  assert.equal(isProfileSectionPath('/caio/stats', 'caio'), true)
+  assert.equal(isProfileSectionPath('/discover', 'caio'), false)
 })
 
 test('detects missing and incorrect slugs for permanent redirects', () => {

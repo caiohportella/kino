@@ -4,7 +4,7 @@ import { Check, Share2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useToast } from '@/components/toast-provider'
 import { Button } from '@/components/ui/button'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 import { shareResource } from '@/lib/native-share'
 
 export function ShareButton({

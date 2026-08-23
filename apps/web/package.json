@@ -9,8 +9,8 @@
     "check:og-bundles": "node scripts/check-og-bundles.mjs",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "lint": "biome lint app components lib stores",
-    "test": "node --test --experimental-strip-types lib/*.test.mjs lib/search/*.test.mjs lib/search/providers/*.test.mjs lib/search/upstash/*.test.mjs",
+    "lint": "biome lint app components hooks lib stores",
+    "test": "node --test --experimental-strip-types \"hooks/**/*.test.mjs\" \"lib/**/*.test.mjs\"",
     "upstash:setup-search": "node --experimental-strip-types scripts/upstash/setup-search.ts",
     "upstash:backfill-titles": "node --experimental-strip-types scripts/upstash/backfill-titles.ts",
     "upstash:bootstrap-titles": "node --experimental-strip-types scripts/upstash/bootstrap-titles.ts",
@@ -63,6 +63,7 @@
   },
   "devDependencies": {
     "@kino/config": "workspace:*",
+    "@next/bundle-analyzer": "^16.3.1",
     "@tailwindcss/postcss": "^4.3.2",
     "@types/node": "^22.20.0",
     "@types/qrcode": "^1.5.6",

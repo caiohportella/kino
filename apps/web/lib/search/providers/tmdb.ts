@@ -79,10 +79,17 @@ function mediaCandidate(
   if (!type || !tmdbId || !title) return null
   if (request.mediaTypes && !request.mediaTypes.includes(type)) return null
 
+  const originalTitle = text(type === 'movie' ? value.original_title : value.original_name)
+
   const query = normalizeComparable(request.query)
   const comparableTitle = normalizeComparable(title)
-  const exactMatch = comparableTitle === query
-  const prefixMatch = !exactMatch && comparableTitle.startsWith(query)
+  const comparableOriginalTitle = originalTitle ? normalizeComparable(originalTitle) : undefined
+
+  const exactMatch = comparableTitle === query || comparableOriginalTitle === query
+
+  const prefixMatch =
+    !exactMatch &&
+    (comparableTitle.startsWith(query) || comparableOriginalTitle?.startsWith(query) === true)
   const summary = text(value.overview)
   const poster = imageUrl(value.poster_path)
   const releaseYear = year(type === 'movie' ? value.release_date : value.first_air_date)
@@ -244,7 +251,10 @@ export function createTmdbSearchProvider(
   ): Promise<Record<string, unknown>> {
     if (signal?.aborted) throw signal.reason
     const url = new URL(`${TMDB_API_BASE}${path}`)
-    url.search = new URLSearchParams({ api_key: options.apiKey, ...params }).toString()
+    url.search = new URLSearchParams({
+      api_key: options.apiKey,
+      ...params,
+    }).toString()
     let response: Response
     try {
       response = await options.fetch(url, { signal, cache: 'no-store' })

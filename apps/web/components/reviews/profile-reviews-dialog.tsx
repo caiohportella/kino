@@ -8,8 +8,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { useAllProfileReviews } from '@/hooks/use-profile-reviews'
-import { useTranslation } from '@/lib/i18n'
+import { useAllProfileReviews } from '@/hooks/profile/use-profile-reviews'
+import { useTranslation } from '@/lib/localization/i18n'
 import { ProfileReviewSkeleton } from './profile-review-skeleton'
 
 export function ProfileReviewsDialog({

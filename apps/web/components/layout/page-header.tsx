@@ -7,11 +7,13 @@ export function PageHeader({
   title,
   body,
   action,
+  size = 'default',
 }: {
   eyebrow?: string
   title: string
   body?: string
   action?: ReactNode
+  size?: 'default' | 'wide'
 }) {
   const hasBody = Boolean(body)
 
@@ -22,10 +24,11 @@ export function PageHeader({
         hasBody ? 'mb-6 gap-4 pb-5' : 'mb-5 gap-3 pb-4'
       )}
     >
-      <div className="min-w-0 max-w-3xl">
+      <div className="min-w-0 flex-1">
         <h1 className="wrap-break-word text-3xl font-black italic tracking-normal md:text-4xl">
           <DisplayTitle title={title} />
         </h1>
+
         {body ? <p className="mt-3 max-w-2xl text-sm leading-6 text-kino-muted">{body}</p> : null}
       </div>
       {action ? (

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { EmptyState } from '@/components/kino'
 import { buttonVariants } from '@/components/ui/button'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 
 export function ProtectedEmpty() {
   const { t } = useTranslation()

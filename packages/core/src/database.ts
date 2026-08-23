@@ -46,6 +46,7 @@ import type {
   FollowerInfo,
   MediaType,
   PersistedTitle,
+  ProfileCollectionItem,
   ProfileGenreStat,
   ProfileLifetimeRecap,
   ProfileLifetimeStats,
@@ -63,6 +64,7 @@ import type {
   UIDiaryEntry,
   UserProfile,
   UserRating,
+  UserWatchlistSummary,
   WatchDiaryEntry,
   WatchedMovie,
   WatchedSeries,
@@ -205,6 +207,10 @@ interface WatchlistItemRow {
   added_by_user?: Pick<UserProfile, 'id' | 'avatar_url' | 'display_name' | 'username'> | null
 }
 
+type WatchlistPreviewItemRow = Pick<WatchlistItemRow, 'watchlist_id' | 'added_at'> & {
+  title?: Pick<TitleRow, 'id' | 'tmdb_id' | 'type' | 'title' | 'cover_image'> | null
+}
+
 interface ActivityRatingRow {
   id: string
   user_id: string
@@ -327,6 +333,489 @@ export class KinoDatabaseService {
 
     if (error) throw error
     return (data ?? null) as UserProfile | null
+  }
+
+  async getProfileCollectionItemsByProfileId(
+    profileId: string,
+    mediaType: MediaType
+  ): Promise<ProfileCollectionItem[]> {
+    if (mediaType === 'tv') {
+      type SeriesTitle = {
+        id: string
+        tmdb_id: number
+        title: string
+        type: MediaType
+        release_year: number | null
+        genres: TMDbGenre[]
+        runtime: number | null
+        episode_runtime: number | null
+        cover_image: string | null
+        seasons_metadata?: SeasonMetadata[] | null
+        tmdb_data: Record<string, unknown> | null
+      }
+
+      type SeriesEpisodeRow = {
+        id: string
+        title_id: string
+        season_number: number
+        episode_number: number
+        watch_type: WatchType
+        watched_at: string
+        runtime_minutes: number | null
+        updated_at: string
+        title: SeriesTitle | SeriesTitle[] | null
+      }
+
+      type CommunitySeriesRatingRow = {
+        title_id: string
+        user_id: string
+        rating: number | null
+      }
+
+      type SeriesReviewActivityRow = {
+        title_id: string
+        updated_at: string
+      }
+
+      const { data: episodeData, error: episodeError } = await this.supabase
+        .from('episode_ratings')
+        .select(
+          `
+        id,
+        title_id,
+        season_number,
+        episode_number,
+        watch_type,
+        watched_at,
+        runtime_minutes,
+        updated_at,
+        title:titles (
+          id,
+          tmdb_id,
+          title,
+          type,
+          release_year,
+          genres,
+          runtime,
+          episode_runtime,
+          cover_image,
+          seasons_metadata,
+          tmdb_data
+        )
+      `
+        )
+        .eq('user_id', profileId)
+        .order('watched_at', { ascending: false })
+
+      if (episodeError) throw episodeError
+
+      const grouped = new Map<
+        string,
+        {
+          title: SeriesTitle
+          rows: SeriesEpisodeRow[]
+        }
+      >()
+
+      for (const row of (episodeData ?? []) as unknown as SeriesEpisodeRow[]) {
+        const title = Array.isArray(row.title) ? (row.title[0] ?? null) : row.title
+
+        if (!title || title.type !== 'tv') {
+          continue
+        }
+
+        const existing = grouped.get(row.title_id)
+
+        if (existing) {
+          existing.rows.push(row)
+        } else {
+          grouped.set(row.title_id, {
+            title,
+            rows: [row],
+          })
+        }
+      }
+
+      const titleIds = Array.from(grouped.keys())
+
+      const reviewActivity = new Map<string, string>()
+
+      if (titleIds.length > 0) {
+        const { data: reviewData, error: reviewError } = await this.supabase
+          .from('reviews')
+          .select('title_id,updated_at')
+          .eq('user_id', profileId)
+          .in('title_id', titleIds)
+
+        if (reviewError) throw reviewError
+
+        for (const row of (reviewData ?? []) as SeriesReviewActivityRow[]) {
+          const existing = reviewActivity.get(row.title_id)
+
+          if (!existing || Date.parse(row.updated_at) > Date.parse(existing)) {
+            reviewActivity.set(row.title_id, row.updated_at)
+          }
+        }
+      }
+
+      const userRatings =
+        titleIds.length > 0 ? await this.getAverageSeasonRatingsForTitles(profileId, titleIds) : {}
+
+      const communityStats = new Map<
+        string,
+        {
+          total: number
+          count: number
+          users: Set<string>
+        }
+      >()
+
+      if (titleIds.length > 0) {
+        const { data: communityRatingData, error: communityRatingError } = await this.supabase
+          .from('episode_ratings')
+          .select('title_id,user_id,rating')
+          .in('title_id', titleIds)
+
+        if (communityRatingError) throw communityRatingError
+
+        for (const row of (communityRatingData ?? []) as CommunitySeriesRatingRow[]) {
+          if (row.rating === null || row.rating <= 0) {
+            continue
+          }
+
+          const stats = communityStats.get(row.title_id) ?? {
+            total: 0,
+            count: 0,
+            users: new Set<string>(),
+          }
+
+          stats.total += row.rating
+          stats.count += 1
+          stats.users.add(row.user_id)
+
+          communityStats.set(row.title_id, stats)
+        }
+      }
+
+      const latestTimestamp = (values: Array<string | null | undefined>): string | null => {
+        const valid = values.filter((value): value is string => Boolean(value))
+
+        if (valid.length === 0) {
+          return null
+        }
+
+        return valid.reduce((latest, current) =>
+          Date.parse(current) > Date.parse(latest) ? current : latest
+        )
+      }
+
+      return Array.from(grouped.entries()).map(
+        ([titleId, { title, rows }]): ProfileCollectionItem => {
+          const community = communityStats.get(titleId)
+          const reviewUpdatedAt = reviewActivity.get(titleId)
+          const watchEvents = rows
+            .map((row) => ({
+              id: row.id,
+              watchedAt: row.watched_at,
+              watchType: row.watch_type,
+              seasonNumber: row.season_number,
+              episodeNumber: row.episode_number,
+              runtimeMinutes: row.runtime_minutes,
+            }))
+            .sort((left, right) => Date.parse(right.watchedAt) - Date.parse(left.watchedAt))
+
+          const requiredEpisodes =
+            title.seasons_metadata
+              ?.filter((season) => season.season_number > 0 && season.episode_count > 0)
+              .flatMap((season) =>
+                Array.from({ length: season.episode_count }, (_, index) => ({
+                  seasonNumber: season.season_number,
+                  episodeNumber: index + 1,
+                }))
+              ) ?? []
+
+          const tmdbData = title.tmdb_data ?? {}
+
+          const originalTitle =
+            typeof tmdbData.original_name === 'string' ? tmdbData.original_name : undefined
+
+          const tmdbRating =
+            typeof tmdbData.vote_average === 'number' ? tmdbData.vote_average : null
+
+          const tmdbVoteCount = typeof tmdbData.vote_count === 'number' ? tmdbData.vote_count : 0
+
+          const tmdbPopularity = typeof tmdbData.popularity === 'number' ? tmdbData.popularity : 0
+
+          return {
+            id: titleId,
+            tmdbId: title.tmdb_id,
+            mediaType: 'tv',
+            title: title.title,
+            ...(originalTitle ? { originalTitle } : {}),
+            releaseYear: title.release_year,
+            genres: title.genres ?? [],
+            posterPath: title.cover_image,
+            userRating: userRatings[titleId] ?? null,
+
+            averageRating:
+              community && community.count > 0 ? community.total / community.count : null,
+            ratingCount: community?.users.size ?? 0,
+
+            tmdbRating,
+            tmdbVoteCount,
+            tmdbPopularity,
+            runtimeMinutes: title.episode_runtime,
+            latestWatchedAt: watchEvents[0]?.watchedAt ?? null,
+            latestActivityAt: latestTimestamp([
+              ...rows.map((row) => row.updated_at),
+              reviewUpdatedAt,
+            ]),
+            watchCount: watchEvents.length,
+            watchEvents,
+            seriesPasses: [],
+            requiredEpisodes,
+          }
+        }
+      )
+    }
+
+    if (mediaType !== 'movie') {
+      return []
+    }
+
+    type MovieTitle = {
+      id: string
+      tmdb_id: number
+      title: string
+      type: MediaType
+      release_year: number | null
+      genres: TMDbGenre[]
+      runtime: number | null
+      episode_runtime: number | null
+      cover_image: string | null
+      tmdb_data: Record<string, unknown> | null
+    }
+
+    type MovieDiaryRow = {
+      id: string
+      title_id: string
+      watched_at: string
+      watch_type: WatchType
+      updated_at: string
+      titles: MovieTitle | MovieTitle[] | null
+    }
+
+    type MovieRatingRow = {
+      title_id: string
+      rating: number | null
+      updated_at: string
+    }
+
+    type CommunityMovieRatingRow = {
+      title_id: string
+      user_id: string
+      rating: number | null
+    }
+
+    type MovieReviewActivityRow = {
+      title_id: string
+      updated_at: string
+    }
+
+    const { data: diaryData, error: diaryError } = await this.supabase
+      .from('watch_diary')
+      .select(
+        `
+        id,
+        title_id,
+        watched_at,
+        watch_type,
+        updated_at,
+        titles:title_id (
+          id,
+          tmdb_id,
+          title,
+          type,
+          release_year,
+          genres,
+          runtime,
+          episode_runtime,
+          cover_image,
+          tmdb_data
+        )
+      `
+      )
+      .eq('user_id', profileId)
+      .order('watched_at', { ascending: false })
+
+    if (diaryError) throw diaryError
+
+    const { data: ratingData, error: ratingError } = await this.supabase
+      .from('title_ratings')
+      .select('title_id,rating,updated_at')
+      .eq('user_id', profileId)
+
+    if (ratingError) throw ratingError
+
+    const ratings = new Map<string, MovieRatingRow>()
+
+    for (const row of (ratingData ?? []) as MovieRatingRow[]) {
+      ratings.set(row.title_id, row)
+    }
+
+    const grouped = new Map<
+      string,
+      {
+        title: MovieTitle
+        rows: MovieDiaryRow[]
+      }
+    >()
+
+    for (const row of (diaryData ?? []) as unknown as MovieDiaryRow[]) {
+      const title = Array.isArray(row.titles) ? (row.titles[0] ?? null) : row.titles
+
+      if (!title || title.type !== 'movie') {
+        continue
+      }
+
+      const existing = grouped.get(row.title_id)
+
+      if (existing) {
+        existing.rows.push(row)
+      } else {
+        grouped.set(row.title_id, {
+          title,
+          rows: [row],
+        })
+      }
+    }
+
+    const latestTimestamp = (values: Array<string | null | undefined>): string | null => {
+      const valid = values.filter((value): value is string => Boolean(value))
+
+      if (valid.length === 0) {
+        return null
+      }
+
+      return valid.reduce((latest, current) =>
+        Date.parse(current) > Date.parse(latest) ? current : latest
+      )
+    }
+
+    const titleIds = Array.from(grouped.keys())
+
+    const reviewActivity = new Map<string, string>()
+
+    if (titleIds.length > 0) {
+      const { data: reviewData, error: reviewError } = await this.supabase
+        .from('reviews')
+        .select('title_id,updated_at')
+        .eq('user_id', profileId)
+        .in('title_id', titleIds)
+
+      if (reviewError) throw reviewError
+
+      for (const row of (reviewData ?? []) as MovieReviewActivityRow[]) {
+        const existing = reviewActivity.get(row.title_id)
+
+        if (!existing || Date.parse(row.updated_at) > Date.parse(existing)) {
+          reviewActivity.set(row.title_id, row.updated_at)
+        }
+      }
+    }
+
+    const communityStats = new Map<
+      string,
+      {
+        total: number
+        count: number
+        users: Set<string>
+      }
+    >()
+
+    if (titleIds.length > 0) {
+      const { data: communityRatingData, error: communityRatingError } = await this.supabase
+        .from('title_ratings')
+        .select('title_id,user_id,rating')
+        .in('title_id', titleIds)
+
+      if (communityRatingError) throw communityRatingError
+
+      for (const row of (communityRatingData ?? []) as CommunityMovieRatingRow[]) {
+        if (row.rating === null || row.rating <= 0) {
+          continue
+        }
+
+        const stats = communityStats.get(row.title_id) ?? {
+          total: 0,
+          count: 0,
+          users: new Set<string>(),
+        }
+
+        stats.total += row.rating
+        stats.count += 1
+        stats.users.add(row.user_id)
+
+        communityStats.set(row.title_id, stats)
+      }
+    }
+
+    return Array.from(grouped.entries()).map(
+      ([titleId, { title, rows }]): ProfileCollectionItem => {
+        const rating = ratings.get(titleId)
+
+        const community = communityStats.get(titleId)
+
+        const reviewUpdatedAt = reviewActivity.get(titleId)
+
+        const watchEvents = rows
+          .map((row) => ({
+            id: row.id,
+            watchedAt: row.watched_at,
+            watchType: row.watch_type,
+          }))
+          .sort((left, right) => Date.parse(right.watchedAt) - Date.parse(left.watchedAt))
+
+        const tmdbData = title.tmdb_data ?? {}
+
+        const originalTitle =
+          typeof tmdbData.original_title === 'string' ? tmdbData.original_title : undefined
+
+        const tmdbRating = typeof tmdbData.vote_average === 'number' ? tmdbData.vote_average : null
+
+        const tmdbVoteCount = typeof tmdbData.vote_count === 'number' ? tmdbData.vote_count : 0
+
+        const tmdbPopularity = typeof tmdbData.popularity === 'number' ? tmdbData.popularity : 0
+
+        return {
+          id: titleId,
+          tmdbId: title.tmdb_id,
+          mediaType: 'movie',
+          title: title.title,
+          ...(originalTitle ? { originalTitle } : {}),
+          releaseYear: title.release_year,
+          genres: title.genres ?? [],
+          posterPath: title.cover_image,
+          userRating: rating?.rating ?? null,
+          averageRating:
+            community && community.count > 0 ? community.total / community.count : null,
+          ratingCount: community?.users.size ?? 0,
+          tmdbRating,
+          tmdbVoteCount,
+          tmdbPopularity,
+          runtimeMinutes: title.runtime,
+          latestWatchedAt: watchEvents[0]?.watchedAt ?? null,
+          latestActivityAt: latestTimestamp([
+            ...rows.map((row) => row.updated_at),
+            rating?.updated_at,
+            reviewUpdatedAt,
+          ]),
+          watchCount: watchEvents.length,
+          watchEvents,
+          seriesPasses: [],
+        }
+      }
+    )
   }
 
   async getActivityFeed(input: ActivityFeedInput): Promise<ActivityFeedPage> {
@@ -2070,11 +2559,13 @@ export class KinoDatabaseService {
     )
   }
 
-  async getUserWatchlists() {
+  async getUserWatchlists(): Promise<UserWatchlistSummary[]> {
     const user = await this.getRequiredUserId()
+
     const [{ data: owned, error: ownedError }, { data: shared, error: sharedError }] =
       await Promise.all([
         this.supabase.from('watchlists').select('id').eq('user_id', user),
+
         this.supabase.from('watchlist_collaborators').select('watchlist_id').eq('user_id', user),
       ])
 
@@ -2082,18 +2573,344 @@ export class KinoDatabaseService {
     if (sharedError) throw sharedError
 
     const ownedIds = ((owned ?? []) as { id: string }[]).map((row) => row.id)
+
     const sharedIds = ((shared ?? []) as { watchlist_id: string }[]).map((row) => row.watchlist_id)
+
     const allIds = [...new Set([...ownedIds, ...sharedIds])]
-    if (allIds.length === 0) return []
+
+    if (allIds.length === 0) {
+      return []
+    }
+
+    const [
+      { data: watchlists, error: watchlistsError },
+      { data: items, error: itemsError },
+      { data: collaborators, error: collaboratorsError },
+      watchedMovies,
+      watchedSeries,
+    ] = await Promise.all([
+      this.supabase
+        .from('watchlists')
+        .select('*')
+        .in('id', allIds)
+        .order('updated_at', { ascending: false }),
+
+      this.supabase
+        .from('watchlist_items')
+        .select(
+          `
+          watchlist_id,
+          added_at,
+          title:titles(
+            id,
+            tmdb_id,
+            type,
+            title,
+            cover_image
+          )
+        `
+        )
+        .in('watchlist_id', allIds)
+        .order('added_at', { ascending: false }),
+
+      this.supabase
+        .from('watchlist_collaborators')
+        .select('watchlist_id, user_id')
+        .in('watchlist_id', allIds),
+
+      this.getWatchedMovies(user),
+      this.getWatchedSeries(user),
+    ])
+
+    if (watchlistsError) throw watchlistsError
+    if (itemsError) throw itemsError
+    if (collaboratorsError) throw collaboratorsError
+
+    const collaboratorRows = (collaborators ?? []) as {
+      watchlist_id: string
+      user_id: string
+    }[]
+
+    const watchlistRows = (watchlists ?? []) as WatchlistRow[]
+
+    const participantIds = [
+      ...new Set([
+        ...watchlistRows.map((watchlist) => watchlist.user_id),
+        ...collaboratorRows.map((collaborator) => collaborator.user_id),
+      ]),
+    ]
+
+    const collaboratorIdsByWatchlist = new Map<string, string[]>()
+
+    for (const collaborator of collaboratorRows) {
+      const ids = collaboratorIdsByWatchlist.get(collaborator.watchlist_id) ?? []
+
+      ids.push(collaborator.user_id)
+
+      collaboratorIdsByWatchlist.set(collaborator.watchlist_id, ids)
+    }
+
+    const { data: participantProfiles, error: participantProfilesError } = await this.supabase
+      .from('user_profiles')
+      .select('id, username, display_name, avatar_url')
+      .in('id', participantIds)
+
+    if (participantProfilesError) {
+      throw participantProfilesError
+    }
+
+    const profilesById = new Map(
+      (
+        (participantProfiles ?? []) as {
+          id: string
+          username: string
+          display_name: string | null
+          avatar_url: string | null
+        }[]
+      ).map((profile) => [
+        profile.id,
+        {
+          id: profile.id,
+          username: profile.username,
+          displayName: profile.display_name ?? undefined,
+          avatarUrl: profile.avatar_url ?? undefined,
+        },
+      ])
+    )
+
+    const watchedTitleIds = new Set<string>()
+
+    for (const movie of watchedMovies) {
+      watchedTitleIds.add(movie.id)
+    }
+
+    for (const series of watchedSeries) {
+      if (series.is_caught_up === true) {
+        watchedTitleIds.add(series.id)
+      }
+    }
+
+    const previewItems = (items ?? []) as unknown as WatchlistPreviewItemRow[]
+
+    const itemsByWatchlist = new Map<string, WatchlistPreviewItemRow[]>()
+
+    for (const item of previewItems) {
+      const watchlistItems = itemsByWatchlist.get(item.watchlist_id) ?? []
+
+      watchlistItems.push(item)
+
+      itemsByWatchlist.set(item.watchlist_id, watchlistItems)
+    }
+
+    return ((watchlists ?? []) as WatchlistRow[]).map((row) => {
+      const watchlist = this.mapWatchlist(row)
+      const watchlistItems = itemsByWatchlist.get(row.id) ?? []
+
+      const lastItemAddedAt =
+        watchlistItems.length > 0
+          ? new Date(Math.max(...watchlistItems.map((item) => new Date(item.added_at).getTime())))
+          : undefined
+
+      const participantIdsForWatchlist = [
+        ...new Set([row.user_id, ...(collaboratorIdsByWatchlist.get(row.id) ?? [])]),
+      ]
+
+      const participants = participantIdsForWatchlist.flatMap((participantId) => {
+        const profile = profilesById.get(participantId)
+
+        return profile ? [profile] : []
+      })
+
+      const previewTitles = watchlistItems.slice(0, 4).flatMap((item) => {
+        if (!item.title) {
+          return []
+        }
+
+        return [
+          {
+            id: item.title.id,
+            tmdbId: item.title.tmdb_id,
+            type: item.title.type,
+            title: item.title.title,
+            coverImage: item.title.cover_image ?? undefined,
+            watched: watchedTitleIds.has(item.title.id),
+          },
+        ]
+      })
+
+      const watchedCount = watchlistItems.reduce((count, item) => {
+        if (!item.title) {
+          return count
+        }
+
+        return watchedTitleIds.has(item.title.id) ? count + 1 : count
+      }, 0)
+
+      return {
+        ...watchlist,
+        titleCount: watchlistItems.length,
+        watchedCount,
+        previewTitles,
+        participants,
+        lastItemAddedAt,
+      }
+    })
+  }
+
+  async getWatchlistPickerSummaries(watchlistIds: string[]) {
+    if (watchlistIds.length === 0) {
+      return {}
+    }
 
     const { data, error } = await this.supabase
-      .from('watchlists')
-      .select('*')
-      .in('id', allIds)
-      .order('updated_at', { ascending: false })
+      .from('watchlist_items')
+      .select('id,watchlist_id,added_at,title:titles(tmdb_id,type,cover_image)')
+      .in('watchlist_id', watchlistIds)
+      .order('added_at', { ascending: false })
+      .order('id', { ascending: true })
 
-    if (error) throw error
-    return ((data ?? []) as WatchlistRow[]).map((row) => this.mapWatchlist(row))
+    if (error) {
+      throw error
+    }
+
+    const summaries: Record<
+      string,
+      {
+        titleCount: number
+        coverItems: Array<{
+          tmdbId: number
+          type: MediaType
+          fallbackCoverImage: string | null
+        }>
+      }
+    > = Object.fromEntries(
+      watchlistIds.map((watchlistId) => [
+        watchlistId,
+        {
+          titleCount: 0,
+          coverItems: [],
+        },
+      ])
+    )
+
+    for (const item of data ?? []) {
+      const summary = summaries[item.watchlist_id]
+
+      if (!summary) {
+        continue
+      }
+
+      summary.titleCount += 1
+
+      const title = item.title as unknown as {
+        tmdb_id: number
+        type: MediaType
+        cover_image: string | null
+      } | null
+
+      if (title && Number.isFinite(title.tmdb_id) && summary.coverItems.length < 4) {
+        summary.coverItems.push({
+          tmdbId: title.tmdb_id,
+          type: title.type,
+          fallbackCoverImage: title.cover_image,
+        })
+      }
+
+      const coverImage = title?.cover_image
+
+      if (
+        coverImage &&
+        summary.coverItems.length < 4 &&
+        !summary.coverItems.some((item) => item.fallbackCoverImage === coverImage)
+      ) {
+        summary.coverItems.push({
+          tmdbId: title.tmdb_id,
+          type: title.type,
+          fallbackCoverImage: coverImage,
+        })
+      }
+    }
+
+    return summaries
+  }
+
+  async getWatchlistPickerData(watchlistIds: string[], titleId: string) {
+    if (watchlistIds.length === 0) {
+      return {
+        summaries: {},
+        selected: [],
+      }
+    }
+
+    const { data, error } = await this.supabase
+      .from('watchlist_items')
+      .select('id,watchlist_id,title_id,added_by,added_at,title:titles(tmdb_id,type,cover_image)')
+      .in('watchlist_id', watchlistIds)
+      .order('added_at', { ascending: false })
+      .order('id', { ascending: true })
+
+    if (error) {
+      throw error
+    }
+
+    const summaries: Record<
+      string,
+      {
+        titleCount: number
+        coverItems: Array<{
+          tmdbId: number
+          type: MediaType
+          fallbackCoverImage: string | null
+        }>
+      }
+    > = Object.fromEntries(
+      watchlistIds.map((watchlistId) => [
+        watchlistId,
+        {
+          titleCount: 0,
+          coverItems: [],
+        },
+      ])
+    )
+
+    const selected: Array<{
+      watchlist_id: string
+      added_by: string
+    }> = []
+
+    for (const item of data ?? []) {
+      const summary = summaries[item.watchlist_id]
+
+      if (summary) {
+        summary.titleCount += 1
+
+        const title = item.title as unknown as {
+          tmdb_id: number
+          type: MediaType
+          cover_image: string | null
+        } | null
+
+        if (title && Number.isFinite(title.tmdb_id) && summary.coverItems.length < 4) {
+          summary.coverItems.push({
+            tmdbId: title.tmdb_id,
+            type: title.type,
+            fallbackCoverImage: title.cover_image,
+          })
+        }
+      }
+
+      if (item.title_id === titleId) {
+        selected.push({
+          watchlist_id: item.watchlist_id,
+          added_by: item.added_by,
+        })
+      }
+    }
+
+    return {
+      summaries,
+      selected,
+    }
   }
 
   async getWatchlistItems(watchlistId: string) {
@@ -2118,42 +2935,54 @@ export class KinoDatabaseService {
   }
 
   async addToWatchlist(watchlistId: string, titleId: string) {
-    const user = await this.getRequiredUserId()
     const { data, error } = await this.supabase
       .from('watchlist_items')
-      .insert({ watchlist_id: watchlistId, title_id: titleId, added_by: user })
+      .insert({
+        watchlist_id: watchlistId,
+        title_id: titleId,
+      })
       .select()
       .single()
 
     if (error) throw error
+
     return this.mapWatchlistItem(data as WatchlistItemRow)
   }
 
   async removeFromWatchlist(watchlistId: string, titleId: string) {
-    await this.getRequiredUserId()
     const { error } = await this.supabase
       .from('watchlist_items')
       .delete()
       .eq('watchlist_id', watchlistId)
       .eq('title_id', titleId)
+
     if (error) throw error
   }
 
-  async getWatchlistTitleContributors(titleId: string) {
-    const watchlists = await this.getUserWatchlists()
-    if (watchlists.length === 0) return []
+  async getWatchlistTitleContributorsForWatchlists(titleId: string, watchlistIds: string[]) {
+    if (watchlistIds.length === 0) return []
 
     const { data, error } = await this.supabase
       .from('watchlist_items')
       .select('watchlist_id, added_by')
       .eq('title_id', titleId)
-      .in(
-        'watchlist_id',
-        watchlists.map((watchlist) => watchlist.id)
-      )
+      .in('watchlist_id', watchlistIds)
 
     if (error) throw error
-    return (data ?? []) as Array<{ watchlist_id: string; added_by: string }>
+
+    return (data ?? []) as Array<{
+      watchlist_id: string
+      added_by: string
+    }>
+  }
+
+  async getWatchlistTitleContributors(titleId: string) {
+    const watchlists = await this.getUserWatchlists()
+
+    return this.getWatchlistTitleContributorsForWatchlists(
+      titleId,
+      watchlists.map((watchlist) => watchlist.id)
+    )
   }
 
   async getWatchlistsContainingTitle(titleId: string) {

@@ -28,6 +28,7 @@
       "following": "Following",
       "you": "You"
     },
+    "headerPhrase": "See what everyone has been watching.",
     "hourAgo": "{{count}} hour ago",
     "hoursAgo": "{{count}} hours ago",
     "justNow": "Just now",
@@ -59,7 +60,8 @@
     "watchedReviewed": "{{user}} watched and reviewed {{title}}",
     "weekAgo": "{{count}} week ago",
     "weeksAgo": "{{count}} weeks ago",
-    "yearAgo": "{{count}} year ago"
+    "yearAgo": "{{count}} year ago",
+    "yearsAgo": "{{count}}  years ago"
   },
   "appFooter": {
     "copyright": "© {{year}} Kino",
@@ -138,12 +140,16 @@
   "common": {
     "add": "Add",
     "added": "Added",
+    "back": "Back",
     "cancel": "Cancel",
+    "clear": "Clear",
     "close": "Close",
     "confirm": "Confirm",
     "copy": "Copy",
     "copyFailed": "Could not copy the link",
     "delete": "Delete",
+    "details": "Detalhes",
+    "done": "Done",
     "enterName": "Please enter a name",
     "enterShareCode": "Please enter a share code",
     "error": "Error",
@@ -157,10 +163,12 @@
     "linkCopied": "Link copied",
     "loading": "Loading...",
     "movie": "Movie",
+    "navigation": "Navigation",
     "new": "New",
     "next": "Next",
     "notAvailable": "N/A",
     "previous": "Previous",
+    "releaseYearUnknown": "N/A",
     "remove": "Remove",
     "retry": "Retry",
     "save": "Save",
@@ -169,7 +177,8 @@
     "share": "Share",
     "success": "Success",
     "tryAgain": "Please try again.",
-    "tv": "TV"
+    "tv": "TV",
+    "user": "User"
   },
   "diary": {
     "addedToDiary": "Added to Diary",
@@ -177,6 +186,7 @@
     "emptyState": "No diary entries yet. Start watching and rating titles to build your diary!",
     "failedToAddToDiary": "Failed to add to diary: {{message}}",
     "firstTime": "First time",
+    "headerPhrase": "Everything you've watched, in one place.",
     "loginPrompt": "Log in to track your viewing history",
     "ratingLabel": "{{title}} rating",
     "rewatch": "Rewatch",
@@ -236,6 +246,220 @@
     },
     "stars": "{{count}} stars",
     "watchType": "Watch status"
+  },
+  "discover": {
+    "catalog": {
+      "description": "Browse movies and series by type, genre, and rating.",
+      "eyebrow": "Explore",
+      "title": "Explore the catalog"
+    },
+    "collections": {
+      "active": "Collection",
+      "alien": {
+        "description": "Explore the terrifying worlds of the Alien franchise.",
+        "groups": {
+          "crossovers": "Crossovers",
+          "original": "The original saga",
+          "origins": "Origins & prequels",
+          "releaseOrder": "Complete release order",
+          "series": "Series"
+        },
+        "title": "Alien"
+      },
+      "clear": "Clear collection",
+      "dc": {
+        "description": "Explore DC's connected universes and alternate interpretations.",
+        "groups": {
+          "aquaman": "Aquaman",
+          "batman": "Batman",
+          "dceu": "DC Extended Universe",
+          "dcu": "DC Universe",
+          "flash": "The Flash",
+          "greenLantern": "Green Lantern",
+          "joker": "Joker",
+          "shazam": "Shazam",
+          "superman": "Superman",
+          "theBatman": "The Batman universe",
+          "wonderWoman": "Wonder Woman"
+        },
+        "title": "DC"
+      },
+      "fastAndFurious": {
+        "description": "Follow the Fast saga from street racing to globe-spanning missions.",
+        "groups": {
+          "mainSaga": "The Fast Saga",
+          "releaseOrder": "Release order",
+          "universe": "The wider universe"
+        },
+        "title": "Fast & Furious"
+      },
+      "godfather": {
+        "description": "Follow the Corleone family across the complete crime saga.",
+        "groups": {
+          "films": "The Godfather saga"
+        },
+        "title": "The Godfather"
+      },
+      "heading": "Explore collections",
+      "jamesBond": {
+        "description": "Follow 007 across decades of missions, villains and espionage.",
+        "groups": {
+          "classic": "The classic era",
+          "daltonBrosnan": "Dalton & Brosnan",
+          "danielCraig": "The Daniel Craig era",
+          "releaseOrder": "Release order",
+          "rogerMoore": "The Roger Moore era"
+        },
+        "title": "James Bond"
+      },
+      "johnWick": {
+        "description": "Enter the criminal underworld of the John Wick universe.",
+        "groups": {
+          "releaseOrder": "Release order",
+          "saga": "John Wick saga",
+          "universe": "The wider universe"
+        },
+        "title": "John Wick"
+      },
+      "jurassic": {
+        "description": "Return to Isla Nublar and explore the Jurassic franchise.",
+        "groups": {
+          "movies": "Movies",
+          "parkEra": "Jurassic Park era",
+          "releaseOrder": "Release order",
+          "series": "Series",
+          "worldEra": "Jurassic World era"
+        },
+        "title": "Jurassic"
+      },
+      "matrix": {
+        "description": "Enter the Matrix and follow the complete saga.",
+        "groups": {
+          "films": "Films"
+        },
+        "title": "The Matrix"
+      },
+      "mcu": {
+        "description": "Explore the Marvel Cinematic Universe in chronological and release order.",
+        "groups": {
+          "chronological": "Chronological order",
+          "movies": "Movies",
+          "oneShots": "Marvel One-Shots",
+          "releaseOrder": "Release order",
+          "series": "Series",
+          "whatIf": "What If...?"
+        },
+        "title": "Marvel Cinematic Universe"
+      },
+      "middleEarth": {
+        "description": "Journey through the stories of Middle-earth.",
+        "groups": {
+          "hobbit": "The Hobbit",
+          "lordOfTheRings": "The Lord of the Rings",
+          "releaseOrder": "Release order",
+          "series": "Series"
+        },
+        "title": "Middle-earth"
+      },
+      "missionImpossible": {
+        "description": "Follow Ethan Hunt through the complete Mission: Impossible series.",
+        "groups": {
+          "releaseOrder": "Release order"
+        },
+        "title": "Mission: Impossible"
+      },
+      "open": "Open collection",
+      "pirates": {
+        "description": "Sail through the Pirates of the Caribbean saga.",
+        "groups": {
+          "films": "Films"
+        },
+        "title": "Pirates of the Caribbean"
+      },
+      "planetOfTheApes": {
+        "description": "Explore every era of the Planet of the Apes franchise.",
+        "groups": {
+          "caesar": "The modern saga",
+          "originals": "The original films",
+          "reimagining": "Reimagining",
+          "releaseOrder": "Complete release order"
+        },
+        "title": "Planet of the Apes"
+      },
+      "rockyCreed": {
+        "description": "Step into the ring across the Rocky and Creed generations.",
+        "groups": {
+          "creed": "Creed",
+          "releaseOrder": "Complete release order",
+          "rocky": "Rocky"
+        },
+        "title": "Rocky & Creed"
+      },
+      "shrek": {
+        "description": "Return to Far Far Away with Shrek, Donkey and Puss in Boots.",
+        "groups": {
+          "pussInBoots": "Puss in Boots",
+          "releaseOrder": "Complete release order",
+          "shrek": "Shrek"
+        },
+        "title": "Shrek"
+      },
+      "starWars": {
+        "description": "Explore the films and series from a galaxy far, far away.",
+        "groups": {
+          "movies": "Movies",
+          "releaseOrder": "Release order",
+          "series": "Series",
+          "skywalkerSaga": "The Skywalker Saga"
+        },
+        "title": "Star Wars"
+      },
+      "subtitle": "Explore iconic franchises, sagas and cinematic universes.",
+      "toyStory": {
+        "description": "Follow Woody, Buzz and the toys across their adventures.",
+        "groups": {
+          "main": "Toy Story",
+          "releaseOrder": "Release order",
+          "spinoffs": "The wider Toy Story universe"
+        },
+        "title": "Toy Story"
+      },
+      "wizardingWorld": {
+        "description": "Return to Hogwarts and explore the wider Wizarding World.",
+        "groups": {
+          "fantasticBeasts": "Fantastic Beasts",
+          "harryPotter": "Harry Potter",
+          "releaseOrder": "Complete release order"
+        },
+        "title": "Wizarding World"
+      }
+    },
+    "filtered": {
+      "bestMatches": "Best matches",
+      "highlyRated": "Highly rated",
+      "loadMore": "Load more",
+      "moreToDiscover": "More to discover",
+      "popular": "Popular",
+      "recentlyReleased": "Recently released"
+    },
+    "friends": {
+      "allActivity": "All activity",
+      "description": "Recent activity from people you follow",
+      "rated": "Rated",
+      "rating": "{{rating}} out of 5 stars",
+      "reviewed": "Reviewed",
+      "title": "What your friends have been watching",
+      "watched": "Watched"
+    },
+    "personalized": {
+      "becauseWatched": "Because you watched {{title}}",
+      "becauseYouLiked": "Because you liked this",
+      "forYou": "For you",
+      "moreFromDirectors": "More from directors you like",
+      "moreFromStudio": "More from {{studio}}",
+      "moreGenre": "More {{genre}} for you"
+    },
+    "signature": "There’s always something worth watching"
   },
   "emptyStates": {
     "activityIllustration": "A film reel with social activity dots",
@@ -313,13 +537,28 @@
     "99": "Documentary"
   },
   "home": {
+    "availableNow": "Available now",
+    "backInTheaters": "Back in theaters",
     "comingSoon": "Coming Soon",
+    "episodeShort": "S{{season}}E{{episode}}",
+    "exploreMore": "Explore more",
+    "forYou": "For you",
+    "moreFromPerson": "More from {{name}}",
+    "moreWithPerson": "More with {{name}}",
+    "newEpisode": "New episode",
     "newReleases": "New Releases",
+    "newSeason": "New season",
+    "newSeries": "New series",
     "oscarMarathon": "Oscar Nominations Marathon",
     "popularMovies": "Popular Movies",
+    "popularNow": "Popular now",
     "popularTV": "TV Shows We Love",
+    "rereleases": "Back in theaters",
+    "seasonNumber": "Season {{season}}",
     "topRated": "Top Rated Movies",
-    "trending": "Trending Today"
+    "trending": "Trending Today",
+    "upcoming": "Coming soon",
+    "updatesForYou": "Updates for you"
   },
   "importFlow": {
     "alreadyInDiary": "Already exists in your diary.",
@@ -331,6 +570,7 @@
     "failedCount": "Failed: {{count}}",
     "finished": "Import finished",
     "firstTime": "First time",
+    "headerPhrase": "Bring your history with you.",
     "importFailed": "Import failed.",
     "importSelected": "Import selected",
     "importedCount": "Imported: {{count}}",
@@ -473,7 +713,11 @@
     "personNotFound": "Person not found",
     "profileDescription": "See @{{username}}'s movies, series, ratings, and diary on Kino.",
     "profileImageAlt": "{{name}}'s Kino profile",
+    "profileMoviesDescription": "Browse movies watched by @{{username}} on Kino.",
+    "profileMoviesTitle": "{{name}}'s movies",
     "profileNotFound": "Profile not found",
+    "profileSeriesDescription": "Browse series watched by @{{username}} on Kino.",
+    "profileSeriesTitle": "{{name}}'s series",
     "profileStatsDescription": "Lifetime watch statistics for @{{username}} on Kino.",
     "profileStatsTitle": "{{name}} statistics",
     "profileUnavailable": "Profile unavailable",
@@ -493,6 +737,7 @@
   },
   "modals": {
     "addToWatchlist": "Add to Watchlist",
+    "addingTitle": "Adding",
     "allSeries": "All Series",
     "askOwnerForCode": "Ask the watchlist owner for their share code (e.g. A1B2C3D4).",
     "bannerFromGallery": "Choose from Gallery",
@@ -541,6 +786,7 @@
     "name": "Name",
     "namePlaceholder": "e.g. Weekend Binges",
     "newWatchlist": "New Watchlist",
+    "noMatchingWatchlists": "No lists match your search.",
     "noWatchlistsFound": "No watchlists found. Create one!",
     "optional": "(Optional)",
     "removeBanner": "Remove Banner",
@@ -548,6 +794,7 @@
     "rewatched": "Rewatched",
     "save": "Save",
     "saveChanges": "Save Changes",
+    "searchWatchlists": "Search your lists",
     "seasonRatingModal": {
       "rateRemainingPrompt": "You've rated most of this season. Why not rate the remaining episodes to get a more accurate score?",
       "rateSeason": "Rate Season",
@@ -572,6 +819,7 @@
     "title": "This scene isn't in the final cut."
   },
   "pagination": {
+    "currentPage": "Current",
     "goToPage": "Aller à la page {{page}}",
     "label": "Pagination",
     "morePages": "More pages",
@@ -660,6 +908,25 @@
     "watchedMovies": "Watched Movies",
     "watchedSeries": "Watched Series"
   },
+  "profileCollections": {
+    "backToProfile": "Back to profile",
+    "loadErrorBody": "Try again in a moment.",
+    "loadErrorTitle": "Could not load collection",
+    "moviesDescription": "Movies watched by {{name}}.",
+    "moviesEmptyBody": "Watched movies will appear here.",
+    "moviesEmptyTitle": "No movies yet",
+    "moviesShareText": "See {{name}}'s movies on Kino.",
+    "moviesTitle": "{{name}}'s movies",
+    "noMatchesBody": "Try adjusting or clearing your filters.",
+    "noMatchesTitle": "No matches",
+    "search": "Search collection",
+    "searchPlaceholder": "Search by title...",
+    "seriesDescription": "Series watched by {{name}}.",
+    "seriesEmptyBody": "Watched series will appear here.",
+    "seriesEmptyTitle": "No series yet",
+    "seriesShareText": "See {{name}}'s series on Kino.",
+    "seriesTitle": "{{name}}'s series"
+  },
   "reviews": {
     "actions": "Review actions",
     "charactersRemaining": "{{count}} characters remaining",
@@ -710,19 +977,26 @@
     "any": "Any",
     "bestMatch": "Best match",
     "clear": "Clear",
+    "failed": "Failed",
     "filters": "Filters",
+    "filtersDescription": "Description (Optional)",
     "genres": "Genres",
+    "headerPhrase": "Find your next obsession.",
     "knownFor": "Known for",
     "loading": "Finding the perfect match...",
     "mediaType": "Media type",
+    "minimumCharacters": "minimum characters",
     "minimumRating": "Minimum TMDB rating",
     "movies": "Movies",
     "noProfileImage": "No profile image",
     "noResults": "No results found",
     "noResultsHint": "Try adjusting filters or searching for something else.",
+    "pages": "pages",
     "people": "People",
     "person": "Person",
     "placeholder": "Search titles, people, or users...",
+    "resetFilters": "Reset",
+    "results": "Results",
     "retry": "Retry",
     "searchFailed": "Search could not be loaded. Please try again.",
     "sectionFailed": "This section could not be loaded.",
@@ -774,6 +1048,7 @@
     "deleteDataTitle": "Delete Data",
     "displayName": "Display Name",
     "editProfile": "Edit Profile",
+    "headerPhrase": "Make Kino yours.",
     "import": "Import",
     "importCreateTitleError": "We couldn't match one or more titles in TMDb.",
     "importErrors": "Fix these first",
@@ -934,6 +1209,14 @@
       "definedYourMonth": "Defined your month",
       "episodeAbbrev": "ep",
       "favorite": "Favorite",
+      "kinoTimeDays_other": "{{count, number}} days",
+      "kinoTimeDays_one": "{{count, number}} day",
+      "kinoTimeMonths_other": "{{count, number}} months",
+      "kinoTimeMonths_one": "{{count, number}} month",
+      "kinoTimeYears_other": "{{count, number}} years",
+      "kinoTimeYears_one": "{{count, number}} year",
+      "lifetimeHeadline": "The journey of {{name}} on Kino",
+      "memberSince": "member since {{year}}",
       "monthHeadline": "{{name}}'s month in Kino",
       "monthSummary": "{{movies}} films - {{episodes}} episodes - {{days}} days",
       "monthTitle": "Monthly recap",
@@ -941,6 +1224,7 @@
       "otherFavoritesSeries": "Other favorites - Series",
       "ratingShort": "Rating",
       "seriesWatched": "Series watched",
+      "sinceBeginning": "membro desde ",
       "topActor": "Top actor",
       "topGenre": "Top genre",
       "topMovie": "Top movie",
@@ -1084,6 +1368,7 @@
     "failedToDeleteWatchlist": "Failed to delete watchlist",
     "failedToLeaveWatchlist": "Failed to leave watchlist",
     "failedToRemoveItem": "Failed to remove item",
+    "headerPhrase": "Save it now. Watch it when you're ready.",
     "itemRemoved": "Title removed",
     "kinoUser": "Kino user",
     "leave": "Leave",
@@ -1099,6 +1384,7 @@
     "notFoundBody": "This list may have been removed or is not shared with your account.",
     "nowPrivate": "Watchlist is now private",
     "nowPublic": "Watchlist is now public",
+    "oneTitle": "1 title",
     "onlyContributorCanRemove": "Only the person who added this title can remove it.",
     "participants": "Participants",
     "privacyFailed": "Failed to update privacy",
@@ -1117,13 +1403,18 @@
     "removeFromListTitle": "Remove from Watchlist",
     "removeTitle": "Remove {{title}}",
     "searchTitles": "Search titles",
+    "shareCode": "Insert your watchlist share code",
     "shared": "Shared",
     "sharedWatchlist": "Shared watchlist",
     "sharing": "Watchlist sharing",
     "sharingPrivateDescription": "Make this watchlist public to create a code for friends.",
     "sharingPublicDescription": "Anyone with this code can join and collaborate on this watchlist.",
     "title": "Watchlists",
+    "titleCount": "{{count}} titles",
     "titleUnavailable": "Title unavailable",
+    "updatedHoursAgo": "{{count}} hours ago",
+    "updatedLessThanHour": "Less than 1 hour ago",
+    "updatedOn": "on {{date}}",
     "updatingPrivacy": "Updating privacy...",
     "visibility": "Visibility",
     "visibilityDescriptions": {

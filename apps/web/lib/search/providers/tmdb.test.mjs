@@ -312,3 +312,41 @@ test('resolves locale-sensitive media presentation without changing entity ident
     tmdbVoteAverage: 8.7,
   })
 })
+
+test('treats an original title as an exact match when the localized title differs', async () => {
+  const provider = createTmdbSearchProvider({
+    apiKey: 'tmdb-server-key',
+    fetch: async () =>
+      Response.json({
+        page: 1,
+        results: [
+          {
+            ...movie,
+            id: 1,
+            title: 'Acompanhante Perfeita',
+            original_title: 'Companion',
+            release_date: '2025-01-22',
+            popularity: 100,
+            vote_count: 5000,
+          },
+        ],
+        total_pages: 1,
+        total_results: 1,
+      }),
+  })
+
+  const result = await provider.search({
+    query: 'Companion',
+    locale: 'pt-BR',
+    region: 'BR',
+    page: 1,
+    mediaTypes: ['movie'],
+  })
+
+  const candidate = result.candidates[0]
+
+  assert.equal(candidate.source, 'lexical')
+  assert.equal(candidate.exactMatch, true)
+  assert.equal(candidate.lexicalScore, 1)
+  assert.equal(candidate.entity.title, 'Acompanhante Perfeita')
+})
