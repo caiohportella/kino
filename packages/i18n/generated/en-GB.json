@@ -28,6 +28,7 @@
       "following": "Following",
       "you": "You"
     },
+    "headerPhrase": "See what everyone has been watching.",
     "hourAgo": "{{count}} hour ago",
     "hoursAgo": "{{count}} hours ago",
     "justNow": "Just now",
@@ -139,6 +140,7 @@
   "common": {
     "add": "Add",
     "added": "Added",
+    "back": "Back",
     "cancel": "Cancel",
     "clear": "Clear",
     "close": "Close",
@@ -175,7 +177,8 @@
     "share": "Share",
     "success": "Success",
     "tryAgain": "Please try again.",
-    "tv": "TV"
+    "tv": "TV",
+    "user": "User"
   },
   "diary": {
     "addedToDiary": "Added to Diary",
@@ -183,6 +186,7 @@
     "emptyState": "No diary entries yet. Start watching and rating titles to build your diary!",
     "failedToAddToDiary": "Failed to add to diary: {{message}}",
     "firstTime": "First time",
+    "headerPhrase": "Everything you've watched, in one place.",
     "loginPrompt": "Log in to track your viewing history",
     "ratingLabel": "{{title}} rating",
     "rewatch": "Rewatch",
@@ -244,52 +248,218 @@
     "watchType": "Watch status"
   },
   "discover": {
+    "catalog": {
+      "description": "Browse movies and series by type, genre, and rating.",
+      "eyebrow": "Explore",
+      "title": "Explore the catalog"
+    },
     "collections": {
-      "active": {
-        "label": "Collection"
+      "active": "Collection",
+      "alien": {
+        "description": "Explore the terrifying worlds of the Alien franchise.",
+        "groups": {
+          "crossovers": "Crossovers",
+          "original": "The original saga",
+          "origins": "Origins & prequels",
+          "releaseOrder": "Complete release order",
+          "series": "Series"
+        },
+        "title": "Alien"
       },
       "clear": "Clear collection",
-      "criticallyAcclaimed": {
-        "description": "Widely praised titles with a lasting reputation",
-        "title": "Critically Acclaimed"
+      "dc": {
+        "description": "Explore DC's connected universes and alternate interpretations.",
+        "groups": {
+          "aquaman": "Aquaman",
+          "batman": "Batman",
+          "dceu": "DC Extended Universe",
+          "dcu": "DC Universe",
+          "flash": "The Flash",
+          "greenLantern": "Green Lantern",
+          "joker": "Joker",
+          "shazam": "Shazam",
+          "superman": "Superman",
+          "theBatman": "The Batman universe",
+          "wonderWoman": "Wonder Woman"
+        },
+        "title": "DC"
       },
-      "explore": {
-        "description": "Editorial picks for nights when you want a strong starting point."
+      "fastAndFurious": {
+        "description": "Follow the Fast saga from street racing to globe-spanning missions.",
+        "groups": {
+          "mainSaga": "The Fast Saga",
+          "releaseOrder": "Release order",
+          "universe": "The wider universe"
+        },
+        "title": "Fast & Furious"
       },
-      "hiddenGems": {
-        "description": "Highly rated titles you may have missed",
-        "title": "Hidden Gems"
+      "godfather": {
+        "description": "Follow the Corleone family across the complete crime saga.",
+        "groups": {
+          "films": "The Godfather saga"
+        },
+        "title": "The Godfather"
       },
-      "modernClassics": {
-        "description": "Beloved titles from 2000 to 2019",
-        "title": "Modern Classics"
+      "heading": "Explore collections",
+      "jamesBond": {
+        "description": "Follow 007 across decades of missions, villains and espionage.",
+        "groups": {
+          "classic": "The classic era",
+          "daltonBrosnan": "Dalton & Brosnan",
+          "danielCraig": "The Daniel Craig era",
+          "releaseOrder": "Release order",
+          "rogerMoore": "The Roger Moore era"
+        },
+        "title": "James Bond"
       },
-      "newThisMonth": {
-        "description": "Recent releases from your region",
-        "title": "New This Month"
+      "johnWick": {
+        "description": "Enter the criminal underworld of the John Wick universe.",
+        "groups": {
+          "releaseOrder": "Release order",
+          "saga": "John Wick saga",
+          "universe": "The wider universe"
+        },
+        "title": "John Wick"
       },
-      "ninetiesEssentials": {
-        "description": "Essential titles from the 1990s",
-        "title": "90s Essentials"
+      "jurassic": {
+        "description": "Return to Isla Nublar and explore the Jurassic franchise.",
+        "groups": {
+          "movies": "Movies",
+          "parkEra": "Jurassic Park era",
+          "releaseOrder": "Release order",
+          "series": "Series",
+          "worldEra": "Jurassic World era"
+        },
+        "title": "Jurassic"
       },
-      "quickWatch": {
-        "description": "Great movies under 100 minutes",
-        "title": "Quick Watch"
+      "matrix": {
+        "description": "Enter the Matrix and follow the complete saga.",
+        "groups": {
+          "films": "Films"
+        },
+        "title": "The Matrix"
+      },
+      "mcu": {
+        "description": "Explore the Marvel Cinematic Universe in chronological and release order.",
+        "groups": {
+          "chronological": "Chronological order",
+          "movies": "Movies",
+          "oneShots": "Marvel One-Shots",
+          "releaseOrder": "Release order",
+          "series": "Series",
+          "whatIf": "What If...?"
+        },
+        "title": "Marvel Cinematic Universe"
+      },
+      "middleEarth": {
+        "description": "Journey through the stories of Middle-earth.",
+        "groups": {
+          "hobbit": "The Hobbit",
+          "lordOfTheRings": "The Lord of the Rings",
+          "releaseOrder": "Release order",
+          "series": "Series"
+        },
+        "title": "Middle-earth"
+      },
+      "missionImpossible": {
+        "description": "Follow Ethan Hunt through the complete Mission: Impossible series.",
+        "groups": {
+          "releaseOrder": "Release order"
+        },
+        "title": "Mission: Impossible"
       },
       "open": "Open collection",
-      "somethingWeird": {
-        "description": "Unusual, underseen titles worth discovering",
-        "title": "Something Weird"
+      "pirates": {
+        "description": "Sail through the Pirates of the Caribbean saga.",
+        "groups": {
+          "films": "Films"
+        },
+        "title": "Pirates of the Caribbean"
+      },
+      "planetOfTheApes": {
+        "description": "Explore every era of the Planet of the Apes franchise.",
+        "groups": {
+          "caesar": "The modern saga",
+          "originals": "The original films",
+          "reimagining": "Reimagining",
+          "releaseOrder": "Complete release order"
+        },
+        "title": "Planet of the Apes"
+      },
+      "rockyCreed": {
+        "description": "Step into the ring across the Rocky and Creed generations.",
+        "groups": {
+          "creed": "Creed",
+          "releaseOrder": "Complete release order",
+          "rocky": "Rocky"
+        },
+        "title": "Rocky & Creed"
+      },
+      "shrek": {
+        "description": "Return to Far Far Away with Shrek, Donkey and Puss in Boots.",
+        "groups": {
+          "pussInBoots": "Puss in Boots",
+          "releaseOrder": "Complete release order",
+          "shrek": "Shrek"
+        },
+        "title": "Shrek"
+      },
+      "starWars": {
+        "description": "Explore the films and series from a galaxy far, far away.",
+        "groups": {
+          "movies": "Movies",
+          "releaseOrder": "Release order",
+          "series": "Series",
+          "skywalkerSaga": "The Skywalker Saga"
+        },
+        "title": "Star Wars"
+      },
+      "subtitle": "Explore iconic franchises, sagas and cinematic universes.",
+      "toyStory": {
+        "description": "Follow Woody, Buzz and the toys across their adventures.",
+        "groups": {
+          "main": "Toy Story",
+          "releaseOrder": "Release order",
+          "spinoffs": "The wider Toy Story universe"
+        },
+        "title": "Toy Story"
+      },
+      "wizardingWorld": {
+        "description": "Return to Hogwarts and explore the wider Wizarding World.",
+        "groups": {
+          "fantasticBeasts": "Fantastic Beasts",
+          "harryPotter": "Harry Potter",
+          "releaseOrder": "Complete release order"
+        },
+        "title": "Wizarding World"
       }
     },
-    "exploreCollections": "Explore collections",
-    "forYou": "For You",
+    "filtered": {
+      "bestMatches": "Best matches",
+      "highlyRated": "Highly rated",
+      "loadMore": "Load more",
+      "moreToDiscover": "More to discover",
+      "popular": "Popular",
+      "recentlyReleased": "Recently released"
+    },
+    "friends": {
+      "allActivity": "All activity",
+      "description": "Recent activity from people you follow",
+      "rated": "Rated",
+      "rating": "{{rating}} out of 5 stars",
+      "reviewed": "Reviewed",
+      "title": "What your friends have been watching",
+      "watched": "Watched"
+    },
     "personalized": {
-      "becauseYouLiked": "Because you liked {{title}}",
-      "exploreMoreGenre": "Explore more {{genre}}",
-      "moreFromDirectors": "More from {{name}}",
-      "popularAmongFollowing": "Popular among people you follow"
-    }
+      "becauseWatched": "Because you watched {{title}}",
+      "becauseYouLiked": "Because you liked this",
+      "forYou": "For you",
+      "moreFromDirectors": "More from directors you like",
+      "moreFromStudio": "More from {{studio}}",
+      "moreGenre": "More {{genre}} for you"
+    },
+    "signature": "There’s always something worth watching"
   },
   "emptyStates": {
     "activityIllustration": "A film reel with social activity dots",
@@ -400,6 +570,7 @@
     "failedCount": "Failed: {{count}}",
     "finished": "Import finished",
     "firstTime": "First time",
+    "headerPhrase": "Bring your history with you.",
     "importFailed": "Import failed.",
     "importSelected": "Import selected",
     "importedCount": "Imported: {{count}}",
@@ -810,6 +981,7 @@
     "filters": "Filters",
     "filtersDescription": "Description (Optional)",
     "genres": "Genres",
+    "headerPhrase": "Find your next obsession.",
     "knownFor": "Known for",
     "loading": "Finding the perfect match...",
     "mediaType": "Media type",
@@ -876,6 +1048,7 @@
     "deleteDataTitle": "Delete Data",
     "displayName": "Display Name",
     "editProfile": "Edit Profile",
+    "headerPhrase": "Make Kino yours.",
     "import": "Import",
     "importCreateTitleError": "We couldn't match one or more titles in TMDb.",
     "importErrors": "Fix these first",
@@ -1195,6 +1368,7 @@
     "failedToDeleteWatchlist": "Failed to delete watchlist",
     "failedToLeaveWatchlist": "Failed to leave watchlist",
     "failedToRemoveItem": "Failed to remove item",
+    "headerPhrase": "Save it now. Watch it when you're ready.",
     "itemRemoved": "Title removed",
     "kinoUser": "Kino user",
     "leave": "Leave",

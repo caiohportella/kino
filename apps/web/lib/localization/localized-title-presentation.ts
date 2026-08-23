@@ -2,7 +2,7 @@ import type {
   LocalizedTitleMap,
   LocalizedTitleRequest,
   LocalizedTitleValue,
-} from './use-localized-titles'
+} from '@/hooks/title/use-localized-titles'
 
 type Item = { tmdbId: number; type: 'movie' | 'tv' }
 

@@ -28,6 +28,7 @@
       "following": "Følger",
       "you": "Deg"
     },
+    "headerPhrase": "Se hva alle har sett.",
     "hourAgo": "{{count}} time siden",
     "hoursAgo": "{{count}} timer siden",
     "justNow": "Nettopp nå",
@@ -138,11 +139,15 @@
   "common": {
     "add": "Legg til",
     "added": "Lagt til",
+    "back": "Gå tilbake",
     "cancel": "Avbryt",
+    "clear": "Tøm",
     "close": "Lukk",
     "confirm": "Bekreft",
     "copyFailed": "Kunne ikke kopiere lenken",
     "delete": "Slett",
+    "details": "Vurdering(er)",
+    "done": "Ferdig",
     "enterName": "Vennligst skriv inn et navn",
     "enterShareCode": "Vennligst skriv inn en delekode",
     "error": "Feil",
@@ -156,8 +161,10 @@
     "linkCopied": "Lenken er kopiert",
     "loading": "Laster...",
     "movie": "Film",
+    "navigation": "Navigasjon",
     "new": "Ny",
     "notAvailable": "Ukjent",
+    "releaseYearUnknown": "Ukjent",
     "remove": "Fjern",
     "retry": "Prøv igjen",
     "save": "Lagre",
@@ -166,7 +173,8 @@
     "share": "Del",
     "success": "Suksess",
     "tryAgain": "Vennligst prøv igjen.",
-    "tv": "TV"
+    "tv": "TV",
+    "user": "Bruker"
   },
   "diary": {
     "addedToDiary": "Lagt til i dagboken",
@@ -174,6 +182,7 @@
     "emptyState": "Ingen dagbokoppføringer ennå. Begynn å se og vurdere titler for å bygge din dagbok!",
     "failedToAddToDiary": "Kunne ikke legge til i dagboken: {{message}}",
     "firstTime": "Første gang",
+    "headerPhrase": "Alt du har sett, samlet på ett sted.",
     "loginPrompt": "Logg inn for å spore din visningshistorikk",
     "ratingLabel": "Vurdering av {{title}}",
     "rewatch": "Sett på nytt",
@@ -233,6 +242,220 @@
     },
     "stars": "{{count}} stjerner",
     "watchType": "Visningsstatus"
+  },
+  "discover": {
+    "catalog": {
+      "description": "Bla gjennom filmer og serier etter type, sjanger og vurdering.",
+      "eyebrow": "Utforsk",
+      "title": "Utforsk katalogen"
+    },
+    "collections": {
+      "active": "Samling",
+      "alien": {
+        "description": "Utforsk de skremmende verdenene i Alien-serien.",
+        "groups": {
+          "crossovers": "Kryssinger",
+          "original": "Den originale sagaen",
+          "origins": "Opprinnelse og prequeler",
+          "releaseOrder": "Fullfør utgivelsesrekkefølge",
+          "series": "Serier"
+        },
+        "title": "Alien"
+      },
+      "clear": "Tøm samling",
+      "dc": {
+        "description": "Utforsk DC sine tilknyttede univers og alternative tolkninger.",
+        "groups": {
+          "aquaman": "Aquaman",
+          "batman": "Batman",
+          "dceu": "DC Utvidelser",
+          "dcu": "DC-universet",
+          "flash": "The Flash",
+          "greenLantern": "Grønn Lantern",
+          "joker": "Joker",
+          "shazam": "Shazam",
+          "superman": "Supermann",
+          "theBatman": "Batman-universet",
+          "wonderWoman": "Wonder Woman"
+        },
+        "title": "DC"
+      },
+      "fastAndFurious": {
+        "description": "Følg Fast & Furious-sagaen fra gatekjøring til globale oppdrag.",
+        "groups": {
+          "mainSaga": "The Fast Saga",
+          "releaseOrder": "Utgivelsesrekkefølge",
+          "universe": "Det bredere universet"
+        },
+        "title": "Fast & Furious"
+      },
+      "godfather": {
+        "description": "Følg Corleone-familien gjennom hele kriminalhistorien.",
+        "groups": {
+          "films": "The Godfather-saga"
+        },
+        "title": "The Godfather"
+      },
+      "heading": "Utforsk samlinger",
+      "jamesBond": {
+        "description": "Følg 007 gjennom tiår med oppdrag, skurker og spionasje.",
+        "groups": {
+          "classic": "Den klassiske æraen",
+          "daltonBrosnan": "Dalton & Brosnan",
+          "danielCraig": "Daniel Craigs æra",
+          "releaseOrder": "Utgivelsesrekkefølge",
+          "rogerMoore": "Roger Moore-æraen"
+        },
+        "title": "James Bond"
+      },
+      "johnWick": {
+        "description": "Enter det kriminelle underverket i John Wick-universet.",
+        "groups": {
+          "releaseOrder": "Utgivelsesrekkefølge",
+          "saga": "John Wick saga",
+          "universe": "Det bredere universet"
+        },
+        "title": "John Wick"
+      },
+      "jurassic": {
+        "description": "Return til Isla Nublar og utforsk Jurassic-serien.",
+        "groups": {
+          "movies": "Filmer",
+          "parkEra": "Jurassic Park-æra",
+          "releaseOrder": "Utgivelsesrekkefølge",
+          "series": "Serier",
+          "worldEra": "Jurassic World-æra"
+        },
+        "title": "Jurassic"
+      },
+      "matrix": {
+        "description": "Gå inn i Matrixen og følg hele sagaen.",
+        "groups": {
+          "films": "Filmer"
+        },
+        "title": "The Matrix"
+      },
+      "mcu": {
+        "description": "Utforsk Marvel Cinematic Universe i kronologisk og utgivelsesrekkefølge.",
+        "groups": {
+          "chronological": "Tidsmessig rekkefølge",
+          "movies": "Filmer",
+          "oneShots": "Marvel One-shots",
+          "releaseOrder": "Utgivelsesrekkefølge",
+          "series": "Serier",
+          "whatIf": "Hva om…?"
+        },
+        "title": "Marvel Cinematic Universe"
+      },
+      "middleEarth": {
+        "description": "Reise gjennom historiene om Midgard.",
+        "groups": {
+          "hobbit": "The Hobbit",
+          "lordOfTheRings": "The Lord of the Rings",
+          "releaseOrder": "Utgivelsesrekkefølge",
+          "series": "Serier"
+        },
+        "title": "Midgard"
+      },
+      "missionImpossible": {
+        "description": "Følg Ethan Hunt gjennom hele Mission: Impossible-serien.",
+        "groups": {
+          "releaseOrder": "Utgivelsesrekkefølge"
+        },
+        "title": "Mission: Impossible"
+      },
+      "open": "Åpne samling",
+      "pirates": {
+        "description": "Sei av på alle filmer i Pirates of the Caribbean-serien.",
+        "groups": {
+          "films": "Filmer"
+        },
+        "title": "Pirates of the Karibiske"
+      },
+      "planetOfTheApes": {
+        "description": "Utforsk alle tidsalder i Planet of the Apes-serien.",
+        "groups": {
+          "caesar": "Den moderne saga",
+          "originals": "De originale filmene",
+          "reimagining": "Reimaginering",
+          "releaseOrder": "Fullfør utgivelsesrekkefølge"
+        },
+        "title": "Planet of the Apes"
+      },
+      "rockyCreed": {
+        "description": "Steg inn i ringen over de forskjellige Rocky og Creed-generasjonene.",
+        "groups": {
+          "creed": "Creed",
+          "releaseOrder": "Fullfør utgivelsesrekkefølge",
+          "rocky": "Rocky"
+        },
+        "title": "Rocky & Creed"
+      },
+      "shrek": {
+        "description": "Returner til Far Far Away med Shrek, Esel og Pus i Buks.",
+        "groups": {
+          "pussInBoots": "Puss i Bøttene",
+          "releaseOrder": "Fullfør utgivelsesrekkefølge",
+          "shrek": "Shrek"
+        },
+        "title": "Shrek"
+      },
+      "starWars": {
+        "description": "Utforsk filmene og seriene fra en fjern galakse.",
+        "groups": {
+          "movies": "Filmer",
+          "releaseOrder": "Utgivelsesrekkefølge",
+          "series": "Serier",
+          "skywalkerSaga": "Skywalker-sagaen"
+        },
+        "title": "Star Wars"
+      },
+      "subtitle": "Utforsk ikoniske franchiser, sagn og filmuniverser.",
+      "toyStory": {
+        "description": "Følg Woody, Buzz og leikene på deres eventyr.",
+        "groups": {
+          "main": "Toy Story",
+          "releaseOrder": "Utgivelsesrekkefølge",
+          "spinoffs": "Det bredere Toy Story-universet"
+        },
+        "title": "Toy Story"
+      },
+      "wizardingWorld": {
+        "description": "Return til Hogwarts og utforsk den større magiske verden.",
+        "groups": {
+          "fantasticBeasts": "Fantastiske skapninger",
+          "harryPotter": "Harry Potter",
+          "releaseOrder": "Fullfør utgivelsesrekkefølge"
+        },
+        "title": "Wizarding Verden"
+      }
+    },
+    "filtered": {
+      "bestMatches": "Beste treff",
+      "highlyRated": "Høyest rangerte",
+      "loadMore": "Last mer",
+      "moreToDiscover": "Mer å oppdage",
+      "popular": "Populært nå",
+      "recentlyReleased": "Nyutgitte filmer"
+    },
+    "friends": {
+      "allActivity": "All aktivitet",
+      "description": "Aktivitet fra følgerne dine, nyeste først.",
+      "rated": "Vurderte filmer",
+      "rating": "{{rating}} av 5 stjerner",
+      "reviewed": "Vurdert",
+      "title": "Hva vennene dine har sett",
+      "watched": "Sett titler"
+    },
+    "personalized": {
+      "becauseWatched": "Fordi du så {{title}}",
+      "becauseYouLiked": "Fordi du likte dette",
+      "forYou": "For deg",
+      "moreFromDirectors": "Flere filmer fra regissørene du liker",
+      "moreFromStudio": "Flere fra {{studio}}",
+      "moreGenre": "Flere {{genre}} for deg"
+    },
+    "signature": "Det er alltid noe verdt å se."
   },
   "emptyStates": {
     "activityIllustration": "En filmrull med sosialaktivitetsboller",
@@ -310,13 +533,28 @@
     "99": "Dokumentar"
   },
   "home": {
+    "availableNow": "Tilgjengelig nå",
+    "backInTheaters": "Tilbake på kino",
     "comingSoon": "Kommer snart",
+    "episodeShort": "S{{season}}E{{episode}}",
+    "exploreMore": "Utforsk mer",
+    "forYou": "For deg",
+    "moreFromPerson": "Flere fra {{name}}",
+    "moreWithPerson": "Flere med {{name}}",
+    "newEpisode": "Ny episode",
     "newReleases": "Nye utgivelser",
+    "newSeason": "Ny sesong",
+    "newSeries": "Nye serier",
     "oscarMarathon": "Oscar-nominasjonsmaraton",
     "popularMovies": "Populære filmer",
+    "popularNow": "Populært nå",
     "popularTV": "TV-serier vi elsker",
+    "rereleases": "Tilbake på kino",
+    "seasonNumber": "Sesong {{season}}",
     "topRated": "Høyest vurderte filmer",
-    "trending": "Populært i dag"
+    "trending": "Populært i dag",
+    "upcoming": "Kommer snart",
+    "updatesForYou": "Oppdateringer for deg"
   },
   "importFlow": {
     "alreadyInDiary": "Finnes allerede i dagboken din.",
@@ -328,6 +566,7 @@
     "failedCount": "Mislyktes: {{count}}",
     "finished": "Import ferdig",
     "firstTime": "Første gang",
+    "headerPhrase": "Ta med seerhistorikken din.",
     "importFailed": "Importen mislyktes.",
     "importSelected": "Importer valgte",
     "importedCount": "Importert: {{count}}",
@@ -470,7 +709,11 @@
     "personNotFound": "Person ikke funnet",
     "profileDescription": "Se filmene, seriene, vurderingene og dagboken til @{{username}} på Kino.",
     "profileImageAlt": "Kino-profilen til {{name}}",
+    "profileMoviesDescription": "Se filmer @{{username}} har sett på Kino.",
+    "profileMoviesTitle": "{{name}}’s filmer",
     "profileNotFound": "Profil ikke funnet",
+    "profileSeriesDescription": "Se serier @{{username}} har sett på Kino.",
+    "profileSeriesTitle": "{{name}}’s serier",
     "profileStatsDescription": "Livstidsstatistikk for @{{username}} på Kino.",
     "profileStatsTitle": "Statistikk for {{name}}",
     "profileUnavailable": "Profil utilgjengelig",
@@ -490,6 +733,7 @@
   },
   "modals": {
     "addToWatchlist": "Legg til i liste",
+    "addingTitle": "Legge til",
     "allSeries": "Alle serier",
     "askOwnerForCode": "Be eieren av listen om delekoden (f.eks. A1B2C3D4).",
     "bannerFromGallery": "Velg fra galleri",
@@ -538,6 +782,7 @@
     "name": "Navn",
     "namePlaceholder": "f.eks. Helgemaraton",
     "newWatchlist": "Ny liste",
+    "noMatchingWatchlists": "Ingen lister matcher søket ditt.",
     "noWatchlistsFound": "Ingen lister funnet. Opprett en!",
     "optional": "(Valgfritt)",
     "removeBanner": "Fjern banner",
@@ -545,6 +790,7 @@
     "rewatched": "Sett på nytt",
     "save": "Lagre",
     "saveChanges": "Lagre endringer",
+    "searchWatchlists": "Søk i lister",
     "seasonRatingModal": {
       "rateRemainingPrompt": "Du har vurdert det meste av denne sesongen. Hvorfor ikke vurdere de resterende episodene for å få en mer nøyaktig poengsum?",
       "rateSeason": "Vurder sesong",
@@ -569,6 +815,7 @@
     "title": "Denne scenen kom ikke med i finalen."
   },
   "pagination": {
+    "currentPage": "Nåværende",
     "goToPage": "Alle på siden {{page}}",
     "label": "Paginering",
     "morePages": "Flere sider",
@@ -584,10 +831,12 @@
       "Art": "Kunst",
       "Camera": "Kamera",
       "Costume & Make-Up": "Kostyme og Sminke",
+      "Creator": "Skaper",
       "Crew": "Mannskap",
       "Directing": "Regi",
       "Editing": "Klipping",
       "Lighting": "Belysning",
+      "Person": "Person",
       "Production": "Produksjon",
       "Sound": "Lyd",
       "Visual Effects": "Visuelle Effekter",
@@ -655,6 +904,25 @@
     "watchedMovies": "Sette filmer",
     "watchedSeries": "Sette serier"
   },
+  "profileCollections": {
+    "backToProfile": "Gå tilbake til profil",
+    "loadErrorBody": "Prøv igjen om et øyeblikk.",
+    "loadErrorTitle": "Kunne ikke laste samling",
+    "moviesDescription": "Filmer sett av {{name}}.",
+    "moviesEmptyBody": "Filmer du har sett vil vises her.",
+    "moviesEmptyTitle": "Ingen filmer ennå",
+    "moviesShareText": "Se {{name}}’s filmer på Kino.",
+    "moviesTitle": "{{name}}’s filmer",
+    "noMatchesBody": "Prøv å justere eller fjerne filtrene.",
+    "noMatchesTitle": "Ingen treff",
+    "search": "Søk i samling",
+    "searchPlaceholder": "Søk etter tittel...",
+    "seriesDescription": "Serier sett av {{name}}.",
+    "seriesEmptyBody": "Serier du har sett vil vises her.",
+    "seriesEmptyTitle": "Ingen serier ennå",
+    "seriesShareText": "Se {{name}}’s serier på Kino.",
+    "seriesTitle": "{{name}}’s serier"
+  },
   "reviews": {
     "actions": "Anmeldelseshandlinger",
     "charactersRemaining": "{{count}} tegn igjen",
@@ -705,19 +973,26 @@
     "any": "Alle",
     "bestMatch": "Beste treff",
     "clear": "Tøm",
+    "failed": "Feilet",
     "filters": "Filtre",
+    "filtersDescription": "Beskrivelse (Valgfritt)",
     "genres": "Sjangre",
+    "headerPhrase": "Finn neste favoritt.",
     "knownFor": "Kjent for",
     "loading": "Finner den perfekte matchen...",
     "mediaType": "Medietype",
+    "minimumCharacters": "minst {{minimumCharacters}} tegn",
     "minimumRating": "Minste TMDB-vurdering",
     "movies": "Filmer",
     "noProfileImage": "Ingen profilbilde",
     "noResults": "Ingen resultater funnet",
     "noResultsHint": "Prøv å justere filtre eller søk etter noe annet.",
+    "pages": "sider",
     "people": "Personer",
     "person": "Person",
     "placeholder": "Søk etter titler, personer eller brukere...",
+    "resetFilters": "Tilbakestill",
+    "results": "Resultater",
     "retry": "Prøv igjen",
     "searchFailed": "Søket kunne ikke lastes.",
     "sectionFailed": "Denne delen kunne ikke lastes.",
@@ -769,6 +1044,7 @@
     "deleteDataTitle": "Slett data",
     "displayName": "Visningsnavn",
     "editProfile": "Rediger profil",
+    "headerPhrase": "Gjør Kino til din egen.",
     "language": "Språk",
     "logout": "Logg ut",
     "logoutConfirm": "Er du sikker på at du vil logge ut?",
@@ -869,6 +1145,8 @@
     "pageDescription": "Livstidsstatistikk for @{{username}} på Kino.",
     "pageTitle": "Statistikk for {{name}}",
     "percentage": "Prosent",
+    "ratedTitlesCount_other": "{{count, number}} titler vurdert",
+    "ratedTitlesCount_one": "{{count, number}} tittel vurdert",
     "ratings": "Vurderinger",
     "ratingsCount_one": "{{count, number}} vurdering",
     "ratingsCount_other": "{{count, number}} vurderinger",
@@ -884,31 +1162,40 @@
     "shareStoryImage": "Delbart story-bilde",
     "sinceJoining": "Siden du ble med i {{month}} {{year}}",
     "story": {
-      "acrossDays": "p? {{days}} forskjellige dager.",
-      "definedYourMonth": "Du formet måneden din",
+      "acrossDays": "over {{days}} forskjellige dager.",
+      "definedYourMonth": "Formet måneden din",
       "episodeAbbrev": "ep",
       "favorite": "Favoritt",
-      "monthHeadline": "{{name}} sin måned i Kino",
-      "monthSummary": "{{movies}} filmer - {{episodes}} episoder - {{days}} dager",
-      "monthTitle": "M?nedlig oppsummering",
+      "kinoTimeDays_other": "{{count, number}} dager",
+      "kinoTimeDays_one": "{{count, number}} dag",
+      "kinoTimeMonths_other": "{{count, number}} måneder",
+      "kinoTimeMonths_one": "{{count, number}} måned",
+      "kinoTimeYears_other": "{{count, number}} år",
+      "kinoTimeYears_one": "{{count, number}} år",
+      "lifetimeHeadline": "Reisen til {{name}} på Kino",
+      "memberSince": "Medlem siden {{year}}",
+      "monthHeadline": "{{name}}'s måned i Kino",
+      "monthSummary": "Du så {{movies}} filmer - {{episodes}} episoder - {{days}} dager.",
+      "monthTitle": "Manedlig oppsummering",
       "otherFavoritesMovies": "Andre favoritter · Filmer",
       "otherFavoritesSeries": "Andre favoritter · Serier",
       "ratingShort": "Vurdering",
       "seriesWatched": "Serier sett",
-      "topActor": "Topp skuespiller",
-      "topGenre": "Topp sjanger",
-      "topMovie": "Toppfilm",
-      "topRatedMovies": "Mest vurderte filmer",
-      "topRatedSeries": "Mest vurderte serier",
-      "topSeries": "Toppserie",
-      "topStudio": "Topp studio",
+      "sinceBeginning": "medlem siden",
+      "topActor": "Toppskuespiller",
+      "topGenre": "Toppsjanger",
+      "topMovie": "Høyeste film",
+      "topRatedMovies": "Høyest rangerte filmer",
+      "topRatedSeries": "Høyest rangerte serier",
+      "topSeries": "Høyest rangerte serier",
+      "topStudio": "Toppstudio",
       "trackMore": "F?lg din p? kino.app",
-      "trackYoursAt": "Følg din på {{host}}",
+      "trackYoursAt": "F?lg din p? kino.app",
       "tvShare": "av TV-tid",
       "watchedTimes": "Sett",
-      "youWatched": "Du s?"
+      "youWatched": "Du har sett"
     },
-    "storyImageDescription": "Last ned et loddrett story-bilde for Instagram Stories.",
+    "storyImageDescription": "Last ned et vertikalt bilde for Instagram Stories.",
     "time": "Tid",
     "timeWatched": "Tid sett",
     "title": "Statistikk",
@@ -1038,6 +1325,7 @@
     "failedToDeleteWatchlist": "Kunne ikke slette listen",
     "failedToLeaveWatchlist": "Kunne ikke forlate listen",
     "failedToRemoveItem": "Kunne ikke fjerne elementet",
+    "headerPhrase": "Lagre det nå. Se det når du er klar.",
     "itemRemoved": "Tittel fjernet",
     "kinoUser": "Kino-bruker",
     "leave": "Forlat",
@@ -1053,6 +1341,7 @@
     "notFoundBody": "Denne listen kan ha blitt fjernet eller er ikke delt med kontoen din.",
     "nowPrivate": "Listen er nå privat",
     "nowPublic": "Listen er nå offentlig",
+    "oneTitle": "1 tittel",
     "onlyContributorCanRemove": "Bare personen som la til denne tittelen kan fjerne den.",
     "participants": "Deltakere",
     "privacyFailed": "Kunne ikke oppdatere personvern",
@@ -1071,13 +1360,18 @@
     "removeFromListTitle": "Fjern fra liste",
     "removeTitle": "Fjern {{title}}",
     "searchTitles": "Søk etter titler",
+    "shareCode": "Sett inn delingskoden for se-listen din",
     "shared": "Delt",
     "sharedWatchlist": "Delt liste",
     "sharing": "Listedeling",
     "sharingPrivateDescription": "Gjør listen offentlig for å opprette en kode for venner.",
     "sharingPublicDescription": "Alle med denne koden kan bli med og samarbeide om listen.",
     "title": "Lister",
+    "titleCount": "{{count}} titler",
     "titleUnavailable": "Tittel utilgjengelig",
+    "updatedHoursAgo": "{{count}} timer siden",
+    "updatedLessThanHour": "Mindre enn en time siden",
+    "updatedOn": "oppdatert {{date}}",
     "updatingPrivacy": "Oppdaterer personvern...",
     "visibility": "Synlighet",
     "visibilityDescriptions": {

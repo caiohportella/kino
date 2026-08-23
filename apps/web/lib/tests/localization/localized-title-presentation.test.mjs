@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { resolveLocalizedTitlePresentation } from './localized-title-presentation.ts'
+import { resolveLocalizedTitlePresentation } from '../../localization/localized-title-presentation.ts'
 
 const request = { tmdbId: 7, type: 'movie' }
 

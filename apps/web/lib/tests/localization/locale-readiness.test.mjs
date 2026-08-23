@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createWebLocaleReadiness } from './locale-readiness.ts'
+import { createWebLocaleReadiness } from '../../localization/locale-readiness.ts'
 
 const options = (overrides = {}) => ({
   applyLocale: async () => {},

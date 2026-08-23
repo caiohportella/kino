@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { getLocalizedGenreName } from './localized-genre.ts'
+import { getLocalizedGenreName } from '../../localization/localized-genre.ts'
 
 test('resolves a genre by its TMDb locale key', () => {
   const t = (key, options) => {

@@ -3,7 +3,7 @@ import test from 'node:test'
 import {
   createLocalizedTitleBatchService,
   createLocalizedTitleRateLimiter,
-} from './localized-title-batch-server.ts'
+} from '../../localization/localized-title-batch-server.ts'
 
 const baseInput = {
   schemaVersion: 1,

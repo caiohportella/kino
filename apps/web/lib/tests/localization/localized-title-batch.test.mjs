@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import { titleQueryKeys } from '@kino/core/cache'
 import { QueryClient } from '@tanstack/react-query'
-import { hydrateLocalizedTitleBatch } from './localized-title-batch.ts'
+import { hydrateLocalizedTitleBatch } from '../../localization/localized-title-batch.ts'
 
 test('cold web multi-title hydration uses one batch request and seeds every canonical summary', async () => {
   const queryClient = new QueryClient()
@@ -48,9 +48,70 @@ test('cold web multi-title hydration uses one batch request and seeds every cano
   queryClient.clear()
 })
 
+test('web batch hydration reuses fresh canonical summaries and requests only cache misses', async () => {
+  const queryClient = new QueryClient()
+
+  const input = {
+    schemaVersion: 1,
+    items: [
+      { tmdbId: 238, type: 'movie' },
+      { tmdbId: 1396, type: 'tv' },
+    ],
+    locale: 'pt',
+    region: 'BR',
+  }
+
+  const cachedSummary = summary(238, 'movie', 'O Poderoso Chefão', '/godfather-cached.jpg')
+
+  queryClient.setQueryData(
+    titleQueryKeys.summary({
+      id: 238,
+      locale: input.locale,
+      mediaType: 'movie',
+      region: input.region,
+      scope: { kind: 'public' },
+    }),
+    cachedSummary
+  )
+
+  const requestedItems = []
+
+  const result = await hydrateLocalizedTitleBatch(queryClient, input, async (chunk) => {
+    requestedItems.push(...chunk.items)
+
+    return {
+      schemaVersion: 1,
+      errors: [],
+      missing: [],
+      summaries: chunk.items.map((item) =>
+        summary(
+          item.tmdbId,
+          item.type,
+          item.tmdbId === 1396 ? 'Breaking Bad' : 'should not be fetched',
+          `/${item.tmdbId}.jpg`
+        )
+      ),
+    }
+  })
+
+  assert.deepEqual(requestedItems, [{ tmdbId: 1396, type: 'tv' }])
+
+  assert.deepEqual(
+    result.summaries.map((item) => item.id),
+    [238, 1396]
+  )
+
+  assert.equal(
+    result.summaries.find((item) => item.id === 238)?.posterPath,
+    '/godfather-cached.jpg'
+  )
+
+  queryClient.clear()
+})
+
 test('localized summary gateway uses only server TMDB credentials and declares poster resolution', async () => {
   const source = await readFile(
-    new URL('../app/api/v1/titles/summaries/route.ts', import.meta.url),
+    new URL('../../../app/api/v1/titles/summaries/route.ts', import.meta.url),
     'utf8'
   )
   assert.match(source, /process\.env\.TMDB_API_KEY/)

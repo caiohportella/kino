@@ -1,12 +1,14 @@
+import { LOCALIZED_TITLE_STALE_TIME, titleQueryKeys } from '@kino/core/cache'
 import {
   LOCALIZED_TITLE_BATCH_MAX_ITEMS,
   type LocalizedTitleBatchInput,
   type LocalizedTitleBatchResponse,
   normalizeLocalizedTitleBatchResponse,
+  type ResolvedLocalizedTitleSummary,
   toLocalizedTitleSummaryCacheEntry,
 } from '@kino/core/localization'
 import type { QueryClient } from '@tanstack/react-query'
-import { seedTitleSummary } from './title-queries.ts'
+import { seedTitleSummary } from '../title/title-queries.ts'
 
 export type {
   LocalizedTitleBatchInput,
@@ -24,12 +26,63 @@ export async function hydrateLocalizedTitleBatch(
   ) => Promise<LocalizedTitleBatchResponse>,
   signal?: AbortSignal
 ) {
-  const response = await requestChunkedLocalizedTitleBatch(input, request, signal)
+  const cachedSummaries = new Map<string, ResolvedLocalizedTitleSummary>()
+
+  const misses = input.items.filter((item) => {
+    const queryKey = titleQueryKeys.summary({
+      id: item.tmdbId,
+      locale: input.locale,
+      mediaType: item.type,
+      region: input.region,
+      scope: { kind: 'public' },
+    })
+
+    const state = queryClient.getQueryState(queryKey)
+
+    const summary = state?.data as ResolvedLocalizedTitleSummary | undefined
+
+    const fresh =
+      state !== undefined &&
+      summary !== undefined &&
+      !state.isInvalidated &&
+      Date.now() - state.dataUpdatedAt < LOCALIZED_TITLE_STALE_TIME
+
+    if (!fresh) {
+      return true
+    }
+
+    cachedSummaries.set(`${item.type}:${item.tmdbId}`, summary)
+
+    return false
+  })
+
+  const response = await requestChunkedLocalizedTitleBatch(
+    {
+      ...input,
+      items: misses,
+    },
+    request,
+    signal
+  )
+
+  const summaries = new Map(cachedSummaries)
+
   for (const summary of response.summaries) {
     const cacheEntry = toLocalizedTitleSummaryCacheEntry(summary, input)
+
     seedTitleSummary(queryClient, cacheEntry.input, cacheEntry.summary)
+
+    summaries.set(`${summary.mediaType}:${summary.id}`, summary)
   }
-  return response
+
+  return {
+    ...response,
+    summaries: input.items.flatMap((item) => {
+      const summary = summaries.get(`${item.type}:${item.tmdbId}`)
+
+      return summary ? [summary] : []
+    }),
+  }
 }
 
 async function requestChunkedLocalizedTitleBatch(
