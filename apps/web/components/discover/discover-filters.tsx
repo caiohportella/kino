@@ -21,7 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 import { cn } from '@/lib/utils'
 
 export interface DiscoverFilterState {
@@ -271,34 +271,6 @@ export function DiscoverFilters({ genres, value, onChange, onReset }: DiscoverFi
           {t('search.resetFilters')}
         </Button>
       ) : null}
-
-      <Dialog>
-        <DialogTrigger
-          render={
-            <Button size="sm" variant="secondary">
-              <SlidersHorizontal size={15} />
-
-              {t('search.filters')}
-
-              {activeCount > 0 ? (
-                <span className="ml-1 inline-flex min-w-5 items-center justify-center rounded-full bg-kino-accent px-1.5 py-0.5 text-[10px] font-bold text-black">
-                  {activeCount}
-                </span>
-              ) : null}
-            </Button>
-          }
-        />
-
-        <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{t('search.filters')}</DialogTitle>
-
-            <DialogDescription>{t('search.filtersDescription')}</DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-3">{/* we'll put the mobile filter controls here next */}</div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

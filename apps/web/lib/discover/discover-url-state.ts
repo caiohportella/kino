@@ -1,140 +1,194 @@
-import type { TMDbGenre } from "@kino/core";
-import type {
-  DiscoverCollection,
-  DiscoverCollectionId,
-  DiscoverCollectionFilters,
-} from "./collections.ts";
-import { parseDiscoverCollection } from "./collections.ts";
+import type { TMDbGenre } from '@kino/core'
+import {
+  type DiscoverCollection,
+  type DiscoverCollectionId,
+  parseDiscoverCollection,
+} from './collections.ts'
 
-function sanitizeDiscoverFilters(
-  params: URLSearchParams,
-  genres: TMDbGenre[],
-): DiscoverCollectionFilters {
-  const rawMediaType = params.get("type");
-  const rawGenreIds = params.get("genres");
-  const rawRating = Number(params.get("rating"));
-  const mediaType =
-    rawMediaType === "movie" || rawMediaType === "tv" ? rawMediaType : "all";
+export type DiscoverUrlFilterState = {
+  mediaType: 'all' | 'movie' | 'tv'
+  genreIds: number[]
+  minRating: number
+}
+
+export type DiscoverUrlState = {
+  collection: DiscoverCollection | null
+  filters: DiscoverUrlFilterState
+}
+
+const DEFAULT_FILTERS: DiscoverUrlFilterState = {
+  mediaType: 'all',
+  genreIds: [],
+  minRating: 0,
+}
+
+function normalizeMediaType(value: string | null): DiscoverUrlFilterState['mediaType'] {
+  if (value === 'movie' || value === 'tv') {
+    return value
+  }
+
+  return 'all'
+}
+
+function normalizeGenreIds(values: number[]) {
+  return [...new Set(values.filter((value) => Number.isInteger(value) && value > 0))].sort(
+    (a, b) => a - b
+  )
+}
+
+function normalizeMinimumRating(value: number) {
+  if (!Number.isFinite(value)) {
+    return 0
+  }
+
+  return Math.min(10, Math.max(0, value))
+}
+
+function parseGenres(value: string | null, genres: TMDbGenre[]) {
+  if (!value) {
+    return []
+  }
+
+  const validGenreIds = new Set(genres.map((genre) => genre.id))
+
+  return normalizeGenreIds(
+    value
+      .split(',')
+      .map((item) => Number(item))
+      .filter((id) => Number.isFinite(id) && validGenreIds.has(id))
+  )
+}
+
+function parseMinimumRating(value: string | null) {
+  if (!value) {
+    return 0
+  }
+
+  return normalizeMinimumRating(Number(value))
+}
+
+/**
+ * Normalizes Discover filters independently of
+ * franchise collections.
+ *
+ * The optional collection argument is retained so
+ * existing callers can migrate without coupling
+ * filter behavior to collection membership.
+ */
+export function normalizeDiscoverFilterState(
+  filters: DiscoverUrlFilterState,
+  _collection?: DiscoverCollection | null
+): DiscoverUrlFilterState {
   return {
-    mediaType,
-    genreIds: rawGenreIds
-      ? rawGenreIds
-          .split(",")
-          .map(Number)
-          .filter(
-            (genreId) =>
-              Number.isInteger(genreId) &&
-              genres.some((genre) => genre.id === genreId),
-          )
-      : [],
-    minRating:
-      Number.isFinite(rawRating) && rawRating >= 0 && rawRating <= 9
-        ? rawRating
-        : 0,
-  };
+    mediaType: normalizeMediaType(filters.mediaType),
+
+    genreIds: normalizeGenreIds(filters.genreIds),
+
+    minRating: normalizeMinimumRating(filters.minRating),
+  }
 }
 
 export function readDiscoverUrlState(
   params: URLSearchParams,
-  genres: TMDbGenre[],
-): {
-  filters: DiscoverCollectionFilters;
-  collection: DiscoverCollection | null;
-  page: number;
-} {
-  const collection = parseDiscoverCollection(params.get("collection"));
-  const rawPage = Number(params.get("page"));
+  genres: TMDbGenre[]
+): DiscoverUrlState {
+  const collection = parseDiscoverCollection(params.get('collection'))
+
+  /*
+   * Collections and filters are now separate
+   * browsing modes.
+   *
+   * A franchise collection always starts with
+   * neutral filters.
+   */
+  if (collection) {
+    return {
+      collection,
+      filters: {
+        ...DEFAULT_FILTERS,
+      },
+    }
+  }
+
+  const filters = normalizeDiscoverFilterState({
+    mediaType: normalizeMediaType(params.get('type')),
+
+    genreIds: parseGenres(params.get('genres'), genres),
+
+    minRating: parseMinimumRating(params.get('rating')),
+  })
 
   return {
-    filters: sanitizeDiscoverFilters(params, genres),
-    collection,
-    page: Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1,
-  };
-}
-
-export function writeDiscoverFilterUrl(
-  current: URLSearchParams,
-  next: DiscoverCollectionFilters,
-  collection: DiscoverCollection | null,
-): string {
-  const params = new URLSearchParams(current);
-  const filters = normalizeDiscoverFilterState(next, collection);
-
-  params.delete("page");
-
-  if (collection) {
-    params.set("collection", collection.id);
-  } else {
-    params.delete("collection");
+    collection: null,
+    filters,
   }
-
-  if (filters.mediaType !== "all") {
-    params.set("type", filters.mediaType);
-  } else {
-    params.delete("type");
-  }
-
-  if (filters.genreIds.length > 0) {
-    params.set("genres", filters.genreIds.join(","));
-  } else {
-    params.delete("genres");
-  }
-
-  if (filters.minRating > 0) {
-    params.set("rating", String(filters.minRating));
-  } else {
-    params.delete("rating");
-  }
-
-  return params.toString();
-}
-
-export function normalizeDiscoverFilterState(
-  next: DiscoverCollectionFilters,
-  collection: DiscoverCollection | null,
-): DiscoverCollectionFilters {
-  if (
-    next.mediaType === "all" ||
-    !collection ||
-    collection.criteria[next.mediaType]
-  ) {
-    return next;
-  }
-
-  return next;
 }
 
 export function writeDiscoverCollectionUrl(
-  current: URLSearchParams,
-  id: DiscoverCollectionId | null,
+  currentParams: URLSearchParams,
+  collectionId: DiscoverCollectionId | null
 ): string {
-  const params = new URLSearchParams(current);
+  const params = new URLSearchParams(currentParams)
 
-  params.delete("page");
+  /*
+   * Numbered pagination belonged to the old
+   * collection implementation.
+   */
+  params.delete('page')
 
-  if (!id) {
-    params.delete("collection");
+  if (!collectionId) {
+    params.delete('collection')
 
-    return params.toString();
+    return params.toString()
   }
 
-  const collection = parseDiscoverCollection(id);
+  /*
+   * Franchise collections are their own browsing
+   * mode, so ordinary Discover filters do not
+   * carry into them.
+   */
+  params.set('collection', collectionId)
 
-  if (!collection) {
-    params.delete("collection");
+  params.delete('type')
+  params.delete('genres')
+  params.delete('rating')
 
-    return params.toString();
+  return params.toString()
+}
+
+export function writeDiscoverFilterUrl(
+  currentParams: URLSearchParams,
+  filters: DiscoverUrlFilterState,
+  _collection?: DiscoverCollection | null
+): URLSearchParams {
+  const params = new URLSearchParams(currentParams)
+
+  const normalized = normalizeDiscoverFilterState(filters)
+
+  /*
+   * Applying ordinary filters exits collection
+   * mode. The two concepts no longer compose.
+   */
+  params.delete('collection')
+  params.delete('page')
+
+  if (normalized.mediaType === 'all') {
+    params.delete('type')
+  } else {
+    params.set('type', normalized.mediaType)
   }
 
-  params.set("collection", collection.id);
-
-  const mediaType = params.get("type");
-  const supportedMediaType =
-    mediaType === "movie" || mediaType === "tv" ? mediaType : null;
-
-  if (mediaType && !supportedMediaType) {
-    params.delete("type");
+  if (normalized.genreIds.length === 0) {
+    params.delete('genres')
+  } else {
+    params.set('genres', normalized.genreIds.join(','))
   }
 
-  return params.toString();
+  if (normalized.minRating <= 0) {
+    params.delete('rating')
+  } else {
+    params.set('rating', String(normalized.minRating))
+  }
+
+  return params
 }

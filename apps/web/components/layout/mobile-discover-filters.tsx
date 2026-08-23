@@ -23,7 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 import { cn } from '@/lib/utils'
 
 const RATING_OPTIONS = [0, 5, 6, 7, 8, 9] as const

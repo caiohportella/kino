@@ -1,218 +1,216 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-test('parses a supported collection id', async () => {
-  const { parseDiscoverCollection } = await import('../../discover/collections.ts')
+import {
+  DISCOVER_COLLECTIONS,
+  discoverCollectionMediaIdentity,
+  getDiscoverCollection,
+  getDiscoverCollectionTitleCount,
+  isDiscoverCollectionId,
+  parseDiscoverCollection,
+} from '../../discover/collections.ts'
 
-  assert.equal(parseDiscoverCollection('hidden-gems')?.id, 'hidden-gems')
+const EXPECTED_COLLECTION_IDS = [
+  'star-wars',
+  'mcu',
+  'wizarding-world',
+  'middle-earth',
+  'jurassic',
+  'pirates-of-the-caribbean',
+  'the-godfather',
+  'the-matrix',
+  'rocky-creed',
+  'john-wick',
+  'alien',
+  'james-bond',
+  'planet-of-the-apes',
+  'mission-impossible',
+  'dc',
+  'fast-and-furious',
+  'toy-story',
+  'shrek',
+]
+
+test('parses a supported franchise collection id', () => {
+  const collection = parseDiscoverCollection('star-wars')
+
+  assert.ok(collection)
+  assert.equal(collection.id, 'star-wars')
+  assert.equal(collection.titleDefault, 'Star Wars')
 })
 
-test('invalid collection ids resolve to null', async () => {
-  const { parseDiscoverCollection } = await import('../../discover/collections.ts')
-
+test('invalid collection ids resolve to null', () => {
   assert.equal(parseDiscoverCollection('whatever'), null)
+  assert.equal(parseDiscoverCollection('hidden-gems'), null)
   assert.equal(parseDiscoverCollection(null), null)
 })
 
-test('exports collection cards in stable editorial order with key-only discover metadata', async () => {
-  const { DISCOVER_COLLECTIONS } = await import('../../discover/collections.ts')
+test('recognizes only registered collection ids', () => {
+  assert.equal(isDiscoverCollectionId('star-wars'), true)
+  assert.equal(isDiscoverCollectionId('mcu'), true)
+  assert.equal(isDiscoverCollectionId('shrek'), true)
+
+  assert.equal(isDiscoverCollectionId('hidden-gems'), false)
+  assert.equal(isDiscoverCollectionId('whatever'), false)
+})
+
+test('exports franchise collections in stable editorial order', () => {
+  assert.deepEqual(
+    DISCOVER_COLLECTIONS.map((collection) => collection.id),
+    EXPECTED_COLLECTION_IDS
+  )
+})
+
+test('collection ids are unique', () => {
+  const ids = DISCOVER_COLLECTIONS.map((collection) => collection.id)
+
+  assert.equal(new Set(ids).size, ids.length)
+})
+
+test('every collection exposes complete presentation metadata', () => {
+  for (const collection of DISCOVER_COLLECTIONS) {
+    assert.ok(collection.titleKey)
+    assert.ok(collection.titleDefault)
+    assert.ok(collection.descriptionKey)
+    assert.ok(collection.descriptionDefault)
+
+    assert.match(collection.titleKey, /^discover\.collections\./)
+    assert.match(collection.descriptionKey, /^discover\.collections\./)
+
+    assert.ok(collection.hero)
+    assert.ok(collection.source)
+    assert.ok(collection.views.length > 0)
+  }
+})
+
+test('every collection hero has a stable movie or tv identity', () => {
+  for (const collection of DISCOVER_COLLECTIONS) {
+    const identity = discoverCollectionMediaIdentity(collection.hero)
+
+    assert.match(identity, /^(movie|tv):\d+$/)
+  }
+})
+
+test('media identity keeps movie and tv ids separate', () => {
+  assert.equal(
+    discoverCollectionMediaIdentity({
+      tmdbId: 10,
+      type: 'movie',
+    }),
+    'movie:10'
+  )
+
+  assert.equal(
+    discoverCollectionMediaIdentity({
+      tmdbId: 10,
+      type: 'tv',
+    }),
+    'tv:10'
+  )
+})
+
+test('getDiscoverCollection returns the registered collection definition', () => {
+  const collection = getDiscoverCollection('middle-earth')
+
+  assert.equal(collection.id, 'middle-earth')
+  assert.equal(collection.titleDefault, 'Middle-earth')
+
+  assert.equal(
+    collection,
+    DISCOVER_COLLECTIONS.find((item) => item.id === 'middle-earth')
+  )
+})
+
+test('Star Wars combines franchise films with the wider universe', () => {
+  const collection = getDiscoverCollection('star-wars')
+
+  assert.equal(collection.source.type, 'composite')
 
   assert.deepEqual(
-    DISCOVER_COLLECTIONS.map((collection) => ({
-      id: collection.id,
-      titleKey: collection.titleKey,
-      descriptionKey: collection.descriptionKey,
+    collection.source.sources.map((source) => ({
+      id: source.id,
+      type: source.type,
     })),
     [
       {
-        id: 'hidden-gems',
-        titleKey: 'discover.collections.hiddenGems.title',
-        descriptionKey: 'discover.collections.hiddenGems.description',
+        id: 'star-wars-films',
+        type: 'tmdb-collection',
       },
       {
-        id: 'quick-watch',
-        titleKey: 'discover.collections.quickWatch.title',
-        descriptionKey: 'discover.collections.quickWatch.description',
+        id: 'star-wars-universe',
+        type: 'tmdb-keyword',
       },
-      {
-        id: '90s-essentials',
-        titleKey: 'discover.collections.ninetiesEssentials.title',
-        descriptionKey: 'discover.collections.ninetiesEssentials.description',
-      },
-      {
-        id: 'modern-classics',
-        titleKey: 'discover.collections.modernClassics.title',
-        descriptionKey: 'discover.collections.modernClassics.description',
-      },
-      {
-        id: 'critically-acclaimed',
-        titleKey: 'discover.collections.criticallyAcclaimed.title',
-        descriptionKey: 'discover.collections.criticallyAcclaimed.description',
-      },
-      {
-        id: 'something-weird',
-        titleKey: 'discover.collections.somethingWeird.title',
-        descriptionKey: 'discover.collections.somethingWeird.description',
-      },
-      {
-        id: 'new-this-month',
-        titleKey: 'discover.collections.newThisMonth.title',
-        descriptionKey: 'discover.collections.newThisMonth.description',
-      },
-    ],
+    ]
+  )
+
+  assert.deepEqual(
+    collection.views.map((view) => view.id),
+    ['skywalker-saga', 'movies', 'series', 'release-order']
   )
 })
 
-test('explicit filters narrow Hidden Gems without replacing its criteria', async () => {
-  const { mergeDiscoverCriteria, parseDiscoverCollection } = await import('../../discover/collections.ts')
+test('MCU keeps dynamic franchise membership separate from curated chronology', () => {
+  const collection = getDiscoverCollection('mcu')
 
-  const result = mergeDiscoverCriteria({
-    collection: parseDiscoverCollection('hidden-gems'),
-    filters: { mediaType: 'movie', genreIds: [18], minRating: 8 },
-    page: 1,
-  })
+  assert.equal(collection.source.type, 'composite')
 
-  assert.equal(result.requests.length, 1)
-  assert.equal(result.requests[0].type, 'movie')
-  assert.equal(result.requests[0].params.with_genres, '18')
-  assert.equal(result.requests[0].params['vote_average.gte'], '8')
-  assert.ok(result.requests[0].params['vote_count.gte'])
-  assert.ok(result.queryKey.includes('hidden-gems'))
+  const chronological = collection.views.find((view) => view.id === 'chronological')
+
+  assert.ok(chronological)
+  assert.equal(chronological.type, 'curated-order')
+  assert.equal(chronological.includeUnranked, false)
+  assert.ok(chronological.order.length > 0)
+
+  const releaseOrder = collection.views.find((view) => view.id === 'release-order')
+
+  assert.ok(releaseOrder)
+  assert.equal(releaseOrder.type, 'release-order')
 })
 
-test('normal and collection states use different query keys', async () => {
-  const { mergeDiscoverCriteria, parseDiscoverCollection } = await import('../../discover/collections.ts')
+test('collections can expose multiple independently addressable franchise views', () => {
+  const collection = getDiscoverCollection('wizarding-world')
 
-  const filters = { mediaType: 'all', genreIds: [], minRating: 0 }
-  const normal = mergeDiscoverCriteria({ collection: null, filters, page: 1 })
-  const curated = mergeDiscoverCriteria({
-    collection: parseDiscoverCollection('quick-watch'),
-    filters,
-    page: 1,
-  })
-
-  assert.notDeepEqual(normal.queryKey, curated.queryKey)
-})
-
-test('query keys use effective collection rating criteria', async () => {
-  const { mergeDiscoverCriteria, parseDiscoverCollection } = await import('../../discover/collections.ts')
-
-  const collection = parseDiscoverCollection('hidden-gems')
-  const baseline = mergeDiscoverCriteria({
-    collection,
-    filters: { mediaType: 'movie', genreIds: [], minRating: 0 },
-    page: 1,
-  })
-  const redundantRating = mergeDiscoverCriteria({
-    collection,
-    filters: { mediaType: 'movie', genreIds: [], minRating: 6 },
-    page: 1,
-  })
-
-  assert.deepEqual(redundantRating.requests, baseline.requests)
-  assert.deepEqual(redundantRating.queryKey, baseline.queryKey)
-})
-
-test('quick watch TV state remains distinct and produces no requests', async () => {
-  const { mergeDiscoverCriteria, parseDiscoverCollection } = await import('../../discover/collections.ts')
-
-  const collection = parseDiscoverCollection('quick-watch')
-  const allMedia = mergeDiscoverCriteria({
-    collection,
-    filters: { mediaType: 'all', genreIds: [], minRating: 0 },
-    page: 1,
-  })
-  const movieOnly = mergeDiscoverCriteria({
-    collection,
-    filters: { mediaType: 'movie', genreIds: [], minRating: 0 },
-    page: 1,
-  })
-  const tvOnly = mergeDiscoverCriteria({
-    collection,
-    filters: { mediaType: 'tv', genreIds: [], minRating: 0 },
-    page: 1,
-  })
-
-  assert.deepEqual(allMedia.requests, movieOnly.requests)
-  assert.deepEqual(allMedia.queryKey, movieOnly.queryKey)
-  assert.equal(tvOnly.requests.length, 0)
-  assert.notDeepEqual(tvOnly.queryKey, movieOnly.queryKey)
-})
-
-test('quick watch does not build a tv query', async () => {
-  const { buildDiscoverCollectionParams, parseDiscoverCollection } = await import('../../discover/collections.ts')
-
-  assert.equal(
-    buildDiscoverCollectionParams(parseDiscoverCollection('quick-watch'), 'tv'),
-    null,
+  assert.deepEqual(
+    collection.views.map((view) => view.id),
+    ['harry-potter', 'fantastic-beasts', 'release-order']
   )
+
+  const harryPotter = collection.views.find((view) => view.id === 'harry-potter')
+
+  assert.ok(harryPotter)
+  assert.equal(harryPotter.type, 'source')
+  assert.deepEqual(harryPotter.sourceIds, ['harry-potter'])
 })
 
-test('something weird keeps its bounded genre mix when filters overlap', async () => {
-  const { mergeDiscoverCriteria, parseDiscoverCollection } = await import('../../discover/collections.ts')
+test('release-range views can describe franchise eras', () => {
+  const collection = getDiscoverCollection('james-bond')
 
-  const result = mergeDiscoverCriteria({
-    collection: parseDiscoverCollection('something-weird'),
-    filters: { mediaType: 'movie', genreIds: [27], minRating: 0 },
-    page: 1,
-  })
+  const classicEra = collection.views.find((view) => view.id === 'classic-era')
 
-  assert.equal(result.requests.length, 1)
-  assert.equal(result.requests[0].params.with_genres, '27,14|878|9648')
-  assert.equal(result.requests[0].params['popularity.lte'], '35')
-  assert.equal(result.requests[0].params['vote_count.gte'], '75')
+  assert.ok(classicEra)
+  assert.equal(classicEra.type, 'release-range')
+  assert.equal(classicEra.from, '1962-01-01')
+  assert.equal(classicEra.to, '1971-12-31')
+  assert.equal(classicEra.mediaType, 'movie')
+
+  const danielCraigEra = collection.views.find((view) => view.id === 'daniel-craig-era')
+
+  assert.ok(danielCraigEra)
+  assert.equal(danielCraigEra.type, 'release-range')
+  assert.equal(danielCraigEra.from, '2006-01-01')
+  assert.equal(danielCraigEra.to, '2021-12-31')
 })
 
-test('new this month requires an explicit date window and stays deterministic with one', async () => {
-  const { buildDiscoverCollectionParams, mergeDiscoverCriteria, parseDiscoverCollection } = await import('../../discover/collections.ts')
+test('static title counts are deterministic but do not represent resolved collection size', () => {
+  for (const collection of DISCOVER_COLLECTIONS) {
+    const count = getDiscoverCollectionTitleCount(collection)
 
-  const dateWindow = {
-    start: '2024-02-10',
-    end: '2024-02-19',
+    assert.equal(Number.isInteger(count), true)
+    assert.ok(count >= 1)
   }
 
-  const collection = parseDiscoverCollection('new-this-month')
-  const withoutWindow = buildDiscoverCollectionParams(collection, 'movie')
-  const withoutWindowMerged = mergeDiscoverCriteria({
-    collection,
-    filters: { mediaType: 'movie', genreIds: [], minRating: 0 },
-    page: 1,
-  })
-
-  const first = mergeDiscoverCriteria({
-    collection,
-    filters: { mediaType: 'movie', genreIds: [], minRating: 0 },
-    page: 1,
-    dateWindow,
-  })
-  const second = mergeDiscoverCriteria({
-    collection,
-    filters: { mediaType: 'movie', genreIds: [], minRating: 0 },
-    page: 1,
-    dateWindow,
-  })
-
-  assert.equal(withoutWindow, null)
-  assert.equal(withoutWindowMerged.requests.length, 0)
-  assert.equal(first.requests[0].params['release_date.gte'], '2024-02-10')
-  assert.equal(first.requests[0].params['release_date.lte'], '2024-02-19')
-  assert.deepEqual(second, first)
-})
-
-test('new this month carries the server-derived region into collection requests', async () => {
-  const { mergeDiscoverCriteria, parseDiscoverCollection } = await import('../../discover/collections.ts')
-
-  const result = mergeDiscoverCriteria({
-    collection: parseDiscoverCollection('new-this-month'),
-    filters: { mediaType: 'movie', genreIds: [], minRating: 0 },
-    page: 1,
-    dateWindow: {
-      start: '2024-02-10',
-      end: '2024-02-19',
-    },
-    region: 'BR',
-  })
-
-  assert.equal(result.requests.length, 1)
-  assert.equal(result.requests[0].params.region, 'BR')
+  assert.ok(
+    getDiscoverCollectionTitleCount(getDiscoverCollection('mcu')) >
+      getDiscoverCollectionTitleCount(getDiscoverCollection('the-matrix'))
+  )
 })

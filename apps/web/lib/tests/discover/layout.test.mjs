@@ -12,10 +12,7 @@ test('discover uses comfortable media rows', async () => {
 })
 
 test('comfortable media rows have wide-desktop geometry', async () => {
-  const css = await readFile(
-    new URL('../../../app/globals.css', import.meta.url),
-    'utf8'
-  )
+  const css = await readFile(new URL('../../../app/globals.css', import.meta.url), 'utf8')
 
   assert.match(css, /\.media-row--comfortable/)
   assert.match(css, /grid-auto-columns:\s*clamp\(180px,\s*10vw,\s*196px\)/)
@@ -38,25 +35,11 @@ test('normal discover places personalized and collection sections before catalog
 
   assert.match(
     source,
-    /const featuredSections = sectionOrder\.filter\([\s\S]*?\)\s*[\s\S]*const catalogSections = sectionOrder\.filter\([\s\S]*?\)/,
+    /const featuredSections = sectionOrder\.filter\([\s\S]*?\)\s*[\s\S]*const catalogSections = sectionOrder\.filter\([\s\S]*?\)/
   )
   assert.match(
     source,
-    /renderDiscoverSections\(featuredSections\)[\s\S]*<PersonalizedDiscoverSection rails=\{personalizedRails\} \/>[\s\S]*<ExploreCollections onSelect=\{updateCollection\} \/>[\s\S]*renderDiscoverSections\(catalogSections\)/,
+    /renderDiscoverSections\(featuredSections\)[\s\S]*personalized\.rows\.slice\(0,\s*2\)\.map[\s\S]*<DiscoverPersonalizedRow[\s\S]*<ExploreCollections[\s\S]*personalized\.rows\.slice\(2\)\.map[\s\S]*<DiscoverPersonalizedRow[\s\S]*renderDiscoverSections\(catalogSections\)/,
+    'normal discover should place personalized rows and collections before catalog rails'
   )
-})
-
-test('new this month region comes from the server-derived discover region', async () => {
-  const pageSource = await readFile(
-    new URL('../../../app/discover/page.tsx', import.meta.url),
-    'utf8'
-  )
-  const clientSource = await readFile(
-    new URL('../../../components/discover/discover-client.tsx', import.meta.url),
-    'utf8'
-  )
-
-  assert.match(pageSource, /const region = getRegionForLanguage\(language\);/)
-  assert.match(clientSource, /region: string;/)
-  assert.match(clientSource, /mergeDiscoverCriteria\(\{\s*[\s\S]*region,/)
 })

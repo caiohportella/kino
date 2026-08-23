@@ -9,7 +9,7 @@ import type {
   UserProfile,
 } from '@kino/core'
 import { toReviewAuthor } from '@kino/core'
-import { type ActivityKind, getActivityKind } from '@/lib/activity-presentation'
+import { type ActivityKind, getActivityKind } from '@/lib/activity/activity-presentation'
 import { titlePath, watchlistPath } from '@/lib/routes'
 
 export type ActivityFeedFilter = 'you' | 'following'
@@ -134,13 +134,22 @@ export function buildFollowingActivityFeedItems(items: readonly EnrichedActivity
     .flatMap<ActivityFeedCard | null>((item) => {
       switch (item.type) {
         case 'watch': {
-          const review = reviewByActivityKey.get(createActivityKey(item.actor.id, item.title.id))
+          const activityKey = createActivityKey(item.actor.id, item.title.id)
+
+          const review = reviewByActivityKey.get(activityKey)
+
+          const rating = ratingByActivityKey.get(activityKey)
+
+          const effectiveRating = rating?.rating ?? item.rating
+
           return {
             actor: item.actor,
-            activityKind: review ? 'watched_and_reviewed' : getActivityKind('watch', item.rating),
+            activityKind: review
+              ? 'watched_and_reviewed'
+              : getActivityKind('watch', effectiveRating),
             id: item.id,
-            occurredAt: item.watchedAt,
-            rating: item.rating,
+            occurredAt: rating ? latestTimestamp(item.watchedAt, rating.createdAt) : item.watchedAt,
+            rating: effectiveRating,
             review: review
               ? {
                   content: review.review.content,
@@ -186,8 +195,12 @@ export function buildFollowingActivityFeedItems(items: readonly EnrichedActivity
             type: item.type,
           }
         }
-        case 'rating':
-          if (reviewByActivityKey.has(createActivityKey(item.actor.id, item.title.id))) return null
+        case 'rating': {
+          const activityKey = createActivityKey(item.actor.id, item.title.id)
+
+          if (reviewByActivityKey.has(activityKey) || watchedActivityKeys.has(activityKey)) {
+            return null
+          }
 
           return {
             actor: item.actor,
@@ -205,6 +218,8 @@ export function buildFollowingActivityFeedItems(items: readonly EnrichedActivity
             }),
             type: item.type,
           }
+        }
+
         case 'watchlist_create':
           return {
             actor: item.actor,

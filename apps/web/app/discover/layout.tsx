@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
-import { localizedRouteMetadata } from '@/lib/server-metadata'
+import { localizedPublicRouteMetadata } from '@/lib/seo/server-metadata'
 
 export async function generateMetadata() {
-  return localizedRouteMetadata({
+  return localizedPublicRouteMetadata({
     canonicalPath: '/discover',
     descriptionKey: 'metadata.discoverDescription',
     imagePath: { alt: 'metadata.discoverTitle', path: '/discover/opengraph-image' },

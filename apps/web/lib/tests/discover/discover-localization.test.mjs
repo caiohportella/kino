@@ -1,169 +1,133 @@
-import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import test from "node:test";
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import test from 'node:test'
 
-import extractKinoTranslations from "../../../../../scripts/tolgee-extractor.mjs";
+import extractKinoTranslations from '../../../../../scripts/tolgee-extractor.mjs'
+import { DISCOVER_COLLECTIONS } from '../../discover/collections.ts'
 
-const englishUrl = new URL(
-  "../../../../../packages/i18n/generated/en-GB.json",
-  import.meta.url,
-);
+const englishUrl = new URL('../../../../../packages/i18n/generated/en-GB.json', import.meta.url)
 
-const discoverCollectionsUrl = new URL(
-  "../../discover/collections.ts",
-  import.meta.url,
-);
-const discoverLocalizationUrl = new URL(
-  "../../discover/discover-localization.ts",
-  import.meta.url,
-);
+const discoverLocalizationUrl = new URL('../../discover/discover-localization.ts', import.meta.url)
 
 function readJson(url) {
-  return JSON.parse(readFileSync(url, "utf8"));
+  return JSON.parse(readFileSync(url, 'utf8'))
 }
 
 function readSource(url) {
-  return readFileSync(url, "utf8");
+  return readFileSync(url, 'utf8')
 }
 
 function readNestedValue(object, key) {
-  return key.split(".").reduce((current, segment) => current?.[segment], object);
+  return key.split('.').reduce((current, segment) => current?.[segment], object)
 }
 
-test("discover localization source keeps collection copy out of query definitions", async () => {
-  const { DISCOVER_COLLECTIONS } = await import("../../discover/collections.ts");
+function collectionTranslationEntries() {
+  return DISCOVER_COLLECTIONS.flatMap((collection) => [
+    [collection.titleKey, collection.titleDefault],
+    [collection.descriptionKey, collection.descriptionDefault],
+    ...collection.views.map((view) => [view.titleKey, view.titleDefault]),
+  ])
+}
 
-  assert.deepEqual(
-    DISCOVER_COLLECTIONS.map((collection) => ({
-      id: collection.id,
-      titleKey: collection.titleKey,
-      descriptionKey: collection.descriptionKey,
-    })),
-    [
-      {
-        id: "hidden-gems",
-        titleKey: "discover.collections.hiddenGems.title",
-        descriptionKey: "discover.collections.hiddenGems.description",
-      },
-      {
-        id: "quick-watch",
-        titleKey: "discover.collections.quickWatch.title",
-        descriptionKey: "discover.collections.quickWatch.description",
-      },
-      {
-        id: "90s-essentials",
-        titleKey: "discover.collections.ninetiesEssentials.title",
-        descriptionKey: "discover.collections.ninetiesEssentials.description",
-      },
-      {
-        id: "modern-classics",
-        titleKey: "discover.collections.modernClassics.title",
-        descriptionKey: "discover.collections.modernClassics.description",
-      },
-      {
-        id: "critically-acclaimed",
-        titleKey: "discover.collections.criticallyAcclaimed.title",
-        descriptionKey: "discover.collections.criticallyAcclaimed.description",
-      },
-      {
-        id: "something-weird",
-        titleKey: "discover.collections.somethingWeird.title",
-        descriptionKey: "discover.collections.somethingWeird.description",
-      },
-      {
-        id: "new-this-month",
-        titleKey: "discover.collections.newThisMonth.title",
-        descriptionKey: "discover.collections.newThisMonth.description",
-      },
-    ],
-  );
+test('discover collections own complete localization metadata', () => {
+  const keys = []
 
-  assert.doesNotMatch(readSource(discoverCollectionsUrl), /defaultTitle|defaultDescription/);
-});
+  for (const collection of DISCOVER_COLLECTIONS) {
+    assert.match(collection.titleKey, /^discover\.collections\./)
+    assert.match(collection.descriptionKey, /^discover\.collections\./)
 
-test("discover localization defaults stay inline so the extractor can see them", () => {
-  const extracted = extractKinoTranslations(readSource(discoverLocalizationUrl)).keys;
-  const extractedDefaults = Object.fromEntries(
-    extracted.map(({ keyName, defaultValue }) => [keyName, defaultValue]),
-  );
+    assert.ok(collection.titleDefault.length > 0)
+    assert.ok(collection.descriptionDefault.length > 0)
 
-  assert.deepEqual(extractedDefaults, {
-    "discover.forYou": "For You",
-    "discover.exploreCollections": "Explore collections",
-    "discover.collections.hiddenGems.title": "Hidden Gems",
-    "discover.collections.hiddenGems.description":
-      "Highly rated titles you may have missed",
-    "discover.collections.quickWatch.title": "Quick Watch",
-    "discover.collections.quickWatch.description":
-      "Great movies under 100 minutes",
-    "discover.collections.ninetiesEssentials.title": "90s Essentials",
-    "discover.collections.ninetiesEssentials.description":
-      "Essential titles from the 1990s",
-    "discover.collections.modernClassics.title": "Modern Classics",
-    "discover.collections.modernClassics.description":
-      "Beloved titles from 2000 to 2019",
-    "discover.collections.criticallyAcclaimed.title": "Critically Acclaimed",
-    "discover.collections.criticallyAcclaimed.description":
-      "Widely praised titles with a lasting reputation",
-    "discover.collections.somethingWeird.title": "Something Weird",
-    "discover.collections.somethingWeird.description":
-      "Unusual, underseen titles worth discovering",
-    "discover.collections.newThisMonth.title": "New This Month",
-    "discover.collections.newThisMonth.description":
-      "Recent releases from your region",
-    "discover.collections.active.label": "Collection",
-    "discover.collections.open": "Open collection",
-    "discover.collections.explore.description":
-      "Editorial picks for nights when you want a strong starting point.",
-    "discover.personalized.becauseYouLiked": "Because you liked {{title}}",
-    "discover.personalized.moreFromDirectors": "More from {{name}}",
-    "discover.personalized.exploreMoreGenre": "Explore more {{genre}}",
-    "discover.personalized.popularAmongFollowing":
-      "Popular among people you follow",
-    "discover.collections.clear": "Clear collection",
-  });
-});
+    keys.push(collection.titleKey, collection.descriptionKey)
 
-test("generated English discover catalog includes the expected collection and personalization copy", () => {
-  const english = readJson(englishUrl);
+    for (const view of collection.views) {
+      assert.match(view.titleKey, /^discover\.collections\./)
+      assert.ok(view.titleDefault.length > 0)
+
+      keys.push(view.titleKey)
+    }
+  }
+
+  assert.equal(
+    new Set(keys).size,
+    keys.length,
+    'Discover collection translation keys must be unique'
+  )
+})
+
+test('removed semantic collection localization keys are no longer registered', () => {
+  const keys = new Set(
+    DISCOVER_COLLECTIONS.flatMap((collection) => [
+      collection.titleKey,
+      collection.descriptionKey,
+      ...collection.views.map((view) => view.titleKey),
+    ])
+  )
+
+  const removedKeys = [
+    'discover.collections.hiddenGems.title',
+    'discover.collections.hiddenGems.description',
+    'discover.collections.quickWatch.title',
+    'discover.collections.quickWatch.description',
+    'discover.collections.ninetiesEssentials.title',
+    'discover.collections.ninetiesEssentials.description',
+    'discover.collections.modernClassics.title',
+    'discover.collections.modernClassics.description',
+    'discover.collections.criticallyAcclaimed.title',
+    'discover.collections.criticallyAcclaimed.description',
+    'discover.collections.somethingWeird.title',
+    'discover.collections.somethingWeird.description',
+    'discover.collections.newThisMonth.title',
+    'discover.collections.newThisMonth.description',
+  ]
+
+  for (const key of removedKeys) {
+    assert.equal(keys.has(key), false, `Expected ${key} to be removed`)
+  }
+})
+
+test('discover shared localization defaults remain extractable by Tolgee', () => {
+  const extracted = extractKinoTranslations(readSource(discoverLocalizationUrl)).keys
+
+  const defaults = Object.fromEntries(
+    extracted.map(({ keyName, defaultValue }) => [keyName, defaultValue])
+  )
+
+  assert.equal(defaults['discover.collections.heading'], 'Explore collections')
+
+  assert.equal(
+    defaults['discover.collections.subtitle'],
+    'Explore iconic franchises, sagas and cinematic universes.'
+  )
+
+  assert.equal(defaults['discover.collections.active'], 'Collection')
+
+  assert.equal(defaults['discover.collections.open'], 'Open collection')
+
+  assert.equal(defaults['discover.collections.clear'], 'Clear collection')
+})
+
+test('generated English catalog contains every collection title description and view label', () => {
+  const english = readJson(englishUrl)
+
+  for (const [key, expected] of collectionTranslationEntries()) {
+    assert.equal(readNestedValue(english, key), expected, `Expected ${key} to equal ${expected}`)
+  }
+})
+
+test('generated English catalog contains current shared collection copy', () => {
+  const english = readJson(englishUrl)
 
   const expectedDefaults = {
-    "discover.forYou": "For You",
-    "discover.exploreCollections": "Explore collections",
-    "discover.collections.hiddenGems.title": "Hidden Gems",
-    "discover.collections.hiddenGems.description":
-      "Highly rated titles you may have missed",
-    "discover.collections.quickWatch.title": "Quick Watch",
-    "discover.collections.quickWatch.description":
-      "Great movies under 100 minutes",
-    "discover.collections.ninetiesEssentials.title": "90s Essentials",
-    "discover.collections.ninetiesEssentials.description":
-      "Essential titles from the 1990s",
-    "discover.collections.modernClassics.title": "Modern Classics",
-    "discover.collections.modernClassics.description":
-      "Beloved titles from 2000 to 2019",
-    "discover.collections.criticallyAcclaimed.title": "Critically Acclaimed",
-    "discover.collections.criticallyAcclaimed.description":
-      "Widely praised titles with a lasting reputation",
-    "discover.collections.somethingWeird.title": "Something Weird",
-    "discover.collections.somethingWeird.description":
-      "Unusual, underseen titles worth discovering",
-    "discover.collections.newThisMonth.title": "New This Month",
-    "discover.collections.newThisMonth.description":
-      "Recent releases from your region",
-    "discover.collections.active.label": "Collection",
-    "discover.collections.open": "Open collection",
-    "discover.collections.explore.description":
-      "Editorial picks for nights when you want a strong starting point.",
-    "discover.personalized.becauseYouLiked": "Because you liked {{title}}",
-    "discover.personalized.moreFromDirectors": "More from {{name}}",
-    "discover.personalized.exploreMoreGenre": "Explore more {{genre}}",
-    "discover.personalized.popularAmongFollowing":
-      "Popular among people you follow",
-    "discover.collections.clear": "Clear collection",
-  };
+    'discover.collections.heading': 'Explore collections',
+    'discover.collections.subtitle': 'Explore iconic franchises, sagas and cinematic universes.',
+    'discover.collections.active': 'Collection',
+    'discover.collections.open': 'Open collection',
+    'discover.collections.clear': 'Clear collection',
+  }
 
   for (const [key, value] of Object.entries(expectedDefaults)) {
-    assert.equal(readNestedValue(english, key), value, `Expected ${key} to equal ${value}`);
+    assert.equal(readNestedValue(english, key), value, `Expected ${key} to equal ${value}`)
   }
-});
+})

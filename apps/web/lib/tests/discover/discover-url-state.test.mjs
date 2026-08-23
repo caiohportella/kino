@@ -1,12 +1,19 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
+import {
+  normalizeDiscoverFilterState,
+  readDiscoverUrlState,
+  writeDiscoverCollectionUrl,
+  writeDiscoverFilterUrl,
+} from '../../discover/discover-url-state.ts'
+
 function readParams(query) {
   return new URLSearchParams(query)
 }
 
-function toObject(query) {
-  return Object.fromEntries(new URLSearchParams(query).entries())
+function toObject(params) {
+  return Object.fromEntries(new URLSearchParams(params).entries())
 }
 
 const genres = [
@@ -15,184 +22,210 @@ const genres = [
   { id: 27, name: 'Horror' },
 ]
 
-test('reads a valid collection and filters from URL params', async () => {
-  const { readDiscoverUrlState } = await import('../../discover/discover-url-state.ts')
-
+test('reads a valid franchise collection with neutral filters', () => {
   const state = readDiscoverUrlState(
-    readParams('collection=hidden-gems&type=movie&genres=18,999,12&rating=7&page=3'),
-    genres,
+    readParams('collection=star-wars&type=movie&genres=18,12&rating=7&page=3'),
+    genres
   )
 
-  assert.equal(state.collection?.id, 'hidden-gems')
-  assert.deepEqual(state.filters, {
-    mediaType: 'movie',
-    genreIds: [18, 12],
-    minRating: 7,
-  })
-  assert.equal(state.page, 3)
-})
+  assert.equal(state.collection?.id, 'star-wars')
 
-test('invalid collection params resolve to normal Discover', async () => {
-  const { readDiscoverUrlState } = await import('../../discover/discover-url-state.ts')
-
-  const state = readDiscoverUrlState(
-    readParams('collection=not-real&type=nope&genres=27,0&rating=15&page=-2'),
-    genres,
-  )
-
-  assert.equal(state.collection, null)
   assert.deepEqual(state.filters, {
     mediaType: 'all',
-    genreIds: [27],
+    genreIds: [],
     minRating: 0,
   })
-  assert.equal(state.page, 1)
 })
 
-test('normal Discover preserves valid filter params without a collection', async () => {
-  const { readDiscoverUrlState } = await import('../../discover/discover-url-state.ts')
-
+test('invalid collection params fall back to normal Discover filters', () => {
   const state = readDiscoverUrlState(
-    readParams('type=movie&genres=18&rating=7&page=2'),
-    genres,
+    readParams('collection=not-real&type=movie&genres=27,999,12&rating=7'),
+    genres
   )
 
   assert.equal(state.collection, null)
+
   assert.deepEqual(state.filters, {
     mediaType: 'movie',
-    genreIds: [18],
+    genreIds: [12, 27],
     minRating: 7,
   })
-  assert.equal(state.page, 2)
 })
 
-test('clearing collection preserves unrelated filters', async () => {
-  const { writeDiscoverCollectionUrl } = await import('../../discover/discover-url-state.ts')
+test('normal Discover reads and normalizes valid filter params', () => {
+  const state = readDiscoverUrlState(readParams('type=movie&genres=18,12,18&rating=7'), genres)
 
-  const next = writeDiscoverCollectionUrl(
-    readParams('collection=hidden-gems&type=movie&rating=7'),
-    null,
-  )
+  assert.equal(state.collection, null)
 
-  assert.deepEqual(toObject(next), {
-    type: 'movie',
-    rating: '7',
+  assert.deepEqual(state.filters, {
+    mediaType: 'movie',
+    genreIds: [12, 18],
+    minRating: 7,
   })
 })
 
-test('activating collection preserves genres, resets page, and keeps applicable state', async () => {
-  const { writeDiscoverCollectionUrl } = await import('../../discover/discover-url-state.ts')
+test('invalid media type falls back to all', () => {
+  const state = readDiscoverUrlState(readParams('type=nope'), genres)
 
-  const next = writeDiscoverCollectionUrl(
-    readParams('type=movie&genres=18,12&page=4&rating=7'),
-    'quick-watch',
-  )
-
-  assert.deepEqual(toObject(next), {
-    collection: 'quick-watch',
-    type: 'movie',
-    genres: '18,12',
-    rating: '7',
+  assert.deepEqual(state.filters, {
+    mediaType: 'all',
+    genreIds: [],
+    minRating: 0,
   })
 })
 
-test('activating collection still removes incompatible media type while preserving genres', async () => {
-  const { writeDiscoverCollectionUrl } = await import('../../discover/discover-url-state.ts')
+test('unknown genres are discarded while valid genres are preserved', () => {
+  const state = readDiscoverUrlState(readParams('genres=999,18,0,12'), genres)
 
-  const next = writeDiscoverCollectionUrl(
-    readParams('type=tv&genres=18&page=4&rating=7'),
-    'quick-watch',
-  )
-
-  assert.deepEqual(toObject(next), {
-    collection: 'quick-watch',
-    type: 'tv',
-    genres: '18',
-    rating: '7',
-  })
+  assert.deepEqual(state.filters.genreIds, [12, 18])
 })
 
-test('filter writes preserve collection and reset page', async () => {
-  const {
-    writeDiscoverFilterUrl,
-    readDiscoverUrlState,
-  } = await import('../../discover/discover-url-state.ts')
-  const { parseDiscoverCollection } = await import('../../discover/collections.ts')
+test('minimum rating is clamped to the supported range', () => {
+  const aboveMaximum = readDiscoverUrlState(readParams('rating=15'), genres)
 
-  const collection = parseDiscoverCollection('hidden-gems')
-  const next = writeDiscoverFilterUrl(
-    readParams('collection=hidden-gems&page=5'),
+  const belowMinimum = readDiscoverUrlState(readParams('rating=-5'), genres)
+
+  const invalid = readDiscoverUrlState(readParams('rating=whatever'), genres)
+
+  assert.equal(aboveMaximum.filters.minRating, 10)
+  assert.equal(belowMinimum.filters.minRating, 0)
+  assert.equal(invalid.filters.minRating, 0)
+})
+
+test('normalizing filters deduplicates genres and clamps rating', () => {
+  assert.deepEqual(
+    normalizeDiscoverFilterState({
+      mediaType: 'movie',
+      genreIds: [27, 12, 27, -1, 0],
+      minRating: 12,
+    }),
     {
       mediaType: 'movie',
-      genreIds: [18, 12],
-      minRating: 7,
-    },
-    collection,
+      genreIds: [12, 27],
+      minRating: 10,
+    }
+  )
+})
+
+test('activating a collection exits filter mode and removes old pagination', () => {
+  const next = writeDiscoverCollectionUrl(
+    readParams('type=movie&genres=18,12&rating=7&page=4'),
+    'star-wars'
   )
 
   assert.deepEqual(toObject(next), {
-    collection: 'hidden-gems',
-    type: 'movie',
-    genres: '18,12',
-    rating: '7',
+    collection: 'star-wars',
   })
+})
 
-  const roundTrip = readDiscoverUrlState(readParams(next), genres)
+test('switching collections replaces the active collection', () => {
+  const next = writeDiscoverCollectionUrl(readParams('collection=star-wars'), 'mcu')
 
-  assert.equal(roundTrip.collection?.id, 'hidden-gems')
-  assert.deepEqual(roundTrip.filters, {
+  assert.deepEqual(toObject(next), {
+    collection: 'mcu',
+  })
+})
+
+test('clearing a collection removes collection and stale pagination', () => {
+  const next = writeDiscoverCollectionUrl(readParams('collection=star-wars&page=4'), null)
+
+  assert.deepEqual(toObject(next), {})
+})
+
+test('clearing a collection does not delete unrelated URL params', () => {
+  const next = writeDiscoverCollectionUrl(
+    readParams('collection=star-wars&type=movie&rating=7&foo=bar&page=3'),
+    null
+  )
+
+  assert.deepEqual(toObject(next), {
+    type: 'movie',
+    rating: '7',
+    foo: 'bar',
+  })
+})
+
+test('applying filters exits collection mode and removes old pagination', () => {
+  const next = writeDiscoverFilterUrl(readParams('collection=star-wars&page=5'), {
     mediaType: 'movie',
     genreIds: [18, 12],
     minRating: 7,
   })
-  assert.equal(roundTrip.page, 1)
-})
-
-test('filter writes preserve an explicit Quick Watch TV constraint', async () => {
-  const { writeDiscoverFilterUrl } = await import('../../discover/discover-url-state.ts')
-  const { parseDiscoverCollection } = await import('../../discover/collections.ts')
-
-  const collection = parseDiscoverCollection('quick-watch')
-  const next = writeDiscoverFilterUrl(
-    readParams('collection=quick-watch&page=3&rating=7'),
-    {
-      mediaType: 'tv',
-      genreIds: [],
-      minRating: 8,
-    },
-    collection,
-  )
 
   assert.deepEqual(toObject(next), {
-    collection: 'quick-watch',
-    type: 'tv',
-    rating: '8',
+    type: 'movie',
+    genres: '12,18',
+    rating: '7',
   })
 })
 
-test('Quick Watch TV filter changes remain explicit and produce no live requests', async () => {
-  const { normalizeDiscoverFilterState } = await import('../../discover/discover-url-state.ts')
-  const { mergeDiscoverCriteria, parseDiscoverCollection } = await import('../../discover/collections.ts')
-
-  const collection = parseDiscoverCollection('quick-watch')
-  const filters = normalizeDiscoverFilterState(
-    {
-      mediaType: 'tv',
-      genreIds: [],
-      minRating: 8,
-    },
-    collection,
-  )
-  const criteria = mergeDiscoverCriteria({
-    collection,
-    filters,
-    page: 1,
+test('filter writes normalize duplicate genres and rating bounds', () => {
+  const next = writeDiscoverFilterUrl(readParams('page=2'), {
+    mediaType: 'tv',
+    genreIds: [27, 12, 27],
+    minRating: 15,
   })
 
-  assert.deepEqual(filters, {
-    mediaType: 'tv',
+  assert.deepEqual(toObject(next), {
+    type: 'tv',
+    genres: '12,27',
+    rating: '10',
+  })
+})
+
+test('neutral filters remove Discover filter params', () => {
+  const next = writeDiscoverFilterUrl(readParams('type=movie&genres=12,18&rating=8&page=3'), {
+    mediaType: 'all',
     genreIds: [],
+    minRating: 0,
+  })
+
+  assert.deepEqual(toObject(next), {})
+})
+
+test('filter writes preserve unrelated URL params', () => {
+  const next = writeDiscoverFilterUrl(readParams('collection=star-wars&page=4&foo=bar'), {
+    mediaType: 'tv',
+    genreIds: [27],
+    minRating: 6,
+  })
+
+  assert.deepEqual(toObject(next), {
+    foo: 'bar',
+    type: 'tv',
+    genres: '27',
+    rating: '6',
+  })
+})
+
+test('collection state round trips through the URL', () => {
+  const query = writeDiscoverCollectionUrl(new URLSearchParams(), 'middle-earth')
+
+  const state = readDiscoverUrlState(readParams(query), genres)
+
+  assert.equal(state.collection?.id, 'middle-earth')
+
+  assert.deepEqual(state.filters, {
+    mediaType: 'all',
+    genreIds: [],
+    minRating: 0,
+  })
+})
+
+test('filter state round trips through the URL', () => {
+  const query = writeDiscoverFilterUrl(new URLSearchParams(), {
+    mediaType: 'tv',
+    genreIds: [27, 12],
     minRating: 8,
   })
-  assert.equal(criteria.requests.length, 0)
+
+  const state = readDiscoverUrlState(query, genres)
+
+  assert.equal(state.collection, null)
+
+  assert.deepEqual(state.filters, {
+    mediaType: 'tv',
+    genreIds: [12, 27],
+    minRating: 8,
+  })
 })

@@ -9,7 +9,7 @@ import {
   type ActivityFeedFilter,
   buildDiaryActivityFeedItems,
   buildFollowingActivityFeedItems,
-} from '@/lib/activity-feed'
+} from '@/lib/activity/activity-feed'
 import { db } from '@/lib/services'
 
 export function useActivityFeed(
