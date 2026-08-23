@@ -7,6 +7,7 @@ test('defines named cache policies for every progressive profile query boundary'
     'usernameResolution',
     'identity',
     'relationship',
+    'collection',
     'watchedMovies',
     'watchedSeries',
     'diaryEntries',
@@ -44,4 +45,11 @@ test('activity feed cache policy keeps items fresh for a short window and retain
   assert.equal(typeof activityCachePolicies.feed.gcTime, 'number')
   assert.ok(activityCachePolicies.feed.staleTime > 0)
   assert.ok(activityCachePolicies.feed.gcTime >= activityCachePolicies.feed.staleTime)
+})
+
+test('uses profile section freshness for collection pages', () => {
+  assert.deepEqual(profileCachePolicies.collection, {
+    staleTime: 5 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+  })
 })

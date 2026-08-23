@@ -121,6 +121,75 @@ test('search keys isolate normalized query, page, filters, locale, region, and s
   assert.notDeepEqual(first, searchQueryKeys.results({ ...reorderedInput(reordered), page: 3 }))
 })
 
+test('scopes profile collections by profile, visibility, and media type', () => {
+  const profileId = 'profile-a'
+  const visibilityScope = {
+    kind: 'authenticated',
+    userId: 'profile-viewer',
+  }
+
+  assert.deepEqual(
+    profileQueryKeys.collection({
+      profileId,
+      visibilityScope,
+      mediaType: 'movie',
+    }),
+    [
+      'v1',
+      'profile',
+      'collection',
+      'profile-a',
+      'authenticated',
+      'profile-viewer',
+      'movie',
+    ],
+  )
+
+  assert.deepEqual(
+    profileQueryKeys.collectionRoot({
+      profileId,
+      visibilityScope,
+    }),
+    [
+      'v1',
+      'profile',
+      'collection',
+      'profile-a',
+      'authenticated',
+      'profile-viewer',
+    ],
+  )
+
+  assert.notDeepEqual(
+    profileQueryKeys.collection({
+      profileId,
+      visibilityScope,
+      mediaType: 'movie',
+    }),
+    profileQueryKeys.collection({
+      profileId,
+      visibilityScope,
+      mediaType: 'tv',
+    }),
+  )
+
+  assert.notDeepEqual(
+    profileQueryKeys.collection({
+      profileId,
+      visibilityScope,
+      mediaType: 'movie',
+    }),
+    profileQueryKeys.collection({
+      profileId,
+      visibilityScope: {
+        kind: 'authenticated',
+        userId: 'another-viewer',
+      },
+      mediaType: 'movie',
+    }),
+  )
+})
+
 test('profile and watchlist keys keep public and authenticated data separate', () => {
   assert.deepEqual(
     profileQueryKeys.details({

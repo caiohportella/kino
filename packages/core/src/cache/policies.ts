@@ -31,6 +31,10 @@ export const profileCachePolicies = {
     staleTime: MINUTE_IN_MILLISECONDS,
     gcTime: 15 * MINUTE_IN_MILLISECONDS,
   },
+  collection: {
+    staleTime: 5 * MINUTE_IN_MILLISECONDS,
+    gcTime: HOUR_IN_MILLISECONDS,
+  },
   watchedMovies: {
     staleTime: 5 * MINUTE_IN_MILLISECONDS,
     gcTime: HOUR_IN_MILLISECONDS,

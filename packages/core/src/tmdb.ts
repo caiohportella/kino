@@ -1,4 +1,4 @@
-import { KINO_LOCALES } from './locale-config.ts'
+import { KINO_LOCALES } from "./locale-config.ts";
 import type {
   MediaType,
   TitleDetails,
@@ -14,117 +14,171 @@ import type {
   TMDbTVShow,
   TMDbVideoResponse,
   TMDbWatchProviderResponse,
-} from './types.ts'
+} from "./types.ts";
 
-const TMDB_API_BASE = 'https://api.themoviedb.org/3'
-const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p'
+export type TMDbMovieReleaseDate = {
+  certification: string;
+  descriptors?: string[];
+  iso_639_1: string;
+  note: string;
+  release_date: string;
+  type: number;
+};
+
+export type TMDbMovieReleaseDatesResponse = {
+  id: number;
+  results: Array<{
+    iso_3166_1: string;
+    release_dates: TMDbMovieReleaseDate[];
+  }>;
+};
+
+const TMDB_API_BASE = "https://api.themoviedb.org/3";
+const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p";
 
 export function getTMDbImageUrl(
   path: string | null,
-  size: 'w200' | 'w300' | 'w500' | 'w780' | 'original' = 'w500'
+  size: "w200" | "w300" | "w500" | "w780" | "original" = "w500",
 ) {
-  if (!path) return null
-  if (path.startsWith('http')) return path
-  return `${TMDB_IMAGE_BASE}/${size}${path}`
+  if (!path) return null;
+  if (path.startsWith("http")) return path;
+  return `${TMDB_IMAGE_BASE}/${size}${path}`;
 }
 
 const LANGUAGE_MAP: Record<string, string> = Object.fromEntries(
-  Object.entries(KINO_LOCALES).map(([language, config]) => [language, config.locale])
-)
+  Object.entries(KINO_LOCALES).map(([language, config]) => [
+    language,
+    config.locale,
+  ]),
+);
 
 export class TMDbService {
-  private language = 'en-US'
-  private readonly apiKey: string
+  private language = "en-US";
+  private readonly apiKey: string;
 
   constructor(apiKey: string) {
-    this.apiKey = apiKey
+    this.apiKey = apiKey;
   }
 
   setLanguage(appLanguage: string) {
-    this.language = LANGUAGE_MAP[appLanguage] || KINO_LOCALES.en.locale
+    this.language = LANGUAGE_MAP[appLanguage] || KINO_LOCALES.en.locale;
   }
 
   async search(
     query: string,
-    page = 1
+    page = 1,
   ): Promise<{
-    results: TMDbTitle[]
-    total_pages: number
-    total_results: number
+    results: TMDbTitle[];
+    total_pages: number;
+    total_results: number;
   }> {
     const data = await this.request<{
-      results: (TMDbTitle & { media_type: string })[]
-      total_pages: number
-      total_results: number
-    }>('/search/multi', { query, page: String(page) })
+      results: (TMDbTitle & { media_type: string })[];
+      total_pages: number;
+      total_results: number;
+    }>("/search/multi", { query, page: String(page) });
 
     return {
       ...data,
       results: data.results.filter(
-        (item) => item.media_type === 'movie' || item.media_type === 'tv'
+        (item) => item.media_type === "movie" || item.media_type === "tv",
       ),
-    }
+    };
   }
 
-  async getTrending(type: 'all' | MediaType = 'all', timeWindow: 'day' | 'week' = 'day') {
+  async getTrending(
+    type: "all" | MediaType = "all",
+    timeWindow: "day" | "week" = "day",
+  ) {
     const data = await this.request<{
-      results: (TMDbTitle & { media_type: MediaType })[]
-    }>(`/trending/${type}/${timeWindow}`)
-    return data.results.filter((item) => item.media_type === 'movie' || item.media_type === 'tv')
+      results: (TMDbTitle & { media_type: MediaType })[];
+    }>(`/trending/${type}/${timeWindow}`);
+    return data.results.filter(
+      (item) => item.media_type === "movie" || item.media_type === "tv",
+    );
   }
 
   async getPopularMovies() {
-    const data = await this.request<{ results: TMDbTitle[] }>('/movie/popular')
+    const data = await this.request<{ results: TMDbTitle[] }>("/movie/popular");
     return data.results.map((item) => ({
       ...item,
-      media_type: 'movie' as const,
-    }))
+      media_type: "movie" as const,
+    }));
   }
 
   async getPopularTV() {
-    const data = await this.request<{ results: TMDbTitle[] }>('/tv/popular')
-    return data.results.map((item) => ({ ...item, media_type: 'tv' as const }))
+    const data = await this.request<{ results: TMDbTitle[] }>("/tv/popular");
+    return data.results.map((item) => ({ ...item, media_type: "tv" as const }));
   }
 
   async getTopRatedMovies() {
-    const data = await this.request<{ results: TMDbTitle[] }>('/movie/top_rated')
+    const data = await this.request<{ results: TMDbTitle[] }>(
+      "/movie/top_rated",
+    );
     return data.results.map((item) => ({
       ...item,
-      media_type: 'movie' as const,
-    }))
+      media_type: "movie" as const,
+    }));
   }
 
   async getNowPlayingMovies(region?: string, language?: string) {
-    const data = await this.request<{ results: TMDbTitle[] }>('/movie/now_playing', {
-      region: region || this.language.split('-')[1] || 'US',
-      ...(language ? { language } : {}),
-    })
+    const data = await this.request<{ results: TMDbTitle[] }>(
+      "/movie/now_playing",
+      {
+        region: region || this.language.split("-")[1] || "US",
+        ...(language ? { language } : {}),
+      },
+    );
     return data.results.map((item) => ({
       ...item,
-      media_type: 'movie' as const,
-    }))
+      media_type: "movie" as const,
+    }));
   }
 
-  async getUpcomingMovies() {
-    const data = await this.request<{ results: TMDbTitle[] }>('/movie/upcoming')
+  async getUpcomingMovies(region?: string, language?: string) {
+    const data = await this.request<{ results: TMDbTitle[] }>(
+      "/movie/upcoming",
+      {
+        region: region || this.language.split("-")[1] || "US",
+        ...(language ? { language } : {}),
+      },
+    );
+
     return data.results.map((item) => ({
       ...item,
-      media_type: 'movie' as const,
-    }))
+      media_type: "movie" as const,
+    }));
   }
 
   async getGenres(type: MediaType) {
-    const data = await this.request<{ genres: TMDbGenre[] }>(`/genre/${type}/list`)
-    return data.genres
+    const data = await this.request<{ genres: TMDbGenre[] }>(
+      `/genre/${type}/list`,
+    );
+    return data.genres;
+  }
+
+  async searchKeywords(query: string, page = 1) {
+    return this.request<{
+      page: number;
+      results: Array<{
+        id: number;
+        name: string;
+      }>;
+      total_pages: number;
+      total_results: number;
+    }>("/search/keyword", {
+      query,
+      page: String(page),
+    });
   }
 
   async discoverMedia(type: MediaType, params: Record<string, string> = {}) {
     const data = await this.request<{
-      page: number
-      results: TMDbTitle[]
-      total_pages: number
-      total_results: number
-    }>(`/discover/${type}`, params)
+      page: number;
+      results: TMDbTitle[];
+      total_pages: number;
+      total_results: number;
+    }>(`/discover/${type}`, params);
 
     return {
       page: data.page,
@@ -134,188 +188,221 @@ export class TMDbService {
       })),
       totalPages: data.total_pages,
       totalResults: data.total_results,
-    }
+    };
   }
   async getMovieDetails(movieId: number) {
     return this.request<TMDbMovie>(`/movie/${movieId}`, {
-      append_to_response: 'external_ids',
-    })
+      append_to_response: "external_ids",
+    });
   }
 
   async getTVDetails(tvId: number) {
     return this.request<TMDbTVShow>(`/tv/${tvId}`, {
-      append_to_response: 'external_ids',
-    })
+      append_to_response: "external_ids",
+    });
   }
 
   async getMovieCredits(movieId: number) {
-    return this.request<TMDbCredits>(`/movie/${movieId}/credits`)
+    return this.request<TMDbCredits>(`/movie/${movieId}/credits`);
   }
 
   async getTVCredits(tvId: number) {
-    return this.request<TMDbCredits>(`/tv/${tvId}/credits`)
+    return this.request<TMDbCredits>(`/tv/${tvId}/credits`);
+  }
+
+  async getMovieReleaseDates(movieId: number) {
+    return this.request<TMDbMovieReleaseDatesResponse>(
+      `/movie/${movieId}/release_dates`,
+      {
+        language: "",
+      },
+    );
   }
 
   async getVideos(type: MediaType, id: number) {
-    return this.request<TMDbVideoResponse>(`/${type}/${id}/videos`)
+    return this.request<TMDbVideoResponse>(`/${type}/${id}/videos`);
   }
 
   async getWatchProviders(type: MediaType, id: number) {
-    return this.request<TMDbWatchProviderResponse>(`/${type}/${id}/watch/providers`, {
-      language: '',
-    })
+    return this.request<TMDbWatchProviderResponse>(
+      `/${type}/${id}/watch/providers`,
+      {
+        language: "",
+      },
+    );
   }
 
   async getCompanyDetails(companyId: number) {
-    return this.request<TMDbProductionCompany>(`/company/${companyId}`)
+    return this.request<TMDbProductionCompany>(`/company/${companyId}`);
   }
 
   async getRecommendations(type: MediaType, id: number) {
-    const data = await this.request<{ results: TMDbTitle[] }>(`/${type}/${id}/recommendations`)
-    return data.results.map((item) => ({ ...item, media_type: type }))
+    const data = await this.request<{ results: TMDbTitle[] }>(
+      `/${type}/${id}/recommendations`,
+    );
+    return data.results.map((item) => ({ ...item, media_type: type }));
   }
 
   async getCollection(collectionId: number) {
-    const collection = await this.request<import('./types').TMDbCollection>(
-      `/collection/${collectionId}`
-    )
+    const collection = await this.request<import("./types").TMDbCollection>(
+      `/collection/${collectionId}`,
+    );
     return {
       ...collection,
       parts: collection.parts.map((item) => ({
         ...item,
-        media_type: 'movie' as const,
+        media_type: "movie" as const,
       })),
-    }
+    };
   }
 
   async getSeasonDetails(tvId: number, seasonNumber: number) {
-    return this.request<{ episodes: TMDbEpisode[] } & import('./types').TMDbSeason>(
-      `/tv/${tvId}/season/${seasonNumber}`
-    )
+    return this.request<
+      { episodes: TMDbEpisode[] } & import("./types").TMDbSeason
+    >(`/tv/${tvId}/season/${seasonNumber}`);
   }
 
-  async getMediaImages(type: 'movie' | 'tv', id: number) {
+  async getMediaImages(type: "movie" | "tv", id: number) {
     return this.request<{
-      backdrops: TMDbImage[]
-      posters: TMDbImage[]
-      logos: TMDbImage[]
-    }>(`/${type}/${id}/images`, { include_image_language: 'en,null' })
+      backdrops: TMDbImage[];
+      posters: TMDbImage[];
+      logos: TMDbImage[];
+    }>(`/${type}/${id}/images`, { include_image_language: "en,null" });
   }
 
   async getPersonDetails(personId: number) {
     return this.request<TMDbPerson>(`/person/${personId}`, {
-      append_to_response: 'combined_credits,external_ids',
-    })
+      append_to_response: "combined_credits,external_ids",
+    });
   }
 
   async getPopularPeople() {
-    const data = await this.request<{ results: TMDbPerson[] }>('/person/popular')
-    return data.results
+    const data = await this.request<{ results: TMDbPerson[] }>(
+      "/person/popular",
+    );
+    return data.results;
   }
 
   async searchPeople(query: string, page = 1) {
     return this.request<{
-      results: TMDbPerson[]
-      total_pages: number
-      total_results: number
-    }>('/search/person', { query, page: String(page) })
+      results: TMDbPerson[];
+      total_pages: number;
+      total_results: number;
+    }>("/search/person", { query, page: String(page) });
   }
 
-  getImageUrl(path: string | null, size: 'w200' | 'w300' | 'w500' | 'w780' | 'original' = 'w500') {
-    return getTMDbImageUrl(path, size)
+  getImageUrl(
+    path: string | null,
+    size: "w200" | "w300" | "w500" | "w780" | "original" = "w500",
+  ) {
+    return getTMDbImageUrl(path, size);
   }
 
-  getBackdropUrl(path: string | null, size: 'w300' | 'w780' | 'w1280' | 'original' = 'w1280') {
-    if (!path) return null
-    if (path.startsWith('http')) return path
-    return `${TMDB_IMAGE_BASE}/${size}${path}`
+  getBackdropUrl(
+    path: string | null,
+    size: "w300" | "w780" | "w1280" | "original" = "w1280",
+  ) {
+    if (!path) return null;
+    if (path.startsWith("http")) return path;
+    return `${TMDB_IMAGE_BASE}/${size}${path}`;
   }
 
-  private async request<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
+  private async request<T>(
+    endpoint: string,
+    params: Record<string, string> = {},
+  ): Promise<T> {
     const queryParams = new URLSearchParams({
       api_key: this.apiKey,
       language: this.language,
       ...params,
-    })
+    });
 
-    const response = await fetch(`${TMDB_API_BASE}${endpoint}?${queryParams.toString()}`)
+    const response = await fetch(
+      `${TMDB_API_BASE}${endpoint}?${queryParams.toString()}`,
+    );
     if (!response.ok) {
-      throw new Error(`TMDb API error ${response.status}: ${response.statusText}`)
+      throw new Error(
+        `TMDb API error ${response.status}: ${response.statusText}`,
+      );
     }
 
-    return response.json() as Promise<T>
+    return response.json() as Promise<T>;
   }
 }
 
 export function transformMovieToTitleDetails(
   tmdb: TMDbService,
   movie: TMDbMovie,
-  credits: { cast: TMDbCast[]; crew: TMDbCast[] }
-): Omit<TitleDetails, 'averageRating' | 'ratingCount'> {
-  const director = credits.crew.find((person) => person.job === 'Director')
+  credits: { cast: TMDbCast[]; crew: TMDbCast[] },
+): Omit<TitleDetails, "averageRating" | "ratingCount"> {
+  const director = credits.crew.find((person) => person.job === "Director");
 
   return {
-    id: '',
+    id: "",
     tmdbId: movie.id,
-    type: 'movie',
+    type: "movie",
     title: movie.title,
-    synopsis: movie.overview || '',
+    synopsis: movie.overview || "",
     coverImage: tmdb.getImageUrl(movie.poster_path),
     backdropImage: tmdb.getBackdropUrl(movie.backdrop_path),
     year: movie.release_date ? new Date(movie.release_date).getFullYear() : 0,
     genres: movie.genres || [],
     cast: credits.cast,
-    director: director ? { ...director, job: 'Director' } : undefined,
-    productionCompanies: movie.production_companies?.map(mapProductionCompany) ?? [],
+    director: director ? { ...director, job: "Director" } : undefined,
+    productionCompanies:
+      movie.production_companies?.map(mapProductionCompany) ?? [],
     runtime: movie.runtime,
     episodeRuntime: null,
     externalIds: movie.external_ids,
-  }
+  };
 }
 
 export function transformTVToTitleDetails(
   tmdb: TMDbService,
   tv: TMDbTVShow,
-  credits: { cast: TMDbCast[]; crew: TMDbCast[] }
-): Omit<TitleDetails, 'averageRating' | 'ratingCount'> {
-  const creator = credits.crew.find((person) => person.job === 'Creator')
+  credits: { cast: TMDbCast[]; crew: TMDbCast[] },
+): Omit<TitleDetails, "averageRating" | "ratingCount"> {
+  const creator = credits.crew.find((person) => person.job === "Creator");
 
   return {
-    id: '',
+    id: "",
     tmdbId: tv.id,
-    type: 'tv',
+    type: "tv",
     title: tv.name,
-    synopsis: tv.overview || '',
+    synopsis: tv.overview || "",
     coverImage: tmdb.getImageUrl(tv.poster_path),
     backdropImage: tmdb.getBackdropUrl(tv.backdrop_path),
     year: tv.first_air_date ? new Date(tv.first_air_date).getFullYear() : 0,
     status: tv.status,
     genres: tv.genres || [],
     cast: credits.cast,
-    director: creator ? { ...creator, job: 'Creator' } : undefined,
-    productionCompanies: tv.production_companies?.map(mapProductionCompany) ?? [],
+    director: creator ? { ...creator, job: "Creator" } : undefined,
+    productionCompanies:
+      tv.production_companies?.map(mapProductionCompany) ?? [],
     totalSeasons: tv.number_of_seasons,
     totalEpisodes: tv.number_of_episodes,
     episodeRuntime: tv.episode_run_time?.[0] ?? null,
     seasons: tv.seasons,
     externalIds: tv.external_ids,
-  }
+  };
 }
 
-function mapProductionCompany(company: TMDbProductionCompany): TMDbProductionCompany {
+function mapProductionCompany(
+  company: TMDbProductionCompany,
+): TMDbProductionCompany {
   return {
     id: company.id,
     name: company.name,
     logo_path: company.logo_path,
     origin_country: company.origin_country ?? null,
-  }
+  };
 }
 
 export function formatRuntime(minutes: number | undefined) {
-  if (!minutes) return ''
-  const hours = Math.floor(minutes / 60)
-  const mins = minutes % 60
-  if (hours > 0 && mins > 0) return `${hours}h ${mins}m`
-  if (hours > 0) return `${hours}h`
-  return `${mins}m`
+  if (!minutes) return "";
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
+  if (hours > 0) return `${hours}h`;
+  return `${mins}m`;
 }
