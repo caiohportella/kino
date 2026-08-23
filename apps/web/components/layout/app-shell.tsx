@@ -1,31 +1,27 @@
 'use client'
 
 import { hasAuthenticatedUser } from '@kino/core/auth'
-import { Activity, BookOpen, Compass, ListChecks, Menu, Search } from 'lucide-react'
+import { Activity, BookOpen, Compass, ListChecks } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { type ReactNode, useEffect, useState } from 'react'
 import { KinoLogo } from '@/components/kino-logo'
 import {
   AccountMenu,
-  MobileAccountActions,
-  MobileProfileMenuItem,
+  MobileAccountMenu,
+  useAccountProfileIdentity,
 } from '@/components/layout/account-menu'
+import { AppContainer } from '@/components/layout/app-container'
 import { AppFooter } from '@/components/layout/app-footer'
 import { HomeSkeleton } from '@/components/skeletons/page-skeletons'
-import { Button, buttonVariants } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuLinkItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { useTranslation } from '@/lib/i18n'
+import { buttonVariants } from '@/components/ui/button'
+import { useStandaloneShellState } from '@/hooks/use-standalone-shell-state'
+import { useTranslation } from '@/lib/localization/i18n'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
-import { GlobalSearch } from '../global-search'
+import { GlobalSearch } from '../search/global-search'
+import { MobileBottomNav } from './mobile-bottom-nav'
+import { shouldShowStandaloneMobileBottomNav } from './mobile-bottom-nav.helpers'
 
 const authenticatedNavItems = [
   { href: '/discover', labelKey: 'tabs.home', icon: Compass },
@@ -39,6 +35,10 @@ const publicNavItems = [
   { href: '/diary', labelKey: 'tabs.diary', icon: BookOpen },
   { href: '/watchlists', labelKey: 'tabs.watchlists', icon: ListChecks },
 ]
+
+function isShellNavItemActive(pathname: string, href: string) {
+  return pathname === href || (href !== '/discover' && pathname.startsWith(href))
+}
 
 /** Redirects authenticated users from the marketing landing to /discover */
 function LandingRedirect() {
@@ -59,15 +59,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   const user = useAuthStore((state) => state.user)
   const resolution = useAuthStore((state) => state.resolution)
   const { t } = useTranslation()
+  const { standalone, standaloneResolved } = useStandaloneShellState()
+  const profileIdentity = useAccountProfileIdentity()
 
   const [searchOpen, setSearchOpen] = useState(false)
 
-  // Auth callback route: render bare
   if (pathname.startsWith('/auth/callback')) {
     return <>{children}</>
   }
 
-  // Root marketing page: render bare (no shell chrome) with landing redirect
   if (pathname === '/') {
     return (
       <>
@@ -77,7 +77,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     )
   }
 
-  // While auth resolves, show a loading state
   if (resolution.status === 'resolving' && !hasAuthenticatedUser(resolution)) {
     return (
       <main className="grid min-h-screen place-items-center bg-kino-bg p-6">
@@ -88,127 +87,149 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const navItems = user ? authenticatedNavItems : publicNavItems
 
+  const showBrowserHeader = !standaloneResolved || !standalone
+
+  const showStandaloneNav = shouldShowStandaloneMobileBottomNav({
+    hasUser: Boolean(user),
+    standalone,
+    standaloneResolved,
+  })
+
+  const showBrowserMobileNav = showBrowserHeader && Boolean(user)
+
+  const showMobileBottomNav = showBrowserMobileNav || showStandaloneNav
+
+  const showAuthenticatedFooter = Boolean(user) && !showStandaloneNav
+
   return (
-    <div className="page-shell flex min-h-screen flex-col bg-kino-bg">
-      <header className="app-header">
-        <div className="flex h-16 items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:px-0">
-          <div className={cn(searchOpen && 'hidden lg:block')}>
-            <Link
-              aria-label="Kino home"
-              className="inline-flex h-10 shrink-0 items-center justify-center transition-opacity hover:opacity-80 focus-ring sm:h-11"
-              href={user ? '/discover' : '/'}
-            >
-              <KinoLogo className="h-12 w-auto sm:h-7 lg:h-12" />
-            </Link>
-          </div>
+    <div
+      className={cn(
+        'page-shell app-shell flex min-h-screen flex-col bg-kino-bg',
+        showMobileBottomNav && 'has-mobile-bottom-nav'
+      )}
+      data-authenticated={user ? 'true' : 'false'}
+      data-standalone-mode={standalone ? 'true' : 'false'}
+    >
+      {showBrowserHeader ? (
+        <header className="app-header hidden lg:block">
+          <AppContainer>
+            <div className="flex h-16 min-w-0 items-center gap-3">
+              <Link
+                aria-label="Kino home"
+                className="
+                  inline-flex shrink-0
+                  items-center justify-center
+                  transition-opacity
+                  hover:opacity-80
+                  focus-ring
+                "
+                href={user ? '/discover' : '/'}
+              >
+                <KinoLogo priority />
+              </Link>
 
-          <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">
-            {navItems.map((item) => {
-              const active =
-                pathname === item.href ||
-                (item.href !== '/discover' && pathname.startsWith(item.href))
+              <nav
+                aria-label="Primary"
+                className={cn(
+                  'hidden shrink-0 items-center lg:flex',
+                  'transition-all duration-300',
+                  searchOpen ? 'gap-0' : 'gap-1'
+                )}
+              >
+                {navItems.map((item) => {
+                  const active = isShellNavItemActive(pathname, item.href)
+                  const Icon = item.icon
+                  const label = t(item.labelKey)
 
-              const Icon = item.icon
+                  return (
+                    <Link
+                      aria-label={label}
+                      className={cn(
+                        'header-link',
+                        'transition-all duration-300',
+                        searchOpen && 'px-2'
+                      )}
+                      data-active={active}
+                      href={item.href}
+                      key={item.href}
+                    >
+                      <Icon aria-hidden="true" className="shrink-0" size={17} />
 
-              return (
-                <Link className="header-link" data-active={active} href={item.href} key={item.href}>
-                  <Icon size={17} />
-                  {t(item.labelKey)}
-                </Link>
-              )
-            })}
-          </nav>
-
-          <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
-
-          <div className={cn('ml-auto items-center gap-2', searchOpen ? 'hidden lg:flex' : 'flex')}>
-            {user ? (
-              <>
-                <AccountMenu />
-
-                <Button
-                  aria-label={t('tabs.search')}
-                  className="lg:hidden"
-                  onClick={() => setSearchOpen(true)}
-                  size="icon"
-                  variant="ghost"
-                >
-                  <Search size={18} />
-                </Button>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        aria-label="Open navigation"
-                        className="lg:hidden"
-                        size="icon"
-                        variant="secondary"
+                      <span
+                        className={cn(
+                          'overflow-hidden whitespace-nowrap',
+                          'transition-all duration-300',
+                          searchOpen ? 'max-w-0 opacity-0' : 'max-w-24 opacity-100'
+                        )}
                       >
-                        <Menu size={18} />
-                      </Button>
-                    }
-                  />
-                  <DropdownMenuContent align="end" className="w-64">
-                    <DropdownMenuGroup>
-                      <MobileProfileMenuItem />
-                    </DropdownMenuGroup>
-                    <DropdownMenuSeparator className="my-2" />
-                    <DropdownMenuGroup>
-                      {navItems.map((item) => {
-                        const active =
-                          pathname === item.href ||
-                          (item.href !== '/discover' && pathname.startsWith(item.href))
-                        const Icon = item.icon
-                        return (
-                          <DropdownMenuLinkItem
-                            closeOnClick
-                            render={<Link href={item.href} />}
-                            className={cn(active && 'bg-white/6 text-kino-text')}
-                            key={item.href}
-                          >
-                            <Icon size={16} />
-                            {t(item.labelKey)}
-                          </DropdownMenuLinkItem>
-                        )
-                      })}
-                    </DropdownMenuGroup>
-                    <DropdownMenuSeparator className="my-2" />
-                    <DropdownMenuGroup>
-                      <MobileAccountActions />
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Link
-                  href="/auth/login"
-                  className={buttonVariants({
-                    size: 'sm',
-                    variant: 'ghost',
-                  })}
-                >
-                  {t('landing.nav.signIn')}
-                </Link>
+                        {label}
+                      </span>
+                    </Link>
+                  )
+                })}
+              </nav>
 
-                <Link
-                  href="/auth/register"
-                  className={buttonVariants({
-                    size: 'sm',
-                    variant: 'default',
-                  })}
-                >
-                  {t('landing.nav.createAccount')}
-                </Link>
+              <div
+                className="
+                  ml-auto
+                  flex min-w-0 flex-1
+                  items-center justify-end
+                  gap-2
+                "
+              >
+                <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
+
+                <div className="flex shrink-0 items-center gap-2">
+                  {user ? (
+                    <>
+                      <AccountMenu />
+
+                      {showBrowserMobileNav ? null : <MobileAccountMenu />}
+                    </>
+                  ) : (
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Link
+                        className={buttonVariants({
+                          size: 'sm',
+                          variant: 'ghost',
+                        })}
+                        href="/auth/login"
+                      >
+                        {t('landing.nav.signIn')}
+                      </Link>
+
+                      <Link
+                        className={buttonVariants({
+                          size: 'sm',
+                          variant: 'default',
+                        })}
+                        href="/auth/register"
+                      >
+                        {t('landing.nav.createAccount')}
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
-        </div>
-      </header>
+            </div>
+          </AppContainer>
+        </header>
+      ) : null}
 
-      <main className="page-main flex-1">{children}</main>
-      {user ? <AppFooter /> : null}
+      <main className="page-main flex-1">
+        <AppContainer>{children}</AppContainer>
+      </main>
+
+      {showAuthenticatedFooter ? <AppFooter /> : null}
+
+      {showMobileBottomNav ? (
+        <MobileBottomNav
+          profile={profileIdentity}
+          searchOpen={searchOpen}
+          onSearchOpen={() => setSearchOpen(true)}
+          standalone={standalone}
+        />
+      ) : null}
     </div>
   )
 }

@@ -13,14 +13,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 import { db } from '@/lib/services'
 import { useAuthStore } from '@/stores/auth-store'
 
-export function AccountMenu() {
+export function useAccountProfileIdentity() {
   const user = useAuthStore((state) => state.user)
-  const signOut = useAuthStore((state) => state.signOut)
-  const router = useRouter()
   const { t } = useTranslation()
 
   const profile = useQuery({
@@ -32,8 +30,26 @@ export function AccountMenu() {
   const profileUsername = profile.data?.username || user?.user_metadata?.username
 
   const username = profileUsername || t('accountMenu.userFallback')
-
   const fallback = String(username).slice(0, 2).toUpperCase()
+  const profileHref = profileUsername ? `/${encodeURIComponent(profileUsername)}` : null
+
+  return {
+    fallback,
+    profile,
+    profileHref,
+    profileUsername,
+    user,
+    username,
+  }
+}
+
+export type AccountProfileIdentity = ReturnType<typeof useAccountProfileIdentity>
+
+export function AccountMenu() {
+  const { fallback, profile, profileHref, profileUsername, username } = useAccountProfileIdentity()
+  const signOut = useAuthStore((state) => state.signOut)
+  const router = useRouter()
+  const { t } = useTranslation()
 
   async function logout() {
     await signOut()
@@ -88,7 +104,7 @@ export function AccountMenu() {
             <DropdownMenuItem
               className="h-auto items-center gap-2.5 py-2"
               disabled={!profileUsername}
-              onClick={() => profileUsername && router.push(`/${profileUsername}`)}
+              onClick={() => profileHref && router.push(profileHref)}
             >
               <Avatar className="size-9">
                 <AvatarImage alt="" src={profile.data?.avatar_url || undefined} />
@@ -136,42 +152,121 @@ export function AccountMenu() {
 }
 
 function useMobileAccountData() {
-  const user = useAuthStore((state) => state.user)
+  const identity = useAccountProfileIdentity()
   const signOut = useAuthStore((state) => state.signOut)
   const router = useRouter()
   const { t } = useTranslation()
 
-  const profile = useQuery({
-    queryKey: ['navbar-profile', user?.id],
-    queryFn: () => db.getUserProfile(user!.id),
-    enabled: Boolean(user),
-  })
-
-  const profileUsername = profile.data?.username || user?.user_metadata?.username
-
-  const username = profileUsername || t('accountMenu.userFallback')
-
-  const fallback = String(username).slice(0, 2).toUpperCase()
-
   return {
-    fallback,
-    profile,
-    profileUsername,
+    ...identity,
     router,
     signOut,
     t,
-    username,
   }
 }
 
+export function MobileAccountMenu() {
+  const { fallback, profile, profileHref, profileUsername, router, signOut, t, username } =
+    useMobileAccountData()
+
+  async function logout() {
+    await signOut()
+    router.replace('/')
+  }
+
+  return (
+    <div className="lg:hidden">
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              aria-label={t('accountMenu.open')}
+              className="
+                size-10 rounded-full
+                border border-transparent
+                bg-transparent p-1
+                transition-[transform,border-color,background-color]
+                duration-200
+                active:scale-95
+                hover:bg-white/5
+                data-[state=open]:border-white/10
+                data-[state=open]:bg-white/5
+              "
+              size="icon"
+              variant="ghost"
+            >
+              <Avatar className="size-8 rounded-full">
+                <AvatarImage alt="" src={profile.data?.avatar_url || undefined} />
+
+                <AvatarFallback className="text-[11px] font-medium">{fallback}</AvatarFallback>
+              </Avatar>
+            </Button>
+          }
+        />
+
+        <DropdownMenuContent align="end" className="w-56" sideOffset={8}>
+          <DropdownMenuGroup>
+            <DropdownMenuItem
+              className="h-auto items-center gap-2.5 py-2"
+              disabled={!profileUsername}
+              onClick={() => profileHref && router.push(profileHref)}
+            >
+              <Avatar className="size-9 rounded-full">
+                <AvatarImage alt="" src={profile.data?.avatar_url || undefined} />
+
+                <AvatarFallback className="text-xs">{fallback}</AvatarFallback>
+              </Avatar>
+
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-kino-accent">@{username}</p>
+
+                {profile.data?.display_name ? (
+                  <p className="truncate text-xs text-muted-foreground">
+                    {profile.data.display_name}
+                  </p>
+                ) : null}
+              </div>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem onClick={() => router.push('/settings')}>
+              <Settings aria-hidden="true" className="size-4" />
+
+              {t('common.settings')}
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+
+          <DropdownMenuSeparator />
+
+          <DropdownMenuGroup>
+            <DropdownMenuItem
+              variant="destructive"
+              className="
+                text-destructive
+                focus:bg-destructive/10
+                focus:text-destructive
+              "
+              onClick={() => void logout()}
+            >
+              <LogOut aria-hidden="true" className="size-4" />
+
+              {t('settings.logout')}
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
+}
+
 export function MobileProfileMenuItem() {
-  const { fallback, profile, profileUsername, router, username } = useMobileAccountData()
+  const { fallback, profile, profileHref, profileUsername, router, username } =
+    useMobileAccountData()
 
   return (
     <DropdownMenuItem
       className="min-h-12"
       disabled={!profileUsername}
-      onClick={() => profileUsername && router.push(`/${profileUsername}`)}
+      onClick={() => profileHref && router.push(profileHref)}
     >
       <Avatar className="size-8 rounded-full">
         <AvatarImage alt="" src={profile.data?.avatar_url || undefined} />

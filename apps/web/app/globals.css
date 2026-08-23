@@ -41,7 +41,9 @@
 
 :root {
   color-scheme: dark;
-  --app-header-height: 68px;
+  --app-header-height: 64px;
+  --app-shell-max-width: 1320px;
+  --shell-header-height: var(--app-header-height);
   --kino-bg: #121212;
   --kino-bg-rgb: 18 18 18;
   --kino-panel: #171717;
@@ -228,32 +230,42 @@ a {
   min-height: 100vh;
 }
 
+.app-shell {
+  --shell-header-height: var(--app-header-height);
+}
+
+.app-shell[data-standalone-mode="true"] {
+  --shell-header-height: 0px;
+}
+
+.app-shell[data-standalone-mode="true"] .app-header {
+  display: none;
+}
+
+html[data-standalone-mode="true"] .app-shell {
+  --shell-header-height: 0px;
+}
+
+html[data-standalone-mode="true"] .app-shell .app-header {
+  display: none;
+}
+
 .app-header {
   position: sticky;
   top: 0;
   z-index: 40;
   border-bottom: 1px solid var(--kino-border);
   background: rgb(var(--kino-bg-rgb) / 0.88);
-  backdrop-filter: blur(16px);
-}
-
-.app-header-inner {
-  display: flex;
-  width: min(100%, 1320px);
-  min-height: var(--app-header-height);
-  align-items: center;
-  gap: 24px;
-  margin-inline: auto;
-  padding: 0 24px;
+  backdrop-filter: none;
 }
 
 .header-link {
   display: inline-flex;
-  min-height: 38px;
+  min-height: 40px;
   align-items: center;
   gap: 8px;
   border-radius: 6px;
-  padding: 0 12px;
+  padding: 0 13px;
   color: var(--kino-muted);
   font-size: 0.875rem;
   font-weight: 700;
@@ -270,12 +282,12 @@ a {
 
 .page-main {
   min-width: 0;
-  padding: 24px;
+  padding-block: 24px 40px;
 }
 
 .content-frame {
-  width: min(100%, 1320px);
-  margin-inline: auto;
+  width: 100%;
+  min-width: 0;
 }
 
 .poster-grid {
@@ -351,8 +363,8 @@ a {
 @media (width >= 64rem) and (height >= 760px) {
   .title-sidebar {
     position: sticky;
-    top: calc(var(--app-header-height) + 1.5rem);
-    max-height: calc(100vh - var(--app-header-height) - 3rem);
+    top: calc(var(--shell-header-height) + 1.5rem);
+    max-height: calc(100vh - var(--shell-header-height) - 3rem);
     overflow-x: hidden;
     overflow-y: auto;
     scrollbar-width: thin;
@@ -444,6 +456,19 @@ a {
   }
 }
 
+@media (display-mode: standalone) {
+  .app-shell {
+    --shell-header-height: 0px;
+  }
+
+  .app-shell .app-header {
+    display: none;
+  }
+}
+
+.app-shell.has-mobile-bottom-nav .page-main {
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+}
 .kino-calendar {
   --cell-size: 44px;
   --rdp-accent-color: var(--kino-accent);
@@ -614,12 +639,7 @@ a {
 
 @media (max-width: 900px) {
   .page-main {
-    padding: 18px;
-  }
-
-  .app-header-inner {
-    min-height: 62px;
-    padding: 0 18px;
+    padding-block: 18px 40px;
   }
 }
 
@@ -652,7 +672,7 @@ a {
 /* ─── Landing page ──────────────────────────────────────── */
 
 .landing-section {
-  width: min(100%, 1320px);
+  width: min(100%, var(--app-shell-max-width));
   margin-inline: auto;
   padding-inline: 24px;
 }

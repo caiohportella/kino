@@ -2,8 +2,9 @@ import type { Metadata, Viewport } from 'next'
 import type { ReactNode } from 'react'
 import './globals.css'
 import { AppShell } from '@/components/layout/app-shell'
-import { absoluteUrl, getSiteOrigin, SITE_NAME, socialImage } from '@/lib/seo'
-import { getServerMetadataContext } from '@/lib/server-metadata'
+import { absoluteUrl, getSiteOrigin, SITE_NAME, socialImage } from '@/lib/seo/seo'
+import { getServerMetadataContext } from '@/lib/seo/server-metadata'
+import { getStandaloneModeBootstrapScript } from '@/lib/standalone-mode-bridge'
 import { cn } from '@/lib/utils'
 import { Providers } from './providers'
 
@@ -63,6 +64,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
   return (
     <html lang={language} suppressHydrationWarning className={cn('font-sans')}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: getStandaloneModeBootstrapScript() }} />
+      </head>
       <body>
         <Providers>
           <AppShell>{children}</AppShell>

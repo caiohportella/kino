@@ -1,14 +1,16 @@
 'use client'
 
-import { getLocale, getRegion, SearchResult } from '@kino/core'
+import { getLocale, getRegion } from '@kino/core/locale-config'
 import { SEARCH_SCHEMA_VERSION_V2 } from '@kino/core/search'
+import type { SearchResult } from '@kino/core/types'
 import { useQuery } from '@tanstack/react-query'
-import { Search, X } from 'lucide-react'
+import { Loader2, Search, X } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Button } from '@/components/ui/button'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 import { personPath, titlePath } from '@/lib/routes'
 import { createSearchGatewayClient } from '@/lib/search/client'
 import {
@@ -20,7 +22,7 @@ import { toWebSearchGroups } from '@/lib/search/presentation'
 import { getTmdb } from '@/lib/services'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/stores/settings-store'
-import { FeaturedSearchResult } from './search/featured-search-result'
+import { FeaturedSearchResult } from './featured-search-result'
 
 const searchGateway = createSearchGatewayClient()
 
@@ -40,6 +42,10 @@ export function GlobalSearch({
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(-1)
   const [shortcutLabel, setShortcutLabel] = useState('Ctrl K')
+  const [isMobile, setIsMobile] = useState(false)
+
+  const [resolvedQuery, setResolvedQuery] = useState('')
+  const [mobileDocked, setMobileDocked] = useState(false)
 
   const language = useSettingsStore((state) => state.language)
   const [debouncedQuery, setDebouncedQuery] = useState(query)
@@ -47,6 +53,15 @@ export function GlobalSearch({
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const resultRefs = useRef<Array<HTMLAnchorElement | null>>([])
+
+  function clearAndCloseSearch() {
+    setQuery('')
+    setDebouncedQuery('')
+    setResolvedQuery('')
+    setActiveIndex(-1)
+    resultRefs.current = []
+    onOpenChange(false)
+  }
 
   useEffect(() => {
     onOpenChange(false)
@@ -99,6 +114,21 @@ export function GlobalSearch({
     const isMac = /mac/i.test(platform)
 
     setShortcutLabel(isMac ? '⌘ K' : 'Ctrl K')
+  }, [])
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 1023px)')
+
+    function syncMobileState() {
+      setIsMobile(mediaQuery.matches)
+    }
+
+    syncMobileState()
+    mediaQuery.addEventListener('change', syncMobileState)
+
+    return () => {
+      mediaQuery.removeEventListener('change', syncMobileState)
+    }
   }, [])
 
   useEffect(() => {
@@ -189,6 +219,24 @@ export function GlobalSearch({
     placeholderData: (previousData) => previousData,
   })
 
+  useEffect(() => {
+    if (searchQuery.isSuccess && !searchQuery.isFetching && debouncedQuery) {
+      setResolvedQuery(debouncedQuery)
+    }
+  }, [debouncedQuery, searchQuery.isSuccess, searchQuery.isFetching])
+
+  useEffect(() => {
+    if (!open || !isMobile) return
+
+    const previousOverflow = document.body.style.overflow
+
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [isMobile, open])
+
   const searchData = searchQuery.data
 
   const titleResults = searchData
@@ -227,32 +275,74 @@ export function GlobalSearch({
 
   const hasResults = titleResults.length > 0 || peopleResults.length > 0 || userResults.length > 0
 
+  useEffect(() => {
+    if (!open || !searching) {
+      setMobileDocked(false)
+      return
+    }
+
+    if (searchQuery.isError && !searchQuery.isFetching) {
+      setMobileDocked(false)
+      return
+    }
+
+    if (resolvedQuery === debouncedQuery && !searchQuery.isFetching && searchQuery.isSuccess) {
+      setMobileDocked(hasResults)
+    }
+  }, [
+    debouncedQuery,
+    hasResults,
+    open,
+    resolvedQuery,
+    searchQuery.isError,
+    searchQuery.isFetching,
+    searchQuery.isSuccess,
+    searching,
+  ])
+
   const expanded = open && searching && !!searchData
+
+  const mobileResultsExpanded = open && searching && mobileDocked && !!searchData
+  const resultsExpanded = isMobile ? mobileResultsExpanded : expanded
   const resultIds = navigableResults.map((_, index) => `global-search-result-${index}`)
 
   const showEmpty = expanded && !searchQuery.isPending && !searchQuery.isError && !hasResults
 
-  return (
+  const searchSurface = (
     <div
       ref={containerRef}
       className={cn(
-        'relative min-w-0 flex-1 justify-end',
-        open
-          ? 'mx-2 flex max-w-[calc(100vw-1rem)] sm:mx-3 sm:max-w-[calc(100vw-1.5rem)] lg:mx-0 lg:max-w-none'
-          : 'ml-2 hidden lg:flex'
+        isMobile && open
+          ? [
+              'fixed inset-x-4 z-60 mx-auto w-auto max-w-xl',
+              'transition-all duration-300 ease-out',
+              'motion-reduce:transition-none',
+            ]
+          : [
+              'relative min-w-0 justify-end',
+              open ? 'flex flex-1' : 'ml-auto hidden shrink-0 lg:flex',
+            ]
       )}
+      style={
+        isMobile && open
+          ? {
+              top: mobileDocked ? 'calc(env(safe-area-inset-top) + 1rem)' : '50%',
+              transform: mobileDocked ? 'translateY(0)' : 'translateY(-50%)',
+            }
+          : undefined
+      }
     >
       {/* Bar + results */}
       <div
         className={cn(
-          'relative z-50 flex flex-col overflow-visible rounded-lg border lg:rounded-md',
-          'transition-[width,border-color,background-color] duration-300 ease-out',
+          'relative z-50 flex min-w-0 flex-col overflow-visible rounded-lg border',
+          'transition-all duration-300 ease-out',
+          'lg:rounded-md',
           open
-            ? 'w-full min-w-0 max-w-full border-white/10 bg-kino-surface/95 shadow-2xl backdrop-blur-xl'
+            ? 'w-full border-white/10 bg-kino-surface/95 shadow-2xl backdrop-blur-xl'
             : 'w-9 border-transparent bg-transparent'
         )}
       >
-        {/* Search bar row */}
         {/* Search bar row */}
         <div className="flex min-h-12 min-w-0 shrink-0 items-center lg:min-h-0">
           <Button
@@ -396,219 +486,274 @@ export function GlobalSearch({
               size="icon"
               variant="ghost"
             >
-              <X size={18} />
+              <span className="relative size-4.5">
+                <span
+                  className={cn(
+                    'absolute inset-0 transition-[opacity,transform] duration-150',
+                    searching && searchQuery.isFetching
+                      ? 'scale-100 opacity-100'
+                      : 'scale-75 opacity-0'
+                  )}
+                >
+                  <Loader2
+                    aria-hidden="true"
+                    className="kino-search-spinner size-4.5 text-kino-accent"
+                  />
+                </span>
+
+                <span
+                  className={cn(
+                    'absolute inset-0 transition-[opacity,transform] duration-150',
+                    searching && searchQuery.isFetching
+                      ? 'scale-75 opacity-0'
+                      : 'scale-100 opacity-100'
+                  )}
+                >
+                  <X aria-hidden="true" className="size-4.5" />
+                </span>
+              </span>
             </Button>
           ) : null}
         </div>
 
+        {isMobile && showEmpty ? (
+          <div className="border-t border-white/8 px-4 py-3 text-center text-sm text-kino-muted">
+            {t('search.noResults')}
+          </div>
+        ) : null}
+
+        {isMobile && searchQuery.isError ? (
+          <div className="border-t border-white/8 px-4 py-3 text-center text-sm text-kino-muted">
+            {t('search.failed')}
+          </div>
+        ) : null}
+
         {/* Results */}
-        <div
-          className={cn(
-            'absolute inset-x-0 top-[calc(100%+0.5rem)] w-full min-w-0 max-w-full lg:top-[calc(100%+0.25rem)]',
-            'grid origin-top transition-[grid-template-rows,opacity,transform] duration-400 ease-out',
-            expanded
-              ? 'grid-rows-[1fr] translate-y-0 opacity-100'
-              : 'pointer-events-none grid-rows-[0fr] -translate-y-2 opacity-0'
-          )}
-        >
-          <div className="min-h-0 min-w-0 max-w-full overflow-hidden rounded-xl border border-white/10 bg-kino-surface/95 shadow-2xl backdrop-blur-xl">
-            <div
-              id="global-search-results"
-              className="max-h-[calc(100dvh-7rem)] min-w-0 max-w-full overflow-x-hidden overflow-y-auto p-2 sm:p-4 lg:max-h-[65vh]"
-            >
-              {searchQuery.isPending ? (
-                <div className="grid gap-2 lg:grid-cols-2">
-                  {Array.from({ length: 4 }).map((_, index) => (
-                    <div
-                      className="flex min-h-24 animate-pulse items-center gap-4 rounded-lg px-3 py-3"
-                      key={index}
-                    >
-                      <div className="h-20 w-14 shrink-0 rounded-md bg-white/8" />
+        {resultsExpanded ? (
+          <div className="absolute inset-x-0 top-full mt-2 w-full min-w-0 lg:mt-1">
+            <div className="min-h-0 min-w-0 overflow-hidden rounded-xl border border-white/10 bg-kino-surface/95 shadow-2xl backdrop-blur-xl">
+              <div
+                className="
+                  max-h-screen min-w-0
+                  overflow-x-hidden overflow-y-auto
+                  p-2
+                  sm:p-4
+                  lg:max-h-160
+                "
+                id="global-search-results"
+              >
+                {searchQuery.isPending ? (
+                  <div className="grid gap-2 lg:grid-cols-2">
+                    {Array.from({ length: 4 }).map((_, index) => (
+                      <div
+                        className="flex min-h-24 animate-pulse items-center gap-4 rounded-lg px-3 py-3"
+                        key={index}
+                      >
+                        <div className="h-20 w-14 shrink-0 rounded-md bg-white/8" />
 
-                      <div className="flex-1">
-                        <div className="h-4 w-2/3 rounded bg-white/8" />
-                        <div className="mt-2 h-3 w-16 rounded bg-white/6" />
+                        <div className="flex-1">
+                          <div className="h-4 w-2/3 rounded bg-white/8" />
+                          <div className="mt-2 h-3 w-16 rounded bg-white/6" />
+                        </div>
                       </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {showEmpty ? (
+                  <div className="hidden min-h-32 items-center justify-center px-4 py-8 text-center lg:flex">
+                    <p className="text-sm text-kino-muted">{t('search.noResults')}</p>
+                  </div>
+                ) : null}
+
+                {searchQuery.isError ? (
+                  <div className="hidden min-h-32 items-center justify-center px-4 py-8 text-center lg:flex">
+                    <p className="text-sm text-kino-muted">{t('search.failed')}</p>
+                  </div>
+                ) : null}
+
+                {titleResults.length > 0 ? (
+                  <div className="grid gap-3">
+                    {featuredTitleResult ? (
+                      <FeaturedSearchResult
+                        active={activeIndex === 0}
+                        id={resultIds[0] ?? 'global-search-result-0'}
+                        linkRef={(node) => {
+                          resultRefs.current[0] = node
+                        }}
+                        onSelect={clearAndCloseSearch}
+                        result={featuredTitleResult}
+                      />
+                    ) : null}
+
+                    {compactTitleResults.length > 0 ? (
+                      <div className="grid gap-2 lg:grid-cols-2">
+                        {compactTitleResults.map((result, index) => {
+                          const globalIndex = featuredTitleResult ? index + 1 : index
+
+                          return (
+                            <TitleResultRow
+                              active={activeIndex === globalIndex}
+                              id={resultIds[globalIndex] ?? `global-search-result-${globalIndex}`}
+                              key={`${result.mediaType}-${result.id}`}
+                              linkRef={(node) => {
+                                resultRefs.current[globalIndex] = node
+                              }}
+                              onSelect={clearAndCloseSearch}
+                              result={result}
+                            />
+                          )
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {peopleResults.length > 0 ? (
+                  <div className="mt-4 border-t border-white/10 pt-4">
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-kino-muted">
+                      {t('search.people')}
                     </div>
-                  ))}
-                </div>
-              ) : null}
 
-              {showEmpty ? (
-                <div className="flex min-h-32 items-center justify-center px-4 py-8 text-center">
-                  <p className="text-sm text-kino-muted">{t('search.noResults')}</p>
-                </div>
-              ) : null}
-
-              {searchQuery.isError ? (
-                <div className="flex min-h-32 items-center justify-center px-4 py-8 text-center">
-                  <p className="text-sm text-kino-muted">{t('search.failed')}</p>
-                </div>
-              ) : null}
-
-              {titleResults.length > 0 ? (
-                <div className="grid gap-3">
-                  {featuredTitleResult ? (
-                    <FeaturedSearchResult
-                      active={activeIndex === 0}
-                      id={resultIds[0] ?? 'global-search-result-0'}
-                      linkRef={(node) => {
-                        resultRefs.current[0] = node
-                      }}
-                      onSelect={() => onOpenChange(false)}
-                      result={featuredTitleResult}
-                    />
-                  ) : null}
-
-                  {compactTitleResults.length > 0 ? (
                     <div className="grid gap-2 lg:grid-cols-2">
-                      {compactTitleResults.map((result, index) => {
-                        const globalIndex = featuredTitleResult ? index + 1 : index
+                      {peopleResults.map((result, index) => {
+                        const globalIndex =
+                          (featuredTitleResult ? 1 : 0) + compactTitleResults.length + index
 
                         return (
-                          <TitleResultRow
-                            active={activeIndex === globalIndex}
+                          <Link
+                            aria-selected={activeIndex === globalIndex}
+                            className={cn(
+                              'flex items-center gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-white/6',
+                              activeIndex === globalIndex && 'bg-white/8'
+                            )}
+                            href={personPath(result.id, result.name)}
                             id={resultIds[globalIndex] ?? `global-search-result-${globalIndex}`}
-                            key={`${result.mediaType}-${result.id}`}
-                            linkRef={(node) => {
+                            key={result.id}
+                            onClick={() => onOpenChange(false)}
+                            ref={(node) => {
                               resultRefs.current[globalIndex] = node
                             }}
-                            result={result}
-                            onSelect={() => onOpenChange(false)}
-                          />
+                            role="option"
+                          >
+                            <img
+                              alt=""
+                              className="size-12 shrink-0 rounded-full bg-white/6 object-cover ring-1 ring-white/10"
+                              src={result.avatarUrl ?? undefined}
+                            />
+
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-semibold text-kino-text">
+                                {result.name}
+                              </div>
+
+                              {result.summary ? (
+                                <div className="mt-0.5 truncate text-xs text-kino-muted">
+                                  {result.summary}
+                                </div>
+                              ) : null}
+                            </div>
+                          </Link>
                         )
                       })}
                     </div>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {peopleResults.length > 0 ? (
-                <div className="mt-4 border-t border-white/10 pt-4">
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-kino-muted">
-                    {t('search.people')}
                   </div>
+                ) : null}
 
-                  <div className="grid gap-2 lg:grid-cols-2">
-                    {peopleResults.map((result, index) => {
-                      const globalIndex =
-                        (featuredTitleResult ? 1 : 0) + compactTitleResults.length + index
+                {userResults.length > 0 ? (
+                  <div className="mt-4 border-t border-white/10 pt-4">
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-kino-muted">
+                      {t('search.users')}
+                    </div>
 
-                      return (
-                        <Link
-                          aria-selected={activeIndex === globalIndex}
-                          className={cn(
-                            'flex items-center gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-white/6',
-                            activeIndex === globalIndex && 'bg-white/8'
-                          )}
-                          href={personPath(result.id, result.name)}
-                          id={resultIds[globalIndex] ?? `global-search-result-${globalIndex}`}
-                          key={result.id}
-                          onClick={() => onOpenChange(false)}
-                          ref={(node) => {
-                            resultRefs.current[globalIndex] = node
-                          }}
-                          role="option"
-                        >
-                          <img
-                            alt=""
-                            className="h-12 w-12 shrink-0 rounded-full bg-white/6 object-cover ring-1 ring-white/10"
-                            src={result.avatarUrl ?? undefined}
-                          />
+                    <div className="grid gap-2 lg:grid-cols-2">
+                      {userResults.map((result, index) => {
+                        const globalIndex =
+                          (featuredTitleResult ? 1 : 0) +
+                          compactTitleResults.length +
+                          peopleResults.length +
+                          index
 
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold text-kino-text">
-                              {result.name}
-                            </div>
+                        return (
+                          <Link
+                            aria-selected={activeIndex === globalIndex}
+                            className={cn(
+                              'flex items-center gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-white/6',
+                              activeIndex === globalIndex && 'bg-white/8'
+                            )}
+                            href={`/${result.username}`}
+                            id={resultIds[globalIndex] ?? `global-search-result-${globalIndex}`}
+                            key={result.id}
+                            onClick={() => onOpenChange(false)}
+                            ref={(node) => {
+                              resultRefs.current[globalIndex] = node
+                            }}
+                            role="option"
+                          >
+                            <img
+                              alt=""
+                              className="size-12 shrink-0 rounded-full bg-white/6 object-cover ring-1 ring-white/10"
+                              src={result.avatarUrl ?? undefined}
+                            />
 
-                            {result.summary ? (
-                              <div className="mt-0.5 truncate text-xs text-kino-muted">
-                                {result.summary}
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-semibold text-kino-text">
+                                {result.name}
                               </div>
-                            ) : null}
-                          </div>
-                        </Link>
-                      )
-                    })}
-                  </div>
-                </div>
-              ) : null}
 
-              {userResults.length > 0 ? (
-                <div className="mt-4 border-t border-white/10 pt-4">
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-kino-muted">
-                    {t('search.users')}
-                  </div>
-
-                  <div className="grid gap-2 lg:grid-cols-2">
-                    {userResults.map((result, index) => {
-                      const globalIndex =
-                        (featuredTitleResult ? 1 : 0) +
-                        compactTitleResults.length +
-                        peopleResults.length +
-                        index
-
-                      return (
-                        <Link
-                          aria-selected={activeIndex === globalIndex}
-                          className={cn(
-                            'flex items-center gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-white/6',
-                            activeIndex === globalIndex && 'bg-white/8'
-                          )}
-                          href={`/${result.username}`}
-                          id={resultIds[globalIndex] ?? `global-search-result-${globalIndex}`}
-                          key={result.id}
-                          onClick={() => onOpenChange(false)}
-                          ref={(node) => {
-                            resultRefs.current[globalIndex] = node
-                          }}
-                          role="option"
-                        >
-                          <img
-                            alt=""
-                            className="h-12 w-12 shrink-0 rounded-full bg-white/6 object-cover ring-1 ring-white/10"
-                            src={result.avatarUrl ?? undefined}
-                          />
-
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold text-kino-text">
-                              {result.name}
+                              <div className="mt-0.5 truncate text-xs text-kino-muted">
+                                {result.username}
+                              </div>
                             </div>
-
-                            <div className="mt-0.5 truncate text-xs text-kino-muted">
-                              {result.username}
-                            </div>
-                          </div>
-                        </Link>
-                      )
-                    })}
+                          </Link>
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
-              ) : null}
+                ) : null}
 
-              {hasResults && query.trim() ? (
-                <Link
-                  className="
-                    mt-4 block
-                    border-t border-white/10
-                    px-3 pt-4 pb-2
-                    text-center text-sm font-medium text-kino-accent
-                    transition-colors hover:text-kino-accent-strong
-                  "
-                  href={`/search?q=${encodeURIComponent(query.trim())}`}
-                  onClick={() => onOpenChange(false)}
-                >
-                  {t('search.seeAllResults', {
-                    query: query.trim(),
-                  })}
-                </Link>
-              ) : null}
+                {hasResults && query.trim() ? (
+                  <Link
+                    className="
+                      mt-4 block
+                      border-t border-white/10
+                      px-3 pt-4 pb-2
+                      text-center text-sm font-medium text-kino-accent
+                      transition-colors
+                      hover:text-kino-accent-strong
+                    "
+                    href={`/search?q=${encodeURIComponent(query.trim())}`}
+                    onClick={clearAndCloseSearch}
+                  >
+                    {t('search.seeAllResults', {
+                      query: query.trim(),
+                    })}
+                  </Link>
+                ) : null}
+              </div>
             </div>
           </div>
-        </div>
+        ) : null}
       </div>
     </div>
   )
+
+  if (isMobile && open) {
+    return createPortal(
+      <>
+        <button
+          aria-label={t('common.close')}
+          className="fixed inset-0 z-50 bg-black/45 backdrop-blur-xs"
+          onClick={() => onOpenChange(false)}
+          type="button"
+        />
+        {searchSurface}
+      </>,
+      document.body
+    )
+  }
+
+  return searchSurface
 }
 
 function TitleResultRow({
