@@ -25,7 +25,7 @@ import {
   previewActionsVariants,
   previewActionVariants,
 } from '@/components/landing/motion'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 
 const featureCards = [
   {

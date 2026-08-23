@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { HttpErrorState } from '@/components/error-state'
-import { SITE_NAME, socialImage } from '@/lib/seo'
-import { getServerMetadataContext } from '@/lib/server-metadata'
+import { SITE_NAME, socialImage } from '@/lib/seo/seo'
+import { getServerMetadataContext } from '@/lib/seo/server-metadata'
 
 export async function generateMetadata(): Promise<Metadata> {
   const { locale, t } = await getServerMetadataContext()

@@ -26,13 +26,13 @@ import { ShareButton } from '@/components/share-button'
 import { PersonSkeleton } from '@/components/skeletons/page-skeletons'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { useMediaPoster } from '@/hooks/use-media-poster'
-import { useTranslation } from '@/lib/i18n'
-import { resolveLocalizedTitlePresentation } from '@/lib/localized-title-presentation'
-import { getPersonImagePaths } from '@/lib/person-visuals'
+import { useLocalizedTitles } from '@/hooks/title/use-localized-titles'
+import { useMediaPoster } from '@/hooks/title/use-media-poster'
+import { useTranslation } from '@/lib/localization/i18n'
+import { resolveLocalizedTitlePresentation } from '@/lib/localization/localized-title-presentation'
 import { parseResourceSegment, personPath } from '@/lib/routes'
 import { getTmdb } from '@/lib/services'
-import { useLocalizedTitles } from '@/lib/use-localized-titles'
+import { getPersonImagePaths } from '@/lib/tmdb/person-visuals'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/stores/settings-store'
 
@@ -372,7 +372,7 @@ function PersonExternalLinks({ person }: { person: TMDbPerson }) {
       ? {
           label: 'IMDb',
           href: `https://www.imdb.com/name/${person.external_ids.imdb_id}`,
-          iconUrl: '/external/imdb.png',
+          iconUrl: '/external/imdb.svg',
           brandColor: '#f5c518',
         }
       : null,

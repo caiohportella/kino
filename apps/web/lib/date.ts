@@ -21,6 +21,7 @@ const COMPACT_RELATIVE_TIME_UNITS: Record<string, RelativeTimeUnitLabels> = {
 const MINUTE_MS = 60_000
 const HOUR_MS = 60 * MINUTE_MS
 const DAY_MS = 24 * HOUR_MS
+const WEEK_MS = 7 * DAY_MS
 const MONTH_MS = 30 * DAY_MS
 const YEAR_MS = 365 * DAY_MS
 
@@ -133,4 +134,55 @@ export function formatLocalizedRelativeTime(
   const count = Math.floor(diffMs / unit.size)
   const key = `activity.${unit.key}${count === 1 ? 'Ago' : 'sAgo'}`
   return translate(key, { count })
+}
+
+export function formatLocalizedRecentDate(
+  value: LocalizedDateInput,
+  locale: string,
+  translate: (key: string, options?: { count?: number }) => string,
+  now: Date = new Date()
+) {
+  const date = parseRelativeDate(value)
+
+  if (!date || Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  const diffMs = Math.max(0, now.getTime() - date.getTime())
+
+  if (diffMs <= WEEK_MS) {
+    return formatLocalizedRelativeTime(value, translate, now)
+  }
+
+  return formatLocalizedShortCalendarDate(value, locale)
+}
+
+function formatLocalizedShortCalendarDate(value: LocalizedDateInput, locale: string) {
+  const dateOnly = parseCalendarDate(value)
+  const date = dateOnly ?? parseInstantDate(value)
+
+  if (!date || Number.isNaN(date.getTime())) {
+    return typeof value === 'string' ? value : ''
+  }
+
+  const formatter = new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    ...(dateOnly ? { timeZone: 'UTC' } : {}),
+  })
+
+  if (localeBase(locale) !== 'pt') {
+    return formatter.format(date)
+  }
+
+  const parts = formatter.formatToParts(date)
+
+  const day = parts.find((part) => part.type === 'day')?.value ?? ''
+  const month = parts.find((part) => part.type === 'month')?.value ?? ''
+  const year = parts.find((part) => part.type === 'year')?.value ?? ''
+
+  const capitalizedMonth = month ? `${month.charAt(0).toUpperCase()}${month.slice(1)}` : ''
+
+  return [day, capitalizedMonth, year].filter(Boolean).join(' ')
 }

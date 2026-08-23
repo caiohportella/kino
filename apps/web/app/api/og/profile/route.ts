@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og'
 import { createElement } from 'react'
-import { getOgImageOptions, ProfileOg } from '@/lib/og'
+import { getOgImageOptions, ProfileOg } from '@/lib/og/og'
 
 export const runtime = 'edge'
 

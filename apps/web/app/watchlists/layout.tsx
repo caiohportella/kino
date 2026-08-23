@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
-import { localizedRouteMetadata } from '@/lib/server-metadata'
+import { localizedPrivateRouteMetadata } from '@/lib/seo/server-metadata'
 
 export async function generateMetadata() {
-  return localizedRouteMetadata({
+  return localizedPrivateRouteMetadata({
     canonicalPath: '/watchlists',
     descriptionKey: 'metadata.watchlistsDescription',
     imagePath: { alt: 'metadata.watchlistsTitle', path: '/watchlists/opengraph-image' },

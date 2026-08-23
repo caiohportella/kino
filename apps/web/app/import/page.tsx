@@ -23,7 +23,7 @@ import { Card } from '@/components/ui/card'
 import { LabeledField as Field, LabeledTextArea as TextArea } from '@/components/ui/labeled-field'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 import { db, getTmdb } from '@/lib/services'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -265,9 +265,9 @@ export default function ImportPage() {
     >
       <div className="content-frame">
         <PageHeader
-          body={t('importFlow.description')}
-          eyebrow={t('importFlow.eyebrow')}
-          title={t('importFlow.title')}
+          title={t('importFlow.headerPhrase', {
+            defaultValue: 'Bring your history with you.',
+          })}
         />
 
         <Card className="mb-6 grid gap-5 p-5 md:grid-cols-[1fr_auto] md:items-center">

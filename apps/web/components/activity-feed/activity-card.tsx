@@ -6,10 +6,10 @@ import { Poster } from '@/components/kino'
 import { RatingStars } from '@/components/media/rating-stars'
 import { ReviewAuthor } from '@/components/reviews/review-author'
 import { ReviewLikeButton } from '@/components/reviews/review-like-button'
-import type { ActivityFeedCard } from '@/lib/activity-feed'
+import type { ActivityFeedCard } from '@/lib/activity/activity-feed'
 import { formatLocalizedDate, formatLocalizedRelativeTime } from '@/lib/date'
-import { useTranslation } from '@/lib/i18n'
-import { normalizeProfileUsername } from '@/lib/profile-routes'
+import { useTranslation } from '@/lib/localization/i18n'
+import { normalizeProfileUsername } from '@/lib/profile/profile-routes'
 
 export function ActivityCard({
   activity,

@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og'
 import { createElement, type ReactElement } from 'react'
-import { FallbackOg, getOgImageOptions, SettingsOg } from '@/lib/og'
-import { safeImageData } from '@/lib/og-images'
+import { FallbackOg, getOgImageOptions, SettingsOg } from '@/lib/og/og'
+import { safeImageData } from '@/lib/og/og-images'
 import { getPublicProfileOgData } from '@/lib/server-supabase'
 
 export const runtime = 'edge'

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { AccentDots } from '@/components/landing/accent-dots'
 import { LandingReveal } from '@/components/landing/landing-reveal'
 import { Button } from '@/components/ui/button'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 
 export function LandingCTA() {
   const { t } = useTranslation()

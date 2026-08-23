@@ -7,6 +7,7 @@ import { LoaderCircle, LogOut, Pencil, Save, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
+import { CollectionSearchInput } from '@/components/collection/collection-search-input'
 import { EmptyState, Poster } from '@/components/kino'
 import { AppPagination } from '@/components/layout/app-pagination'
 import { PageHeader } from '@/components/layout/page-header'
@@ -31,13 +32,14 @@ import { ModalDialog as Dialog } from '@/components/ui/modal-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ShareCodeDisplay } from '@/components/watchlist/watchlist-sharing'
 import { WatchlistVisibilitySelector } from '@/components/watchlist/watchlist-visibility-selector'
-import { useTranslation } from '@/lib/i18n'
-import { resolveLocalizedTitlePresentation } from '@/lib/localized-title-presentation'
-import { invalidateProfileMutation } from '@/lib/profile-invalidation'
+import { useLocalizedTitles } from '@/hooks/title/use-localized-titles'
+import { useTranslation } from '@/lib/localization/i18n'
+import { resolveLocalizedTitlePresentation } from '@/lib/localization/localized-title-presentation'
+import { invalidateProfileMutation } from '@/lib/profile/profile-invalidation'
 import { parseWatchlistSegment, titlePath, watchlistPath } from '@/lib/routes'
 import { db, getTmdb } from '@/lib/services'
-import { useLocalizedTitles } from '@/lib/use-localized-titles'
-import { publishWatchlistChange } from '@/lib/watchlist-cache-sync'
+import { publishWatchlistChange } from '@/lib/watchlist/watchlist-cache-sync'
+import { filterWatchlistItemsByTitle } from '@/lib/watchlist/watchlist-search'
 import { useAuthStore } from '@/stores/auth-store'
 
 interface WatchlistDetailData {
@@ -64,6 +66,7 @@ export default function WatchlistDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [leaveOpen, setLeaveOpen] = useState(false)
   const [removeTarget, setRemoveTarget] = useState<WatchlistItemDetails | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const [progressFilter, setProgressFilter] = useState<WatchlistProgressFilter>('all')
   const detailQueryKey = ['watchlist-detail', watchlistId] as const
   const [page, setPage] = useState(1)
@@ -313,12 +316,32 @@ export default function WatchlistDetailPage() {
 
   const progressPercentage = items.length > 0 ? Math.round((watchedCount / items.length) * 100) : 0
 
-  const filteredItems =
+  const progressFilteredItems =
     progressFilter === 'watched'
       ? items.filter(isItemWatched)
       : progressFilter === 'to-watch'
         ? items.filter((item) => !isItemWatched(item))
         : items
+
+  const searchableItems = progressFilteredItems.map((item) => {
+    const localized = resolveLocalizedTitlePresentation({
+      ...localizedTitles,
+      request: {
+        tmdbId: item.title.tmdb_id,
+        type: item.title.type,
+      },
+      unknownTitle: t('diary.unknownTitle'),
+    })
+
+    return {
+      item,
+      title: localized.title,
+    }
+  })
+
+  const filteredItems = filterWatchlistItemsByTitle(searchableItems, searchQuery).map(
+    ({ item }) => item
+  )
 
   const pageSize = gridColumns * WATCHLIST_ROWS_PER_PAGE
 
@@ -330,6 +353,11 @@ export default function WatchlistDetailPage() {
 
   const changeProgressFilter = (filter: WatchlistProgressFilter) => {
     setProgressFilter(filter)
+    setPage(1)
+  }
+
+  const changeSearchQuery = (query: string) => {
+    setSearchQuery(query)
     setPage(1)
   }
 
@@ -503,6 +531,12 @@ export default function WatchlistDetailPage() {
         </section>
       ) : null}
 
+      {items.length > 0 ? (
+        <div className="mb-6">
+          <CollectionSearchInput onChange={changeSearchQuery} value={searchQuery} />
+        </div>
+      ) : null}
+
       {items.length === 0 ? (
         <EmptyState
           action={
@@ -514,6 +548,18 @@ export default function WatchlistDetailPage() {
           illustrationLabel={t('emptyStates.watchlistIllustration')}
           title={t('watchlists.emptyList')}
           variant="watchlist"
+        />
+      ) : filteredItems.length === 0 ? (
+        <EmptyState
+          body={t('profileCollections.noMatchesBody', {
+            defaultValue: 'Try another title or change your filters.',
+          })}
+          className="min-h-80"
+          size="compact"
+          title={t('profileCollections.noMatchesTitle', {
+            defaultValue: 'No matching titles',
+          })}
+          variant="search"
         />
       ) : (
         <>

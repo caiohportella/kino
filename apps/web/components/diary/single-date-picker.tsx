@@ -28,16 +28,18 @@ export function SingleDatePicker({
     <Popover onOpenChange={onOpenChange} open={open}>
       <PopoverTrigger disabled={disabled} render={trigger} />
 
-      <PopoverContent align="end" className="w-auto max-w-[calc(100vw-2rem)] p-0">
+      <PopoverContent
+        align="end"
+        className="lg:min-h-12 lg:px-5 lg:text-sm max-w-[calc(100vw-2rem)] p-0"
+      >
         <AdvancedCalendar
           autoFocus
           disabled={{ after: endMonth }}
           endMonth={endMonth}
           locale={locale}
           mode="single"
-          onSelect={(date) => {
-            if (date) onSelect(date)
-          }}
+          required
+          onSelect={onSelect}
           selected={selected}
           startMonth={startMonth}
         />

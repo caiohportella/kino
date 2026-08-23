@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import { parseWatchlistSegment, watchlistPath } from '@/lib/routes'
-import { absoluteUrl, socialImage, trimText } from '@/lib/seo'
-import { getServerMetadataContext, pageMetadata } from '@/lib/server-metadata'
+import { absoluteUrl, socialImage, trimText } from '@/lib/seo/seo'
+import { getServerMetadataContext, pageMetadata } from '@/lib/seo/server-metadata'
 import { getPublicWatchlistOgData } from '@/lib/server-supabase'
 
 export async function generateMetadata({

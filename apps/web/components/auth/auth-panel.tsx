@@ -19,7 +19,7 @@ import {
   consumeStoredAuthRedirect,
   isSafeInternalRedirect,
   storeAuthRedirect,
-} from '@/lib/auth-redirect'
+} from '@/lib/auth/auth-redirect'
 import { db } from '@/lib/services'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'

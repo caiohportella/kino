@@ -3,19 +3,38 @@
 import type { TMDbTitle } from '@kino/core'
 import Link from 'next/link'
 import { Poster } from '@/components/kino'
-import { useMediaPoster } from '@/hooks/use-media-poster'
+import { useMediaPoster } from '@/hooks/title/use-media-poster'
+import { cn } from '@/lib/utils'
 import { MediaRow } from './media-row'
 
-export function MediaSection({ title, items }: { title: string; items: TMDbTitle[] }) {
+type MediaSectionProps = {
+  title: string
+  items: TMDbTitle[]
+  density?: 'default' | 'comfortable'
+}
+
+export function MediaSection({ title, items, density = 'default' }: MediaSectionProps) {
   if (items.length === 0) return null
 
   return (
-    <section className="mb-10">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-kino-text">{title}</h2>
+    <section className={cn(density === 'comfortable' ? 'mb-12 lg:mb-14' : 'mb-10')}>
+      <div
+        className={cn(
+          'flex items-center justify-between',
+          density === 'comfortable' ? 'mb-5' : 'mb-4'
+        )}
+      >
+        <h2
+          className={cn(
+            'font-semibold text-kino-text',
+            density === 'comfortable' ? 'text-xl lg:text-2xl' : 'text-xl'
+          )}
+        >
+          {title}
+        </h2>
       </div>
 
-      <MediaRow>
+      <MediaRow className={density === 'comfortable' ? 'media-row--comfortable' : undefined}>
         {items.map((item) => (
           <MediaSectionItem item={item} key={`${item.media_type}-${item.id}`} />
         ))}
@@ -35,7 +54,13 @@ function MediaSectionItem({ item }: { item: TMDbTitle }) {
       onMouseEnter={prefetch}
       onTouchStart={prefetch}
     >
-      <Poster className="w-full rounded-md" details={{ year }} src={poster} title={title} />
+      <Poster
+        className="w-full rounded-md"
+        details={{ year }}
+        sizes="156px"
+        src={poster}
+        title={title}
+      />
     </Link>
   )
 }

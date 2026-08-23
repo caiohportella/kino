@@ -1,3 +1,5 @@
+import { CalendarDays, Check, Play } from 'lucide-react'
+import Image from 'next/image'
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -5,6 +7,7 @@ export interface PosterDetails {
   year?: number | string | null
   completed?: boolean
   upcomingSeasonLabel?: string | null
+  nextEpisodeLabel?: string | null
 }
 
 export function EmptyState({
@@ -133,75 +136,180 @@ function EmptyStateArtwork({
 }
 
 export function Poster({
+  alt,
+  artworkOverlay,
+  children,
+  className,
+  details,
+  hoverMeta,
+  interactive = true,
+  showHoverPresentation = true,
+  sizes,
   src,
   title,
-  alt,
-  className,
-  children,
-  details,
-  artworkOverlay,
 }: {
-  src: string | null | undefined
-  title: string
   alt?: string
-  className?: string
-  children?: ReactNode
-  details?: PosterDetails
   artworkOverlay?: ReactNode
+  children?: ReactNode
+  className?: string
+  details?: PosterDetails
+  hoverMeta?: ReactNode
+  interactive?: boolean
+  showHoverPresentation?: boolean
+  sizes?: string
+  src?: string | null
+  title: string
 }) {
-  const artwork = (
-    <div className="relative">
+  const statusLabel = details?.nextEpisodeLabel ?? details?.upcomingSeasonLabel
+
+  const StatusIcon = details?.nextEpisodeLabel ? Play : CalendarDays
+
+  return (
+    <div className="group relative min-w-0">
       <div
         className={cn(
-          'relative aspect-2/3 w-full overflow-hidden rounded-md bg-white/6',
+          `
+            relative aspect-2/3 w-full
+            overflow-hidden rounded-md
+            bg-white/6
+            transition-all duration-300
+
+            group-hover:ring-1
+            group-hover:ring-kino-accent/30
+            group-hover:shadow-xl
+          `,
           className
         )}
       >
         {src ? (
-          <img alt={alt || title} className="h-full w-full object-cover" loading="lazy" src={src} />
+          sizes ? (
+            <Image
+              alt={alt || title}
+              className={cn(
+                'object-cover',
+                interactive &&
+                  `
+                    transition-transform duration-500 ease-out
+                    group-hover:scale-105 group-focus-within:scale-105
+                    motion-reduce:transition-none motion-reduce:transform-none
+                  `
+              )}
+              fill
+              sizes={sizes}
+              src={src}
+            />
+          ) : (
+            <img
+              alt={alt || title}
+              className={cn(
+                'object-cover',
+                interactive &&
+                  `
+                    transition-transform duration-500 ease-out
+                    group-hover:scale-105 group-focus-within:scale-105
+                    motion-reduce:transition-none motion-reduce:transform-none
+                  `
+              )}
+              loading="lazy"
+              src={src}
+            />
+          )
         ) : (
-          <div className="grid h-full place-items-center px-3 text-center text-xs font-semibold text-kino-muted">
+          <div className="grid size-full place-items-center px-3 text-center text-xs font-semibold text-kino-muted">
             {title}
           </div>
         )}
+
+        {/* Hover presentation */}
+        {interactive && showHoverPresentation ? (
+          <div
+            aria-hidden="true"
+            className={cn(
+              `
+                pointer-events-none absolute inset-0 z-10
+                flex items-end
+                bg-linear-to-t from-black/90 via-black/40 to-transparent
+                p-4
+                opacity-0
+                transition-opacity duration-300
+
+                group-hover:opacity-100
+                group-focus-within:opacity-100
+
+                motion-reduce:transition-none
+              `,
+              statusLabel && 'pb-14'
+            )}
+          >
+            <div
+              className="
+                min-w-0 translate-y-2 opacity-0
+                transition-all duration-300 ease-out
+                group-hover:translate-y-0 group-hover:opacity-100
+                group-focus-within:translate-y-0 group-focus-within:opacity-100
+                motion-reduce:translate-y-0 motion-reduce:transition-none
+              "
+            >
+              <div
+                className="
+                  mb-2 h-0.5 w-8 origin-left scale-x-0 rounded-full
+                  bg-kino-accent transition-transform duration-300
+                  group-hover:scale-x-100 group-focus-within:scale-x-100
+                  motion-reduce:scale-x-100 motion-reduce:transition-none
+                "
+              />
+
+              <span className="line-clamp-2 text-sm font-semibold leading-5 text-white sm:text-base">
+                {title}
+              </span>
+
+              {hoverMeta ? (
+                <div className="mt-1.5 text-xs font-medium text-white/60">{hoverMeta}</div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
+        {interactive && statusLabel ? (
+          <div
+            className="
+              absolute bottom-3 left-3 z-20
+              flex max-w-4/5 items-center gap-1.5
+              rounded-md
+              border border-kino-accent/30
+              bg-kino-bg/90
+              px-2.5 py-1.5
+              text-xs font-semibold
+              text-kino-accent
+              shadow-lg
+              backdrop-blur-sm
+            "
+          >
+            <StatusIcon aria-hidden="true" className="shrink-0" size={14} />
+
+            <span className="truncate">{statusLabel}</span>
+          </div>
+        ) : null}
+
+        {/* Functional overlays stay above hover presentation */}
         {children}
+
+        {interactive && details?.completed ? (
+          <span
+            className="
+              absolute right-2 top-2 z-20
+              grid size-6 place-items-center
+              rounded-full border border-kino-accent/30
+              bg-kino-bg/90 text-kino-accent
+              shadow-lg backdrop-blur-sm
+            "
+          >
+            <Check aria-hidden="true" size={14} />
+          </span>
+        ) : null}
       </div>
 
       {artworkOverlay}
-    </div>
-  )
-
-  if (!details) {
-    return artwork
-  }
-
-  return (
-    <div className="grid min-w-0 gap-3">
-      {artwork}
-
-      <div className="min-w-0">
-        <h3 className="line-clamp-2 h-10 text-sm font-semibold leading-5 text-kino-text transition-colors group-hover:text-kino-accent">
-          {title}
-        </h3>
-
-        <div className="mt-1 flex min-h-5 items-center justify-between gap-2 text-xs text-kino-muted">
-          <span className="flex min-w-0 items-center gap-1.5">
-            <span>{details.year ?? '—'}</span>
-
-            {details.completed ? (
-              <span aria-label="Completed" className="font-semibold text-kino-accent">
-                ✓
-              </span>
-            ) : null}
-          </span>
-
-          {details.upcomingSeasonLabel ? (
-            <span className="shrink-0 rounded-full border border-kino-accent/30 bg-kino-accent/10 px-2 py-0.5 font-medium text-kino-accent">
-              {details.upcomingSeasonLabel}
-            </span>
-          ) : null}
-        </div>
-      </div>
     </div>
   )
 }

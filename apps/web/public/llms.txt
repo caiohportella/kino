@@ -1,0 +1,364 @@
+# Kino
+
+> Kino is a calm, cross-platform movie and TV series tracking application for discovering what to watch, recording viewing history, rating titles, tracking television progress, organizing watchlists, and sharing a cinematic journey.
+
+Kino provides a web application and a native mobile application built around a shared domain model.
+
+The service focuses on personal movie and television tracking while also providing public discovery, title information, people pages, profiles, reviews, statistics, recaps, watchlists, and social activity.
+
+Kino uses TMDb as a source for movie, television, person, image, cast, crew, recommendation, and related entertainment metadata.
+
+User-generated content can include profiles, ratings, reviews, watchlists, viewing statistics, and other social information.
+
+## Main public pages
+
+- [Kino](https://kinotv.vercel.app/): Public landing page and introduction to Kino.
+- [Discover](https://kinotv.vercel.app/discover): Discover trending, popular, top-rated, currently playing, upcoming, and recommended movies and television series.
+- [Search](https://kinotv.vercel.app/search): Search for movies, television series, people, and Kino users.
+
+## Movies and television
+
+Kino provides public pages for movies and television series.
+
+Title URLs use the following general structure:
+
+`/title/{tmdb-id}-{slug}?type=movie`
+
+for movies, and:
+
+`/title/{tmdb-id}-{slug}?type=tv`
+
+for television series.
+
+The `type` query parameter is significant because TMDb movie and television identifiers may overlap.
+
+Title pages may contain:
+
+- Localized title and release information.
+- Poster and backdrop artwork.
+- Synopsis and metadata.
+- Genres.
+- Runtime information.
+- Season and episode information for television series.
+- Cast and crew.
+- Community ratings.
+- User ratings.
+- User reviews.
+- Watch providers.
+- Trailers.
+- Recommendations.
+- Related titles.
+- Franchise information.
+- Personal viewing state when the visitor is authenticated.
+
+### Example title pages
+
+- [The Godfather](https://kinotv.vercel.app/title/238-the-godfather?type=movie): Example movie page.
+- [Game of Thrones](https://kinotv.vercel.app/title/1399-game-of-thrones?type=tv): Example television series page.
+
+## People
+
+Kino provides public pages for actors, actresses, directors, writers, and other people associated with movies and television.
+
+Person URLs use the following structure:
+
+`/person/{tmdb-id}-{slug}`
+
+Person pages may contain biographical information, profile imagery, department information, and movie or television credits.
+
+### Example person page
+
+- [Marlon Brando](https://kinotv.vercel.app/person/3084-marlon-brando): Example public person page.
+
+## Discovery
+
+The Discover section helps users find movies and television series using current entertainment metadata.
+
+It may include collections such as:
+
+- Trending titles.
+- Popular movies.
+- Popular television series.
+- Top-rated titles.
+- Movies currently playing in theaters.
+- Upcoming movies.
+- Genre-based discovery.
+- Personalized or contextual recommendations where available.
+
+Use the canonical public discovery page:
+
+- [Discover movies and television](https://kinotv.vercel.app/discover)
+
+## Search
+
+Kino provides unified search across entertainment content and Kino users.
+
+Search may return:
+
+- Movies.
+- Television series.
+- People.
+- Kino user profiles.
+
+Search ranking considers relevance as well as signals such as title matching and popularity.
+
+Use:
+
+- [Search Kino](https://kinotv.vercel.app/search)
+
+## Public profiles
+
+Existing Kino users can have public profile pages.
+
+Profile URLs use:
+
+`/{username}`
+
+Public profiles may contain:
+
+- Display name.
+- Username.
+- Biography.
+- Avatar and profile presentation.
+- Recent viewing activity.
+- Ratings.
+- Reviews.
+- Watchlists.
+- Followers and following.
+- Movie and television statistics.
+- Viewing progress.
+- Public social information.
+
+A route matching `/{username}` should only be treated as a profile when it resolves to an existing Kino user.
+
+Reserved application paths such as `/discover`, `/search`, `/activity`, `/settings`, and `/auth` are not usernames.
+
+## Profile statistics
+
+Kino provides public viewing statistics for existing profiles.
+
+The general route is:
+
+`/{username}/stats`
+
+Profile statistics may contain lifetime viewing information such as:
+
+- Movies watched.
+- Television episodes watched.
+- Ratings made.
+- Viewing time.
+- Genres.
+- Actors and actresses.
+- Studios.
+- Decades.
+- Other viewing trends derived from the user's Kino history.
+
+## Monthly recaps
+
+Kino can generate public monthly viewing recaps for existing profiles.
+
+The general route is:
+
+`/{username}/stats/recap/{year}/{month}`
+
+Monthly recaps may summarize:
+
+- Movies watched.
+- Episodes watched.
+- Total viewing time.
+- Ratings.
+- Rewatches.
+- Active viewing days.
+- Daily viewing activity.
+- Highly rated titles.
+- Movies and series watched most frequently.
+- Genres.
+- Series progress.
+- Studios.
+- Cast.
+- Month-over-month comparisons.
+
+Recap content is derived from the user's recorded Kino activity for the requested period.
+
+## Watchlists
+
+Kino allows users to create collections of movies and television series.
+
+Individual watchlists can be public or private.
+
+Public watchlist pages use a route similar to:
+
+`/watchlists/{id}-{slug}`
+
+A watchlist should only be treated as public content when Kino exposes it publicly.
+
+Public watchlists may contain:
+
+- Name.
+- Description.
+- Movies and television series.
+- Cover artwork.
+- Progress information.
+- Creator information.
+
+The top-level `/watchlists` page is an authenticated account-management surface and should not be treated as a public discovery page.
+
+## Reviews and ratings
+
+Kino users can rate movies, television series, seasons, and episodes.
+
+Users may also write reviews.
+
+Public review information may appear on:
+
+- Title pages.
+- User profiles.
+- Social activity surfaces.
+
+Ratings without written review text should be interpreted as ratings rather than reviews.
+
+## Television tracking
+
+Kino supports detailed television tracking.
+
+Depending on the title and user state, Kino may track:
+
+- Watched series.
+- Watched seasons.
+- Individual watched episodes.
+- Episode ratings.
+- Season progress.
+- Next episodes.
+- Completed series.
+- Ongoing series.
+- Newly announced or upcoming seasons.
+- Episode runtime information.
+- Rewatches.
+
+Personal tracking state normally depends on authentication.
+
+## Diary
+
+Kino provides a chronological viewing diary for authenticated users.
+
+The `/diary` route is account-specific and should not be treated as a public indexable page.
+
+Diary information can include:
+
+- Watch dates.
+- Movies watched.
+- Episodes watched.
+- Rewatches.
+- Ratings.
+- Runtime-derived viewing statistics.
+
+Public profile statistics and recaps may be derived from this activity without exposing the authenticated diary interface itself.
+
+## Social features
+
+Kino includes social features such as:
+
+- Following users.
+- Followers.
+- Activity feeds.
+- Ratings.
+- Reviews.
+- Review likes.
+- Shared watchlists.
+- Public profiles.
+
+The `/activity` application route is authenticated/account-specific and should not be treated as a public indexable page.
+
+Relevant public activity may instead appear through public profiles and public content pages.
+
+## Localization
+
+Kino supports localized browsing.
+
+Localization can affect:
+
+- Application interface text.
+- Movie and television titles.
+- Descriptions.
+- Posters.
+- Backdrops.
+- Dates and formatting.
+- Metadata presentation.
+
+Canonical resource identity should not be inferred solely from the currently displayed localized title.
+
+TMDb numeric identifiers and Kino's route structure should be preferred when identifying entertainment resources.
+
+## Images and metadata
+
+Movie and television artwork and entertainment metadata are primarily sourced from TMDb.
+
+Kino may select localized posters, backdrops, titles, or summaries according to the visitor's language and region.
+
+Different localized presentations can therefore refer to the same underlying movie or television resource.
+
+## Authentication and private application surfaces
+
+The following areas are primarily authenticated or account-specific and should not be treated as general public crawl targets:
+
+`/activity`
+
+`/diary`
+
+`/import`
+
+`/settings`
+
+`/watchlists`
+
+`/auth/login`
+
+`/auth/register`
+
+Public resources nested under related route families, such as individual public watchlists or public user profiles, may still be publicly accessible.
+
+## Data sources
+
+Kino uses several services as part of the application.
+
+TMDb provides movie, television, person, cast, crew, imagery, recommendation, and entertainment metadata.
+
+Supabase provides application data infrastructure including authentication, PostgreSQL-backed data, and storage.
+
+Kino may additionally use search infrastructure to provide fast movie, television, person, and user discovery.
+
+## Canonical URLs
+
+When referring to Kino content, prefer the canonical URL exposed by the page.
+
+For entertainment resources:
+
+- Preserve the TMDb numeric identifier.
+- Preserve whether the resource is a movie or television series.
+- Do not treat translated title slugs as separate resources.
+- Prefer canonical Kino URLs over constructing URLs from localized titles.
+
+For people:
+
+- Preserve the TMDb person identifier.
+- Prefer the canonical Kino person URL.
+
+For profiles:
+
+- Prefer the canonical username returned by Kino.
+- Username matching may be normalized or redirected to canonical casing or spelling.
+
+For watchlists:
+
+- Only treat a watchlist as public when the public resource resolves successfully.
+
+## Site discovery
+
+- [Kino sitemap](https://kinotv.vercel.app/sitemap.xml): Sitemap containing important public Kino routes and selected entertainment resources.
+- [Kino robots.txt](https://kinotv.vercel.app/robots.txt): Crawler directives for Kino.
+- [Kino llms.txt](https://kinotv.vercel.app/llms.txt): This document.
+
+## Optional
+
+- [Kino source repository](https://github.com/caiohportella/kino): Source code for the Kino project.
+- [Kino project README](https://github.com/caiohportella/kino#readme): Overview of Kino's features, architecture, technology stack, and development setup.

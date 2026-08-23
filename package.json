@@ -17,6 +17,7 @@
     "test": "pnpm -r --if-present test",
     "format": "biome format --write .",
     "start": "pnpm dev:mobile",
+    "start:web": "next start",
     "android": "pnpm --filter @kino/mobile android",
     "ios": "pnpm --filter @kino/mobile ios",
     "web": "pnpm dev:web",

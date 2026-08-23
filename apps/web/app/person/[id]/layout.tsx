@@ -3,9 +3,9 @@ import { permanentRedirect } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { cache } from 'react'
 import { isCanonicalResourceSegment, parseResourceSegment, personPath } from '@/lib/routes'
-import { absoluteUrl, buildPersonSchema } from '@/lib/seo'
-import { getServerMetadataContext, pageMetadata } from '@/lib/server-metadata'
-import { getPersonSeoData } from '@/lib/server-tmdb'
+import { absoluteUrl, buildPersonSchema } from '@/lib/seo/seo'
+import { getServerMetadataContext, pageMetadata } from '@/lib/seo/server-metadata'
+import { getPersonSeoData } from '@/lib/tmdb/server-tmdb'
 
 export async function generateMetadata({
   params,

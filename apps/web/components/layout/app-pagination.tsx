@@ -58,7 +58,10 @@ export function AppPagination({
     >
       <p className="text-sm font-medium text-kino-muted">{summary(currentPage, totalPages)}</p>
 
-      <Pagination aria-label={label} className="sm:mx-0 sm:w-auto">
+      <Pagination
+        aria-label={label}
+        className="sm:mx-0 sm:min-h-11 w-full whitespace-normal px-4 leading-tight"
+      >
         <PaginationContent>
           <PaginationItem>
             <PaginationPrevious

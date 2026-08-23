@@ -2,7 +2,7 @@
 
 import { KinoDatabaseService, TMDbService } from '@kino/core'
 import { supabase } from '@/lib/supabase/client'
-import { createProfileQueryService } from './profile-query-service'
+import { createProfileQueryService } from './profile/profile-query-service'
 
 let tmdbService: TMDbService | null = null
 
