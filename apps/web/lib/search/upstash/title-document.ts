@@ -110,6 +110,8 @@ export function titleDocumentFromTmdb(input: {
     readonly popularity?: number
     readonly first_air_date?: string
     readonly name?: string
+    readonly original_title?: string
+    readonly original_name?: string
   }
   const date = type === 'movie' ? raw.release_date : raw.first_air_date
   const parsedYear = date ? Number(date.slice(0, 4)) : NaN
@@ -118,8 +120,8 @@ export function titleDocumentFromTmdb(input: {
     type,
     title: title.title ?? title.name,
     name: title.name,
-    originalTitle: input.originalTitle,
-    originalName: input.originalName,
+    originalTitle: input.originalTitle ?? raw.original_title,
+    originalName: input.originalName ?? raw.original_name,
     overview: title.overview,
     aliases: input.aliases,
     localizedTitles: input.localizedTitles,

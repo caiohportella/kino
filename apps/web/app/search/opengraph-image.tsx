@@ -1,5 +1,5 @@
 import { ImageResponse } from 'next/og'
-import { FeatureOg, getOgImageOptions, OG_CONTENT_TYPE, OG_SIZE } from '@/lib/og'
+import { FeatureOg, getOgImageOptions, OG_CONTENT_TYPE, OG_SIZE } from '@/lib/og/og'
 
 export const runtime = 'edge'
 export const size = OG_SIZE

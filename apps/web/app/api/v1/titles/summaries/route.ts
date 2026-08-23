@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server'
 import {
   createLocalizedTitleRateLimiter,
   createTmdbLocalizedTitleBatchService,
-} from '@/lib/localized-title-batch-server'
+} from '@/lib/localization/localized-title-batch-server'
 
 const rateLimiter = createLocalizedTitleRateLimiter({
   limit: 30,

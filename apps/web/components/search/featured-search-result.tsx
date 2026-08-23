@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { Poster } from '@/components/kino'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 import { titlePath } from '@/lib/routes'
 import type { FeaturedTitleResult } from '@/lib/search/featured-title'
 import { getTmdb } from '@/lib/services'
