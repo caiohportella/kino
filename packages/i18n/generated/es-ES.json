@@ -455,6 +455,7 @@
       "becauseWatched": "Porque has visto {{título}}",
       "becauseYouLiked": "Porque te han gustado estas películas",
       "forYou": "Para ti",
+      "moreFromDirector": "Más de {{director}}",
       "moreFromDirectors": "Más de los directores que te gustan",
       "moreFromStudio": "Más de {{studio}}",
       "moreGenre": "Más {{genre}} para ti"
