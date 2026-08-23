@@ -1,82 +1,80 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import assert from 'node:assert/strict'
+import test from 'node:test'
 
-import { KinoDatabaseService } from "./database.ts";
+import { KinoDatabaseService } from './database.ts'
 
 function createSupabase(rowsByTable = {}) {
   return {
     from(table) {
-      const filters = [];
+      const filters = []
 
       const query = {
         select() {
-          return query;
+          return query
         },
         eq(column, value) {
-          filters.push((row) => row[column] === value);
-          return query;
+          filters.push((row) => row[column] === value)
+          return query
         },
         in() {
-          return query;
+          return query
         },
         not() {
-          return query;
+          return query
         },
         gt() {
-          return query;
+          return query
         },
         order() {
-          return query;
+          return query
         },
         range() {
-          return query;
+          return query
         },
         limit() {
-          return query;
+          return query
         },
         then(resolve, reject) {
           const rows = rowsByTable[table] ?? []
-          const data = rows.filter((row) =>
-            filters.every((filter) => filter(row)),
-          )
+          const data = rows.filter((row) => filters.every((filter) => filter(row)))
 
           return Promise.resolve({
             data,
             error: null,
           }).then(resolve, reject)
         },
-      };
+      }
 
-      return query;
+      return query
     },
-  };
+  }
 }
 
-test("normalizes repeated movie watches into one profile collection item", async () => {
+test('normalizes repeated movie watches into one profile collection item', async () => {
   const service = new KinoDatabaseService(
     createSupabase({
       watch_diary: [
         {
-          id: "watch-2",
-          user_id: "profile-1",
-          title_id: "movie-1",
-          watched_at: "2026-02-10T20:00:00.000Z",
-          watch_type: "rewatch",
+          id: 'watch-2',
+          user_id: 'profile-1',
+          title_id: 'movie-1',
+          watched_at: '2026-02-10T20:00:00.000Z',
+          watch_type: 'rewatch',
           notes: null,
-          created_at: "2026-02-10T20:00:00.000Z",
-          updated_at: "2026-02-11T20:00:00.000Z",
+          created_at: '2026-02-10T20:00:00.000Z',
+          updated_at: '2026-02-11T20:00:00.000Z',
           titles: {
-            id: "movie-1",
+            id: 'movie-1',
             tmdb_id: 348,
-            title: "Alien",
-            type: "movie",
+            title: 'Alien',
+            type: 'movie',
             release_year: 1979,
-            genres: [{ id: 878, name: "Science Fiction" }],
+            genres: [{ id: 878, name: 'Science Fiction' }],
             runtime: 117,
             episode_runtime: null,
-            cover_image: "/alien.jpg",
+            cover_image: '/alien.jpg',
             tmdb_data: {
-              original_title: "Alien",
+              original_title: 'Alien',
               vote_average: 8.2,
               vote_count: 15_000,
               popularity: 75.5,
@@ -84,26 +82,26 @@ test("normalizes repeated movie watches into one profile collection item", async
           },
         },
         {
-          id: "watch-1",
-          user_id: "profile-1",
-          title_id: "movie-1",
-          watched_at: "2025-01-05T20:00:00.000Z",
-          watch_type: "first-time",
+          id: 'watch-1',
+          user_id: 'profile-1',
+          title_id: 'movie-1',
+          watched_at: '2025-01-05T20:00:00.000Z',
+          watch_type: 'first-time',
           notes: null,
-          created_at: "2025-01-05T20:00:00.000Z",
-          updated_at: "2025-01-05T20:00:00.000Z",
+          created_at: '2025-01-05T20:00:00.000Z',
+          updated_at: '2025-01-05T20:00:00.000Z',
           titles: {
-            id: "movie-1",
+            id: 'movie-1',
             tmdb_id: 348,
-            title: "Alien",
-            type: "movie",
+            title: 'Alien',
+            type: 'movie',
             release_year: 1979,
-            genres: [{ id: 878, name: "Science Fiction" }],
+            genres: [{ id: 878, name: 'Science Fiction' }],
             runtime: 117,
             episode_runtime: null,
-            cover_image: "/alien.jpg",
+            cover_image: '/alien.jpg',
             tmdb_data: {
-              original_title: "Alien",
+              original_title: 'Alien',
               vote_average: 8.2,
               vote_count: 15_000,
               popularity: 75.5,
@@ -113,36 +111,33 @@ test("normalizes repeated movie watches into one profile collection item", async
       ],
       title_ratings: [
         {
-          id: "rating-1",
-          user_id: "profile-1",
-          title_id: "movie-1",
+          id: 'rating-1',
+          user_id: 'profile-1',
+          title_id: 'movie-1',
           rating: 4.5,
-          watched_at: "2026-02-10T20:00:00.000Z",
-          watch_type: "rewatch",
-          created_at: "2026-02-10T20:00:00.000Z",
-          updated_at: "2026-02-12T20:00:00.000Z",
+          watched_at: '2026-02-10T20:00:00.000Z',
+          watch_type: 'rewatch',
+          created_at: '2026-02-10T20:00:00.000Z',
+          updated_at: '2026-02-12T20:00:00.000Z',
         },
       ],
       episode_ratings: [],
-    }),
-  );
+    })
+  )
 
-  const items = await service.getProfileCollectionItemsByProfileId(
-    "profile-1",
-    "movie",
-  );
+  const items = await service.getProfileCollectionItemsByProfileId('profile-1', 'movie')
 
-  assert.equal(items.length, 1);
+  assert.equal(items.length, 1)
 
   assert.deepEqual(items[0], {
-    id: "movie-1",
+    id: 'movie-1',
     tmdbId: 348,
-    mediaType: "movie",
-    title: "Alien",
-    originalTitle: "Alien",
+    mediaType: 'movie',
+    title: 'Alien',
+    originalTitle: 'Alien',
     releaseYear: 1979,
-    genres: [{ id: 878, name: "Science Fiction" }],
-    posterPath: "/alien.jpg",
+    genres: [{ id: 878, name: 'Science Fiction' }],
+    posterPath: '/alien.jpg',
     userRating: 4.5,
     averageRating: 4.5,
     ratingCount: 1,
@@ -150,24 +145,24 @@ test("normalizes repeated movie watches into one profile collection item", async
     tmdbVoteCount: 15_000,
     tmdbPopularity: 75.5,
     runtimeMinutes: 117,
-    latestWatchedAt: "2026-02-10T20:00:00.000Z",
-    latestActivityAt: "2026-02-12T20:00:00.000Z",
+    latestWatchedAt: '2026-02-10T20:00:00.000Z',
+    latestActivityAt: '2026-02-12T20:00:00.000Z',
     watchCount: 2,
     watchEvents: [
       {
-        id: "watch-2",
-        watchedAt: "2026-02-10T20:00:00.000Z",
-        watchType: "rewatch",
+        id: 'watch-2',
+        watchedAt: '2026-02-10T20:00:00.000Z',
+        watchType: 'rewatch',
       },
       {
-        id: "watch-1",
-        watchedAt: "2025-01-05T20:00:00.000Z",
-        watchType: "first-time",
+        id: 'watch-1',
+        watchedAt: '2025-01-05T20:00:00.000Z',
+        watchType: 'first-time',
       },
     ],
     seriesPasses: [],
-  });
-});
+  })
+})
 
 test('uses the latest review update for collection activity', async () => {
   const service = new KinoDatabaseService(
@@ -218,38 +213,32 @@ test('uses the latest review update for collection activity', async () => {
           updated_at: '2026-03-05T20:00:00.000Z',
         },
       ],
-    }),
+    })
   )
 
-  const items = await service.getProfileCollectionItemsByProfileId(
-    'profile-1',
-    'movie',
-  )
+  const items = await service.getProfileCollectionItemsByProfileId('profile-1', 'movie')
 
-  assert.equal(
-    items[0]?.latestActivityAt,
-    '2026-03-05T20:00:00.000Z',
-  )
+  assert.equal(items[0]?.latestActivityAt, '2026-03-05T20:00:00.000Z')
 })
 
-test("includes Kino community rating statistics separately from TMDB ratings", async () => {
+test('includes Kino community rating statistics separately from TMDB ratings', async () => {
   const service = new KinoDatabaseService(
     createSupabase({
       watch_diary: [
         {
-          id: "watch-1",
-          user_id: "profile-1",
-          title_id: "movie-1",
-          watched_at: "2026-02-10T20:00:00.000Z",
-          watch_type: "first-time",
+          id: 'watch-1',
+          user_id: 'profile-1',
+          title_id: 'movie-1',
+          watched_at: '2026-02-10T20:00:00.000Z',
+          watch_type: 'first-time',
           notes: null,
-          created_at: "2026-02-10T20:00:00.000Z",
-          updated_at: "2026-02-10T20:00:00.000Z",
+          created_at: '2026-02-10T20:00:00.000Z',
+          updated_at: '2026-02-10T20:00:00.000Z',
           titles: {
-            id: "movie-1",
+            id: 'movie-1',
             tmdb_id: 348,
-            title: "Alien",
-            type: "movie",
+            title: 'Alien',
+            type: 'movie',
             release_year: 1979,
             genres: [],
             runtime: 117,
@@ -265,35 +254,32 @@ test("includes Kino community rating statistics separately from TMDB ratings", a
       ],
       title_ratings: [
         {
-          id: "rating-1",
-          user_id: "profile-1",
-          title_id: "movie-1",
+          id: 'rating-1',
+          user_id: 'profile-1',
+          title_id: 'movie-1',
           rating: 4,
-          updated_at: "2026-02-10T20:00:00.000Z",
+          updated_at: '2026-02-10T20:00:00.000Z',
         },
         {
-          id: "rating-2",
-          user_id: "profile-2",
-          title_id: "movie-1",
+          id: 'rating-2',
+          user_id: 'profile-2',
+          title_id: 'movie-1',
           rating: 5,
-          updated_at: "2026-02-11T20:00:00.000Z",
+          updated_at: '2026-02-11T20:00:00.000Z',
         },
       ],
       episode_ratings: [],
-    }),
-  );
+    })
+  )
 
-  const items = await service.getProfileCollectionItemsByProfileId(
-    "profile-1",
-    "movie",
-  );
+  const items = await service.getProfileCollectionItemsByProfileId('profile-1', 'movie')
 
-  assert.equal(items[0]?.tmdbRating, 8.2);
-  assert.equal(items[0]?.tmdbVoteCount, 15_000);
+  assert.equal(items[0]?.tmdbRating, 8.2)
+  assert.equal(items[0]?.tmdbVoteCount, 15_000)
 
-  assert.equal(items[0]?.averageRating, 4.5);
-  assert.equal(items[0]?.ratingCount, 2);
-});
+  assert.equal(items[0]?.averageRating, 4.5)
+  assert.equal(items[0]?.ratingCount, 2)
+})
 
 test('normalizes series episode history into one profile collection item', async () => {
   const service = new KinoDatabaseService(
@@ -445,17 +431,14 @@ test('normalizes series episode history into one profile collection item', async
         },
       ],
       reviews: [],
-    }),
+    })
   )
 
   service.getAverageSeasonRatingsForTitles = async () => ({
     'series-1': 4.25,
   })
 
-  const items = await service.getProfileCollectionItemsByProfileId(
-    'profile-1',
-    'tv',
-  )
+  const items = await service.getProfileCollectionItemsByProfileId('profile-1', 'tv')
 
   assert.equal(items.length, 1)
 
@@ -531,9 +514,7 @@ test('includes Kino community episode rating statistics for series', async () =>
     runtime: null,
     episode_runtime: 50,
     cover_image: null,
-    seasons_metadata: [
-      { season_number: 1, episode_count: 2 },
-    ],
+    seasons_metadata: [{ season_number: 1, episode_count: 2 }],
     tmdb_data: {
       vote_average: 8.7,
       vote_count: 8_000,
@@ -590,17 +571,14 @@ test('includes Kino community episode rating statistics for series', async () =>
         },
       ],
       reviews: [],
-    }),
+    })
   )
 
   service.getAverageSeasonRatingsForTitles = async () => ({
     'series-1': 4.5,
   })
 
-  const items = await service.getProfileCollectionItemsByProfileId(
-    'profile-1',
-    'tv',
-  )
+  const items = await service.getProfileCollectionItemsByProfileId('profile-1', 'tv')
 
   assert.equal(items[0]?.userRating, 4.5)
 
@@ -622,9 +600,7 @@ test('uses the latest series review update for collection activity', async () =>
     runtime: null,
     episode_runtime: 50,
     cover_image: null,
-    seasons_metadata: [
-      { season_number: 1, episode_count: 1 },
-    ],
+    seasons_metadata: [{ season_number: 1, episode_count: 1 }],
     tmdb_data: null,
   }
 
@@ -660,20 +636,14 @@ test('uses the latest series review update for collection activity', async () =>
           updated_at: '2026-03-05T20:00:00.000Z',
         },
       ],
-    }),
+    })
   )
 
   service.getAverageSeasonRatingsForTitles = async () => ({
     'series-1': 4.5,
   })
 
-  const items = await service.getProfileCollectionItemsByProfileId(
-    'profile-1',
-    'tv',
-  )
+  const items = await service.getProfileCollectionItemsByProfileId('profile-1', 'tv')
 
-  assert.equal(
-    items[0]?.latestActivityAt,
-    '2026-03-05T20:00:00.000Z',
-  )
+  assert.equal(items[0]?.latestActivityAt, '2026-03-05T20:00:00.000Z')
 })

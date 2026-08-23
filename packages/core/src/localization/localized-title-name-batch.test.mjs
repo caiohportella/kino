@@ -20,10 +20,7 @@ const request = {
 test('normalizes a versioned localized-title-name batch request', () => {
   assert.equal(LOCALIZED_TITLE_NAME_BATCH_SCHEMA_VERSION, 1)
 
-  assert.deepEqual(
-    normalizeLocalizedTitleNameBatchRequest(request),
-    request
-  )
+  assert.deepEqual(normalizeLocalizedTitleNameBatchRequest(request), request)
 
   assert.throws(() =>
     normalizeLocalizedTitleNameBatchRequest({
@@ -62,10 +59,7 @@ test('normalizes localized title names', () => {
     errors: [],
   }
 
-  assert.deepEqual(
-    normalizeLocalizedTitleNameBatchResponse(response),
-    response
-  )
+  assert.deepEqual(normalizeLocalizedTitleNameBatchResponse(response), response)
 
   assert.throws(() =>
     normalizeLocalizedTitleNameBatchResponse({

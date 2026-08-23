@@ -361,18 +361,18 @@ export interface WatchlistPreviewTitle {
 }
 
 export interface WatchlistParticipantPreview {
-  id: string;
-  username: string;
-  displayName?: string;
-  avatarUrl?: string;
+  id: string
+  username: string
+  displayName?: string
+  avatarUrl?: string
 }
 
 export interface UserWatchlistSummary extends Watchlist {
-  titleCount: number;
-  watchedCount: number;
-  previewTitles: WatchlistPreviewTitle[];
-  participants: WatchlistParticipantPreview[];
-  lastItemAddedAt?: Date;
+  titleCount: number
+  watchedCount: number
+  previewTitles: WatchlistPreviewTitle[]
+  participants: WatchlistParticipantPreview[]
+  lastItemAddedAt?: Date
 }
 
 export type WatchlistVisibility = 'private' | 'shared' | 'public'

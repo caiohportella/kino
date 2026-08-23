@@ -134,15 +134,7 @@ test('scopes profile collections by profile, visibility, and media type', () => 
       visibilityScope,
       mediaType: 'movie',
     }),
-    [
-      'v1',
-      'profile',
-      'collection',
-      'profile-a',
-      'authenticated',
-      'profile-viewer',
-      'movie',
-    ],
+    ['v1', 'profile', 'collection', 'profile-a', 'authenticated', 'profile-viewer', 'movie']
   )
 
   assert.deepEqual(
@@ -150,14 +142,7 @@ test('scopes profile collections by profile, visibility, and media type', () => 
       profileId,
       visibilityScope,
     }),
-    [
-      'v1',
-      'profile',
-      'collection',
-      'profile-a',
-      'authenticated',
-      'profile-viewer',
-    ],
+    ['v1', 'profile', 'collection', 'profile-a', 'authenticated', 'profile-viewer']
   )
 
   assert.notDeepEqual(
@@ -170,7 +155,7 @@ test('scopes profile collections by profile, visibility, and media type', () => 
       profileId,
       visibilityScope,
       mediaType: 'tv',
-    }),
+    })
   )
 
   assert.notDeepEqual(
@@ -186,7 +171,7 @@ test('scopes profile collections by profile, visibility, and media type', () => 
         userId: 'another-viewer',
       },
       mediaType: 'movie',
-    }),
+    })
   )
 })
 

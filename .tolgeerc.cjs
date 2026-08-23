@@ -17,10 +17,7 @@ module.exports = {
 
   extractor: './scripts/tolgee-extractor.mjs',
 
-  patterns: [
-    './apps/web/**/*.ts?(x)',
-    './packages/**/*.ts?(x)',
-  ],
+  patterns: ['./apps/web/**/*.ts?(x)', './packages/**/*.ts?(x)'],
 
   pull: {
     path: './packages/i18n/generated',

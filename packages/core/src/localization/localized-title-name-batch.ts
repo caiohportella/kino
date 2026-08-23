@@ -37,10 +37,7 @@ export function normalizeLocalizedTitleNameBatchRequest(
     throw new Error('Unsupported localized title name batch schema version.')
   }
 
-  if (
-    !Array.isArray(record.items) ||
-    record.items.length > LOCALIZED_TITLE_BATCH_MAX_ITEMS
-  ) {
+  if (!Array.isArray(record.items) || record.items.length > LOCALIZED_TITLE_BATCH_MAX_ITEMS) {
     throw new Error('Localized title name batch items are invalid.')
   }
 
@@ -115,10 +112,7 @@ function normalizeName(input: unknown): ResolvedLocalizedTitleName {
   }
 }
 
-function objectRecord(
-  input: unknown,
-  label: string
-): Record<string, unknown> {
+function objectRecord(input: unknown, label: string): Record<string, unknown> {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     throw new Error(`${label} is invalid.`)
   }
