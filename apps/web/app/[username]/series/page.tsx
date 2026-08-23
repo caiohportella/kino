@@ -1,4 +1,4 @@
-import { createClient } from '@Supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
 import type { Metadata } from 'next'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { ProfileSeriesPage } from '@/components/profile/collections/profile-series-page'
