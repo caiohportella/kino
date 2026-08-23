@@ -2,7 +2,7 @@ import { type PublicUserSummary, REVIEW_MAX_LENGTH } from '@kino/core'
 import { useState } from 'react'
 import { RatingStars } from '@/components/media/rating-stars'
 import { Button } from '@/components/ui/button'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/localization/i18n'
 import { ReviewAuthor } from './review-author'
 
 export function ReviewComposer({

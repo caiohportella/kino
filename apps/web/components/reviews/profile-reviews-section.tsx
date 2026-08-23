@@ -6,9 +6,9 @@ import { useState } from 'react'
 
 import { useToast } from '@/components/toast-provider'
 import { Button } from '@/components/ui/button'
-import { useProfileReviewMutations, useProfileReviews } from '@/hooks/use-profile-reviews'
-import { storeAuthRedirect } from '@/lib/auth-redirect'
-import { useTranslation } from '@/lib/i18n'
+import { useProfileReviewMutations, useProfileReviews } from '@/hooks/profile/use-profile-reviews'
+import { storeAuthRedirect } from '@/lib/auth/auth-redirect'
+import { useTranslation } from '@/lib/localization/i18n'
 import { useAuthStore } from '@/stores/auth-store'
 
 import { ProfileReviewCard } from './profile-review-card'

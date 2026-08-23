@@ -3,7 +3,10 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
 test('web optimistic reviews use the Kino profile instead of provider metadata', async () => {
-  const source = await readFile(new URL('../hooks/use-title-reviews.ts', import.meta.url), 'utf8')
+  const source = await readFile(
+    new URL('../hooks/title/use-title-reviews.ts', import.meta.url),
+    'utf8'
+  )
 
   for (const forbidden of [
     'user.user_metadata.avatar_url',

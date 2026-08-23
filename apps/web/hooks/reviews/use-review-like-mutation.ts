@@ -13,8 +13,8 @@ import {
 } from '@kino/core'
 import type { InfiniteData } from '@tanstack/react-query'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { updateActivityFeedReviewLike } from '@/lib/activity-feed'
-import { invalidateProfileMutation } from '@/lib/profile-invalidation'
+import { updateActivityFeedReviewLike } from '@/lib/activity/activity-feed'
+import { invalidateProfileMutation } from '@/lib/profile/profile-invalidation'
 import { db } from '@/lib/services'
 import { useAuthStore } from '@/stores/auth-store'
 
