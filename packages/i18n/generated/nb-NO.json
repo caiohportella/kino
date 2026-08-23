@@ -451,6 +451,7 @@
       "becauseWatched": "Fordi du så {{title}}",
       "becauseYouLiked": "Fordi du likte dette",
       "forYou": "For deg",
+      "moreFromDirector": "Flere filmer fra {{director}}",
       "moreFromDirectors": "Flere filmer fra regissørene du liker",
       "moreFromStudio": "Flere fra {{studio}}",
       "moreGenre": "Flere {{genre}} for deg"
