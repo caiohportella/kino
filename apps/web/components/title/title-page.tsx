@@ -11,15 +11,15 @@ import { getUpcomingSeason, TitleHeader } from '@/components/title/title-header'
 import {
   CommunityRatingsPanel,
   TitleDiscoverySection,
-  TitleSynopsisAndRating,
+  TitleSynopsis,
 } from '@/components/title/title-metadata'
 import { SeasonTabs } from '@/components/title/title-seasons'
 import { TitleSection } from '@/components/title/title-section'
 import { TitleSidebar } from '@/components/title/title-sidebar'
 import { useTitleActions } from '@/hooks/title/use-title-actions'
 import { ANON_TITLE_ID, useTitleData } from '@/hooks/title/use-title-data'
-import { storeAuthRedirect } from '@/lib/auth-redirect'
-import { useTranslation } from '@/lib/i18n'
+import { storeAuthRedirect } from '@/lib/auth/auth-redirect'
+import { useTranslation } from '@/lib/localization/i18n'
 import { parseResourceSegment } from '@/lib/routes'
 import { useAuthStore } from '@/stores/auth-store'
 import { useSettingsStore } from '@/stores/settings-store'
@@ -118,7 +118,7 @@ export function TitlePage() {
             canUsePersonalActions={canUsePersonalActions}
             hasLastWatch={Boolean(userData?.lastWatch)}
             isWatchlisted={Boolean(userData?.isWatchlisted)}
-            onAuthRequired={requestAuthForCurrentTitle}
+            onAuthRequiredAction={requestAuthForCurrentTitle}
             shareUrl={shareUrl}
             showTickets={type === 'movie' && isNowPlayingInBrazil}
             ticketsUrl={ticketsUrl}
@@ -130,17 +130,21 @@ export function TitlePage() {
         upcomingSeason={upcomingSeason}
       />
 
-      <div className="mt-8 grid w-full min-w-0 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_300px] xl:gap-12 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div
+        className="
+          mt-8
+          grid w-full min-w-0
+          items-start gap-8
+
+          xl:grid-cols-[minmax(0,1fr)_300px]
+          xl:gap-10
+
+          2xl:grid-cols-[minmax(0,1fr)_320px]
+        "
+      >
         <main className="min-w-0">
           <TitleSection>
-            <TitleSynopsisAndRating
-              currentUserRating={currentUserRating}
-              deleteMovieEntryMutation={deleteMovieEntryMutation}
-              onAuthRequired={requestAuthForCurrentTitle}
-              rateMutation={rateMutation}
-              title={title}
-              user={user}
-            />
+            <TitleSynopsis title={title} />
           </TitleSection>
 
           {hasSeasons ? (
@@ -157,11 +161,16 @@ export function TitlePage() {
 
           <TitleSection>
             <CommunityRatingsPanel
+              currentUserRating={currentUserRating}
+              deleteMovieEntryMutation={deleteMovieEntryMutation}
               embedded
+              onAuthRequired={requestAuthForCurrentTitle}
+              rateMutation={rateMutation}
               showFollowed={Boolean(user)}
               stats={statsQuery.data}
               titleId={title.id}
               type={title.type}
+              viewerAuthenticated={Boolean(user)}
             />
           </TitleSection>
 
@@ -178,7 +187,14 @@ export function TitlePage() {
           </TitleSection>
         </main>
 
-        <aside className="min-w-0 lg:sticky lg:top-24">
+        <aside
+          className="
+            min-w-0
+
+            xl:sticky
+            xl:top-[calc(var(--shell-header-height)+1.5rem)]
+          "
+        >
           <TitleSidebar contextQuery={contextQuery} stats={statsQuery.data} title={title} />
         </aside>
       </div>

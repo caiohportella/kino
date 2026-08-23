@@ -5,10 +5,20 @@ import { KinoLanguage } from '@kino/core/locale-config'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { de, enUS, es, fr, it, Locale, nb, ptBR } from 'date-fns/locale'
 import { motion } from 'framer-motion'
-import { Bookmark, Calendar, CalendarCheck, Plus, Ticket } from 'lucide-react'
+import {
+  Bookmark,
+  Calendar,
+  CalendarCheck,
+  Check,
+  Loader2,
+  Plus,
+  Search,
+  Ticket,
+} from 'lucide-react'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { SingleDatePicker } from '@/components/diary/single-date-picker'
+import { Poster } from '@/components/kino'
 import { ShareButton } from '@/components/share-button'
 import { MediaModalSkeleton } from '@/components/skeletons/page-skeletons'
 import { Button } from '@/components/ui/button'
@@ -20,10 +30,17 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { WatchlistDialog } from '@/components/watchlist/watchlist-dialog'
+import { useLocalizedTitles } from '@/hooks/title/use-localized-titles'
 import { ANON_TITLE_ID } from '@/hooks/title/use-title-data'
-import { useTranslation } from '@/lib/i18n'
-import { db } from '@/lib/services'
-import { publishWatchlistChange } from '@/lib/watchlist-cache-sync'
+import { useTranslation } from '@/lib/localization/i18n'
+import { resolveLocalizedTitlePresentation } from '@/lib/localization/localized-title-presentation'
+import { db, getTmdb } from '@/lib/services'
+import { publishWatchlistChange } from '@/lib/watchlist/watchlist-cache-sync'
+import {
+  adjustWatchlistSummaryCount,
+  isTitleWatchlistedFromSelection,
+  setWatchlistSelection,
+} from '@/lib/watchlist/watchlist-picker-state'
 import { useSettingsStore } from '@/stores/settings-store'
 
 type TitleActionsProps = {
@@ -31,11 +48,18 @@ type TitleActionsProps = {
   userId: string | undefined
   isWatchlisted: boolean
   hasLastWatch: boolean
-  onAuthRequired: () => void
+  onAuthRequiredAction: () => void
   canUsePersonalActions: boolean
   shareUrl: string
   ticketsUrl: string
   showTickets: boolean
+}
+
+type WatchlistPickerTitle = Pick<TitleDetails, 'id' | 'title' | 'year' | 'coverImage'>
+
+type TitleUserDataCache = {
+  isWatchlisted: boolean
+  [key: string]: unknown
 }
 
 export function TitleActions({
@@ -43,7 +67,7 @@ export function TitleActions({
   userId,
   isWatchlisted,
   hasLastWatch,
-  onAuthRequired,
+  onAuthRequiredAction,
   canUsePersonalActions,
   shareUrl,
   ticketsUrl,
@@ -99,11 +123,11 @@ export function TitleActions({
       <div className="grid w-full grid-cols-1 gap-3 min-[390px]:grid-cols-2 sm:flex sm:w-auto sm:max-w-full sm:flex-wrap sm:justify-center lg:justify-start">
         <Button
           aria-label={isWatchlisted ? t('title.watchlisted') : t('title.watchlist')}
-          className="min-h-11 w-full whitespace-normal px-4 leading-tight sm:w-auto sm:min-w-36 sm:whitespace-nowrap"
+          className="min-h-11 w-full whitespace-normal px-4 leading-tight sm:w-auto sm:min-w-36 sm:whitespace-nowrap lg:min-h-12 lg:px-5 lg:text-sm"
           disabled={Boolean(userId) && title.id === ANON_TITLE_ID}
           onClick={() => {
             if (!canUsePersonalActions) {
-              onAuthRequired()
+              onAuthRequiredAction()
               return
             }
 
@@ -133,7 +157,7 @@ export function TitleActions({
         {hasLastWatch ? (
           <Button
             aria-label={t('title.removeHistory')}
-            className="min-h-11 w-full whitespace-normal px-4 leading-tight sm:w-auto sm:min-w-36 sm:whitespace-nowrap"
+            className="min-h-11 w-full whitespace-normal px-4 leading-tight sm:w-auto sm:min-w-36 sm:whitespace-nowrap lg:min-h-12 lg:px-5 lg:text-sm"
             disabled={diaryMutation.isPending}
             onClick={() => diaryMutation.mutate(undefined)}
             variant="secondary"
@@ -160,7 +184,7 @@ export function TitleActions({
             locale={DIARY_LOCALES[language]}
             onOpenChange={(nextOpen) => {
               if (nextOpen && !canUsePersonalActions) {
-                onAuthRequired()
+                onAuthRequiredAction()
                 return
               }
 
@@ -182,7 +206,7 @@ export function TitleActions({
             trigger={
               <Button
                 aria-label={t('title.diary')}
-                className="min-h-11 w-full whitespace-normal px-4 leading-tight sm:w-auto sm:min-w-36 sm:whitespace-nowrap"
+                className="min-h-11 w-full whitespace-normal px-4 leading-tight sm:w-auto sm:min-w-36 sm:whitespace-nowrap lg:min-h-12 lg:px-5 lg:text-sm"
                 disabled={
                   (Boolean(userId) && title.id === ANON_TITLE_ID) || diaryMutation.isPending
                 }
@@ -208,7 +232,12 @@ export function TitleActions({
         )}
 
         <ShareButton
-          className="min-h-11 w-full min-[390px]:col-span-2 sm:w-auto sm:min-w-32"
+          className="
+            min-h-11 w-full
+            min-[390px]:col-span-2
+            sm:w-auto sm:min-w-32
+            lg:min-h-12 lg:px-5 lg:text-sm
+          "
           text={t('title.checkOut', {
             title: title.title,
           })}
@@ -218,7 +247,11 @@ export function TitleActions({
 
         {showTickets ? (
           <Button
-            className="min-h-11 w-full min-[390px]:col-span-2 sm:w-auto"
+            className="
+            min-h-11 w-full min-[390px]:col-span-2
+            sm:w-auto
+            lg:min-h-12 lg:px-5 lg:text-sm
+          "
             render={
               <Link href={ticketsUrl} rel="noreferrer" target="_blank">
                 <Ticket size={17} />
@@ -233,71 +266,290 @@ export function TitleActions({
       <WatchlistPicker
         onClose={() => setWatchlistOpen(false)}
         open={watchlistOpen}
-        titleId={title.id}
+        title={{
+          id: title.id,
+          title: title.title,
+          year: title.year,
+          coverImage: title.coverImage,
+        }}
         userId={userId}
       />
     </>
   )
 }
 
+function WatchlistCoverMosaic({ coverImages }: { coverImages: string[] }) {
+  const covers = coverImages.filter(Boolean).slice(0, 4)
+
+  const image = (src: string | undefined, className: string) => {
+    if (!src) {
+      return null
+    }
+
+    return <img alt="" className={`h-full w-full object-cover ${className}`} src={src} />
+  }
+
+  return (
+    <div className="size-16 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-white/4 sm:size-18">
+      {covers.length === 0 ? (
+        <div className="flex h-full w-full items-center justify-center text-kino-muted">
+          <Bookmark size={19} />
+        </div>
+      ) : null}
+
+      {covers.length === 1 ? image(covers[0], '') : null}
+
+      {covers.length === 2 ? (
+        <div className="grid h-full grid-cols-2">
+          {image(covers[0], 'border-r border-white/10')}
+          {image(covers[1], '')}
+        </div>
+      ) : null}
+
+      {covers.length === 3 ? (
+        <div className="grid h-full grid-cols-2 grid-rows-2">
+          <div className="row-span-2 border-r border-white/10">{image(covers[0], '')}</div>
+
+          <div className="border-b border-white/10">{image(covers[1], '')}</div>
+
+          <div>{image(covers[2], '')}</div>
+        </div>
+      ) : null}
+
+      {covers.length >= 4 ? (
+        <div className="grid h-full grid-cols-2 grid-rows-2">
+          <div className="border-b border-r border-white/10">{image(covers[0], '')}</div>
+
+          <div className="border-b border-white/10">{image(covers[1], '')}</div>
+
+          <div className="border-r border-white/10">{image(covers[2], '')}</div>
+
+          <div>{image(covers[3], '')}</div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 function WatchlistPicker({
   open,
   onClose,
-  titleId,
+  title,
   userId,
 }: {
   open: boolean
   onClose: () => void
-  titleId: string
+  title: WatchlistPickerTitle
   userId: string | undefined
 }) {
+  const titleId = title.id
   const queryClient = useQueryClient()
   const { t } = useTranslation()
   const [createOpen, setCreateOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [pendingWatchlistIds, setPendingWatchlistIds] = useState(() => new Set<string>())
+
+  const pickerQueryKey = ['watchlist-picker', userId, titleId] as const
+
+  const titleUserDataQueryKey = ['title-user-data', titleId, userId] as const
 
   const query = useQuery({
-    queryKey: ['watchlist-picker', userId, titleId],
+    queryKey: pickerQueryKey,
     queryFn: async () => {
-      const [watchlists, selectedRows] = await Promise.all([
-        db.getUserWatchlists(),
-        db.getWatchlistTitleContributors(titleId),
-      ])
+      const watchlists = await db.getUserWatchlists()
+      const watchlistIds = watchlists.map((watchlist) => watchlist.id)
+
+      const picker = await db.getWatchlistPickerData(watchlistIds, titleId)
 
       return {
         watchlists,
-        selected: new Map(selectedRows.map((row) => [row.watchlist_id, row.added_by])),
+        summaries: picker.summaries,
+        selected: new Map(picker.selected.map((row) => [row.watchlist_id, row.added_by])),
       }
     },
     enabled: open && Boolean(userId),
   })
 
-  const mutation = useMutation({
-    mutationFn: async (watchlist: Watchlist) => {
-      const contributorId = query.data?.selected.get(watchlist.id)
+  const allWatchlists = query.data?.watchlists ?? []
 
-      if (contributorId === userId) {
+  const watchlistCoverRequests = useMemo(
+    () =>
+      Object.values(query.data?.summaries ?? {}).flatMap((summary) =>
+        summary.coverItems.map((item) => ({
+          tmdbId: item.tmdbId,
+          type: item.type,
+        }))
+      ),
+    [query.data?.summaries]
+  )
+
+  const localizedWatchlistCovers = useLocalizedTitles(watchlistCoverRequests)
+
+  const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase()
+
+  const filteredWatchlists = normalizedSearchQuery
+    ? allWatchlists.filter((watchlist) => {
+        const searchableText = [watchlist.name, watchlist.description]
+          .filter(Boolean)
+          .join(' ')
+          .toLocaleLowerCase()
+
+        return searchableText.includes(normalizedSearchQuery)
+      })
+    : allWatchlists
+
+  const mutation = useMutation({
+    mutationFn: async ({
+      watchlist,
+      action,
+    }: {
+      watchlist: Watchlist
+      action: 'add' | 'remove'
+    }) => {
+      if (action === 'remove') {
         await db.removeFromWatchlist(watchlist.id, titleId)
-      } else if (!contributorId) {
-        await db.addToWatchlist(watchlist.id, titleId)
+        return
+      }
+
+      await db.addToWatchlist(watchlist.id, titleId)
+    },
+
+    onMutate: async ({ watchlist, action }) => {
+      setPendingWatchlistIds((current) => {
+        const next = new Set(current)
+        next.add(watchlist.id)
+        return next
+      })
+
+      await queryClient.cancelQueries({
+        queryKey: pickerQueryKey,
+      })
+
+      const current = queryClient.getQueryData<typeof query.data>(pickerQueryKey)
+
+      const previousContributorId = current?.selected.get(watchlist.id)
+
+      let nextIsWatchlisted: boolean | undefined
+
+      queryClient.setQueryData<typeof query.data>(pickerQueryKey, (cached) => {
+        if (!cached) {
+          return cached
+        }
+
+        const nextSelected = setWatchlistSelection(
+          cached.selected,
+          watchlist.id,
+          action === 'add' ? (userId ?? null) : null
+        )
+
+        nextIsWatchlisted = isTitleWatchlistedFromSelection(nextSelected)
+
+        return {
+          ...cached,
+          selected: nextSelected,
+          summaries: adjustWatchlistSummaryCount(
+            cached.summaries,
+            watchlist.id,
+            action === 'add' ? 1 : -1
+          ),
+        }
+      })
+
+      if (nextIsWatchlisted !== undefined) {
+        queryClient.setQueryData(
+          titleUserDataQueryKey,
+          (cached: TitleUserDataCache | undefined) => {
+            if (!cached) {
+              return cached
+            }
+
+            return {
+              ...cached,
+              isWatchlisted: nextIsWatchlisted,
+            }
+          }
+        )
+      }
+
+      return {
+        previousContributorId,
       }
     },
-    onSuccess: (_result, watchlist) => {
+
+    onError: (_error, { watchlist, action }, context) => {
+      let rolledBackIsWatchlisted: boolean | undefined
+
+      queryClient.setQueryData<typeof query.data>(pickerQueryKey, (cached) => {
+        if (!cached) {
+          return cached
+        }
+
+        const rolledBackSelected = setWatchlistSelection(
+          cached.selected,
+          watchlist.id,
+          context?.previousContributorId ?? null
+        )
+
+        rolledBackIsWatchlisted = isTitleWatchlistedFromSelection(rolledBackSelected)
+
+        return {
+          ...cached,
+          selected: rolledBackSelected,
+          summaries: adjustWatchlistSummaryCount(
+            cached.summaries,
+            watchlist.id,
+            action === 'add' ? -1 : 1
+          ),
+        }
+      })
+
+      if (rolledBackIsWatchlisted !== undefined) {
+        queryClient.setQueryData(
+          titleUserDataQueryKey,
+          (cached: TitleUserDataCache | undefined) => {
+            if (!cached) {
+              return cached
+            }
+
+            return {
+              ...cached,
+              isWatchlisted: rolledBackIsWatchlisted,
+            }
+          }
+        )
+      }
+    },
+
+    onSuccess: (_result, { watchlist }) => {
       publishWatchlistChange(watchlist.id)
 
-      queryClient.invalidateQueries({
-        queryKey: ['watchlist-picker', userId, titleId],
+      void queryClient.invalidateQueries({
+        queryKey: titleUserDataQueryKey,
+        refetchType: 'none',
       })
-      queryClient.invalidateQueries({
-        queryKey: ['title-user-data', titleId, userId],
-      })
-      queryClient.invalidateQueries({
+
+      void queryClient.invalidateQueries({
         queryKey: ['watchlists', userId],
       })
-      queryClient.invalidateQueries({
+
+      void queryClient.invalidateQueries({
         queryKey: ['profile', userId],
       })
-      queryClient.invalidateQueries({
+
+      void queryClient.invalidateQueries({
         queryKey: ['public-watchlists'],
+      })
+    },
+
+    onSettled: (_result, _error, { watchlist }) => {
+      setPendingWatchlistIds((current) => {
+        const next = new Set(current)
+        next.delete(watchlist.id)
+        return next
+      })
+
+      void queryClient.invalidateQueries({
+        queryKey: pickerQueryKey,
       })
     },
   })
@@ -307,89 +559,270 @@ function WatchlistPicker({
       <Dialog
         onOpenChange={(nextOpen) => {
           if (!nextOpen) {
+            setSearchQuery('')
             onClose()
           }
         }}
         open={open && !createOpen}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('modals.selectWatchlist')}</DialogTitle>
+        <DialogContent
+          className="
+          flex
+          max-h-[calc(100dvh-1rem)]
+          w-[calc(100vw-0.75rem)]
+          max-w-4xl
+          flex-col
+          gap-0
+          overflow-hidden
+          p-0
+          sm:w-[calc(100vw-2rem)]
+        "
+        >
+          <div className="px-5 pb-6 pt-5 sm:px-8 sm:pt-7">
+            <DialogHeader className="text-left">
+              <DialogTitle className="text-2xl font-semibold tracking-tight">
+                {t('modals.selectWatchlist', {
+                  defaultValue: 'Select list',
+                })}
+              </DialogTitle>
 
-            <DialogDescription>{t('modals.watchlistSelectorHint')}</DialogDescription>
-          </DialogHeader>
+              <DialogDescription className="sr-only">
+                {t('modals.watchlistSelectorHint', {
+                  defaultValue: 'Select lists to add this title to.',
+                })}
+              </DialogDescription>
+            </DialogHeader>
 
-          <div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-white/10 bg-white/3 p-3">
-            <span className="text-sm font-semibold text-kino-text">
-              {t('watchlists.createWatchlist')}
-            </span>
+            <div className="mt-5 flex items-center gap-5 rounded-xl border border-white/10 bg-black/15 p-4 sm:p-5">
+              <div className="w-14 shrink-0 overflow-hidden rounded-lg sm:w-16">
+                <Poster className="w-full" src={title.coverImage} title={title.title} />
+              </div>
 
-            <Button
-              aria-label={t('watchlists.createWatchlist')}
-              className="shrink-0"
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-kino-muted">
+                  {t('modals.addingTitle', {
+                    defaultValue: 'Adding',
+                  })}
+                </p>
+
+                <p className="mt-1 truncate text-lg font-semibold text-kino-text sm:text-xl">
+                  {title.title}
+                  {title.year ? (
+                    <span className="font-normal text-kino-muted"> ({title.year})</span>
+                  ) : null}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-white/10" />
+
+          <div className="flex min-h-0 flex-1 flex-col px-5 py-6 sm:px-8">
+            <div className="relative">
+              <Search
+                aria-hidden="true"
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-kino-muted"
+                size={17}
+              />
+
+              <input
+                aria-label={t('modals.searchWatchlists', {
+                  defaultValue: 'Search your lists',
+                })}
+                autoComplete="off"
+                className="h-12 w-full rounded-xl border border-white/10 bg-black/15 pl-11 pr-4 text-sm text-kino-text outline-none transition-colors placeholder:text-kino-muted focus:border-white/20 focus:bg-white/3"
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder={t('modals.searchWatchlists', {
+                  defaultValue: 'Search your lists',
+                })}
+                type="search"
+                value={searchQuery}
+              />
+            </div>
+
+            <button
+              className="mt-4 flex w-full items-center gap-4 rounded-xl border border-dashed border-white/15 px-4 py-4 text-left transition-colors hover:border-white/25 hover:bg-white/3"
               onClick={() => setCreateOpen(true)}
-              size="icon"
-              title={t('watchlists.createWatchlist')}
-              variant="secondary"
+              type="button"
             >
-              <Plus size={17} />
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-dashed border-white/20 text-kino-muted">
+                <Plus size={18} />
+              </span>
+
+              <span className="font-semibold text-kino-text">
+                {t('watchlists.createWatchlist', {
+                  defaultValue: 'Create new list',
+                })}
+              </span>
+            </button>
+
+            <div className="my-4 shrink-0 border-t border-white/8" />
+
+            <div className="-mx-2 min-h-0 flex-1 overflow-y-auto px-2">
+              {query.isLoading ? <MediaModalSkeleton label={t('common.loading')} /> : null}
+
+              <div className="grid gap-1">
+                {filteredWatchlists.map((watchlist) => {
+                  const contributorId = query.data?.selected.get(watchlist.id)
+                  const active = Boolean(contributorId)
+                  const canRemove = contributorId === userId
+                  const summary = query.data?.summaries[watchlist.id]
+                  const titleCount = summary?.titleCount ?? 0
+                  const pending = pendingWatchlistIds.has(watchlist.id)
+                  const coverImages = (summary?.coverItems ?? [])
+                    .map((item) => {
+                      const localized = resolveLocalizedTitlePresentation({
+                        ...localizedWatchlistCovers,
+                        request: {
+                          tmdbId: item.tmdbId,
+                          type: item.type,
+                        },
+                        unknownTitle: '',
+                      })
+
+                      if (localized.status === 'ready' && localized.posterPath) {
+                        return getTmdb().getImageUrl(localized.posterPath, 'w300')
+                      }
+
+                      return item.fallbackCoverImage
+                    })
+                    .filter((cover): cover is string => Boolean(cover))
+
+                  return (
+                    <button
+                      className="
+                        flex w-full items-center justify-between
+                        gap-6 rounded-xl px-3 py-3
+                        text-left transition-colors
+                        hover:bg-white/4
+                        disabled:cursor-not-allowed
+                        disabled:opacity-60
+                      "
+                      disabled={pending || (active && !canRemove)}
+                      key={watchlist.id}
+                      onClick={() => {
+                        if (pending) {
+                          return
+                        }
+
+                        if (contributorId === userId) {
+                          mutation.mutate({
+                            watchlist,
+                            action: 'remove',
+                          })
+                          return
+                        }
+
+                        if (!contributorId) {
+                          mutation.mutate({
+                            watchlist,
+                            action: 'add',
+                          })
+                        }
+                      }}
+                      title={
+                        active && !canRemove ? t('watchlists.onlyContributorCanRemove') : undefined
+                      }
+                      type="button"
+                    >
+                      <div className="flex min-w-0 flex-1 items-center gap-5">
+                        <WatchlistCoverMosaic coverImages={coverImages} />
+
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-semibold text-kino-text">{watchlist.name}</p>
+
+                          {watchlist.description ? (
+                            <p className="mt-0.5 line-clamp-1 text-sm text-kino-muted">
+                              {watchlist.description}
+                            </p>
+                          ) : null}
+
+                          <p
+                            className={`text-xs text-kino-muted/70 ${
+                              watchlist.description ? 'mt-1' : 'mt-0.5'
+                            }`}
+                          >
+                            {titleCount === 1
+                              ? t('watchlists.oneTitle', {
+                                  defaultValue: '1 title',
+                                })
+                              : t('watchlists.titleCount', {
+                                  count: titleCount,
+                                  defaultValue: '{{count}} titles',
+                                })}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span
+                        aria-hidden="true"
+                        className={`flex size-8 shrink-0 items-center justify-center rounded-lg border transition-colors ${
+                          pending
+                            ? 'border-white/20 bg-white/5 text-kino-muted'
+                            : active
+                              ? 'border-kino-accent bg-kino-accent text-black'
+                              : 'border-white/20 bg-transparent text-transparent'
+                        }`}
+                      >
+                        {pending ? (
+                          <Loader2 aria-hidden="true" className="animate-spin" size={16} />
+                        ) : (
+                          <Check aria-hidden="true" size={17} strokeWidth={2.5} />
+                        )}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {!query.isLoading && allWatchlists.length === 0 ? (
+                <div className="py-8 text-center text-sm text-kino-muted">
+                  {t('modals.noWatchlistsFound', {
+                    defaultValue: 'No watchlists found.',
+                  })}
+                </div>
+              ) : null}
+
+              {!query.isLoading && allWatchlists.length > 0 && filteredWatchlists.length === 0 ? (
+                <div className="py-8 text-center text-sm text-kino-muted">
+                  {t('modals.noMatchingWatchlists', {
+                    defaultValue: 'No lists match your search.',
+                  })}
+                </div>
+              ) : null}
+            </div>
+
+            {!query.isLoading && allWatchlists.length === 0 ? (
+              <div className="py-8 text-center text-sm text-kino-muted">
+                {t('modals.noWatchlistsFound', {
+                  defaultValue: 'No watchlists found.',
+                })}
+              </div>
+            ) : null}
+
+            {!query.isLoading && allWatchlists.length > 0 && filteredWatchlists.length === 0 ? (
+              <div className="py-8 text-center text-sm text-kino-muted">
+                {t('modals.noMatchingWatchlists', {
+                  defaultValue: 'No lists match your search.',
+                })}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="shrink-0 border-t border-white/10 px-5 py-5 sm:px-8">
+            <Button
+              className="w-full"
+              onClick={() => {
+                setSearchQuery('')
+                onClose()
+              }}
+              size="lg"
+            >
+              {t('common.done', {
+                defaultValue: 'Done',
+              })}
             </Button>
           </div>
-
-          {query.isLoading ? <MediaModalSkeleton label={t('common.loading')} /> : null}
-
-          <div className="grid gap-3">
-            {(query.data?.watchlists || []).map((watchlist) => {
-              const contributorId = query.data?.selected.get(watchlist.id)
-              const active = Boolean(contributorId)
-              const canRemove = contributorId === userId
-
-              return (
-                <button
-                  className={`flex items-center justify-between rounded-md border px-4 py-3 text-left transition-colors ${
-                    active
-                      ? 'border-kino-accent bg-kino-accent/15 text-kino-text'
-                      : 'border-white/10 bg-white/4 text-kino-muted hover:text-kino-text'
-                  }`}
-                  disabled={mutation.isPending || (active && !canRemove)}
-                  key={watchlist.id}
-                  onClick={() => mutation.mutate(watchlist)}
-                  title={
-                    active && !canRemove ? t('watchlists.onlyContributorCanRemove') : undefined
-                  }
-                  type="button"
-                >
-                  <span>
-                    <span className="block font-bold">{watchlist.name}</span>
-
-                    {watchlist.description ? (
-                      <span className="text-sm">{watchlist.description}</span>
-                    ) : null}
-                  </span>
-
-                  <span className="text-sm font-bold">
-                    {active ? t('common.added') : t('common.add')}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-
-          {!query.isLoading && query.data?.watchlists.length === 0 ? (
-            <div className="rounded-md border border-dashed border-white/10 bg-white/3 p-4 text-sm text-kino-muted">
-              <p>{t('modals.noWatchlistsFound')}</p>
-
-              <Button
-                className="mt-3"
-                onClick={() => setCreateOpen(true)}
-                size="sm"
-                variant="secondary"
-              >
-                <Plus size={15} />
-                {t('watchlists.createWatchlist')}
-              </Button>
-            </div>
-          ) : null}
         </DialogContent>
       </Dialog>
 

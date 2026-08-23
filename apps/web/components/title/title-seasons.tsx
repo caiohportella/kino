@@ -38,8 +38,8 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { useFollowedEpisodeRatings } from '@/hooks/use-followed-ratings'
-import { useTranslation } from '@/lib/i18n'
+import { useFollowedEpisodeRatings } from '@/hooks/title/use-followed-ratings'
+import { useTranslation } from '@/lib/localization/i18n'
 import { db, getTmdb } from '@/lib/services'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/stores/settings-store'
@@ -592,7 +592,7 @@ function SeasonEpisodes({
                     }
                   />
                 </div>
-                <div className="flex w-full items-center justify-between gap-2 md:w-auto md:min-w-48">
+                <div className="flex w-full items-center justify-between gap-2 md:min-w-48 lg:min-h-12 lg:px-5 lg:text-sm">
                   {isWatched ? (
                     <button
                       aria-label={`Edit rating for episode ${episode.episode_number}`}
@@ -863,7 +863,7 @@ function EpisodeActionDialog({
                   </Button>
                 }
               ></PopoverTrigger>
-              <PopoverContent align="start" className="w-auto p-0">
+              <PopoverContent align="start" className="lg:min-h-12 lg:px-5 lg:text-sm p-0">
                 <Calendar
                   mode="single"
                   onSelect={(date) => {

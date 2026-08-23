@@ -3,17 +3,17 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
 const titlePageSource = await readFile(
-  new URL('../components/title/title-page.tsx', import.meta.url),
+  new URL('../../components/title/title-page.tsx', import.meta.url),
   'utf8'
 )
 
 const titleHeaderSource = await readFile(
-  new URL('../components/title/title-header.tsx', import.meta.url),
+  new URL('../../components/title/title-header.tsx', import.meta.url),
   'utf8'
 )
 
 const titleActionsSource = await readFile(
-  new URL('../components/title/title-actions.tsx', import.meta.url),
+  new URL('../../components/title/title-actions.tsx', import.meta.url),
   'utf8'
 )
 
@@ -42,7 +42,7 @@ test('title hero centers its mobile identity and restores desktop alignment', ()
 })
 
 test('title hero keeps long and optional metadata readable without duplicating the hero', () => {
-  assert.match(titleHeaderSource, /\{title\.year \|\| 'TBA'\}/)
+  assert.match(titleHeaderSource, /\{title\.year \|\| ["']TBA["']\}/)
 
   assert.match(titleHeaderSource, /title\.runtime/)
 
@@ -58,8 +58,23 @@ test('title hero keeps long and optional metadata readable without duplicating t
 })
 
 test('cinema ticket link owns mobile width while retaining intrinsic desktop sizing', () => {
-  assert.match(
+  const tickets = classTokens(
     titleActionsSource,
-    /<Button[\s\S]*?className="[^"]*\bw-full\b[^"]*\bsm:w-auto\b[^"]*"[\s\S]*?render=\{[\s\S]*?<Link href=\{ticketsUrl\}/
+    /\{showTickets \? \([\s\S]*?<Button[\s\S]*?className="([^"]+)"[\s\S]*?render=\{[\s\S]*?<Link href=\{ticketsUrl\}/
   )
+
+  assert.ok(tickets.has('w-full'))
+  assert.ok(tickets.has('sm:w-auto'))
+
+  assert.match(titleActionsSource, /<Link href=\{ticketsUrl\} rel="noreferrer" target="_blank">/)
+})
+
+test('title recommendations use comfortable full-width media density', async () => {
+  const source = await readFile(
+    new URL('../../components/title/title-context.tsx', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /className="media-row--comfortable"/)
+  assert.match(source, /overflowAware/)
 })
