@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createAuthProfileEnsurer } from './auth-profile-resolution.ts'
+import { createAuthProfileEnsurer } from '../../auth/auth-profile-resolution.ts'
 
 function deferred() {
   let resolve

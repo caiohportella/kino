@@ -1,9 +1,9 @@
 export const OG_SIZE = { width: 1200, height: 630 }
 
 const FONT_URLS = {
-  regular: new URL('./og-fonts/noto-sans-latin-400-normal.woff', import.meta.url),
-  bold: new URL('./og-fonts/noto-sans-latin-700-normal.woff', import.meta.url),
-  blackItalic: new URL('./og-fonts/noto-sans-latin-900-italic.woff', import.meta.url),
+  regular: new URL('../og-fonts/noto-sans-latin-400-normal.woff', import.meta.url),
+  bold: new URL('../og-fonts/noto-sans-latin-700-normal.woff', import.meta.url),
+  blackItalic: new URL('../og-fonts/noto-sans-latin-900-italic.woff', import.meta.url),
 } as const
 
 type OgFont = {

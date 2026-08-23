@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createWebAuthResolver } from './auth-resolution.ts'
+import { createWebAuthResolver } from '../../auth/auth-resolution.ts'
 
 const user = { id: 'user-1' }
 const session = {

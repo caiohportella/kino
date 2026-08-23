@@ -1,7 +1,12 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import bundleAnalyzer from '@next/bundle-analyzer'
 import type { NextConfig } from 'next'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
+
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+})
 
 function readEnvFile(envPath: string): Record<string, string> {
   if (!existsSync(envPath)) return {}
@@ -51,6 +56,9 @@ function envValue(...names: string[]) {
 function createNextConfig(phase: string): NextConfig {
   return {
     distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next',
+    experimental: {
+      optimizePackageImports: ['@kino/core'],
+    },
     images: {
       remotePatterns: [
         {
@@ -59,6 +67,7 @@ function createNextConfig(phase: string): NextConfig {
           pathname: '/t/p/**',
         },
       ],
+      imageSizes: [16, 32, 48, 64, 96, 128, 160, 192, 256, 320, 384],
     },
     env: {
       NEXT_PUBLIC_SUPABASE_URL: envValue('NEXT_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_URL'),
@@ -80,4 +89,6 @@ function createNextConfig(phase: string): NextConfig {
   }
 }
 
-export default createNextConfig
+export default function nextConfig(phase: string) {
+  return withBundleAnalyzer(createNextConfig(phase))
+}

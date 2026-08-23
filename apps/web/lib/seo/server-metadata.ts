@@ -1,7 +1,7 @@
 import { KinoLanguage } from '@kino/core/locale-config'
 import type { Metadata } from 'next'
+import { getRequestLanguage, getTranslations } from '../localization/server-localization'
 import { absoluteUrl, SITE_NAME, socialImage } from './seo'
-import { getRequestLanguage, getTranslations } from './server-localization'
 
 const OPEN_GRAPH_LOCALES = {
   en: 'en_US',
@@ -16,26 +16,38 @@ const OPEN_GRAPH_LOCALES = {
 export async function getServerMetadataContext() {
   const language = await getRequestLanguage()
   const t = await getTranslations(language)
-  return { language, locale: OPEN_GRAPH_LOCALES[language], t }
+
+  return {
+    language,
+    locale: OPEN_GRAPH_LOCALES[language],
+    t,
+  }
 }
 
-export async function localizedRouteMetadata({
+type LocalizedRouteMetadataOptions = {
+  canonicalPath: string
+  descriptionKey: string
+  imagePath?: {
+    path: string
+    alt: string
+  }
+  titleKey: string
+}
+
+async function localizedRouteMetadata({
   canonicalPath,
   descriptionKey,
   imagePath,
-  index = false,
+  index,
   titleKey,
-}: {
-  canonicalPath: string
-  descriptionKey: string
-  imagePath?: { path: string; alt: string }
-  index?: boolean
-  titleKey: string
+}: LocalizedRouteMetadataOptions & {
+  index: boolean
 }) {
   const { locale, t } = await getServerMetadataContext()
   const title = t(titleKey)
   const description = t(descriptionKey)
   const image = imagePath ? socialImage(imagePath.path, t(imagePath.alt)) : undefined
+
   return pageMetadata({
     canonical: absoluteUrl(canonicalPath),
     description,
@@ -43,6 +55,20 @@ export async function localizedRouteMetadata({
     index,
     locale,
     title,
+  })
+}
+
+export function localizedPublicRouteMetadata(options: LocalizedRouteMetadataOptions) {
+  return localizedRouteMetadata({
+    ...options,
+    index: true,
+  })
+}
+
+export function localizedPrivateRouteMetadata(options: LocalizedRouteMetadataOptions) {
+  return localizedRouteMetadata({
+    ...options,
+    index: false,
   })
 }
 
@@ -64,6 +90,7 @@ export function pageMetadata({
   type?: 'profile' | 'website'
 }): Metadata {
   const socialTitle = `${title} | ${SITE_NAME}`
+
   return {
     title,
     description,
@@ -77,7 +104,10 @@ export function pageMetadata({
       type,
       url: canonical,
     },
-    robots: { index, follow: index },
+    robots: {
+      index,
+      follow: index,
+    },
     twitter: {
       card: 'summary_large_image',
       description,

@@ -4,7 +4,7 @@ import {
   getNativeAuthCallbackUrl,
   isExplicitNativeAuthHandoff,
   isSafeInternalRedirect,
-} from './auth-redirect.ts'
+} from '../../auth/auth-redirect.ts'
 
 test('only enables the web-to-native bridge explicitly', () => {
   assert.equal(isExplicitNativeAuthHandoff(new URLSearchParams('platform=native')), true)

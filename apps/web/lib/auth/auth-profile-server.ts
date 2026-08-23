@@ -1,5 +1,5 @@
 import type { User } from '@supabase/supabase-js'
-import { createAuthProfileEnsurer } from '@/lib/auth-profile-resolution'
+import { createAuthProfileEnsurer } from '@/lib/auth/auth-profile-resolution'
 import { upsertUserSearchProfile } from '@/lib/search/upstash/user-sync'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 

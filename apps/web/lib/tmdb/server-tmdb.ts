@@ -7,9 +7,15 @@ import {
   SUPPORTED_LANGUAGES,
 } from '@kino/core/locale-config'
 import { cache } from 'react'
-import { getPersonImagePaths } from '@/lib/person-visuals'
 import { slugify } from '@/lib/routes'
 import { decodeHtmlEntities } from '@/lib/text'
+import { getPersonImagePaths } from '@/lib/tmdb/person-visuals'
+import { getDiscoverFeedQueries } from '../discover/feed-queries'
+import {
+  hasUpcomingRerelease,
+  isFirstRunRecentRelease,
+  isFirstRunUpcomingRelease,
+} from '../discover/release-classification'
 import { enrichTitlesWithPalette } from './enrich-titles-palette'
 
 function createTmdb(language: string) {
@@ -89,29 +95,118 @@ export function getPersonVisuals(person: Awaited<ReturnType<typeof getPersonSeoD
   }
 }
 
+async function getRegionalMovieReleaseDates(tmdb: TMDbService, movieId: number, region: string) {
+  const response = await tmdb.getMovieReleaseDates(movieId)
+
+  return (
+    response.results.find((result) => result.iso_3166_1 === region.toUpperCase())?.release_dates ??
+    []
+  )
+}
+
 export const getDiscoverData = cache(
   async (language = 'en', region = getRegionForLanguage(language)) => {
     const tmdb = createTmdb(language)
+    const feedQueries = getDiscoverFeedQueries()
 
     const [
       trending,
-      popularMovies,
+      popularMoviesResponse,
       popularTV,
       movieGenres,
       tvGenres,
-      nowPlaying,
-      topRated,
-      upcoming,
+      newReleasesResponse,
+      upcomingResponse,
     ] = await Promise.all([
-      tmdb.getTrending('all', 'week'),
-      tmdb.getPopularMovies(),
+      tmdb.getTrending('all', 'day'),
+
+      tmdb.discoverMedia('movie', {
+        region,
+        ...feedQueries.popularMovies.params,
+      }),
+
       tmdb.getPopularTV(),
+
       tmdb.getGenres('movie'),
       tmdb.getGenres('tv'),
-      tmdb.getNowPlayingMovies(region, tmdbLanguage(language)),
-      tmdb.getTopRatedMovies(),
-      tmdb.getUpcomingMovies(),
+
+      tmdb.discoverMedia('movie', {
+        region,
+        ...feedQueries.newReleases.params,
+      }),
+
+      tmdb.discoverMedia('movie', {
+        region,
+        ...feedQueries.upcoming.params,
+      }),
     ])
+
+    const popularMovies = popularMoviesResponse.results
+
+    const newReleaseCandidates = await Promise.all(
+      newReleasesResponse.results.map(async (movie) => ({
+        movie,
+        releases: await getRegionalMovieReleaseDates(tmdb, movie.id, region),
+      }))
+    )
+
+    const newReleases = newReleaseCandidates
+      .filter(({ movie, releases }) => {
+        if (releases.length === 0) {
+          const releaseDate = movie.release_date
+
+          return Boolean(
+            releaseDate &&
+              releaseDate >= feedQueries.window.recentStart &&
+              releaseDate <= feedQueries.window.today
+          )
+        }
+
+        return isFirstRunRecentRelease(
+          releases,
+          feedQueries.window.recentStart,
+          feedQueries.window.today
+        )
+      })
+      .map(({ movie }) => movie)
+
+    const upcomingCandidates = await Promise.all(
+      upcomingResponse.results.map(async (movie) => ({
+        movie,
+        releases: await getRegionalMovieReleaseDates(tmdb, movie.id, region),
+      }))
+    )
+
+    const upcoming = upcomingCandidates
+      .filter(({ movie, releases }) => {
+        if (releases.length === 0) {
+          const releaseDate = movie.release_date
+
+          return Boolean(
+            releaseDate &&
+              releaseDate >= feedQueries.window.tomorrow &&
+              releaseDate <= feedQueries.window.upcomingEnd
+          )
+        }
+
+        return isFirstRunUpcomingRelease(
+          releases,
+          feedQueries.window.tomorrow,
+          feedQueries.window.upcomingEnd
+        )
+      })
+      .map(({ movie }) => movie)
+    const rereleases = upcomingCandidates
+      .filter(({ releases }) =>
+        hasUpcomingRerelease(releases, feedQueries.window.today, feedQueries.window.upcomingEnd)
+      )
+      .map(({ movie }) => movie)
+
+    const releasedPopularTV = popularTV.filter((show) => {
+      if (!show.first_air_date) return true
+
+      return show.first_air_date <= feedQueries.popularMovies.params['release_date.lte']
+    })
 
     const genres = Array.from(
       new Map([...movieGenres, ...tvGenres].map((genre) => [genre.id, genre])).values()
@@ -120,26 +215,22 @@ export const getDiscoverData = cache(
     const [enrichedTrending, enrichedPopularMovies, enrichedPopularTV] = await Promise.all([
       enrichTitlesWithPalette(trending),
       enrichTitlesWithPalette(popularMovies),
-      enrichTitlesWithPalette(popularTV),
+      enrichTitlesWithPalette(releasedPopularTV),
     ])
 
     return {
       trending: enrichedTrending,
       popularMovies: enrichedPopularMovies,
       popularTV: enrichedPopularTV,
-      nowPlaying,
-      topRated,
+      newReleases,
       upcoming,
+      rereleases,
       genres,
       movieGenres,
       tvGenres,
     }
   }
 )
-
-function tmdbLanguage(language: string) {
-  return isKinoLanguage(language) ? getLocale(language) : 'en-US'
-}
 
 function isKinoLanguage(language: string): language is KinoLanguage {
   return SUPPORTED_LANGUAGES.includes(language as KinoLanguage)

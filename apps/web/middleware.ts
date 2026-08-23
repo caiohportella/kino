@@ -41,6 +41,7 @@ export async function middleware(request: NextRequest) {
     if (!response.ok) return sessionResponse
     const data = (await response.json()) as { title?: string; name?: string }
     const name = data.title || data.name || `title-${id}`
+
     if (!isCanonicalResourceSegment(segment, id, name)) {
       return redirectWithSession(request, sessionResponse, titlePath(id, name, type))
     }

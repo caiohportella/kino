@@ -1,11 +1,14 @@
 'use client'
 
 import type { User } from '@supabase/supabase-js'
-import { type AuthProfileStatus, createAuthProfileEnsurer } from '@/lib/auth-profile-resolution'
+import {
+  type AuthProfileStatus,
+  createAuthProfileEnsurer,
+} from '@/lib/auth/auth-profile-resolution'
 import { syncCurrentUserSearchProfile } from '@/lib/search/upstash/user-sync-client'
 import { supabase } from '@/lib/supabase/client'
 
-export type { AuthProfileStatus } from '@/lib/auth-profile-resolution'
+export type { AuthProfileStatus } from '@/lib/auth/auth-profile-resolution'
 
 const ensureUserProfile = createAuthProfileEnsurer({
   read: async (userId) =>

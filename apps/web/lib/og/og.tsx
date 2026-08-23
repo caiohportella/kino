@@ -1,8 +1,8 @@
 import { type CSSProperties, Fragment, type ReactNode } from 'react'
-import { KINO_LOGO_ASPECT_RATIO } from './brand'
+import { KINO_LOGO_ASPECT_RATIO } from '../brand'
+import type { PublicProfileOgData, PublicWatchlistOgData } from '../server-supabase'
 import { KINO_OG_LOGO_URL } from './og-assets'
 import { getInitials } from './og-images'
-import type { PublicProfileOgData, PublicWatchlistOgData } from './server-supabase'
 
 export { getOgImageOptions, OG_SIZE } from './og-fonts'
 export const OG_CONTENT_TYPE = 'image/png'
