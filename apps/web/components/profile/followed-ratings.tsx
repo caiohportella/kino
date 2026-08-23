@@ -5,8 +5,8 @@ import Link from 'next/link'
 import { RatingStars } from '@/components/media/rating-stars'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useFollowedTitleRatings } from '@/hooks/use-followed-ratings'
-import { useTranslation } from '@/lib/i18n'
+import { useFollowedTitleRatings } from '@/hooks/title/use-followed-ratings'
+import { useTranslation } from '@/lib/localization/i18n'
 
 function RatingRow({ item, compact = false }: { item: FollowedRating; compact?: boolean }) {
   const name = item.user.displayName || item.user.username || 'Kino user'

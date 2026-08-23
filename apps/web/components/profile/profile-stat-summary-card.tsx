@@ -7,8 +7,8 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useTranslation } from '@/lib/i18n'
-import { formatWatchTimeCompact } from '@/lib/profile-stats'
+import { useTranslation } from '@/lib/localization/i18n'
+import { formatWatchTimeCompact } from '@/lib/profile/profile-stats'
 
 export function ProfileStatSummaryCard({
   stats,
@@ -95,7 +95,7 @@ export function ProfileStatSummaryCard({
           </p>
         ) : null}
 
-        <div className="mt-4 grid grid-cols-2 overflow-hidden rounded-xl border border-white/7 bg-white/35">
+        <div className="mt-4 grid grid-cols-2 overflow-hidden rounded-xl bg-kino-bg/50">
           <HeroMetric
             className="border-b border-r border-white/7"
             label={t('stats.moviesWatched')}

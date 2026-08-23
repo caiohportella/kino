@@ -17,23 +17,26 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import type { HeatmapDatum } from '@/components/ui/heatmap-calendar'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useProfileIdentity } from '@/hooks/use-profile-sections'
+import { useProfileIdentity } from '@/hooks/profile/use-profile-sections'
 import {
   useProfileDiaryEntries,
   useProfileGenreStats,
+  useProfileLifetimeRecap,
   useProfileMediaStats,
   useProfileRatingStats,
   useProfileStats,
   useProfileViewingBreakdownStats,
   useProfileWatchedSeries,
-} from '@/hooks/use-profile-stats'
-import { useTranslation } from '@/lib/i18n'
-import { formatWatchTimeCompact } from '@/lib/profile-stats'
+} from '@/hooks/profile/use-profile-stats'
+import { useLocalizedTitleNames } from '@/hooks/title/use-localized-title-names'
+import { type LocalizedTitleRequest, localizedTitleKey } from '@/hooks/title/use-localized-titles'
+import { useTranslation } from '@/lib/localization/i18n'
+import { formatWatchTimeCompact } from '@/lib/profile/profile-stats'
 import { profileStatsRecapPath } from '@/lib/routes'
 import { db } from '@/lib/services'
-import { localizedTitleKey, useLocalizedTitles } from '@/lib/use-localized-titles'
 import { useAuthStore } from '@/stores/auth-store'
 import { HighsAndLowsCard } from './highs-and-lows-card'
+import { ProfileLifetimeTopRatedSection } from './profile-lifetime-top-rated-section'
 
 export function ProfileStatsPage({
   profileId,
@@ -52,6 +55,11 @@ export function ProfileStatsPage({
     : ({ kind: 'public' } as const)
 
   const stats = useProfileStats({ profileId, service: db, visibilityScope })
+  const lifetimeRecap = useProfileLifetimeRecap({
+    profileId,
+    service: db,
+    visibilityScope,
+  })
   const profileIdentity = useProfileIdentity({
     profileId,
     service: db,
@@ -89,38 +97,6 @@ export function ProfileStatsPage({
     visibilityScope,
   })
 
-  const localizedTitleRequests = useMemo(() => {
-    const requests = new Map<
-      string,
-      {
-        tmdbId: number
-        type: 'movie' | 'tv'
-      }
-    >()
-
-    for (const entry of diaryEntries.data ?? []) {
-      const request = {
-        tmdbId: entry.tmdbId,
-        type: entry.type,
-      }
-
-      requests.set(localizedTitleKey(request), request)
-    }
-
-    for (const series of watchedSeries.data ?? []) {
-      const request = {
-        tmdbId: series.tmdb_id,
-        type: 'tv' as const,
-      }
-
-      requests.set(localizedTitleKey(request), request)
-    }
-
-    return Array.from(requests.values())
-  }, [diaryEntries.data, watchedSeries.data])
-
-  const localizedTitles = useLocalizedTitles(localizedTitleRequests)
-
   const joinedDate = profileIdentity.data?.created_at
     ? new Date(profileIdentity.data.created_at)
     : null
@@ -135,64 +111,92 @@ export function ProfileStatsPage({
 
   const now = new Date()
   const recapHref = profileStatsRecapPath(username, now.getUTCFullYear(), now.getUTCMonth() + 1)
-
   const lifetimeRecapHref = `/api/${encodeURIComponent(username)}/stats/recap/lifetime`
 
-  const localizedDiaryEntries = useMemo(
-    () =>
-      (diaryEntries.data ?? []).map((entry) => {
-        const localized =
-          localizedTitles.data?.[
-            localizedTitleKey({
-              tmdbId: entry.tmdbId,
-              type: entry.type,
-            })
-          ]
-
-        if (!localized?.title) return entry
-
-        return {
-          ...entry,
-          titleName: localized.title,
-        }
-      }),
-    [diaryEntries.data, localizedTitles.data]
+  const analytics = useMemo(
+    () => buildAnalytics(diaryEntries.data ?? [], watchedSeries.data ?? [], i18n.language),
+    [diaryEntries.data, watchedSeries.data, i18n.language]
   )
 
-  const localizedWatchedSeries = useMemo(
-    () =>
-      (watchedSeries.data ?? []).map((series) => {
-        const localized =
-          localizedTitles.data?.[
-            localizedTitleKey({
-              tmdbId: series.tmdb_id,
-              type: 'tv',
-            })
-          ]
+  const titleRequestById = useMemo(() => {
+    const requests = new Map<string, LocalizedTitleRequest>()
 
-        if (!localized?.title) return series
-
-        return {
-          ...series,
-          title: localized.title,
-        }
-      }),
-    [watchedSeries.data, localizedTitles.data]
-  )
-
-  const localizedTitleById = useMemo(() => {
-    const titles = new Map<string, string>()
-
-    for (const entry of localizedDiaryEntries) {
-      titles.set(entry.titleId, entry.titleName)
+    for (const entry of diaryEntries.data ?? []) {
+      requests.set(entry.titleId, {
+        tmdbId: entry.tmdbId,
+        type: entry.type,
+      })
     }
 
-    for (const series of localizedWatchedSeries) {
-      titles.set(series.id, series.title)
+    for (const series of watchedSeries.data ?? []) {
+      requests.set(series.id, {
+        tmdbId: series.tmdb_id,
+        type: 'tv',
+      })
     }
 
-    return titles
-  }, [localizedDiaryEntries, localizedWatchedSeries])
+    return requests
+  }, [diaryEntries.data, watchedSeries.data])
+
+  const localizedTitleRequests = useMemo(() => {
+    const requests = new Map<string, LocalizedTitleRequest>()
+
+    function add(request: LocalizedTitleRequest | undefined) {
+      if (!request) return
+      requests.set(localizedTitleKey(request), request)
+    }
+
+    add(analytics.firstDiaryEntry?.request)
+    add(analytics.mostRewatched?.request)
+    add(analytics.longestMovie?.request)
+    add(analytics.longestFinishedSeries?.request)
+
+    const ratedTitles = [
+      ratingStats.data?.highestRatedMovie,
+      ratingStats.data?.lowestRatedMovie,
+      ratingStats.data?.highestRatedSeries,
+      ratingStats.data?.lowestRatedSeries,
+    ]
+
+    for (const title of ratedTitles) {
+      if (!title) continue
+      add(titleRequestById.get(title.titleId))
+    }
+
+    return Array.from(requests.values())
+  }, [analytics, ratingStats.data, titleRequestById])
+
+  const localizedTitleNames = useLocalizedTitleNames(localizedTitleRequests)
+
+  const localizedAnalytics = useMemo(() => {
+    function localize<
+      T extends {
+        title: string
+        request: LocalizedTitleRequest
+      },
+    >(item: T | null): T | null {
+      if (!item) return null
+
+      const localizedTitle = localizedTitleNames.data[localizedTitleKey(item.request)]
+
+      if (!localizedTitle) {
+        return item
+      }
+
+      return {
+        ...item,
+        title: localizedTitle,
+      }
+    }
+
+    return {
+      ...analytics,
+      firstDiaryEntry: localize(analytics.firstDiaryEntry),
+      mostRewatched: localize(analytics.mostRewatched),
+      longestMovie: localize(analytics.longestMovie),
+      longestFinishedSeries: localize(analytics.longestFinishedSeries),
+    }
+  }, [analytics, localizedTitleNames.data])
 
   const localizedRatingStats = useMemo(() => {
     const stats = ratingStats.data
@@ -202,9 +206,18 @@ export function ProfileStatsPage({
     const localizeRatedTitle = (title: typeof stats.highestRatedMovie) => {
       if (!title) return null
 
+      const request = titleRequestById.get(title.titleId)
+      if (!request) return title
+
+      const localizedTitle = localizedTitleNames.data[localizedTitleKey(request)]
+
+      if (!localizedTitle) {
+        return title
+      }
+
       return {
         ...title,
-        title: localizedTitleById.get(title.titleId) ?? title.title,
+        title: localizedTitle,
       }
     }
 
@@ -215,12 +228,7 @@ export function ProfileStatsPage({
       highestRatedSeries: localizeRatedTitle(stats.highestRatedSeries),
       lowestRatedSeries: localizeRatedTitle(stats.lowestRatedSeries),
     }
-  }, [ratingStats.data, localizedTitleById])
-
-  const analytics = useMemo(
-    () => buildAnalytics(localizedDiaryEntries, localizedWatchedSeries, i18n.language),
-    [localizedDiaryEntries, localizedWatchedSeries, i18n.language]
-  )
+  }, [ratingStats.data, titleRequestById, localizedTitleNames.data])
 
   return (
     <div className="content-frame mx-auto w-full max-w-304">
@@ -261,7 +269,6 @@ export function ProfileStatsPage({
           variant="lifetime"
         />
 
-        {/* Full-width activity heatmap */}
         <WatchActivityCard
           activeDays={analytics.activeDays}
           busiestDay={analytics.busiestDay}
@@ -271,7 +278,6 @@ export function ProfileStatsPage({
           totalDays={365}
         />
 
-        {/* Highs & lows + milestones directly below the heatmap */}
         <div className="grid gap-5 lg:grid-cols-2">
           <HighsAndLowsCard
             description={t('stats.highsAndLowsDescription')}
@@ -288,10 +294,10 @@ export function ProfileStatsPage({
           />
 
           <MilestonesCard
-            firstDiaryEntry={analytics.firstDiaryEntry}
-            longestFinishedSeries={analytics.longestFinishedSeries}
-            longestMovie={analytics.longestMovie}
-            mostRewatched={analytics.mostRewatched}
+            firstDiaryEntry={localizedAnalytics.firstDiaryEntry}
+            longestFinishedSeries={localizedAnalytics.longestFinishedSeries}
+            longestMovie={localizedAnalytics.longestMovie}
+            mostRewatched={localizedAnalytics.mostRewatched}
           />
         </div>
 
@@ -300,6 +306,24 @@ export function ProfileStatsPage({
           loading={ratingStats.isPending}
           onRetry={() => void ratingStats.refetch()}
           stats={ratingStats.data}
+        />
+
+        <ProfileLifetimeTopRatedSection
+          error={lifetimeRecap.isError}
+          items={lifetimeRecap.data?.topRatedMovies ?? []}
+          loading={lifetimeRecap.isPending}
+          mediaType="movie"
+          onRetry={() => void lifetimeRecap.refetch()}
+          title={t('profile.topRatedMovies')}
+        />
+
+        <ProfileLifetimeTopRatedSection
+          error={lifetimeRecap.isError}
+          items={lifetimeRecap.data?.topRatedSeries ?? []}
+          loading={lifetimeRecap.isPending}
+          mediaType="tv"
+          onRetry={() => void lifetimeRecap.refetch()}
+          title={t('profile.topRatedSeries')}
         />
 
         <ProfileWatchingHabitsCard
@@ -534,6 +558,7 @@ function profileName(username: string) {
 type RankedDiaryEntry = {
   title: string
   detail: string
+  request: LocalizedTitleRequest
   rating?: number | null
   runtimeLabel?: string
   count?: number
@@ -543,6 +568,7 @@ type FinishedSeriesSummary = {
   title: string
   episodeCount: number
   detail: string
+  request: LocalizedTitleRequest
 }
 
 function buildAnalytics(
@@ -567,6 +593,7 @@ function buildAnalytics(
   const ordered = [...diaryEntries].sort(
     (a, b) => Date.parse(a.watchedAt) - Date.parse(b.watchedAt)
   )
+
   for (const entry of ordered) {
     const date = localDateKey(new Date(entry.watchedAt))
     byDay.set(date, (byDay.get(date) ?? 0) + 1)
@@ -579,6 +606,7 @@ function buildAnalytics(
       runtime: entry.runtime,
       watchedAt: entry.watchedAt,
     }
+
     current.count += 1
     current.rating = Math.max(current.rating ?? 0, entry.rating ?? 0)
     current.type = entry.type
@@ -603,9 +631,11 @@ function buildAnalytics(
   let longestStreak = 0
   let currentStreak = 0
   let previous = ''
+
   for (const day of Array.from(byDay.keys()).sort()) {
     if (previous && isConsecutiveDay(previous, day)) currentStreak += 1
     else currentStreak = 1
+
     longestStreak = Math.max(longestStreak, currentStreak)
     previous = day
   }
@@ -613,11 +643,13 @@ function buildAnalytics(
   const busiest = Array.from(byDay.entries()).sort(
     (a, b) => b[1] - a[1] || b[0].localeCompare(a[0])
   )[0]
+
   const busiestDay = busiest
     ? { label: formatDayLabel(busiest[0], locale), entries: busiest[1] }
     : null
 
   const firstDiary = ordered[0]
+
   const rewatchMap = ordered.reduce(
     (map, entry) => {
       if (entry.watchType !== 'rewatch') return map
@@ -626,6 +658,8 @@ function buildAnalytics(
         count: 0,
         title: entry.titleName,
         lastWatchedAt: entry.watchedAt,
+        tmdbId: entry.tmdbId,
+        type: entry.type,
       }
 
       current.count += 1
@@ -644,9 +678,12 @@ function buildAnalytics(
         count: number
         title: string
         lastWatchedAt: string
+        tmdbId: number
+        type: UIDiaryEntry['type']
       }
     >()
   )
+
   const rewatched = Array.from(rewatchMap.values()).sort(
     (a, b) => b.count - a.count || a.title.localeCompare(b.title)
   )[0]
@@ -668,7 +705,9 @@ function buildAnalytics(
   const decades = Array.from(decadeCounts.entries())
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+
   const totalDecadeCount = decades.reduce((total, item) => total + item.count, 0)
+
   const decadeStats = decades.map((item) => ({
     ...item,
     percentage: totalDecadeCount > 0 ? (item.count / totalDecadeCount) * 100 : 0,
@@ -682,6 +721,10 @@ function buildAnalytics(
       ? {
           title: firstDiary.titleName,
           detail: formatWatchedAt(firstDiary.watchedAt, locale),
+          request: {
+            tmdbId: firstDiary.tmdbId,
+            type: firstDiary.type,
+          },
         }
       : null,
     longestFinishedSeries: finishedSeries
@@ -689,6 +732,10 @@ function buildAnalytics(
           title: finishedSeries.title,
           episodeCount: finishedSeries.watched_episode_count ?? 0,
           detail: formatWatchedAt(finishedSeries.latest_watched_at, locale),
+          request: {
+            tmdbId: finishedSeries.tmdb_id,
+            type: 'tv' as const,
+          },
         }
       : null,
     longestMovie: longestMovie
@@ -696,6 +743,10 @@ function buildAnalytics(
           title: longestMovie.titleName,
           detail: formatWatchedAt(longestMovie.watchedAt, locale),
           runtimeLabel: formatRuntime(longestMovie.runtime ?? 0, locale),
+          request: {
+            tmdbId: longestMovie.tmdbId,
+            type: longestMovie.type,
+          },
         }
       : null,
     longestStreak,
@@ -704,6 +755,10 @@ function buildAnalytics(
           title: rewatched.title,
           detail: formatWatchedAt(rewatched.lastWatchedAt, locale),
           count: rewatched.count,
+          request: {
+            tmdbId: rewatched.tmdbId,
+            type: rewatched.type,
+          },
         }
       : null,
     heatmap,
@@ -743,10 +798,12 @@ function isConsecutiveDay(left: string, right: string) {
     Number(left.slice(5, 7)) - 1,
     Number(left.slice(8, 10))
   )
+
   const rightDate = Date.UTC(
     Number(right.slice(0, 4)),
     Number(right.slice(5, 7)) - 1,
     Number(right.slice(8, 10))
   )
+
   return rightDate - leftDate === 24 * 60 * 60 * 1000
 }

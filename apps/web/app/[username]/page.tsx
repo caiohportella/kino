@@ -6,9 +6,9 @@ import {
   isReservedProfileRoute,
   normalizeProfileUsername,
   profileOgPath,
-} from '@/lib/profile-routes'
-import { absoluteUrl } from '@/lib/seo'
-import { getServerMetadataContext, pageMetadata } from '@/lib/server-metadata'
+} from '@/lib/profile/profile-routes'
+import { absoluteUrl } from '@/lib/seo/seo'
+import { getServerMetadataContext, pageMetadata } from '@/lib/seo/server-metadata'
 
 async function getProfile(username: string) {
   if (isReservedProfileRoute(username)) return null

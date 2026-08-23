@@ -2,10 +2,10 @@ import { createClient } from '@supabase/supabase-js'
 import type { Metadata } from 'next'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { ProfileMonthlyRecapPage } from '@/components/profile/profile-monthly-recap-page'
-import { isReservedProfileRoute, normalizeProfileUsername } from '@/lib/profile-routes'
+import { isReservedProfileRoute, normalizeProfileUsername } from '@/lib/profile/profile-routes'
 import { profileStatsRecapPath } from '@/lib/routes'
-import { absoluteUrl } from '@/lib/seo'
-import { getServerMetadataContext, pageMetadata } from '@/lib/server-metadata'
+import { absoluteUrl } from '@/lib/seo/seo'
+import { getServerMetadataContext, pageMetadata } from '@/lib/seo/server-metadata'
 
 async function getProfile(username: string) {
   if (isReservedProfileRoute(username)) return null

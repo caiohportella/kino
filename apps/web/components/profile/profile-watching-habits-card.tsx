@@ -6,9 +6,9 @@ import { ProfileCompositionBarChart } from '@/components/profile/profile-composi
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useTranslation } from '@/lib/i18n'
-import { getLocalizedGenreName } from '@/lib/localized-genre'
-import { formatWatchTimeCompact } from '@/lib/profile-stats'
+import { useTranslation } from '@/lib/localization/i18n'
+import { getLocalizedGenreName } from '@/lib/localization/localized-genre'
+import { formatWatchTimeCompact } from '@/lib/profile/profile-stats'
 
 type DecadeStat = {
   label: string

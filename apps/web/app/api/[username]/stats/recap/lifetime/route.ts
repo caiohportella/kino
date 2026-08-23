@@ -3,9 +3,10 @@ import { createClient } from '@supabase/supabase-js'
 import { ImageResponse } from 'next/og'
 import { createElement } from 'react'
 
-import { createTmdbLocalizedTitleBatchService } from '@/lib/localized-title-batch-server'
-import { loadOgFonts } from '@/lib/og-fonts'
-import { safeImageData } from '@/lib/og-images'
+import { createTmdbLocalizedTitleBatchService } from '@/lib/localization/localized-title-batch-server'
+import { getRequestLanguage, getTranslations } from '@/lib/localization/server-localization'
+import { loadOgFonts } from '@/lib/og/og-fonts'
+import { safeImageData } from '@/lib/og/og-images'
 import {
   buildLifetimeLocalizationRequest,
   buildLifetimePosterPreloadItems,
@@ -14,7 +15,7 @@ import {
   getDisplayedLifetimeStoryItems,
   getLifetimeFeaturedMoviePills,
   getLifetimeFeaturedSeriesPills,
-} from '@/lib/profile-lifetime-recap-story'
+} from '@/lib/profile/profile-lifetime-recap-story'
 import {
   type StoryFeaturedItem,
   StoryFeaturedSection,
@@ -26,10 +27,9 @@ import {
   StoryStatsOverview,
   StoryStatTile,
   StoryTopBar,
-} from '@/lib/profile-recap-story'
-import { isReservedProfileRoute, normalizeProfileUsername } from '@/lib/profile-routes'
-import { formatWatchTimeCompact } from '@/lib/profile-stats'
-import { getRequestLanguage, getTranslations } from '@/lib/server-localization'
+} from '@/lib/profile/profile-recap-story'
+import { isReservedProfileRoute, normalizeProfileUsername } from '@/lib/profile/profile-routes'
+import { formatWatchTimeCompact } from '@/lib/profile/profile-stats'
 
 export const runtime = 'nodejs'
 
@@ -229,11 +229,14 @@ export async function GET(
     : '—'
 
   const labels: StoryLabels = {
-    lifetimeRecap: t('stats.lifetimeRecap'),
-    lifetimeHeadline: t('stats.story.lifetimeHeadline', { name }),
+    lifetimeRecap: t('stats.lifetimeRecap', { defaultValue: 'Lifetime recap' }),
+    lifetimeHeadline: t('stats.story.lifetimeHeadline', {
+      name,
+      defaultValue: 'The journey of {{ name }} on Kino',
+    }),
     sinceBeginning: t('stats.story.sinceBeginning', { defaultValue: 'membro desde ' }),
 
-    topMovie: t('stats.story.topMovie'),
+    topMovie: t('stats.story.topMovie', { defaultValue: 'Top movie' }),
     topSeries: t('stats.story.topSeries'),
 
     otherFavoritesMovies: t('stats.story.otherFavoritesMovies'),
