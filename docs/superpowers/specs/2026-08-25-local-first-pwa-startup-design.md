@@ -30,21 +30,22 @@ The effective application cache context is:
 cache schema version + authenticated user ID (or anonymous) + Kino language
 ```
 
-The persisted IndexedDB namespace and the in-memory `QueryClient` are the same isolation boundary. A context transition never mutates the active client in place while new observers can render. Instead, the provider boundary performs this sequence:
+The persisted IndexedDB namespace and the in-memory `QueryClient` are the same isolation boundary. A context-keyed React provider boundary is keyed by the effective context, so the old observer subtree unmounts before the new one can read data. A context transition never mutates the active client in place while new observers can render. Instead, the provider boundary performs this sequence:
 
 ```text
 active context
 → cancel in-flight work for the old client
 → flush the old client when it is an allowed authenticated/public namespace
 → remove old authenticated state on logout/user switch
+→ synchronously switch the context identity and unmount old observers
 → derive the new context key
 → create a dedicated QueryClient and IndexedDB persister
-→ restore that namespace
-→ mount observers for the new client
+→ asynchronously restore that namespace
+→ mount the new-context observer subtree
 → let stale restored data render and revalidate in the background
 ```
 
-During the transition, the application keeps its shell mounted but does not expose old query data to new-context observers. Route-level skeletons remain available only for data that is genuinely unknown in the new context; there is no root startup skeleton.
+Context isolation is synchronous; IndexedDB restoration is asynchronous. During restoration, the application keeps its shell/navigation mounted but does not expose old query data and does not show a root application skeleton. Route-level fallback UI remains available only where the new namespace genuinely has no restored or known data.
 
 ### Locale startup and reconciliation
 
@@ -64,7 +65,9 @@ Unsupported or unreadable settings fall back to Kino’s default language (`en`)
 
 Use TanStack’s supported persistence provider with a small native IndexedDB persister. The persister stores one dehydrated client per context key in a versioned database/store. It exposes `persistClient`, `restoreClient`, and `removeClient` and degrades to a no-op persister if IndexedDB is unavailable.
 
-Persistence is allowlist-based. A query is persisted only when all of the following are true:
+Persistence defaults to `none`. A centralized policy API classifies each approved query family with `persistence: 'public' | 'authenticated' | 'none'`, `localeAware`, `staleTime`, and `gcTime` (or the equivalent existing Kino policy type). The dehydrate filter accepts only explicit approved classifications; unknown query families are never persisted. Broad negative filters such as “anything whose first key is not search” are prohibited.
+
+A query is persisted only when all of the following are true:
 
 - its query family has an explicit persistence classification;
 - its state is successful and has serializable data;
@@ -73,7 +76,7 @@ Persistence is allowlist-based. A query is persisted only when all of the follow
 
 Persisted data is not assumed fresh. The restored query keeps its `dataUpdatedAt`, can render immediately, and revalidates when its policy says it is stale.
 
-The persistence buster includes the cache schema version and app persistence version. `maxAge` limits restored data to seven days. Policy `gcTime` values remove unused queries from the client before they can be persisted again. Namespace cleanup removes stale schema versions and authenticated namespaces that are no longer active, without deleting the active namespace.
+The persistence buster includes the cache schema version and app persistence version. `maxAge` limits restored data to seven days. Policy `gcTime` values remove unused queries from the client before they can be persisted again. Storage cleanup also has explicit bounds: it opportunistically prunes old inactive namespaces, keeps only a bounded number of recent inactive namespaces, and limits retained query payloads where practical. Cleanup never runs on the startup critical path and never deletes the active namespace.
 
 The initial allowlist is:
 
@@ -89,9 +92,18 @@ The initial allowlist is:
 
 Discover data is persisted only when it has a client query contract with an explicit policy. Existing server-first Discover payloads are not copied into an opaque service-worker HTTP cache. Search autocomplete, auth/session/token state, mutations, errors, modal state, and unclassified queries are excluded.
 
-On logout or user switch, both the old authenticated namespace and its in-memory `QueryClient` are cleared. Anonymous public data may remain in the anonymous locale namespace because it is reconstructable and not user-private.
+On logout or user switch, both the old authenticated namespace and its in-memory `QueryClient` are cleared. Anonymous public data may remain in the anonymous locale namespace because it is reconstructable and not user-private. Namespace cleanup is opportunistic after the app is usable, during idle time, activation, or another safe non-blocking point.
 
 ### Service worker
+
+The service worker and TanStack persistence have separate responsibilities:
+
+```text
+Service Worker → resource delivery, offline shell, immutable assets, approved images
+TanStack Query + IndexedDB → application data and previously known query state
+```
+
+The service worker never becomes a second state store for authenticated Supabase responses, profile/private data, watchlists, diary state, title personal state, or arbitrary API responses.
 
 Use separate versioned caches with a `kino-` prefix:
 
@@ -100,6 +112,8 @@ Use separate versioned caches with a `kino-` prefix:
 - approved image cache for stable poster/backdrop resources, using stale-while-revalidate.
 
 Navigations use network-first and do not cache successful HTML forever. If a navigation fails, the worker serves the cached `/` shell. Private/API requests are network-only and are not inserted into a shared cache. For images, prefer same-origin optimized `/_next/image` resources when Kino uses them; only add explicitly approved remote image origins when URL identity and privacy semantics are safe. Non-OK responses are never cached.
+
+Image caching has an explicit budget and opportunistic pruning by entry count and age where practical. Different optimized-image URLs, including distinct `/_next/image` width/quality variants, count as separate entries. Image cleanup runs during activation, idle time, or another non-critical path and never delays app startup.
 
 Activation deletes only obsolete caches owned by Kino, then claims clients. Development registration continues to unregister stale workers.
 
@@ -111,7 +125,7 @@ Title navigation uses one canonical localized title query contract and distingui
 - `TitleCore`: complete public presentation metadata such as synopsis, genres, runtime, credits, seasons, external IDs, and public TMDb fields.
 - `KinoTitleIdentity`: the local database title ID required for ratings, diary, watchlist, and other Kino actions.
 
-`seedTitlePreview()` writes preview data into the exact canonical summary/detail contract used by the title route. It never fabricates complete metadata. The title detail query uses the preview as compatible placeholder/initial data, then replaces or enriches it with `TitleCore`. `KinoTitleIdentity` is resolved by a separate query and never blocks public core presentation.
+`seedTitlePreview()` writes only `TitlePreview` data into the canonical localized title summary key. The canonical title detail key semantically represents complete `TitleCore` and must never receive an unmarked partial preview or persist a preview as a successful detail response. The title detail query reads compatible summary data as explicitly incomplete placeholder data (for example through `toTitleDetailPlaceholder`) without writing it into or dehydrating the detail cache, then replaces the placeholder with `TitleCore`. `KinoTitleIdentity` is resolved by a separate query and never blocks public core presentation.
 
 Server-rendered title pages pass serialized public `TitleCore` data into the client through the canonical title query contract (TanStack hydration or equivalent correctly keyed initial data). This avoids a second cache island and makes an uncached title response useful while personal queries load separately.
 
@@ -151,7 +165,7 @@ Production logging remains quiet. Instrumentation is designed to compare the use
 
 ## Verification scenarios
 
-Automated tests cover namespace construction, schema/user/locale isolation, provider lifecycle behavior, allowlist exclusions, restore across a new `QueryClient`, logout cleanup, locale changes, service-worker strategy decisions, title preview seeding, and preview-to-core enrichment.
+Automated tests cover namespace construction, schema/user/locale isolation, provider lifecycle behavior, provider remounts on user and language changes, no old-context observer surviving a switch, asynchronous restore without previous-namespace exposure, allowlist exclusions with unknown families defaulting to `none`, restore across a new `QueryClient`, logout cleanup, active-namespace-safe storage pruning, non-critical cleanup scheduling, service-worker strategy decisions, bounded image variants, title preview seeding, semantic separation of preview and full-detail cache keys, preview-to-core enrichment, and public title rendering without waiting for `KinoTitleIdentity`.
 
 The verification workflow also exercises:
 
@@ -171,4 +185,3 @@ The primary acceptance criterion is that previously known content becomes visibl
 ## Scope boundaries
 
 This change does not introduce a broad new UI visual language, duplicate server and client title query contracts, cache authenticated Supabase responses in the service worker, or persist arbitrary query state. It also does not alter the unrelated `app-shell.tsx` working-tree change.
-
