@@ -150,7 +150,7 @@ export function TitlePage() {
           {hasSeasons ? (
             <TitleSection>
               <SeasonTabs
-                onAuthRequired={requestAuthForCurrentTitle}
+                onAuthRequiredAction={requestAuthForCurrentTitle}
                 title={title}
                 tmdbId={title.tmdbId}
                 userCanRate={canUsePersonalActions}

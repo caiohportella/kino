@@ -63,7 +63,9 @@ export function ShareButton({
       variant="secondary"
     >
       {copied ? <Check aria-hidden="true" size={17} /> : <Share2 aria-hidden="true" size={17} />}
-      <span aria-live="polite">{copied ? t('common.linkCopied') : buttonLabel}</span>
+      <span aria-live="polite" className="min-w-0 truncate">
+        {copied ? t('common.linkCopied') : buttonLabel}
+      </span>
     </Button>
   )
 }
