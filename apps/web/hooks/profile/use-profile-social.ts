@@ -213,7 +213,7 @@ export function useProfileSocial({
         })
       },
 
-      onOpenChange: (open: boolean) => {
+      onOpenChangeAction: (open: boolean) => {
         if (!open) {
           closeList()
         }

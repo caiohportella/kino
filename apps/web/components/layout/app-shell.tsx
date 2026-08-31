@@ -216,6 +216,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
       ) : null}
 
+      {showStandaloneNav ? <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} /> : null}
+
       <main className="page-main flex-1">
         <AppContainer>{children}</AppContainer>
       </main>

@@ -1,7 +1,7 @@
 'use client'
 
 import type { UserProfile } from '@kino/core'
-import { CalendarDays, ChartNoAxesCombined } from 'lucide-react'
+import { CalendarDays, ChartNoAxesCombined, Settings } from 'lucide-react'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { ProfileShareButton } from '@/components/profile/profile-share-button'
@@ -12,6 +12,7 @@ import { Button } from '../ui/button'
 export type ProfileHeroIdentityProps = {
   children?: ReactNode
   followControl?: ReactNode
+  isOwnProfile?: boolean
   mutualSinceLabel?: string | null
   profile: UserProfile
 }
@@ -19,17 +20,25 @@ export type ProfileHeroIdentityProps = {
 export function ProfileHeroIdentity({
   children,
   followControl,
+  isOwnProfile = false,
   mutualSinceLabel,
   profile,
   statisticsHref,
 }: {
   children?: ReactNode
   followControl?: ReactNode
+  isOwnProfile?: boolean
   mutualSinceLabel?: string | null
   profile: UserProfile
   statisticsHref?: string
 }) {
   const { t } = useTranslation()
+  const actionButtonClassName = isOwnProfile
+    ? 'min-w-0 w-full px-2 text-xs lg:w-auto lg:px-5 lg:text-base'
+    : undefined
+  const actionGroupClassName = isOwnProfile
+    ? 'col-span-2 grid grid-cols-3 gap-2 lg:flex lg:flex-wrap lg:items-center lg:gap-3 lg:col-span-1 lg:justify-self-end'
+    : 'col-span-2 flex flex-wrap items-center gap-3 lg:col-span-1 lg:justify-self-end'
 
   return (
     <div
@@ -102,22 +111,34 @@ export function ProfileHeroIdentity({
         {children}
       </div>
 
-      <div
-        className="
-              col-span-2
-              flex flex-wrap items-center gap-3
-              lg:col-span-1
-              lg:justify-self-end
-            "
-      >
-        {statisticsHref ? (
-          <Button render={<Link href={statisticsHref} />} size="lg" variant="secondary">
-            <ChartNoAxesCombined aria-hidden="true" size={16} />
-            {t('stats.viewStatistics')}
+      <div className={actionGroupClassName}>
+        {isOwnProfile ? (
+          <Button
+            className={actionButtonClassName}
+            render={<Link href="/settings" />}
+            size="lg"
+            variant="secondary"
+          >
+            <Settings aria-hidden="true" size={16} />
+            <span className="min-w-0 truncate">{t('common.settings')}</span>
           </Button>
         ) : null}
 
-        {profile.username ? <ProfileShareButton username={profile.username} /> : null}
+        {statisticsHref ? (
+          <Button
+            className={actionButtonClassName}
+            render={<Link href={statisticsHref} />}
+            size="lg"
+            variant="secondary"
+          >
+            <ChartNoAxesCombined aria-hidden="true" size={16} />
+            <span className="min-w-0 truncate">{t('stats.viewStatistics')}</span>
+          </Button>
+        ) : null}
+
+        {profile.username ? (
+          <ProfileShareButton className={actionButtonClassName} username={profile.username} />
+        ) : null}
 
         {followControl}
       </div>

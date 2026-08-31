@@ -68,13 +68,12 @@ export function ProfileView(props: ProfileViewProps) {
     <div className="content-frame">
       <ProfileDashboardHero
         followControl={profileAction}
+        isOwnProfile={profileView.isOwnProfile}
         mutualSinceLabel={profileView.mutualSinceLabel}
         profile={profile}
         stats={{
           ...profileView.stats,
-
           onFollowersClick: social.openFollowers,
-
           onFollowingClick: social.openFollowing,
         }}
         statisticsHref={

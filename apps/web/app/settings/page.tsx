@@ -187,7 +187,7 @@ export default function SettingsPage() {
       resolution={resolution}
       unauthenticatedFallback={<ProtectedEmpty />}
     >
-      <div className="content-frame pb-24 lg:pb-0">
+      <div className="content-frame">
         <PageHeader
           action={
             <Button
@@ -307,6 +307,17 @@ export default function SettingsPage() {
                   </div>
 
                   {error ? <p className="text-sm text-red-300">{error}</p> : null}
+
+                  <div className="mt-5 lg:hidden">
+                    <Button
+                      className="w-full"
+                      disabled={saveMutation.isPending}
+                      onClick={() => saveMutation.mutate()}
+                    >
+                      <Save size={16} />
+                      {saveMutation.isPending ? t('common.loading') : t('common.save')}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </Card>
@@ -440,19 +451,6 @@ export default function SettingsPage() {
               </Button>
             </Card>
           </aside>
-        </div>
-
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/85 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl lg:hidden">
-          <div className="mx-auto max-w-7xl">
-            <Button
-              className="w-full"
-              disabled={saveMutation.isPending}
-              onClick={() => saveMutation.mutate()}
-            >
-              <Save size={16} />
-              {saveMutation.isPending ? t('common.loading') : t('common.save')}
-            </Button>
-          </div>
         </div>
 
         <BannerPickerDialog

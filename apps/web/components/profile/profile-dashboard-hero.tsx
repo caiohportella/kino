@@ -10,6 +10,7 @@ import {
 
 export type ProfileDashboardHeroProps = {
   followControl?: ReactNode
+  isOwnProfile?: boolean
   mutualSinceLabel?: string | null
   profile: UserProfile
   stats: ProfileHeroStatsProps
@@ -18,6 +19,7 @@ export type ProfileDashboardHeroProps = {
 
 export function ProfileDashboardHero({
   followControl,
+  isOwnProfile = false,
   mutualSinceLabel,
   profile,
   stats,
@@ -57,6 +59,7 @@ export function ProfileDashboardHero({
         >
           <ProfileHeroIdentity
             followControl={followControl}
+            isOwnProfile={isOwnProfile}
             mutualSinceLabel={mutualSinceLabel}
             profile={profile}
             statisticsHref={statisticsHref}

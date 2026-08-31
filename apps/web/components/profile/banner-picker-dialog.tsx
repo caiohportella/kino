@@ -109,13 +109,13 @@ export function BannerPickerDialog({
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="min-w-0 w-[calc(100%-2rem)] max-w-3xl">
         <DialogHeader>
           <DialogTitle>{t('modals.selectProfileBanner')}</DialogTitle>
           <DialogDescription>{t('modals.bannerPicker.description')}</DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4">
+        <div className="grid min-w-0 gap-4">
           {selectedMedia ? (
             <div className="flex items-center justify-between gap-3">
               <Button onClick={() => setSelectedMedia(null)} size="sm" variant="secondary">
@@ -127,7 +127,9 @@ export function BannerPickerDialog({
                   {getDisplayTitle(selectedMedia)}
                 </div>
                 <div className="text-xs text-kino-muted">
-                  {t('modals.bannerPicker.backdropOptions', { count: mediaImages.length })}
+                  {t('modals.bannerPicker.backdropOptions', {
+                    count: mediaImages.length,
+                  })}
                 </div>
               </div>
             </div>
@@ -162,7 +164,7 @@ export function BannerPickerDialog({
           )}
 
           {!selectedMedia ? (
-            <div className="max-h-[52vh] overflow-y-auto pr-1">
+            <div className="min-w-0 max-h-[52vh] overflow-x-hidden overflow-y-auto pr-1">
               {searchMutation.isPending || localizedTitles.isPending ? (
                 <MediaModalSkeleton label={t('modals.bannerPicker.searching')} />
               ) : null}
@@ -171,7 +173,8 @@ export function BannerPickerDialog({
               searchResults.length === 0 ? (
                 <div className="grid place-items-center rounded-md border border-white/10 bg-white/3 px-5 py-10 text-center">
                   <Search className="text-kino-subtle" size={36} />
-                  <p className="mt-3 max-w-sm text-sm leading-6 text-kino-muted">
+
+                  <p className="mt-3 w-full max-w-sm min-w-0 wrap-break-word text-sm leading-6 text-kino-muted">
                     {t('modals.bannerPicker.emptyState')}
                   </p>
                 </div>
@@ -214,19 +217,19 @@ export function BannerPickerDialog({
               </div>
             </div>
           ) : (
-            <div className="max-h-[56vh] overflow-y-auto pr-1">
+            <div className="min-w-0 max-h-[56vh] overflow-x-hidden overflow-y-auto pr-1">
               {imagesMutation.isPending ? (
                 <MediaModalSkeleton label={t('modals.bannerPicker.loadingBackdrops')} />
               ) : null}
               {!imagesMutation.isPending && mediaImages.length === 0 ? (
                 <div className="grid place-items-center rounded-md border border-white/10 bg-white/3 px-5 py-10 text-center">
                   <ImageOff className="text-kino-subtle" size={36} />
-                  <p className="mt-3 max-w-sm text-sm leading-6 text-kino-muted">
+                  <p className="mt-3 w-full max-w-sm min-w-0 wrap-break-word text-sm leading-6 text-kino-muted">
                     {t('modals.bannerPicker.noBackdrops')}
                   </p>
                 </div>
               ) : null}
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid min-w-0 gap-3 sm:grid-cols-2">
                 {mediaImages.map((image) => {
                   const previewUrl = getTmdb().getBackdropUrl(image.file_path, 'w780')
                   const savedUrl = getTmdb().getBackdropUrl(image.file_path, 'w1280')
@@ -234,7 +237,7 @@ export function BannerPickerDialog({
 
                   return (
                     <button
-                      className="group overflow-hidden rounded-md border border-white/10 bg-white/4 text-left transition hover:border-kino-accent/70 disabled:opacity-60"
+                      className="group min-w-0 overflow-hidden rounded-md border border-white/10 bg-white/4 text-left transition hover:border-kino-accent/70 disabled:opacity-60"
                       disabled={saveMutation.isPending}
                       key={image.file_path}
                       onClick={() => saveMutation.mutate(savedUrl)}

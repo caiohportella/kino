@@ -74,13 +74,13 @@ export function SeasonTabs({
   tmdbId,
   userCanRate,
   userId,
-  onAuthRequired,
+  onAuthRequiredAction,
 }: {
   title: TitleDetails
   tmdbId: number
   userCanRate: boolean
   userId: string | undefined
-  onAuthRequired: () => void
+  onAuthRequiredAction: () => void
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -221,7 +221,7 @@ export function SeasonTabs({
         value={selectedSeason}
       />
       <SeasonEpisodes
-        onAuthRequired={onAuthRequired}
+        onAuthRequired={onAuthRequiredAction}
         onEpisodeRemoved={(seasonNumber, episodeNumber) => {
           queryClient.setQueryData<EpisodeRating[]>(titleRatingsKey, (current = []) =>
             current.filter(
@@ -592,17 +592,18 @@ function SeasonEpisodes({
                     }
                   />
                 </div>
-                <div className="flex w-full items-center justify-between gap-2 md:min-w-48 lg:min-h-12 lg:px-5 lg:text-sm">
+                <div className="flex w-full items-center justify-end gap-2 md:min-w-48 lg:min-h-12 lg:px-5 lg:text-sm">
                   {isWatched ? (
                     <button
                       aria-label={`Edit rating for episode ${episode.episode_number}`}
-                      className="rounded-md p-1 transition-colors hover:bg-white/6 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-kino-accent"
+                      className="mr-auto rounded-md p-1 transition-colors hover:bg-white/6 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-kino-accent"
                       onClick={() => setSelectedEpisode(episode)}
                       type="button"
                     >
                       <RatingStars readonly size="sm" value={existingRating?.rating || 0} />
                     </button>
                   ) : null}
+
                   {isWatched ? (
                     <AlertDialog>
                       <Tooltip>

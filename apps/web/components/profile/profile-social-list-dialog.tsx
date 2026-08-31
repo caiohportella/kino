@@ -17,7 +17,7 @@ export function ProfileSocialListDialog({
   listType,
   loading,
   onAction,
-  onOpenChange,
+  onOpenChangeAction,
   open,
   pendingUserId,
   users,
@@ -27,7 +27,7 @@ export function ProfileSocialListDialog({
   listType: SocialListType | null
   loading: boolean
   onAction: (profile: FollowerInfo) => void
-  onOpenChange: (open: boolean) => void
+  onOpenChangeAction: (open: boolean) => void
   open: boolean
   pendingUserId?: string
   users: FollowerInfo[]
@@ -37,7 +37,7 @@ export function ProfileSocialListDialog({
   const title = listType === 'following' ? t('profile.following') : t('profile.followers')
 
   return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
+    <Dialog onOpenChange={onOpenChangeAction} open={open}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle className="text-2xl font-black italic tracking-normal sm:text-3xl">
