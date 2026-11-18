@@ -422,6 +422,12 @@ export default function SettingsPage() {
 
             <Card className="grid gap-3 p-5">
               <h2 className="text-lg font-semibold text-kino-text">{t('settings.account')}</h2>
+              <Link
+                href="/settings/integrations"
+                className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+              >
+                {t('aiIntegration.title', { defaultValue: 'AI Integration' })}
+              </Link>
               <Button
                 onClick={async () => {
                   await signOut()
