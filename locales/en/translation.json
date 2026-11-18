@@ -1,28 +1,4 @@
 {
-  "aiIntegration": {
-    "settings": "Settings",
-    "title": "AI Integration",
-    "access": "Allow AI access",
-    "description": "Allow compatible AI assistants to access Kino with your permission. Turning it off disconnects all assistants.",
-    "saving": "Saving…",
-    "enabled": "Enabled",
-    "disabled": "Disabled",
-    "saved": "Changes saved.",
-    "unavailable": "AI Integration is currently unavailable.",
-    "saveFailed": "Could not save. Try again.",
-    "connect": "Connect your Kino account",
-    "requestUnavailable": "This authorization request has expired or is unavailable. Start again from your assistant.",
-    "clientRequest": "{{name}} wants permission to access your Kino account.",
-    "unverifiedClient": "An unverified MCP client wants access to your Kino account. Continue only if you recognize the app you opened.",
-    "readTitle": "View your Kino activity",
-    "readDescription": "View watchlists, diary entries, ratings, TV progress and viewing history for recommendations.",
-    "writeTitle": "Make changes when you ask",
-    "writeDescription": "Add titles to watchlists, create private or public lists, log movies and episodes, and record ratings and progress.",
-    "enablePrompt": "Enable AI Integration before deciding whether to grant this request.",
-    "allow": "Allow access",
-    "enable": "Enable AI Integration",
-    "cancel": "Cancel"
-  },
   "metadata": {
     "siteDescription": "Kino is a calm movie and series tracking companion for discovery, watchlists, diary entries, and ratings.",
     "settingsTitle": "Settings",

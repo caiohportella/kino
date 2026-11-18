@@ -23,21 +23,7 @@ function redirectWithSession(
 }
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
-  if (
-    pathname.startsWith('/api/agent/v1/') ||
-    pathname === '/mcp' ||
-    pathname.startsWith('/oauth/') ||
-    pathname.startsWith('/.well-known/oauth-')
-  )
-    return NextResponse.next()
   const sessionResponse = await updateSession(request)
-  if (pathname === '/auth/authorize' || pathname === '/settings/integrations') {
-    sessionResponse.headers.set('Content-Security-Policy', "frame-ancestors 'none'")
-    sessionResponse.headers.set('X-Frame-Options', 'DENY')
-    sessionResponse.headers.set('Cache-Control', 'private, no-store')
-    return sessionResponse
-  }
   const titleMatch = request.nextUrl.pathname.match(/^\/title\/([^/]+)$/)
   const personMatch = request.nextUrl.pathname.match(/^\/person\/([^/]+)$/)
   const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY

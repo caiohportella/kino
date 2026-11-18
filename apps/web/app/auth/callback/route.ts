@@ -1,5 +1,4 @@
 import { type NextRequest, NextResponse } from 'next/server'
-import { AI_LOGIN_COOKIE, consentPath, flowCookie } from '@/lib/ai/continuation'
 import { ensureServerUserProfile } from '@/lib/auth/auth-profile-server'
 import { getNativeAuthCallbackUrl, isExplicitNativeAuthHandoff } from '@/lib/auth/auth-redirect'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
@@ -24,11 +23,7 @@ export async function GET(request: NextRequest) {
   const requestedNext = request.nextUrl.searchParams.get('next')
 
   const next =
-    requestedNext?.startsWith('/') &&
-    !requestedNext.startsWith('//') &&
-    !/[\\\r\n\t]/.test(requestedNext)
-      ? requestedNext
-      : '/discover'
+    requestedNext?.startsWith('/') && !requestedNext.startsWith('//') ? requestedNext : '/discover'
 
   if (!code) {
     return NextResponse.redirect(new URL('/auth/login?error=callback', origin))
@@ -62,7 +57,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/auth/login?error=profile', request.url))
   }
 
-  const flow = request.cookies.get(AI_LOGIN_COOKIE)?.value
-  const resume = flow && request.cookies.has(flowCookie(flow)) ? consentPath(flow) : null
-  return NextResponse.redirect(new URL(resume ?? next, origin))
+  return NextResponse.redirect(new URL(next, origin))
 }

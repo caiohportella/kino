@@ -1967,7 +1967,6 @@ export class KinoDatabaseService {
           seasons_metadata: seasonsMetadata,
         })
         .eq('id', existingRow.id)
-        .eq('type', title.type)
       return existingRow.id
     }
 

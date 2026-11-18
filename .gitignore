@@ -28,7 +28,6 @@ skills-lock.json
 docs/
 !docs/
 docs/*
-!docs/KINO_AGENT_API.md
 !docs/superpowers/
 docs/superpowers/*
 !docs/superpowers/specs/
@@ -55,6 +54,3 @@ android
 
 # Isolated local feature worktrees.
 .worktrees/
-
-marketplace/agensi/**/__pycache__/
-!docs/KINO_AI_OAUTH_PROGRESS.md

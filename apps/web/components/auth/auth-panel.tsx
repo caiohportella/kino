@@ -56,13 +56,7 @@ const passwordRequirements = [
   },
 ] as const
 
-export function AuthPanel({
-  initialTab = 'sign-in',
-  aiContinuation,
-}: {
-  initialTab?: AuthTab
-  aiContinuation?: string
-}) {
+export function AuthPanel({ initialTab = 'sign-in' }: { initialTab?: AuthTab }) {
   const pathname = usePathname()
   const router = useRouter()
   const signInWithEmail = useAuthStore((state) => state.signInWithEmail)
@@ -125,7 +119,6 @@ export function AuthPanel({
   }
 
   function prepareAuthRedirect() {
-    if (aiContinuation) return
     storeAuthRedirect(getRedirectTarget())
   }
 
@@ -145,7 +138,7 @@ export function AuthPanel({
         setMessage('Check your inbox for a secure sign-in link.')
       } else {
         await signInWithEmail(cleanLoginEmail, loginPassword)
-        router.replace(aiContinuation ?? consumeStoredAuthRedirect('/discover'))
+        router.replace(consumeStoredAuthRedirect('/discover'))
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not sign in.')

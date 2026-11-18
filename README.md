@@ -591,9 +591,3 @@ As the project grows, dedicated services (queues, workers, streaming pipelines, 
 Made with ❤️ by <a href="https://github.com/caiohportella">**Caio H. Portella**</a>
 
 </div>
-
-### Agent integrations
-
-Connect compatible assistants to Kino through browser OAuth and remote MCP. See
-[Kino Agent API](docs/KINO_AGENT_API.md) for deployment, account setup and
-integration tests.
