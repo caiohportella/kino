@@ -1,4 +1,28 @@
 {
+  "aiIntegration": {
+    "settings": "Configurações",
+    "title": "Integração com IA",
+    "access": "Permitir acesso da IA",
+    "description": "Permita que assistentes de IA compatíveis acessem o Kino com sua permissão. Desativar a integração desconecta todos os assistentes.",
+    "saving": "Salvando…",
+    "enabled": "Ativada",
+    "disabled": "Desativada",
+    "saved": "Alterações salvas.",
+    "unavailable": "A integração com IA está indisponível no momento.",
+    "saveFailed": "Não foi possível salvar. Tente novamente.",
+    "connect": "Conecte sua conta do Kino",
+    "requestUnavailable": "Esta solicitação de autorização expirou ou está indisponível. Inicie uma nova conexão no seu assistente.",
+    "clientRequest": "{{name}} quer acessar sua conta do Kino.",
+    "unverifiedClient": "Um cliente MCP não verificado quer acessar sua conta do Kino. Continue apenas se reconhecer o aplicativo que abriu.",
+    "readTitle": "Consultar sua atividade no Kino",
+    "readDescription": "Consultar listas, registros do diário, avaliações, progresso em séries e histórico para recomendações.",
+    "writeTitle": "Fazer alterações quando você pedir",
+    "writeDescription": "Adicionar títulos a listas, criar listas públicas ou privadas, registrar filmes e episódios, e salvar avaliações e progresso.",
+    "enablePrompt": "Ative a integração com IA antes de decidir se deseja conceder acesso.",
+    "allow": "Permitir acesso",
+    "enable": "Ativar integração com IA",
+    "cancel": "Cancelar"
+  },
   "metadata": {
     "siteDescription": "O Kino é seu companheiro tranquilo para descobrir, organizar listas, registrar o diário e avaliar filmes e séries.",
     "settingsTitle": "Configurações",
