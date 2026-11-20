@@ -3,7 +3,13 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { type KinoLanguage, SUPPORTED_LANGUAGES } from '@kino/core/locale-config'
 import { NextResponse } from 'next/server'
 import { AgentError, readJson } from '@/lib/agent/contract'
-import { agentDb, agentOrigin, agentRpc, digest } from '@/lib/agent/server'
+import {
+  AgentDatabaseConfigError,
+  agentDb,
+  agentOrigin,
+  agentRpc,
+  digest,
+} from '@/lib/agent/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { AI_LOGIN_COOKIE, consentPath, flowCookie } from './continuation'
 
@@ -19,6 +25,62 @@ type Decision = {
   enabled: boolean
 }
 type Callback = { redirect_uri: string; state: string | null }
+type AuthorizationStage =
+  | 'request_validation'
+  | 'client_metadata'
+  | 'database_client'
+  | 'authorization_flow_insert'
+  | 'consent_redirect'
+
+class ClientMetadataError extends Error {
+  constructor(readonly status?: number) {
+    super('Invalid published client metadata')
+  }
+}
+
+class AuthorizationDatabaseError extends Error {
+  readonly databaseCode?: string
+  readonly databaseStatus?: number
+
+  constructor(code: unknown, status: number) {
+    super('Authorization database request failed')
+    if (
+      typeof code === 'string' &&
+      (code.length === 5 || code.length === 8) &&
+      /^(?:(?:[0-9][0-9A-Z]|F0|HV|P0|XX)[0-9A-Z]{3}|PGRST[0-9]{3})$/.test(code)
+    ) {
+      this.databaseCode = code
+    }
+    if (Number.isInteger(status) && status >= 400 && status <= 599) this.databaseStatus = status
+  }
+}
+
+function reportAuthorizationFailure(requestId: string, stage: AuthorizationStage, error: unknown) {
+  let errorType = 'unexpected_error'
+  if (error instanceof AgentDatabaseConfigError) errorType = error.reason
+  else if (error instanceof AuthorizationDatabaseError) errorType = 'database_request_error'
+  else if (error instanceof ClientMetadataError)
+    errorType =
+      error.status === undefined ? 'invalid_client_document' : 'client_metadata_http_error'
+  else if (error instanceof SyntaxError) errorType = 'invalid_json'
+  else if (error instanceof DOMException && error.name === 'TimeoutError') errorType = 'timeout'
+  else if (error instanceof DOMException && error.name === 'AbortError') errorType = 'aborted'
+  else if (error instanceof TypeError) errorType = 'type_error'
+
+  console.error('kino.oauth.authorization_failed', {
+    requestId,
+    stage,
+    errorType,
+    ...(error instanceof AuthorizationDatabaseError && {
+      databaseCode: error.databaseCode,
+      databaseStatus: error.databaseStatus,
+    }),
+    ...(error instanceof ClientMetadataError &&
+      error.status !== undefined && {
+        upstreamStatus: error.status,
+      }),
+  })
+}
 
 const publishedClients = new Map([
   [
@@ -75,8 +137,10 @@ export function metadata(kind: 'issuer' | 'resource') {
   )
 }
 
-function failure(error: string, status = 400) {
-  return Response.json({ error }, { status, headers: noStore })
+function failure(error: string, status = 400, requestId?: string) {
+  const headers = new Headers(noStore)
+  if (requestId) headers.set('X-Request-Id', requestId)
+  return Response.json({ error }, { status, headers })
 }
 
 function callback(address: string, state: string | null, name: 'code' | 'error', value: string) {
@@ -102,7 +166,7 @@ function localCallback(uri: string) {
   )
 }
 
-async function getClient(id: string) {
+async function getClient(id: string, getDb: typeof agentDb) {
   const pinned = publishedClients.get(id)
   if (pinned) {
     // Outbound requests are restricted to exact, owned metadata URLs.
@@ -111,30 +175,33 @@ async function getClient(id: string) {
       signal: AbortSignal.timeout(5000),
       next: { revalidate: 300 },
     })
-    if (!response.ok) return null
-    const doc = await response.json()
-    const methods = doc.token_endpoint_auth_methods_supported ?? [doc.token_endpoint_auth_method]
+    if (!response.ok) throw new ClientMetadataError(response.status)
+    const doc = (await response.json()) as Record<string, unknown> | null
+    const methods = doc?.token_endpoint_auth_methods_supported ?? [doc?.token_endpoint_auth_method]
     if (
-      doc.client_id !== id ||
+      doc?.client_id !== id ||
       !Array.isArray(doc.redirect_uris) ||
       !Array.isArray(methods) ||
       !methods.includes('none')
     )
-      return null
+      throw new ClientMetadataError()
+    const redirects = doc.redirect_uris
+    const matchingCallbacks = pinned.callbacks.filter((uri) => redirects.includes(uri))
+    if (matchingCallbacks.length === 0) throw new ClientMetadataError()
     return {
       id,
       display_name: pinned.name,
       verified: true,
-      redirect_uris: pinned.callbacks.filter((uri) => doc.redirect_uris.includes(uri)),
+      redirect_uris: matchingCallbacks,
     }
   }
   if (!/^kino_mcp_[a-z0-9-]{36}$/.test(id)) return null
-  const { data, error } = await agentDb()
+  const { data, error, status } = await getDb()
     .from('kino_ai_clients')
     .select('id,display_name,verified,redirect_uris')
     .eq('id', id)
     .maybeSingle()
-  if (error) throw error
+  if (error) throw new AuthorizationDatabaseError(error.code, status)
   return data as Client | null
 }
 
@@ -143,10 +210,7 @@ function validRedirect(client: Client, redirect: string) {
   if (!client.verified || !localCallback(redirect)) return false
   const callback = new URL(redirect)
   // RFC 8252 permits a variable port for a published native loopback callback.
-  return (
-    callback.hostname === '127.0.0.1' &&
-    client.redirect_uris.includes(`http://127.0.0.1${callback.pathname}`)
-  )
+  return client.redirect_uris.includes(`http://${callback.hostname}${callback.pathname}`)
 }
 
 async function register(request: Request) {
@@ -206,10 +270,23 @@ function hasDuplicate(params: URLSearchParams) {
 }
 
 export async function authorize(request: Request) {
+  const requestId = randomUUID()
+  let stage: AuthorizationStage = 'request_validation'
+  let db: ReturnType<typeof agentDb> | undefined
+  const getDb = () => {
+    if (db) return db
+    const previousStage = stage
+    stage = 'database_client'
+    db = agentDb()
+    stage = previousStage
+    return db
+  }
   try {
     const params = new URL(request.url).searchParams
     if (request.url.length > 8192 || hasDuplicate(params)) return failure('invalid_request')
-    const client = await getClient(params.get('client_id') ?? '')
+    stage = 'client_metadata'
+    const client = await getClient(params.get('client_id') ?? '', getDb)
+    stage = 'request_validation'
     const redirect = params.get('redirect_uri')
     const state = params.get('state')
     if (
@@ -223,7 +300,9 @@ export async function authorize(request: Request) {
     if (params.get('response_type') !== 'code') return fail('unsupported_response_type')
     if (params.has('response_mode') && params.get('response_mode') !== 'query')
       return fail('invalid_request')
-    if (params.get('resource') !== resource()) return fail('invalid_target')
+    const origin = agentOrigin()
+    const audience = `${origin}/mcp`
+    if (params.get('resource') !== audience) return fail('invalid_target')
     const challenge = params.get('code_challenge')
     if (params.get('code_challenge_method') !== 'S256' || !challenge || !nonce.test(challenge))
       return fail('invalid_request')
@@ -231,7 +310,8 @@ export async function authorize(request: Request) {
     if (requested.some((scope) => !oauthScopes.includes(scope))) return fail('invalid_scope')
     const flow = randomUUID()
     const proof = randomBytes(32).toString('base64url')
-    const { error } = await agentDb()
+    stage = 'authorization_flow_insert'
+    const { error, status } = await getDb()
       .from('kino_ai_flows')
       .insert({
         id: flow,
@@ -240,18 +320,19 @@ export async function authorize(request: Request) {
         client_name: client.display_name,
         verified: client.verified,
         redirect_uri: redirect,
-        resource: resource(),
+        resource: audience,
         state,
         challenge,
         scopes: [...new Set(requested)].map((scope) => scope.slice(5)),
       })
-    if (error) throw error
-    const response = NextResponse.redirect(new URL(consentPath(flow)!, agentOrigin()), {
+    if (error) throw new AuthorizationDatabaseError(error.code, status)
+    stage = 'consent_redirect'
+    const response = NextResponse.redirect(new URL(consentPath(flow)!, origin), {
       status: 303,
       headers: noStore,
     })
     const settings = {
-      secure: agentOrigin().startsWith('https:'),
+      secure: origin.startsWith('https:'),
       httpOnly: true,
       sameSite: 'lax' as const,
       maxAge: 900,
@@ -260,8 +341,11 @@ export async function authorize(request: Request) {
     response.cookies.set(flowCookie(flow), proof, settings)
     response.cookies.set(AI_LOGIN_COOKIE, flow, settings)
     return response
-  } catch {
-    return failure('temporarily_unavailable', 503)
+  } catch (error) {
+    reportAuthorizationFailure(requestId, stage, error)
+    if (error instanceof ClientMetadataError && error.status !== 429 && (error.status ?? 0) < 500)
+      return failure('invalid_request', 400, requestId)
+    return failure('temporarily_unavailable', 503, requestId)
   }
 }
 

@@ -4,6 +4,7 @@ import { once } from 'node:events'
 import { createServer } from 'node:http'
 import test from 'node:test'
 import { createClient } from '@supabase/supabase-js'
+import { NextResponse } from 'next/server'
 import { GET as issuerMetadata } from '../../app/.well-known/oauth-authorization-server/route.ts'
 import { GET as resourceMetadata } from '../../app/.well-known/oauth-protected-resource/[[...path]]/route.ts'
 import { POST as mcp } from '../../app/mcp/route.ts'
@@ -21,6 +22,7 @@ const redirect = 'http://127.0.0.1:40901/callback'
 const context = (action) => ({ params: Promise.resolve({ action }) })
 const clientIdUrl = 'https://chatgpt.com/oauth/client.json'
 const clientCallback = 'https://chatgpt.com/connector_platform_oauth_redirect'
+const codexIdUrl = 'https://chatgpt.com/oauth/codex/client.json'
 
 function jwt(role, secret, sub) {
   const encoded = (value) => Buffer.from(JSON.stringify(value)).toString('base64url')
@@ -87,6 +89,12 @@ test('Kino OAuth lifecycle through Next route handlers and the MCP SDK', async (
         client_name: 'Ignored remote label',
         redirect_uris: [clientCallback],
         token_endpoint_auth_methods_supported: ['none', 'private_key_jwt'],
+      })
+    if (url.href === codexIdUrl)
+      return Response.json({
+        client_id: codexIdUrl,
+        redirect_uris: ['http://127.0.0.1/callback', 'http://localhost/callback'],
+        token_endpoint_auth_method: 'none',
       })
     assert.equal(url.origin, rest.origin)
     if (url.pathname === '/auth/v1/token') {
@@ -205,6 +213,120 @@ test('Kino OAuth lifecycle through Next route handlers and the MCP SDK', async (
     }
     return { response, flow, proof }
   }
+
+  await t.test('published clients use exact callbacks and registered loopback ports', async () => {
+    for (const redirect_uri of [
+      'http://127.0.0.1:43210/callback',
+      'http://localhost:43210/callback',
+    ]) {
+      const { flow, response } = await start('kino.read', { client_id: codexIdUrl, redirect_uri })
+      assert.ok(flow)
+      assert.equal(callback(response).pathname, '/auth/authorize')
+    }
+    for (const redirect_uri of [
+      'http://127.0.0.1:43210/different',
+      'http://localhost:43210/callback?next=elsewhere',
+      'http://[::1]:43210/callback',
+    ]) {
+      const { response } = await start('kino.read', { client_id: codexIdUrl, redirect_uri })
+      assert.equal(response.status, 400)
+      assert.equal(response.headers.has('location'), false)
+    }
+  })
+
+  await t.test(
+    'authorization logs safe, correlated diagnostics for each failure stage',
+    async (t) => {
+      const unsafe = 'fixture-sensitive-material'
+      const log = t.mock.method(console, 'error', () => {})
+      const published = { client_id: clientIdUrl, redirect_uri: clientCallback, state: unsafe }
+      const check = async (expected, status = 503) => {
+        const count = log.mock.callCount()
+        const { response } = await start('kino.read', published)
+        const requestId = response.headers.get('x-request-id')
+        assert.equal(response.status, status)
+        assert.equal(response.headers.get('cache-control'), 'no-store')
+        assert.equal(response.headers.has('location'), false)
+        assert.match(requestId, /^[a-f0-9-]{36}$/)
+        assert.deepEqual(await response.json(), {
+          error: status === 503 ? 'temporarily_unavailable' : 'invalid_request',
+        })
+        assert.equal(log.mock.callCount(), count + 1)
+        const [event, fields] = log.mock.calls.at(-1).arguments
+        assert.equal(event, 'kino.oauth.authorization_failed')
+        assert.deepEqual(JSON.parse(JSON.stringify(fields)), { requestId, ...expected })
+        assert.ok(!JSON.stringify(fields).includes(unsafe))
+      }
+
+      const fixtureFetch = globalThis.fetch
+      const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY
+      const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      try {
+        globalThis.fetch = async (input, init) => {
+          if (String(input) === clientIdUrl) throw new DOMException(unsafe, 'TimeoutError')
+          return fixtureFetch(input, init)
+        }
+        await check({ stage: 'client_metadata', errorType: 'timeout' })
+
+        globalThis.fetch = async (input, init) =>
+          String(input) === clientIdUrl ? Response.json(null) : fixtureFetch(input, init)
+        await check({ stage: 'client_metadata', errorType: 'invalid_client_document' }, 400)
+        globalThis.fetch = async (input, init) =>
+          String(input) === clientIdUrl
+            ? new Response(unsafe, { status: 503 })
+            : fixtureFetch(input, init)
+        await check({
+          stage: 'client_metadata',
+          errorType: 'client_metadata_http_error',
+          upstreamStatus: 503,
+        })
+        globalThis.fetch = fixtureFetch
+
+        delete process.env.SUPABASE_SERVICE_ROLE_KEY
+        await check({ stage: 'database_client', errorType: 'missing_service_role_key' })
+        process.env.SUPABASE_SERVICE_ROLE_KEY = serviceRole
+
+        delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        const { flow } = await start('kino.read', published)
+        assert.ok(flow, 'published-client authorization only needs the privileged database key')
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = anonKey
+
+        for (const [code, sanitized] of [
+          ['PGRST205', { databaseCode: 'PGRST205' }],
+          [unsafe, {}],
+        ]) {
+          globalThis.fetch = async (input, init) => {
+            if (
+              new URL(input instanceof Request ? input.url : input).pathname.endsWith(
+                '/kino_ai_flows'
+              )
+            )
+              return Response.json(
+                { code, message: unsafe, details: unsafe, hint: unsafe },
+                { status: 404 }
+              )
+            return fixtureFetch(input, init)
+          }
+          await check({
+            stage: 'authorization_flow_insert',
+            errorType: 'database_request_error',
+            databaseStatus: 404,
+            ...sanitized,
+          })
+        }
+        globalThis.fetch = fixtureFetch
+
+        t.mock.method(NextResponse, 'redirect', () => {
+          throw new TypeError(unsafe)
+        })
+        await check({ stage: 'consent_redirect', errorType: 'type_error' })
+      } finally {
+        globalThis.fetch = fixtureFetch
+        process.env.SUPABASE_SERVICE_ROLE_KEY = serviceRole
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = anonKey
+      }
+    }
+  )
 
   const view = (flow, jar = cookies) =>
     withCookies(jar, () => loadBrowserConsent(flow, jar.get(flowCookie(flow))))

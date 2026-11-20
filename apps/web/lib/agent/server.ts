@@ -2,13 +2,19 @@ import 'server-only'
 import { createHash, randomBytes } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import { getSiteOrigin } from '@/lib/seo/seo'
-import { getSupabaseConfig } from '@/lib/supabase/config'
 import { AgentError } from './contract'
 
+export class AgentDatabaseConfigError extends Error {
+  constructor(readonly reason: 'missing_supabase_url' | 'missing_service_role_key') {
+    super(reason)
+  }
+}
+
 export function agentDb() {
-  const { url } = getSupabaseConfig()
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!key) throw new Error('Missing Kino agent database configuration')
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  if (!url) throw new AgentDatabaseConfigError('missing_supabase_url')
+  if (!key) throw new AgentDatabaseConfigError('missing_service_role_key')
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
 }
 

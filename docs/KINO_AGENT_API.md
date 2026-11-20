@@ -4,7 +4,7 @@
 
 Add the issuing Kino deployment's HTTPS `/mcp` URL in your AI client's
 custom remote MCP controls. For Kino's public deployment, use
-`https://kino.vercel.app/mcp` once the rollout is complete. Sign in with
+`https://kinotv.vercel.app/mcp` once the rollout is complete. Sign in with
 your existing Kino account. Enable
 **AI Integration** if prompted, then approve the requested scopes. The
 client manages OAuth credentials. Turning the switch off revokes all
@@ -44,6 +44,25 @@ server-only `SUPABASE_SERVICE_ROLE_KEY`, and TMDB configuration. Set
 `/oauth/*` and `/mcp` on that origin without proxy redirects. Maintain the
 existing Supabase browser sign-in callback. Set ingress limits for anonymous
 registration and authorization traffic.
+
+### Troubleshoot authorization on Vercel
+
+Use the HTTPS URL advertised by OAuth discovery. Vercel redirects HTTP requests
+for `kinotv.vercel.app` to HTTPS with a 308 and preserves the query string.
+If discovery and the unauthenticated MCP challenge work but authorization
+returns 503, find the response's `X-Request-Id` in the Vercel Runtime Logs
+under `kino.oauth.authorization_failed`. Discovery can succeed independently
+of the authorization database.
+
+| Stage | What to check |
+| --- | --- |
+| `client_metadata` | The provider's pinned metadata endpoint must be reachable from Vercel and publish a matching client identity, callback and public-client method. |
+| `database_client` | Verify `NEXT_PUBLIC_SUPABASE_URL` and the server-only `SUPABASE_SERVICE_ROLE_KEY` in the Vercel environment for the affected deployment. Both must point to the same Supabase project. The browser login separately uses `NEXT_PUBLIC_SUPABASE_ANON_KEY`. |
+| `authorization_flow_insert` | `PGRST205` or `42P01` points to a missing table or stale PostgREST schema cache. Check that the OAuth migration ran in that Supabase project. `42501` or a 401/403 points to the service credential or database grants. |
+| `consent_redirect` | Verify `KINO_AGENT_ORIGIN=https://kinotv.vercel.app` for the public deployment and check for failures constructing the consent response. |
+
+If you change a Vercel environment variable, create a fresh deployment to pick
+it up. Keep the service-role key in server-only configuration.
 
 ## OAuth and MCP architecture
 
