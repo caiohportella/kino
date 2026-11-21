@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
+import { consentLoginPath, flowCookie, hasConsentProof } from '@/lib/ai/continuation'
 import {
   isCanonicalResourceSegment,
   parseResourceSegment,
@@ -11,9 +12,10 @@ import { updateSession } from '@/lib/supabase/middleware'
 function redirectWithSession(
   request: NextRequest,
   sessionResponse: NextResponse,
-  pathname: string
+  pathname: string,
+  status = 308
 ) {
-  const response = NextResponse.redirect(new URL(pathname, request.url), 308)
+  const response = NextResponse.redirect(new URL(pathname, request.url), status)
 
   sessionResponse.cookies.getAll().forEach((cookie) => {
     response.cookies.set(cookie)
@@ -31,12 +33,22 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/.well-known/oauth-')
   )
     return NextResponse.next()
-  const sessionResponse = await updateSession(request)
+  const { response: sessionResponse, authenticated } = await updateSession(request)
   if (pathname === '/auth/authorize' || pathname === '/settings/integrations') {
-    sessionResponse.headers.set('Content-Security-Policy', "frame-ancestors 'none'")
-    sessionResponse.headers.set('X-Frame-Options', 'DENY')
-    sessionResponse.headers.set('Cache-Control', 'private, no-store')
-    return sessionResponse
+    const flow = request.nextUrl.searchParams.get('flow') ?? ''
+    const needsLogin =
+      pathname === '/auth/authorize' &&
+      !authenticated &&
+      hasConsentProof(flow, request.cookies.get(flowCookie(flow))?.value)
+    // Send the login redirect before the App Router starts streaming the consent page.
+    const response = needsLogin
+      ? redirectWithSession(request, sessionResponse, consentLoginPath(flow), 307)
+      : sessionResponse
+    response.headers.set('Content-Security-Policy', "frame-ancestors 'none'")
+    response.headers.set('X-Frame-Options', 'DENY')
+    response.headers.set('Cache-Control', 'private, no-store')
+    if (needsLogin) response.headers.set('Referrer-Policy', 'same-origin')
+    return response
   }
   const titleMatch = request.nextUrl.pathname.match(/^\/title\/([^/]+)$/)
   const personMatch = request.nextUrl.pathname.match(/^\/person\/([^/]+)$/)

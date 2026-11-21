@@ -78,6 +78,11 @@ it up. Keep the service-role key in server-only configuration.
   two minutes. An HttpOnly nonce and the reviewing account bind the browser
   continuation. Kino fetches only pinned client metadata URLs. Dynamic
   registrations stay unverified on the consent screen.
+- Authorization requests must name Kino's canonical `/mcp` resource. At token
+  exchange, Kino rejects any supplied resource that differs from that value.
+  If the field is absent, the database still requires the approved code or
+  refresh grant to match Kino's single resource. MCP validates that binding
+  again on every authorized request. [RFC 8707 §2.2](https://www.rfc-editor.org/rfc/rfc8707.html#section-2.2)
 - Access tokens expire after five minutes. The refresh family lasts at most
   30 days and rotates atomically. Reusing a refresh token revokes its family.
   Credentials are stored as hashes. SQL checks the account toggle under the
@@ -193,6 +198,81 @@ localized title, poster and Kino link.
 
 Run web typechecking and tests using the existing package scripts. The
 marketplace release and adapter tests run with Python. [Agensi release](../marketplace/agensi/README.md)
+
+### Local browser walkthrough on Windows
+
+From the repository root, with Docker Desktop running, PowerShell 7 and Node
+22.19+ available, and workspace dependencies installed, run:
+
+    pwsh -NoProfile -File apps/web/tests/agent/run-isolated.ps1 -Local
+
+Kino runs at `http://localhost:3000` and serves MCP at
+`http://localhost:3000/mcp`. Keep the PowerShell window open and free port 3000
+before starting the fixture. The terminal prints the simulator URL, both
+fixture account emails, and a password generated for this run. The owner
+account `owner@example.test` has a diary entry for *Arrival* and a private
+**Fixture Watchlist** containing that film.
+
+To run the flow in a browser, open the printed **OAuth simulator** URL and
+choose **Connect to Kino**. Sign in with the printed credentials, enable **AI
+Integration**, review the consent screen, and choose **Allow access**. The
+simulator receives the loopback callback and exchanges the code using PKCE.
+
+Use **List tools**, **Read diary**, or **Create private watchlist**. To check
+revocation, open **Settings → AI Integration** in Kino and turn off access.
+Return to the simulator and choose **Check access**. Its existing token should
+receive HTTP 401.
+
+Press Ctrl+C in the terminal to stop Next.js and remove the disposable containers.
+The runner stages the app source in a temporary directory. Restart the fixture
+to pick up source changes. The app uses a loopback Supabase Auth fixture and
+PostgREST backed by the disposable database.
+
+### Connect from Codex desktop on Windows
+
+1. In the desktop app, go to **Settings → MCP servers → Add server**.
+2. Name it `Kino Local`, choose **Streamable HTTP**, and enter
+   `http://localhost:3000/mcp`. Save and select **Restart**.
+3. Select **Authenticate** for **Kino Local**. Sign in with the fixture account
+   printed in PowerShell, enable **AI Integration**, and choose **Allow access**.
+4. In a local Codex chat, use `/mcp` to check the connection. Ask it to read
+   your Kino diary or find **Fixture Watchlist**.
+
+The fixture creates a fresh database each run. If a saved connection stops
+working after a restart, authenticate again for **Kino Local**. [Codex desktop MCP setup](https://learn.chatgpt.com/docs/extend/mcp?surface=desktop)
+
+### Automated browser tests
+
+    pwsh -NoProfile -File apps/web/tests/agent/run-isolated.ps1 -Browser
+
+This command installs Playwright's Chromium headless shell if needed, starts
+the same stack, and cleans it up after testing. The suite covers password
+login, the consent screen, PKCE exchange, MCP tool discovery, the diary read,
+a persisted private watchlist, refresh rotation, account isolation, and
+immediate revocation. The Codex fixture includes `resource` in authorization
+and omits it from the token requests to cover the reported client behavior.
+In development, a failed exchange logs `kino.oauth.token_rejected` with a
+request ID, a fixed reason, and parameter presence flags.
+It checks that `http://127.0.0.1:63457/callback` returns a Kino consent redirect
+with HTTP 303 using a fixture copy of Codex's client metadata. It then
+exercises Codex's published client ID with a dynamically allocated loopback port and
+ChatGPT's published client ID with its exact hosted callback URI. Playwright
+delivers that callback back to the loopback simulator. The browser tests use
+generated state and PKCE values and fixture discovery and account data.
+[Codex MCP](https://developers.openai.com/codex/mcp) · [ChatGPT OAuth](https://developers.openai.com/plugins/build/auth)
+
+### Optional live Codex metadata diagnostic
+
+    pwsh -NoProfile -File apps/web/tests/agent/run-isolated.ps1 -CodexMetadata
+
+This mode fetches [Codex's public client metadata](https://chatgpt.com/oauth/codex/client.json)
+and runs the `63457` authorization probe against disposable local Kino. It
+reports the metadata HTTP status and requires Kino to return HTTP 303 to the
+local consent page. The public request fetches only the metadata document,
+without fixture credentials. No callback listener or Chromium is needed for
+this probe. Run it with port 3000 free.
+
+### Isolated acceptance suite
 
 Run the connected acceptance suite from the repository root with Docker,
 PowerShell 7, Node 22.19+ and Python 3 available.

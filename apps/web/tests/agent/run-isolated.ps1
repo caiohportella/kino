@@ -1,6 +1,22 @@
 # Runs only against a disposable Postgres and PostgREST pair on the local Docker engine.
+[CmdletBinding(DefaultParameterSetName = 'Acceptance')]
+param(
+  [Parameter(Mandatory, ParameterSetName = 'Local')]
+  [switch] $Local,
+  [Parameter(Mandatory, ParameterSetName = 'Browser')]
+  [switch] $Browser,
+  [Parameter(Mandatory, ParameterSetName = 'CodexMetadata')]
+  [switch] $CodexMetadata
+)
+
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '../../../..')).Path
+$playwrightCli = Join-Path $repo 'apps/web/node_modules/playwright/cli.js'
+if ($Browser) {
+  if (-not (Test-Path -LiteralPath $playwrightCli)) { throw 'Install the workspace dependencies with pnpm install first.' }
+  node $playwrightCli install chromium --only-shell
+  if ($LASTEXITCODE) { throw 'Could not install the Playwright Chromium fixture.' }
+}
 $fixture = 'kino-agent-' + [guid]::NewGuid().ToString('n').Substring(0, 12)
 $database = "$fixture-pg"
 $rest = "$fixture-rest"
@@ -24,6 +40,7 @@ $originalSecret = $env:KINO_AGENT_TEST_JWT_SECRET
 $networkCreated = $false
 $dbStarted = $false
 $restStarted = $false
+$scratch = $null
 
 try {
   docker network create $fixture | Out-Null
@@ -67,6 +84,9 @@ grant select on public.watchlists, public.watchlist_items, public.watch_diary,
   Invoke-FixtureSql (Get-Content -Raw (Join-Path $repo 'database/migrations/20261117_kino_agent_api.sql'))
   Invoke-FixtureSql (Get-Content -Raw (Join-Path $repo 'database/migrations/20261118_kino_ai_oauth.sql'))
   Invoke-FixtureSql (Get-Content -Raw (Join-Path $repo 'database/tests/kino_agent_acceptance_fixture.sql'))
+  if ($Local -or $Browser -or $CodexMetadata) {
+    Invoke-FixtureSql (Get-Content -Raw (Join-Path $repo 'database/tests/kino_agent_browser_fixture.sql'))
+  }
 
   docker run --rm --detach --name $rest --network $fixture -p '127.0.0.1::3000' `
     -e "PGRST_DB_URI=postgresql://postgres@${database}:5432/postgres" -e PGRST_DB_SCHEMA=public `
@@ -87,8 +107,20 @@ grant select on public.watchlists, public.watchlist_items, public.watch_diary,
 
   Push-Location $repo
   try {
-    node --import ./apps/web/tests/agent/register.mjs --experimental-transform-types --test ./apps/web/tests/agent/acceptance.test.mjs ./apps/web/tests/agent/oauth.test.mjs
-    if ($LASTEXITCODE) { throw 'Connected acceptance tests failed.' }
+    if ($Local -or $Browser -or $CodexMetadata) {
+      $tempRoot = [IO.Path]::TrimEndingDirectorySeparator((Resolve-Path -LiteralPath ([IO.Path]::GetTempPath())).Path)
+      $scratch = (New-Item -ItemType Directory -Path (Join-Path $tempRoot "$fixture-web")).FullName
+    }
+    if ($Browser) {
+      node ./apps/web/tests/agent/local/start.mjs $scratch --browser
+    } elseif ($CodexMetadata) {
+      node ./apps/web/tests/agent/local/start.mjs $scratch --codex-metadata
+    } elseif ($Local) {
+      node ./apps/web/tests/agent/local/start.mjs $scratch
+    } else {
+      node --import ./apps/web/tests/agent/register.mjs --experimental-transform-types --test ./apps/web/tests/agent/acceptance.test.mjs ./apps/web/tests/agent/oauth.test.mjs
+    }
+    if ($LASTEXITCODE) { throw 'The isolated Kino fixture failed.' }
   } finally {
     Pop-Location
   }
@@ -98,4 +130,12 @@ grant select on public.watchlists, public.watchlist_items, public.watch_diary,
   if ($restStarted) { docker stop $rest | Out-Null }
   if ($dbStarted) { docker stop $database | Out-Null }
   if ($networkCreated) { docker network rm $fixture | Out-Null }
+  if ($scratch -and (Test-Path -LiteralPath $scratch)) {
+    $target = Get-Item -LiteralPath (Resolve-Path -LiteralPath $scratch).Path
+    if ($target.Parent.FullName -ne $tempRoot -or $target.Name -ne "$fixture-web" -or
+        $target.Attributes.HasFlag([IO.FileAttributes]::ReparsePoint)) {
+      throw 'Unexpected fixture workspace path.'
+    }
+    Remove-Item -LiteralPath $target.FullName -Recurse -Force
+  }
 }

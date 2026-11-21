@@ -15,8 +15,9 @@ export default function LoginPage() {
     setContinuation(consentPath(new URLSearchParams(window.location.search).get('ai_flow')))
   }, [])
   useEffect(() => {
-    if (continuation !== undefined && resolution.status === 'authenticated')
-      router.replace(continuation ?? '/discover')
+    if (continuation === undefined || resolution.status !== 'authenticated') return
+    if (continuation) window.location.replace(continuation)
+    else router.replace('/discover')
   }, [continuation, resolution.status, router])
 
   return (

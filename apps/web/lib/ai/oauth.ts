@@ -11,7 +11,13 @@ import {
   digest,
 } from '@/lib/agent/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
-import { AI_LOGIN_COOKIE, consentPath, flowCookie } from './continuation'
+import {
+  AI_LOGIN_COOKIE,
+  consentLoginPath,
+  consentPath,
+  flowCookie,
+  hasConsentProof,
+} from './continuation'
 
 const oauthScopes = ['kino.read', 'kino.write']
 const verifier = /^[A-Za-z0-9._~-]{43,128}$/
@@ -356,9 +362,9 @@ export async function browserUser() {
 }
 
 export async function loadBrowserConsent(flow: string, proof?: string) {
-  if (!consentPath(flow) || !proof || !nonce.test(proof)) return { client: null }
+  if (!hasConsentProof(flow, proof)) return { client: null }
   const user = await browserUser()
-  if (!user) return { login: `/auth/login?ai_flow=${flow}` }
+  if (!user) return { login: consentLoginPath(flow) }
   return { client: await consent(flow, proof, user.id, 'view').catch(() => null) }
 }
 
@@ -390,7 +396,7 @@ export function consent<T = Decision>(
   language: KinoLanguage = 'en',
   timezone = 'UTC'
 ) {
-  if (!consentPath(flow) || !nonce.test(proof)) return Promise.resolve(null)
+  if (!hasConsentProof(flow, proof)) return Promise.resolve(null)
   return agentRpc<T | null>(agentDb(), 'kino_ai_consent', {
     p_flow: flow,
     p_browser: digest(proof),
@@ -406,10 +412,10 @@ async function form(request: Request) {
   if (
     !/^application\/x-www-form-urlencoded(?:\s*;|$)/i.test(
       request.headers.get('content-type') ?? ''
-    ) ||
-    !request.body
+    )
   )
-    return null
+    return { reason: 'invalid_form_content_type' } as const
+  if (!request.body) return { reason: 'missing_form_body' } as const
   const reader = request.body.getReader()
   const decoder = new TextDecoder('utf-8', { fatal: true })
   let size = 0
@@ -420,41 +426,79 @@ async function form(request: Request) {
     size += chunk.value.byteLength
     if (size > 8192) {
       await reader.cancel()
-      return null
+      return { reason: 'form_too_large' } as const
     }
     value += decoder.decode(chunk.value, { stream: true })
   }
   const params = new URLSearchParams(value + decoder.decode())
-  return hasDuplicate(params) ? null : params
+  return hasDuplicate(params) ? ({ reason: 'duplicate_parameter', params } as const) : { params }
 }
 
-async function token(params: URLSearchParams, request: Request) {
+function tokenRejection(
+  requestId: string,
+  error: string,
+  reason: string,
+  params?: URLSearchParams,
+  status = 400
+) {
+  if (process.env.NODE_ENV === 'development') {
+    const grant = params?.get('grant_type')
+    const proof = params?.get('code_verifier')
+    console.warn('kino.oauth.token_rejected', {
+      requestId,
+      error,
+      status,
+      reason,
+      grantType: grant === 'authorization_code' || grant === 'refresh_token' ? grant : null,
+      presence: params
+        ? {
+            resource: params.has('resource'),
+            clientId: params.has('client_id'),
+            codeVerifier: params.has('code_verifier'),
+            redirectUri: params.has('redirect_uri'),
+            scope: params.has('scope'),
+            code: params.has('code'),
+            refreshToken: params.has('refresh_token'),
+          }
+        : null,
+      validCodeVerifier: proof === null || proof === undefined ? null : verifier.test(proof),
+    })
+  }
+  return failure(error, status, requestId)
+}
+
+async function token(params: URLSearchParams, request: Request, requestId: string) {
+  const reject = (error: string, reason: string, status?: number) =>
+    tokenRejection(requestId, error, reason, params, status)
   if (
     request.headers.has('authorization') ||
     params.has('client_secret') ||
     params.has('client_assertion')
   )
-    return failure('invalid_client', 401)
+    return reject('invalid_client', 'unsupported_client_authentication', 401)
   const kind = params.get('grant_type')
   if (kind !== 'authorization_code' && kind !== 'refresh_token')
-    return failure('unsupported_grant_type')
+    return reject('unsupported_grant_type', 'unsupported_grant')
   const client = params.get('client_id')
   const secret = params.get(kind === 'authorization_code' ? 'code' : 'refresh_token')
   const proof = params.get('code_verifier')
   const redirect = params.get('redirect_uri')
-  if (
-    !client ||
-    !secret ||
-    !nonce.test(secret) ||
-    (kind === 'authorization_code' && (!proof || !verifier.test(proof) || !redirect))
-  )
-    return failure('invalid_request')
-  if (params.has('resource') && params.get('resource') !== resource())
-    return failure('invalid_target')
-  if (kind === 'authorization_code' && !params.has('resource')) return failure('invalid_target')
+  if (!client) return reject('invalid_request', 'missing_client_id')
+  if (!secret || !nonce.test(secret)) return reject('invalid_request', 'invalid_grant_token_format')
+  if (kind === 'authorization_code' && (!proof || !verifier.test(proof)))
+    return reject('invalid_request', 'missing_or_malformed_code_verifier')
+  if (kind === 'authorization_code' && !redirect)
+    return reject('invalid_request', 'missing_redirect_uri')
+  const audience = resource()
+  if (params.has('resource') && params.get('resource') !== audience)
+    return reject('invalid_target', 'resource_mismatch')
+  // RFC 8707 allows a single-resource server to use the audience already bound to the grant.
+  // The exchange RPC still requires this audience to match the approved flow or refresh grant.
   const requested = params.get('scope')?.split(' ')
-  if (requested?.some((scope) => !oauthScopes.includes(scope))) return failure('invalid_scope')
-  if (requested && kind === 'authorization_code') return failure('invalid_request')
+  if (requested?.some((scope) => !oauthScopes.includes(scope)))
+    return reject('invalid_scope', 'unsupported_scope')
+  if (requested && kind === 'authorization_code')
+    return reject('invalid_request', 'scope_on_code_exchange')
   const access = `kino_mcp_${randomBytes(32).toString('base64url')}`
   const refresh = randomBytes(32).toString('base64url')
   const result = await agentRpc<{
@@ -467,13 +511,13 @@ async function token(params: URLSearchParams, request: Request) {
     p_client: client,
     p_redirect: redirect,
     p_challenge: proof ? createHash('sha256').update(proof).digest('base64url') : null,
-    p_resource: resource(),
+    p_resource: audience,
     p_access_hash: digest(access),
     p_refresh_hash: digest(refresh),
     p_requested: requested ? [...new Set(requested)].map((scope) => scope.slice(5)) : null,
   })
-  if (!result) return failure('invalid_grant')
-  if (result.error) return failure(result.error)
+  if (!result) return reject('invalid_grant', 'grant_rejected_by_database')
+  if (result.error) return reject('invalid_scope', 'scope_exceeds_grant')
   return Response.json(
     {
       access_token: access,
@@ -535,14 +579,26 @@ async function browserPost(request: Request, action: string, params: URLSearchPa
 }
 
 export async function oauthPost(request: Request, action: string) {
+  const requestId = action === 'token' ? randomUUID() : undefined
+  let tokenParams: URLSearchParams | undefined
   try {
-    if (new URL(request.url).search) return failure('invalid_request')
+    if (new URL(request.url).search)
+      return requestId
+        ? tokenRejection(requestId, 'invalid_request', 'unexpected_query_parameters')
+        : failure('invalid_request')
     if (action === 'register') return await register(request)
     if (!['token', 'revoke', 'consent', 'settings'].includes(action))
       return failure('invalid_request', 404)
-    const params = await form(request)
-    if (!params) return failure('invalid_request')
-    if (action === 'token') return await token(params, request)
+    const parsed = await form(request)
+    if (parsed.reason)
+      return requestId
+        ? tokenRejection(requestId, 'invalid_request', parsed.reason, parsed.params)
+        : failure('invalid_request')
+    const { params } = parsed
+    if (requestId) {
+      tokenParams = params
+      return await token(params, request, requestId)
+    }
     if (action === 'revoke') {
       const client = params.get('client_id')
       const supplied = params.get('token')
@@ -567,7 +623,22 @@ export async function oauthPost(request: Request, action: string) {
       error instanceof TypeError ||
       (error instanceof AgentError && error.code === 'validation_error')
     )
-      return failure('invalid_request')
-    return failure('temporarily_unavailable', 503)
+      return requestId
+        ? tokenRejection(
+            requestId,
+            'invalid_request',
+            tokenParams ? 'invalid_token_request' : 'invalid_form_encoding',
+            tokenParams
+          )
+        : failure('invalid_request')
+    return requestId
+      ? tokenRejection(
+          requestId,
+          'temporarily_unavailable',
+          'token_exchange_unavailable',
+          tokenParams,
+          503
+        )
+      : failure('temporarily_unavailable', 503)
   }
 }
