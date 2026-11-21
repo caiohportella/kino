@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
-import { createHash, createHmac, randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { once } from 'node:events'
 import { createServer } from 'node:http'
 import test from 'node:test'
 import { createClient } from '@supabase/supabase-js'
+import { NextResponse } from 'next/server'
 import { GET as issuerMetadata } from '../../app/.well-known/oauth-authorization-server/route.ts'
 import { GET as resourceMetadata } from '../../app/.well-known/oauth-protected-resource/[[...path]]/route.ts'
 import { POST as mcp } from '../../app/mcp/route.ts'
@@ -13,21 +14,17 @@ import { flowCookie } from '../../lib/ai/continuation.ts'
 import { loadBrowserConsent } from '../../lib/ai/oauth.ts'
 import { createServerSupabaseClient } from '../../lib/supabase/server.ts'
 import { catalogFixture } from './catalog-fixture.mjs'
+import { clientDocuments } from './client-documents.mjs'
+import { createFixtureAuth, fixtureUsers, fixtureJwt as jwt } from './fixture-auth.mjs'
 import { withCookies } from './fixture-cookies.mjs'
 
 const owner = 'd0000000-0000-4000-8000-000000000000'
 const other = 'e0000000-0000-4000-8000-000000000000'
 const redirect = 'http://127.0.0.1:40901/callback'
 const context = (action) => ({ params: Promise.resolve({ action }) })
-const clientIdUrl = 'https://chatgpt.com/oauth/client.json'
-const clientCallback = 'https://chatgpt.com/connector_platform_oauth_redirect'
-
-function jwt(role, secret, sub) {
-  const encoded = (value) => Buffer.from(JSON.stringify(value)).toString('base64url')
-  const body = encoded({ role, sub, exp: Math.floor(Date.now() / 1000) + 3600 })
-  const unsigned = encoded({ typ: 'JWT', alg: 'HS256' }) + '.' + body
-  return unsigned + '.' + createHmac('sha256', secret).update(unsigned).digest('base64url')
-}
+const clientIdUrl = clientDocuments.chatgpt.client_id
+const clientCallback = clientDocuments.chatgpt.redirect_uris[0]
+const codexIdUrl = clientDocuments.codex.client_id
 
 function callback(response) {
   return new URL(response.headers.get('location'))
@@ -54,6 +51,7 @@ test('Kino OAuth lifecycle through Next route handlers and the MCP SDK', async (
   const resource = origin + '/mcp'
   const rest = new URL(process.env.KINO_AGENT_TEST_POSTGREST_URL)
   const jwtSecret = process.env.KINO_AGENT_TEST_JWT_SECRET
+  const fixtureAuth = createFixtureAuth(jwtSecret)
   assert.equal(rest.hostname, '127.0.0.1')
   assert.equal(rest.protocol, 'http:')
   assert.ok(jwtSecret?.length >= 32)
@@ -64,62 +62,13 @@ test('Kino OAuth lifecycle through Next route handlers and the MCP SDK', async (
   process.env.SUPABASE_SERVICE_ROLE_KEY = jwt('service_role', jwtSecret)
   process.env.TMDB_API_KEY = 'fixture-only'
   const originalFetch = globalThis.fetch
-  const fixtureUsers = new Map([
-    [owner, 'owner@example.test'],
-    [other, 'other@example.test'],
-  ])
-  const sessionToken = (user) => jwt('authenticated', jwtSecret, user)
-  const fixtureUser = (id) => ({
-    id,
-    email: fixtureUsers.get(id),
-    aud: 'authenticated',
-    role: 'authenticated',
-    app_metadata: {},
-    user_metadata: {},
-  })
-
   globalThis.fetch = async (input, init) => {
     const url = new URL(input instanceof Request ? input.url : input)
     if (url.origin === 'https://api.themoviedb.org') return catalogFixture(url)
-    if (url.href === clientIdUrl)
-      return Response.json({
-        client_id: clientIdUrl,
-        client_name: 'Ignored remote label',
-        redirect_uris: [clientCallback],
-        token_endpoint_auth_methods_supported: ['none', 'private_key_jwt'],
-      })
+    const metadata = Object.values(clientDocuments).find((doc) => doc.client_id === url.href)
+    if (metadata) return Response.json({ ...metadata, client_name: 'Ignored remote label' })
     assert.equal(url.origin, rest.origin)
-    if (url.pathname === '/auth/v1/token') {
-      const { email, password } = JSON.parse(init.body)
-      const user = [...fixtureUsers].find(([, address]) => address === email)?.[0]
-      if (!user || password !== 'fixture-password')
-        return Response.json(
-          { code: 'invalid_credentials', message: 'Invalid login' },
-          { status: 400 }
-        )
-      return Response.json({
-        access_token: sessionToken(user),
-        token_type: 'bearer',
-        expires_in: 3600,
-        refresh_token: 'fixture-auth-session',
-        user: fixtureUser(user),
-      })
-    }
-    if (url.pathname === '/auth/v1/user') {
-      const header = new Headers(init.headers).get('authorization')
-      const user = [...fixtureUsers.keys()].find((id) => header === 'Bearer ' + sessionToken(id))
-      // JWT expiry changes by second. Decode the candidate then check its signature.
-      const token = header?.split(' ')[1] ?? ''
-      const parts = token.split('.')
-      const valid =
-        parts.length === 3 &&
-        createHmac('sha256', jwtSecret).update(parts.slice(0, 2).join('.')).digest('base64url') ===
-          parts[2]
-      const subject = user ?? (valid ? JSON.parse(Buffer.from(parts[1], 'base64url')).sub : null)
-      return fixtureUsers.has(subject)
-        ? Response.json(fixtureUser(subject))
-        : Response.json({ code: 'bad_jwt', message: 'Invalid session' }, { status: 401 })
-    }
+    if (url.pathname.startsWith('/auth/v1/')) return fixtureAuth.handle(new Request(url, init))
     url.pathname = url.pathname.replace(/^\/rest\/v1/, '')
     return originalFetch(url, init)
   }
@@ -142,11 +91,15 @@ test('Kino OAuth lifecycle through Next route handlers and the MCP SDK', async (
     await withCookies(jar, async () => {
       const auth = await createServerSupabaseClient()
       const response = await auth.auth.signInWithPassword({
-        email: fixtureUsers.get(id),
-        password: 'fixture-password',
+        email: fixtureUsers.find((user) => user.id === id).email,
+        password: fixtureAuth.password,
       })
       assert.equal(response.error, null)
       assert.equal(response.data.user.id, id)
+      const refreshed = await auth.auth.refreshSession()
+      assert.equal(refreshed.error, null)
+      assert.equal(refreshed.data.user.id, id)
+      assert.notEqual(refreshed.data.session.refresh_token, response.data.session.refresh_token)
     })
   }
   function post(action, body, jar = cookies, headers = {}) {
@@ -206,6 +159,121 @@ test('Kino OAuth lifecycle through Next route handlers and the MCP SDK', async (
     return { response, flow, proof }
   }
 
+  await t.test('published clients use exact callbacks and registered loopback ports', async () => {
+    for (const redirect_uri of [
+      'http://127.0.0.1:63457/callback',
+      'http://localhost:43210/callback',
+    ]) {
+      const { flow, response } = await start('kino.read', { client_id: codexIdUrl, redirect_uri })
+      assert.equal(response.status, 303)
+      assert.ok(flow)
+      assert.equal(callback(response).pathname, '/auth/authorize')
+    }
+    for (const redirect_uri of [
+      'http://127.0.0.1:43210/different',
+      'http://localhost:43210/callback?next=elsewhere',
+      'http://[::1]:43210/callback',
+    ]) {
+      const { response } = await start('kino.read', { client_id: codexIdUrl, redirect_uri })
+      assert.equal(response.status, 400)
+      assert.equal(response.headers.has('location'), false)
+    }
+  })
+
+  await t.test(
+    'authorization logs safe, correlated diagnostics for each failure stage',
+    async (t) => {
+      const unsafe = 'fixture-sensitive-material'
+      const log = t.mock.method(console, 'error', () => {})
+      const published = { client_id: clientIdUrl, redirect_uri: clientCallback, state: unsafe }
+      const check = async (expected, status = 503) => {
+        const count = log.mock.callCount()
+        const { response } = await start('kino.read', published)
+        const requestId = response.headers.get('x-request-id')
+        assert.equal(response.status, status)
+        assert.equal(response.headers.get('cache-control'), 'no-store')
+        assert.equal(response.headers.has('location'), false)
+        assert.match(requestId, /^[a-f0-9-]{36}$/)
+        assert.deepEqual(await response.json(), {
+          error: status === 503 ? 'temporarily_unavailable' : 'invalid_request',
+        })
+        assert.equal(log.mock.callCount(), count + 1)
+        const [event, fields] = log.mock.calls.at(-1).arguments
+        assert.equal(event, 'kino.oauth.authorization_failed')
+        assert.deepEqual(JSON.parse(JSON.stringify(fields)), { requestId, ...expected })
+        assert.ok(!JSON.stringify(fields).includes(unsafe))
+      }
+
+      const fixtureFetch = globalThis.fetch
+      const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY
+      const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      try {
+        globalThis.fetch = async (input, init) => {
+          if (String(input) === clientIdUrl) throw new DOMException(unsafe, 'TimeoutError')
+          return fixtureFetch(input, init)
+        }
+        await check({ stage: 'client_metadata', errorType: 'timeout' })
+
+        globalThis.fetch = async (input, init) =>
+          String(input) === clientIdUrl ? Response.json(null) : fixtureFetch(input, init)
+        await check({ stage: 'client_metadata', errorType: 'invalid_client_document' }, 400)
+        globalThis.fetch = async (input, init) =>
+          String(input) === clientIdUrl
+            ? new Response(unsafe, { status: 503 })
+            : fixtureFetch(input, init)
+        await check({
+          stage: 'client_metadata',
+          errorType: 'client_metadata_http_error',
+          upstreamStatus: 503,
+        })
+        globalThis.fetch = fixtureFetch
+
+        delete process.env.SUPABASE_SERVICE_ROLE_KEY
+        await check({ stage: 'database_client', errorType: 'missing_service_role_key' })
+        process.env.SUPABASE_SERVICE_ROLE_KEY = serviceRole
+
+        delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        const { flow } = await start('kino.read', published)
+        assert.ok(flow, 'published-client authorization only needs the privileged database key')
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = anonKey
+
+        for (const [code, sanitized] of [
+          ['PGRST205', { databaseCode: 'PGRST205' }],
+          [unsafe, {}],
+        ]) {
+          globalThis.fetch = async (input, init) => {
+            if (
+              new URL(input instanceof Request ? input.url : input).pathname.endsWith(
+                '/kino_ai_flows'
+              )
+            )
+              return Response.json(
+                { code, message: unsafe, details: unsafe, hint: unsafe },
+                { status: 404 }
+              )
+            return fixtureFetch(input, init)
+          }
+          await check({
+            stage: 'authorization_flow_insert',
+            errorType: 'database_request_error',
+            databaseStatus: 404,
+            ...sanitized,
+          })
+        }
+        globalThis.fetch = fixtureFetch
+
+        t.mock.method(NextResponse, 'redirect', () => {
+          throw new TypeError(unsafe)
+        })
+        await check({ stage: 'consent_redirect', errorType: 'type_error' })
+      } finally {
+        globalThis.fetch = fixtureFetch
+        process.env.SUPABASE_SERVICE_ROLE_KEY = serviceRole
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = anonKey
+      }
+    }
+  )
+
   const view = (flow, jar = cookies) =>
     withCookies(jar, () => loadBrowserConsent(flow, jar.get(flowCookie(flow))))
   const decision = (flow, choice, jar = cookies, headers) =>
@@ -227,6 +295,16 @@ test('Kino OAuth lifecycle through Next route handlers and the MCP SDK', async (
       code_verifier: challenge,
       redirect_uri: redirect,
       resource,
+      ...override,
+    })
+  const codexRedirect = 'http://127.0.0.1:63457/callback'
+  const codexExchange = (code, proof, override = {}) =>
+    post('token', {
+      grant_type: 'authorization_code',
+      client_id: codexIdUrl,
+      code,
+      code_verifier: proof,
+      redirect_uri: codexRedirect,
       ...override,
     })
   const refresh = (token) =>
@@ -353,7 +431,7 @@ test('Kino OAuth lifecycle through Next route handlers and the MCP SDK', async (
   let connection
   await t.test(
     'sign-in continuation, explicit enable and consent, one-time code and PKCE',
-    async () => {
+    async (t) => {
       const { flow, proof } = await start()
       assert.equal((await view(flow)).login, '/auth/login?ai_flow=' + flow)
       assert.equal((await view(flow, new Map())).client, null)
@@ -383,15 +461,94 @@ test('Kino OAuth lifecycle through Next route handlers and the MCP SDK', async (
       assert.equal(result.origin + result.pathname, redirect)
       assert.equal(result.searchParams.get('state'), 'fixture-csrf-state')
       const code = result.searchParams.get('code')
-      assert.equal((await exchange(code, randomBytes(50).toString('base64url'))).status, 400)
-      assert.equal((await exchange(code, proof, { redirect_uri: redirect + 'x' })).status, 400)
-      assert.equal((await exchange(code, proof, { resource: origin + '/other' })).status, 400)
+      const log = t.mock.method(console, 'warn', () => {})
+      async function rejected(response, error, reason, status = 400) {
+        assert.equal(response.status, status)
+        assert.deepEqual(await response.json(), { error })
+        const requestId = response.headers.get('x-request-id')
+        assert.match(requestId, /^[a-f0-9-]{36}$/)
+        const [event, fields] = log.mock.calls.at(-1).arguments
+        assert.equal(event, 'kino.oauth.token_rejected')
+        assert.deepEqual(
+          { requestId, error, reason, status },
+          {
+            requestId: fields.requestId,
+            error: fields.error,
+            reason: fields.reason,
+            status: fields.status,
+          }
+        )
+        const output = JSON.stringify(fields)
+        for (const sensitive of [code, proof, redirect, clientId, 'private-test-input'])
+          assert.equal(output.includes(sensitive), false)
+        return fields
+      }
+      const flags = await rejected(
+        await exchange(code, 'private-test-input'),
+        'invalid_request',
+        'missing_or_malformed_code_verifier'
+      )
+      assert.equal(flags.validCodeVerifier, false)
+      assert.deepEqual(flags.presence, {
+        resource: true,
+        clientId: true,
+        codeVerifier: true,
+        redirectUri: true,
+        scope: false,
+        code: true,
+        refreshToken: false,
+      })
+      const formResponse = await oauth(
+        new Request(origin + '/oauth/token', {
+          method: 'POST',
+          headers: { 'content-type': 'application/x-www-form-urlencoded' },
+          body: 'client_id=private-test-input&client_id=private-test-input',
+        }),
+        context('token')
+      )
+      await rejected(formResponse, 'invalid_request', 'duplicate_parameter')
+      await rejected(
+        await exchange(code, proof, { grant_type: 'private-test-input' }),
+        'unsupported_grant_type',
+        'unsupported_grant'
+      )
+      await rejected(
+        await exchange(code, proof, { scope: 'private-test-input' }),
+        'invalid_scope',
+        'unsupported_scope'
+      )
+      await rejected(
+        await exchange(code, proof, { scope: 'kino.read' }),
+        'invalid_request',
+        'scope_on_code_exchange'
+      )
+      await rejected(
+        await exchange(code, randomBytes(50).toString('base64url')),
+        'invalid_grant',
+        'grant_rejected_by_database'
+      )
+      await rejected(
+        await exchange(code, proof, { redirect_uri: redirect + 'x' }),
+        'invalid_grant',
+        'grant_rejected_by_database'
+      )
+      await rejected(
+        await exchange(code, proof, { client_id: codexIdUrl }),
+        'invalid_grant',
+        'grant_rejected_by_database'
+      )
+      for (const incorrectResource of ['', origin + '/other'])
+        await rejected(
+          await exchange(code, proof, { resource: incorrectResource }),
+          'invalid_target',
+          'resource_mismatch'
+        )
       const issued = await exchange(code, proof)
       assert.equal(issued.status, 200, await issued.clone().text())
       connection = await issued.json()
       assert.equal(connection.scope, 'kino.read kino.write')
       assert.ok(connection.expires_in <= 300)
-      assert.equal((await exchange(code, proof)).status, 400)
+      await rejected(await exchange(code, proof), 'invalid_grant', 'grant_rejected_by_database')
       assert.equal((await decision(flow, 'approve')).status, 400)
     }
   )
@@ -457,6 +614,18 @@ test('Kino OAuth lifecycle through Next route handlers and the MCP SDK', async (
     const rejected = callback(await decision(denied.flow, 'deny'))
     assert.equal(rejected.searchParams.get('error'), 'access_denied')
     assert.equal(rejected.searchParams.has('code'), false)
+    const expired = await start('kino.read', { client_id: codexIdUrl, redirect_uri: codexRedirect })
+    const expiring = callback(await decision(expired.flow, 'approve'))
+    await rows(
+      db
+        .from('kino_ai_flows')
+        .update({ code_expires_at: '2000-01-01T00:00:00Z' })
+        .eq('id', expired.flow)
+    )
+    assert.deepEqual(
+      await (await codexExchange(expiring.searchParams.get('code'), expired.proof)).json(),
+      { error: 'invalid_grant' }
+    )
     const readOnly = await approve('kino.read')
     const scope = await call(readOnly.access_token, 'create_watchlist', {})
     assert.equal(scope.response.status, 403)
@@ -494,6 +663,67 @@ test('Kino OAuth lifecycle through Next route handlers and the MCP SDK', async (
       assert.equal((await refresh(connection.refresh_token)).status, 400)
       assert.equal((await refresh(rotated.refresh_token)).status, 400)
       assert.equal((await call(rotated.access_token, 'get_diary', {})).response.status, 401)
+
+      const codex = await start('kino.read', { client_id: codexIdUrl, redirect_uri: codexRedirect })
+      const approved = await decision(codex.flow, 'approve')
+      assert.equal(approved.status, 303)
+      const target = callback(approved)
+      assert.equal(target.origin + target.pathname, codexRedirect)
+      const codexCode = target.searchParams.get('code')
+      process.env.KINO_AGENT_ORIGIN = 'http://localhost:65500'
+      try {
+        const foreign = await codexExchange(codexCode, codex.proof)
+        assert.deepEqual(await foreign.json(), { error: 'invalid_grant' })
+      } finally {
+        process.env.KINO_AGENT_ORIGIN = origin
+      }
+      const codexResponse = await codexExchange(codexCode, codex.proof)
+      assert.equal(codexResponse.status, 200)
+      const codexTokens = await codexResponse.json()
+      assert.deepEqual(await (await codexExchange(codexCode, codex.proof)).json(), {
+        error: 'invalid_grant',
+      })
+      assert.equal(
+        await rows(
+          db.rpc('kino_ai_access', {
+            p_hash: digest(codexTokens.access_token),
+            p_resource: origin + '/other',
+          })
+        ),
+        null
+      )
+      const codexTools = await requestMcp(codexTokens.access_token, 'tools/list', {})
+      assert.equal(codexTools.response.status, 200)
+      assert.equal(codexTools.data.result.tools.length, 9)
+      const codexRefresh = (token, override = {}) =>
+        post('token', {
+          grant_type: 'refresh_token',
+          client_id: codexIdUrl,
+          refresh_token: token,
+          ...override,
+        })
+      assert.deepEqual(
+        await (await codexRefresh(codexTokens.refresh_token, { scope: 'kino.write' })).json(),
+        { error: 'invalid_scope' }
+      )
+      const codexRotated = await codexRefresh(codexTokens.refresh_token)
+      assert.equal(codexRotated.status, 200)
+      const renewed = await codexRotated.json()
+      assert.notEqual(renewed.refresh_token, codexTokens.refresh_token)
+      assert.equal((await requestMcp(renewed.access_token, 'tools/list', {})).response.status, 200)
+      assert.deepEqual(await (await codexRefresh(codexTokens.refresh_token)).json(), {
+        error: 'invalid_grant',
+      })
+      assert.equal((await requestMcp(renewed.access_token, 'tools/list', {})).response.status, 401)
+
+      const explicit = await start('kino.read', {
+        client_id: codexIdUrl,
+        redirect_uri: codexRedirect,
+      })
+      const explicitCode = callback(await decision(explicit.flow, 'approve')).searchParams.get(
+        'code'
+      )
+      assert.equal((await codexExchange(explicitCode, explicit.proof, { resource })).status, 200)
 
       const active = await approve()
       await post('settings', { enabled: 'false' })

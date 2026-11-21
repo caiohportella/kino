@@ -1,4 +1,6 @@
 -- Run only in an empty, isolated database. Requires the Kino schema and agent migration.
+grant select (id), update (code_expires_at) on public.kino_ai_flows to service_role;
+
 insert into auth.users(id) values
   ('a0000000-0000-4000-8000-000000000000'),
   ('b0000000-0000-4000-8000-000000000000'),

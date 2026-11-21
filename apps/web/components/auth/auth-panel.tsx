@@ -145,7 +145,7 @@ export function AuthPanel({
         setMessage('Check your inbox for a secure sign-in link.')
       } else {
         await signInWithEmail(cleanLoginEmail, loginPassword)
-        router.replace(aiContinuation ?? consumeStoredAuthRedirect('/discover'))
+        if (!aiContinuation) router.replace(consumeStoredAuthRedirect('/discover'))
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not sign in.')
